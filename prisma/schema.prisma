@@ -1,0 +1,247 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  password        String
+  firstName       String?
+  lastName        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  permissions     Json?
+  servicesCreated Service[] @relation("ServiceCreatedBy")
+  servicesUpdated Service[] @relation("ServiceUpdatedBy")
+
+  @@map("users")
+}
+
+model Country {
+  id                  String            @id @default(uuid())
+  name                String
+  code2               String            @unique
+  code3               String            @unique
+  numeric             String?
+  subregion1          String?
+  subregion2          String?
+  subregion3          String?
+  createdAt           DateTime?         @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime?         @default(now()) @updatedAt @db.Timestamptz(6)
+  parentId            String?
+  disabled            Boolean?
+  parent              Country?          @relation("CountryToCountry", fields: [parentId], references: [id])
+  children            Country[]         @relation("CountryToCountry")
+  serviceAvailability DSXAvailability[]
+  mappings            DSXMapping[]
+
+  @@index([parentId])
+  @@map("countries")
+}
+
+model Service {
+  id                String               @id @default(uuid())
+  name              String
+  category          String
+  description       String?
+  disabled          Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  createdById       String?
+  updatedById       String?
+  functionalityType String               @default("other")
+  customerServices  CustomerService[]
+  availability      DSXAvailability[]
+  mappings          DSXMapping[]
+  packageServices   PackageService[]
+  serviceRequirements ServiceRequirement[] // New relation
+  createdBy         User?                @relation("ServiceCreatedBy", fields: [createdById], references: [id])
+  updatedBy         User?                @relation("ServiceUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("services")
+}
+
+model DataField {
+  id           String  @id @default(uuid())
+  serviceId    String
+  label        String
+  shortName    String
+  dataType     String
+  instructions String?
+
+  @@map("data_fields")
+}
+
+model Document {
+  id           String  @id @default(uuid())
+  serviceId    String
+  name         String
+  instructions String?
+  scope        String
+  filePath     String?
+
+  @@map("documents")
+}
+
+model Translation {
+  id       String @id @default(uuid())
+  labelKey String
+  language String
+  value    String
+
+  @@unique([labelKey, language])
+  @@map("translations")
+}
+
+model Customer {
+  id               String            @id @default(uuid())
+  name             String
+  address          String?
+  contactName      String?
+  contactEmail     String?
+  contactPhone     String?
+  invoiceTerms     String?
+  invoiceContact   String?
+  invoiceMethod    String?
+  disabled         Boolean           @default(false)
+  allowedServices  Json?
+  
+  // Master-Subaccount relationship
+  masterAccountId  String?
+  masterAccount    Customer?         @relation("MasterSubaccounts", fields: [masterAccountId], references: [id])
+  subaccounts      Customer[]        @relation("MasterSubaccounts")
+  
+  // Billing relationship
+  billingAccountId String?
+  billingAccount   Customer?         @relation("BillingAccounts", fields: [billingAccountId], references: [id])
+  billedAccounts   Customer[]        @relation("BillingAccounts")
+  
+  createdAt        DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+  
+  // Relations
+  services         CustomerService[]
+  packages         Package[]
+
+  @@index([masterAccountId])
+  @@index([billingAccountId])
+  @@map("customers")
+}
+
+model Package {
+  id              String           @id @default(uuid())
+  customerId      String
+  name            String
+  description     String?
+  packageServices PackageService[]
+  customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("packages")
+}
+
+// Updated DSXRequirement model - removed direct serviceId
+model DSXRequirement {
+  id           String               @id @default(uuid())
+  name         String
+  type         String
+  fieldData    Json?
+  documentData Json?
+  formData     Json?
+  disabled     Boolean              @default(false)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  mappings     DSXMapping[]
+  serviceRequirements ServiceRequirement[] // New relation
+
+  @@index([type])
+  @@map("dsx_requirements")
+}
+
+// New join table for many-to-many relationship
+model ServiceRequirement {
+  id            String         @id @default(uuid())
+  serviceId     String
+  requirementId String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  service       Service        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  requirement   DSXRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, requirementId])
+  @@index([serviceId])
+  @@index([requirementId])
+  @@map("service_requirements")
+}
+
+model DSXAvailability {
+  id                String   @id @default(uuid())
+  serviceId         String
+  locationId        String
+  isAvailable       Boolean  @default(true)
+  unavailableReason String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  country           Country  @relation(fields: [locationId], references: [id])
+  service           Service  @relation(fields: [serviceId], references: [id])
+
+  @@unique([serviceId, locationId])
+  @@index([serviceId])
+  @@index([locationId])
+  @@map("dsx_availability")
+}
+
+model DSXMapping {
+  id            String         @id @default(uuid())
+  serviceId     String
+  locationId    String
+  requirementId String
+  isRequired    Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  country       Country        @relation(fields: [locationId], references: [id])
+  requirement   DSXRequirement @relation(fields: [requirementId], references: [id])
+  service       Service        @relation(fields: [serviceId], references: [id])
+
+  @@unique([serviceId, locationId, requirementId])
+  @@index([serviceId])
+  @@index([locationId])
+  @@index([requirementId])
+  @@map("dsx_mappings")
+}
+
+model CustomerService {
+  id         String   @id @default(uuid())
+  customerId String
+  serviceId  String
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([customerId, serviceId])
+  @@index([customerId])
+  @@index([serviceId])
+  @@map("customer_services")
+}
+
+model PackageService {
+  id        String   @id @default(uuid())
+  packageId String
+  serviceId String
+  scope     Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([packageId, serviceId])
+  @@index([packageId])
+  @@index([serviceId])
+  @@map("package_services")
+}

@@ -1,0 +1,89 @@
+# GlobalRX Debugging Guide
+
+## Authentication & Authorization
+
+### Checking User Permissions
+
+Use the API debug endpoint to verify what permissions your current user has:
+
+```bash
+curl localhost:3000/api/debug-session
+```
+
+Or visit `/api/debug-session` in your browser.
+
+### Permission Structure
+
+The application supports multiple permission formats:
+
+- Array-based: `{"customers": ["*"]}`
+- Object-based: `{"customers": {"view": true}}`
+- Boolean flags: `{"admin": true}`
+
+The utilities in `src/lib/permission-utils.ts` handle all these formats.
+
+### Debugging Permission Issues
+
+If you're seeing "Forbidden" errors:
+
+1. Check if you're logged in as the right user
+2. Use the `/api/debug-session` endpoint to see your actual permissions
+3. Ensure the frontend is using `useAuth` from `@/contexts/AuthContext` (not from `hooks/useAuth.ts` or `auth-interceptor.tsx`)
+4. Check if you need specific permissions for the action (e.g., `customers.edit` vs just `customers.view`)
+
+## Common Fixes
+
+### Authentication Component Usage
+
+**IMPORTANT**: Always use the AuthContext from `src/contexts/AuthContext.tsx` which uses the permission utilities correctly:
+
+```jsx
+import { useAuth } from '@/contexts/AuthContext';
+```
+
+Avoid using:
+- `import { useAuth } from '@/hooks/useAuth';`
+- `import { useAuth } from '@/components/auth/auth-interceptor';`
+
+### Running commands
+
+Recommended commands to run after making changes:
+
+```bash
+# Development server
+npm run dev
+
+# Build check
+npm run build
+
+# Type checking
+npm run typecheck
+
+# Lint check
+npm run lint
+```
+
+## API Routes with Permission Checks
+
+The following API routes require specific permissions:
+
+- `/api/packages/[id]` - Requires `customers.view` for GET, `customers.edit` for PUT/DELETE
+- `/api/customers/[id]/packages` - Requires `customers.view` for GET, `customers.edit` for POST
+
+## Provider Setup 
+
+The application's providers should be set up in this order in `client-provider.tsx`:
+
+```jsx
+<SessionProvider>
+  <TranslationProvider>
+    <AuthProvider> {/* From @/contexts/AuthContext */}
+      <LocationProvider>
+        <DSXProvider>
+          {children}
+        </DSXProvider>
+      </LocationProvider>
+    </AuthProvider>
+  </TranslationProvider>
+</SessionProvider>
+```
