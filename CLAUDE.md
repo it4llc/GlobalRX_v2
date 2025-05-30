@@ -31,6 +31,19 @@ If you're seeing "Forbidden" errors:
 3. Ensure the frontend is using `useAuth` from `@/contexts/AuthContext` (not from `hooks/useAuth.ts` or `auth-interceptor.tsx`)
 4. Check if you need specific permissions for the action (e.g., `customers.edit` vs just `customers.view`)
 
+## Work Process
+
+### CRITICAL: Verify Changes Before Committing
+
+NEVER commit changes before they have been verified as working! Follow this process:
+
+1. Identify an issue
+2. Make changes to address the issue
+3. WAIT for explicit user confirmation that the changes work
+4. Only after confirmation, stage and commit the changes
+
+This pattern must be followed for EVERY change - no exceptions!
+
 ## Common Fixes
 
 ### Authentication Component Usage

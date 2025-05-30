@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { StandardDropdown } from '@/components/ui/standard-dropdown';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';

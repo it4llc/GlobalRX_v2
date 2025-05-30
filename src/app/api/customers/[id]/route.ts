@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
-// Validation schema
+// Validation schema for updating a customer
 const customerUpdateSchema = z.object({
   name: z.string().min(1, "Customer name is required").optional(),
   address: z.string().optional().nullable(),
@@ -72,7 +72,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = params;
 
     // Get customer with related data
     const customer = await prisma.customer.findUnique({
@@ -120,16 +120,22 @@ export async function GET(
       );
     }
 
-    // Format the response
+    // Format services for easier consumption
     const formattedCustomer = {
       ...customer,
-      services: customer.services.map(cs => cs.service),
-      serviceIds: customer.services.map(cs => cs.service.id)
+      serviceIds: customer.services.map(cs => cs.service.id),
+      services: customer.services.map(cs => ({
+        id: cs.service.id,
+        name: cs.service.name,
+        category: cs.service.category,
+        description: cs.service.description,
+        functionalityType: cs.service.functionalityType
+      })),
     };
 
     return NextResponse.json(formattedCustomer);
   } catch (error) {
-    console.error(`Error in GET /api/customers/${id}:`, error);
+    console.error(`Error in GET /api/customers/${params.id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -159,11 +165,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = params;
 
     // Check if customer exists
     const existingCustomer = await prisma.customer.findUnique({
-      where: { id: id }
+      where: { id }
     });
 
     if (!existingCustomer) {
@@ -187,6 +193,9 @@ export async function PUT(
 
     const data = validationResult.data;
     const { serviceIds, ...customerData } = data;
+    
+    // Debug the customer data being sent to the database
+    console.log("Customer update data:", JSON.stringify(customerData, null, 2));
 
     // Validation checks
     if (data.masterAccountId) {
@@ -215,7 +224,7 @@ export async function PUT(
       // Prevent circular references
       if (data.billingAccountId === id) {
         return NextResponse.json(
-          { error: 'A customer cannot bill to itself' },
+          { error: 'A customer cannot be its own billing account' },
           { status: 400 }
         );
       }
@@ -234,41 +243,145 @@ export async function PUT(
     }
 
     // Update customer with transaction to handle service relationships
-    const updatedCustomer = await prisma.$transaction(async (tx) => {
-      // Update the customer
-      const customer = await tx.customer.update({
-        where: { id: id },
-        data: customerData,
+    try {
+      // Extract fields from customerData that we know exist in the schema
+      const { 
+        name,
+        address,
+        contactName,
+        contactEmail,
+        contactPhone,
+        invoiceTerms,
+        invoiceContact,
+        invoiceMethod,
+        masterAccountId,
+        billingAccountId
+      } = customerData;
+      
+      // Create a clean object with only the fields that exist in the Prisma schema
+      const validUpdateData = {
+        name,
+        address,
+        contactName,
+        contactEmail, 
+        contactPhone,
+        invoiceTerms,
+        invoiceContact,
+        invoiceMethod
+      };
+      
+      // Log the cleaned data
+      console.log("Cleaned data for Prisma update:", {
+        validUpdateData,
+        relationFields: { masterAccountId, billingAccountId },
+        // Skip other fields that don't exist in the schema
+        ignoredFields: "primaryColor, secondaryColor, accentColor, dataRetentionDays, etc."
       });
-
-      // Update service relationships if provided
-      if (serviceIds !== undefined) {
-        // Delete existing relationships
-        await tx.customerService.deleteMany({
-          where: { customerId: id }
+      
+      // Prepare the update data with correct nested structure for relations
+      const prismaUpdateData = {
+        ...validUpdateData,
+        // If masterAccountId is null, disconnect the relation, otherwise connect to the specified ID
+        masterAccount: masterAccountId === null 
+          ? { disconnect: true } 
+          : masterAccountId 
+            ? { connect: { id: masterAccountId } }
+            : undefined,
+        // If billingAccountId is null, disconnect the relation, otherwise connect to the specified ID
+        billingAccount: billingAccountId === null 
+          ? { disconnect: true } 
+          : billingAccountId
+            ? { connect: { id: billingAccountId } }
+            : undefined
+      };
+      
+      const updatedCustomer = await prisma.$transaction(async (tx) => {
+        // Update the customer
+        const customer = await tx.customer.update({
+          where: { id },
+          data: prismaUpdateData,
         });
-
-        // Create new relationships
-        if (serviceIds.length > 0) {
-          await Promise.all(
-            serviceIds.map(serviceId =>
-              tx.customerService.create({
-                data: {
-                  customerId: id,
-                  serviceId,
-                },
-              })
-            )
-          );
+        
+        // Update service relationships if provided
+        if (serviceIds !== undefined) {
+          // Delete existing relationships
+          await tx.customerService.deleteMany({
+            where: { customerId: id }
+          });
+          
+          // Create new relationships
+          if (serviceIds.length > 0) {
+            await Promise.all(
+              serviceIds.map(serviceId =>
+                tx.customerService.create({
+                  data: {
+                    customerId: id,
+                    serviceId,
+                  },
+                })
+              )
+            );
+          }
         }
-      }
-
-      return customer;
-    });
-
-    return NextResponse.json(updatedCustomer);
+        
+        return customer;
+      });
+      
+      // Fetch the updated customer with all its relations
+      const completeCustomer = await prisma.customer.findUnique({
+        where: { id },
+        include: {
+          masterAccount: {
+            select: { id: true, name: true }
+          },
+          billingAccount: {
+            select: { id: true, name: true }
+          },
+          services: {
+            include: {
+              service: true
+            }
+          },
+          subaccounts: {
+            select: {
+              id: true,
+              name: true,
+              disabled: true
+            }
+          },
+          billedAccounts: {
+            select: {
+              id: true,
+              name: true,
+              disabled: true
+            }
+          }
+        }
+      });
+      
+      // Format the response
+      const formattedCustomer = {
+        ...completeCustomer,
+        serviceIds: completeCustomer.services.map(cs => cs.service.id),
+        services: completeCustomer.services.map(cs => ({
+          id: cs.service.id,
+          name: cs.service.name,
+          category: cs.service.category,
+          description: cs.service.description,
+          functionalityType: cs.service.functionalityType
+        })),
+      };
+      
+      return NextResponse.json(formattedCustomer);
+    } catch (txError) {
+      console.error("Transaction error:", txError);
+      return NextResponse.json(
+        { error: txError.message || 'Error updating customer data' },
+        { status: 500 }
+      );
+    }
   } catch (error) {
-    console.error(`Error in PUT /api/customers/${id}:`, error);
+    console.error(`Error in PUT /api/customers/${params.id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -297,11 +410,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = params;
 
     // Check if customer has subaccounts or billed accounts
     const customer = await prisma.customer.findUnique({
-      where: { id: id },
+      where: { id },
       include: {
         _count: {
           select: {
@@ -319,28 +432,29 @@ export async function DELETE(
       );
     }
 
-    // Prevent deletion if customer has dependencies
-    if (customer._count.subaccounts > 0 || customer._count.billedAccounts > 0) {
+    if (customer._count.subaccounts > 0) {
       return NextResponse.json(
-        { 
-          error: 'Cannot delete customer with dependencies',
-          details: {
-            subaccounts: customer._count.subaccounts,
-            billedAccounts: customer._count.billedAccounts
-          }
-        },
+        { error: `Cannot delete customer with ${customer._count.subaccounts} subaccounts` },
         { status: 400 }
       );
     }
 
-    // Delete the customer
-    await prisma.customer.delete({
-      where: { id: id }
+    if (customer._count.billedAccounts > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete customer with ${customer._count.billedAccounts} billed accounts` },
+        { status: 400 }
+      );
+    }
+
+    // Soft delete - set disabled flag instead of actually deleting
+    await prisma.customer.update({
+      where: { id },
+      data: { disabled: true }
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ message: 'Customer deleted successfully' });
   } catch (error) {
-    console.error(`Error in DELETE /api/customers/${id}:`, error);
+    console.error(`Error in DELETE /api/customers/${params.id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

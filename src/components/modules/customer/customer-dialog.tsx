@@ -25,14 +25,29 @@ const customerSchema = z.object({
   contactEmail: z.string().email("Invalid email address").optional().nullish(),
   contactPhone: z.string().optional().nullish(),
   accountType: z.enum(['master', 'subaccount']),
-  masterAccountId: z.string().uuid().optional().nullish(),
+  masterAccountId: z.union([z.string().uuid(), z.literal('')]).optional(),
   billingType: z.enum(['independent', 'through_other']),
-  billingAccountId: z.string().uuid().optional().nullish(),
+  billingAccountId: z.union([z.string().uuid(), z.literal('')]).optional(),
   invoiceTerms: z.string().optional().nullish(),
   invoiceContact: z.string().optional().nullish(),
   invoiceMethod: z.string().optional().nullish(),
   serviceIds: z.array(z.string().uuid()).default([])
-});
+})
+// Add conditional validation
+.refine(
+  (data) => data.accountType !== 'subaccount' || (data.masterAccountId && data.masterAccountId.length > 0),
+  {
+    message: "Master account is required for subaccounts",
+    path: ["masterAccountId"],
+  }
+)
+.refine(
+  (data) => data.billingType !== 'through_other' || (data.billingAccountId && data.billingAccountId.length > 0),
+  {
+    message: "Billing account is required when billing through another account",
+    path: ["billingAccountId"],
+  }
+);
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
 
@@ -88,13 +103,13 @@ export function CustomerDialog({ customerId, onClose }: CustomerDialogProps) {
     // Trigger validation
     trigger();
     
-    // Debug validation state
+    // Debug validation state without including in dependencies
     console.log("Form validation state:", {
       isValid,
       errors,
       formValues: formInputs
     });
-  }, [formInputs, setValue, trigger, isValid, errors]);
+  }, [formInputs, setValue, trigger]);
   
   // Show the dialog when the component mounts
   useEffect(() => {
@@ -226,13 +241,25 @@ export function CustomerDialog({ customerId, onClose }: CustomerDialogProps) {
       maxWidth="2xl"
       onClose={() => handleCloseDialog(false)}
       footer={
-        <DialogFooter
-          onCancel={() => handleCloseDialog(false)}
-          onConfirm={handleSubmit(onSubmit)}
-          disabled={isSubmitting || !isValid}
-          loading={isSubmitting}
-          confirmText={customerId ? 'Save Changes' : 'Create Customer'}
-        />
+        <>
+          {/* Debug info for form validation */}
+          <div className="text-xs text-gray-500 mb-2">
+            Form valid: {isValid ? 'Yes' : 'No'} | 
+            Required fields: name: "{formInputs.name}" | 
+            Account type: "{formInputs.accountType}" | 
+            {formInputs.accountType === 'subaccount' && `Master: "${formInputs.masterAccountId}" | `}
+            Billing: "{formInputs.billingType}" |
+            {formInputs.billingType === 'through_other' && `Billing Account: "${formInputs.billingAccountId}" | `}
+            Errors: {Object.keys(errors).length > 0 ? Object.keys(errors).join(', ') : 'None'}
+          </div>
+          <DialogFooter
+            onCancel={() => handleCloseDialog(false)}
+            onConfirm={handleSubmit(onSubmit)}
+            disabled={isSubmitting || !isValid}
+            loading={isSubmitting}
+            confirmText={customerId ? 'Save Changes' : 'Create Customer'}
+          />
+        </>
       }
     >
       {isLoading ? (
