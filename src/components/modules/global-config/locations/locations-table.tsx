@@ -1,7 +1,7 @@
 // src/components/modules/global-config/locations/locations-table.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function LocationsTable({ locations, isLoading, error, onRefresh }) {
@@ -244,9 +244,9 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
       const hasChildLocations = hasChildren(location);
       
       return (
-        <>
+        <React.Fragment key={location.id}>
           {/* Parent Row */}
-          <tr key={location.id} className={`hover:bg-gray-50 ${level > 0 ? 'border-t border-gray-100' : ''}`}>
+          <tr className={`hover:bg-gray-50 ${level > 0 ? 'border-t border-gray-100' : ''}`}>
             {editingLocation === location.id ? (
               // Edit mode
               <>
@@ -473,7 +473,7 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
           {/* Child Rows (rendered if parent is expanded) */}
           {isExpanded && hasChildLocations && 
             renderLocationRows(location.children, level + 1)}
-        </>
+        </React.Fragment>
       );
     });
   };
