@@ -22,8 +22,10 @@ export async function GET(request: NextRequest) {
       permissions: session.user.permissions 
     });
 
-    // Check if user has permission to access workflows
-    if (!hasPermission(session.user, "workflows", "view") && !hasPermission(session.user, "admin")) {
+    // Check if user has permission to access workflows (either directly or via customers permission)
+    if (!hasPermission(session.user, "workflows", "view") && 
+        !hasPermission(session.user, "customers", "view") && 
+        !hasPermission(session.user, "admin")) {
       console.log("Workflows API: User lacks permission");
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -116,8 +118,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to create workflows
-    if (!hasPermission(session.user, "workflows", "edit") && !hasPermission(session.user, "admin")) {
+    // Check if user has permission to create workflows (either directly or via customers permission)
+    if (!hasPermission(session.user, "workflows", "edit") && 
+        !hasPermission(session.user, "customers", "edit") && 
+        !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

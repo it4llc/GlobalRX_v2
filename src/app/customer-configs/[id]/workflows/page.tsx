@@ -45,9 +45,9 @@ export default function CustomerWorkflowsPage() {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | undefined>(undefined);
   
 
-  // Permission checks
-  const canManageWorkflows = checkPermission('workflows') || checkPermission('admin');
-  const canEditWorkflows = checkPermission('workflows') || checkPermission('admin');
+  // Permission checks - allow access with either workflow or customer permissions
+  const canManageWorkflows = checkPermission('workflows') || checkPermission('customers') || checkPermission('admin');
+  const canEditWorkflows = checkPermission('workflows') || checkPermission('customers', 'edit') || checkPermission('admin');
 
   // Helper function to refresh workflows
   const fetchWorkflows = async () => {

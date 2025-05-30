@@ -32,6 +32,16 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Import hasPermission at the top of the file
+    const { hasPermission } = await import('@/lib/permission-utils');
+
+    // Check if user has permission to view customers using hasPermission
+    if (!hasPermission(session.user, "customers", "view") && 
+        !hasPermission(session.user, "admin")) {
+      console.log("API: User lacks permission");
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Debug: Log user and permissions
     console.log("API: User:", session.user.email);
     console.log("API: Raw Permissions:", JSON.stringify(session.user.permissions || {}));
@@ -104,8 +114,12 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions
-    if (!session.user.permissions?.customers?.edit) {
+    // Import hasPermission at the top of the file
+    const { hasPermission } = await import('@/lib/permission-utils');
+
+    // Check if user has permission to edit customers using hasPermission
+    if (!hasPermission(session.user, "customers", "edit") && 
+        !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

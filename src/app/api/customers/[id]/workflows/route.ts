@@ -15,8 +15,10 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user has permission to view workflows
-    if (!hasPermission(session.user, 'workflows', 'view') && !hasPermission(session.user, 'admin')) {
+    // Check if user has permission to view workflows (either directly or via customers permission)
+    if (!hasPermission(session.user, 'workflows', 'view') && 
+        !hasPermission(session.user, 'customers', 'view') && 
+        !hasPermission(session.user, 'admin')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -31,49 +33,24 @@ export async function GET(
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    // Fetch workflows for this customer
-    const workflows = await prisma.workflows.findMany({
+    // Fetch workflows for this customer using the updated schema with direct package relationship
+    const workflows = await prisma.workflow.findMany({
       where: {
-        workflow_packages: {
-          some: {
-            packages: {
-              customerId: customerId
-            }
-          }
+        package: {
+          customerId: customerId
         },
         disabled: false,
       },
       include: {
-        workflow_packages: {
-          include: {
-            packages: true
-          }
-        },
-        workflow_sections: true,
-        communication_templates: true,
-        users_workflows_createdByIdTousers: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true
-          }
-        },
-        users_workflows_updatedByIdTousers: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true
-          }
-        }
+        package: true,
+        sections: true
       },
       orderBy: {
         createdAt: 'desc'
       }
     });
 
-    // Transform the data to match the expected format
+    // Transform the data to match the expected format with updated structure
     const transformedWorkflows = workflows.map(workflow => ({
       id: workflow.id,
       name: workflow.name,
@@ -87,12 +64,12 @@ export async function GET(
       disabled: workflow.disabled,
       createdAt: workflow.createdAt,
       updatedAt: workflow.updatedAt,
-      createdBy: workflow.users_workflows_createdByIdTousers,
-      updatedBy: workflow.users_workflows_updatedByIdTousers,
-      packageCount: workflow.workflow_packages.length,
-      sectionCount: workflow.workflow_sections.length,
-      templateCount: workflow.communication_templates.length,
-      packageIds: workflow.workflow_packages.map(wp => wp.packageId),
+      packageId: workflow.packageId,
+      package: workflow.package,
+      sectionCount: workflow.sections.length,
+      sections: workflow.sections,
+      // For compatibility with existing frontend code
+      packageIds: [workflow.packageId],
       customerId: customerId
     }));
 

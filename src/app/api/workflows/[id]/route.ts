@@ -17,8 +17,10 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to view workflows
-    if (!hasPermission(session.user, "workflows", "view") && !hasPermission(session.user, "admin")) {
+    // Check if user has permission to view workflows (either directly or via customers permission)
+    if (!hasPermission(session.user, "workflows", "view") && 
+        !hasPermission(session.user, "customers", "view") && 
+        !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -108,8 +110,10 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to edit workflows
-    if (!hasPermission(session.user, "workflows", "edit") && !hasPermission(session.user, "admin")) {
+    // Check if user has permission to edit workflows (either directly or via customers permission)
+    if (!hasPermission(session.user, "workflows", "edit") && 
+        !hasPermission(session.user, "customers", "edit") && 
+        !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -258,9 +262,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to delete workflows
+    // Check if user has permission to delete workflows (either directly or via customers permission)
     if (!hasPermission(session.user, "workflows", "delete") && 
         !hasPermission(session.user, "workflows", "edit") && 
+        !hasPermission(session.user, "customers", "edit") && 
         !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
