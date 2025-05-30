@@ -561,25 +561,25 @@ const saveSelectedRequirements = async () => {
                 <>
                   <div className="border rounded-md overflow-hidden">
                     <table className="w-full border-collapse">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="p-2 text-left border-b">Select</th>
-                          <th className="p-2 text-left border-b">Requirement</th>
-                          <th className="p-2 text-left border-b">Type</th>
-                          <th className="p-2 text-left border-b">Description</th>
+                      <thead key="requirements-thead" className="bg-gray-100">
+                        <tr key="header-row">
+                          <th key="select-header" className="p-2 text-left border-b">Select</th>
+                          <th key="name-header" className="p-2 text-left border-b">Requirement</th>
+                          <th key="type-header" className="p-2 text-left border-b">Type</th>
+                          <th key="desc-header" className="p-2 text-left border-b">Description</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody key="requirements-tbody">
                         {availableRequirements.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="p-4 text-center text-gray-500">
+                          <tr key="no-requirements-row">
+                            <td key="no-requirements-cell" colSpan={4} className="p-4 text-center text-gray-500">
                               No requirements available. Please create requirements in the Data Rx tab first.
                             </td>
                           </tr>
                         ) : (
                           availableRequirements.map((requirement) => (
-                            <tr key={requirement.id} className="border-b hover:bg-gray-50">
-                              <td className="p-3">
+                            <tr key={`requirement-${requirement.id}`} className="border-b hover:bg-gray-50">
+                              <td key={`checkbox-cell-${requirement.id}`} className="p-3">
                                 <Checkbox
                                   id={`req-${requirement.id}`}
                                   checked={selectedRequirementIds.includes(requirement.id)}
@@ -588,23 +588,23 @@ const saveSelectedRequirements = async () => {
                                   }
                                 />
                               </td>
-                              <td className="p-3">
+                              <td key={`name-cell-${requirement.id}`} className="p-3">
                                 <label htmlFor={`req-${requirement.id}`} className="font-medium">
                                   {requirement.name || requirement.fieldLabel || requirement.documentName}
                                 </label>
                               </td>
-                              <td className="p-3">
+                              <td key={`type-cell-${requirement.id}`} className="p-3">
                                 {requirement.type.charAt(0).toUpperCase() + requirement.type.slice(1)}
                               </td>
-                              <td className="p-3 text-sm text-gray-600">
+                              <td key={`desc-cell-${requirement.id}`} className="p-3 text-sm text-gray-600">
                                 {requirement.description || requirement.instructions || '-'}
                               </td>
                             </tr>
                           ))
                         )}
                         {availableRequirements.length > 0 && (
-                          <tr className="bg-gray-50">
-                            <td colSpan={4} className="p-4">
+                          <tr key="footer-row" className="bg-gray-50">
+                            <td key="footer-cell" colSpan={4} className="p-4">
                               <div className="flex flex-col items-center text-center">
                                 <p className="mb-2 text-gray-700">
                                   <span className="font-semibold">{selectedRequirementIds.length}</span> requirement(s) selected.

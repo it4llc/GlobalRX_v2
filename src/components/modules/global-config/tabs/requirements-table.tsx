@@ -690,17 +690,20 @@ export function RequirementsTable({
   ]);
 
   // Render component
-  return React.createElement(Card, {}, [
-    React.createElement(CardHeader, {}, [
+  return React.createElement(Card, { key: "requirements-card" }, [
+    React.createElement(CardHeader, { key: "requirements-card-header" }, [
       React.createElement('div', { 
+        key: "header-content",
         className: "flex justify-between items-center mb-4" 
       }, [
-        React.createElement(CardTitle, {}, `Requirements for ${serviceName}`),
+        React.createElement(CardTitle, { key: "card-title" }, `Requirements for ${serviceName}`),
         
         React.createElement('div', { 
+          key: "button-container",
           className: "flex space-x-4" 
         }, [
           onAddField && React.createElement(Button, { 
+            key: "add-field-button",
             size: "sm", 
             variant: "outline", 
             onClick: onAddField, 
@@ -708,6 +711,7 @@ export function RequirementsTable({
           }, "Add Data Field"),
           
           onAddDocument && React.createElement(Button, { 
+            key: "add-document-button",
             size: "sm", 
             variant: "outline", 
             onClick: onAddDocument, 
@@ -715,6 +719,7 @@ export function RequirementsTable({
           }, "Add Document"),
           
           onAddForm && React.createElement(Button, { 
+            key: "add-form-button",
             size: "sm", 
             variant: "outline", 
             onClick: onAddForm, 
@@ -724,18 +729,21 @@ export function RequirementsTable({
       ])
     ]),
     
-    React.createElement(CardContent, {}, [
+    React.createElement(CardContent, { key: "requirements-card-content" }, [
       // Save/Cancel buttons - visible when there are changes
       hasUnsavedChanges && React.createElement('div', { 
+        key: "action-buttons",
         className: "flex justify-end space-x-4 mb-4" 
       }, [
         React.createElement(Button, { 
+          key: "cancel-button",
           variant: "outline", 
           onClick: handleCancelChanges, 
           disabled: disabled || isLoadingProp 
         }, "Cancel Changes"),
         
         React.createElement(Button, { 
+          key: "save-button",
           onClick: handleSaveChanges, 
           disabled: disabled || isLoadingProp 
         }, "Save Changes")
@@ -743,18 +751,20 @@ export function RequirementsTable({
       
       // Loading state
       (isLoadingProp || isGeneratingHierarchy) ? 
-        React.createElement('div', { className: "p-8 text-center" }, [
+        React.createElement('div', { key: "loading-state", className: "p-8 text-center" }, [
           React.createElement('div', { 
+            key: "loading-spinner",
             className: "inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-2" 
           }),
-          React.createElement('p', {}, "Loading locations...")
+          React.createElement('p', { key: "loading-text" }, "Loading locations...")
         ]) : 
       
       // Error state
       error ? 
-        React.createElement('div', { className: "p-8 text-center text-red-500" }, [
-          React.createElement('p', {}, error),
+        React.createElement('div', { key: "error-state", className: "p-8 text-center text-red-500" }, [
+          React.createElement('p', { key: "error-message" }, error),
           React.createElement(Button, { 
+            key: "retry-button",
             onClick: () => window.location.reload(), 
             className: "mt-2", 
             variant: "outline", 
@@ -764,37 +774,42 @@ export function RequirementsTable({
       
       // Empty state
       requirements.length === 0 ? 
-        React.createElement('div', { className: "p-8 text-center text-gray-500" }, [
-          React.createElement('p', {}, "No requirements have been defined yet."),
-          React.createElement('p', { className: "mt-2" }, "Click \"Add Data Field\" or \"Add Document\" to get started.")
+        React.createElement('div', { key: "empty-state", className: "p-8 text-center text-gray-500" }, [
+          React.createElement('p', { key: "empty-message" }, "No requirements have been defined yet."),
+          React.createElement('p', { key: "empty-instructions", className: "mt-2" }, "Click \"Add Data Field\" or \"Add Document\" to get started.")
         ]) : 
       
       // Table
-      React.createElement('div', { className: "requirements-table-container border rounded" }, [
-        React.createElement(Table, { className: "requirements-table" }, [
-          React.createElement(TableHeader, {}, [
-            React.createElement(TableRow, {}, [
+      React.createElement('div', { key: "table-container", className: "requirements-table-container border rounded" }, [
+        React.createElement(Table, { key: "requirements-table", className: "requirements-table" }, [
+          React.createElement(TableHeader, { key: "table-header" }, [
+            React.createElement(TableRow, { key: "header-row" }, [
               // Header columns
               React.createElement(TableHead, { 
+                key: "head-country",
                 className: "sticky-column country-name-column" 
               }, "Country Name"),
               
               React.createElement(TableHead, { 
+                key: "head-subregion1",
                 className: "sticky-column subregion-column" 
               }, "Subregion 1"),
               
               React.createElement(TableHead, { 
+                key: "head-subregion2",
                 className: "sticky-column subregion-column" 
               }, "Subregion 2"),
               
               React.createElement(TableHead, { 
+                key: "head-subregion3",
                 className: "sticky-column subregion-column" 
               }, "Subregion 3"),
               
               React.createElement(TableHead, { 
+                key: "head-available",
                 className: "sticky-column available-column",
                 style: { width: '35px' }
-              }, React.createElement('span', {}, "Available")),
+              }, React.createElement('span', { key: "available-label" }, "Available")),
               
               // Field headers with tooltips
               ...fields.map(field => 
@@ -865,7 +880,7 @@ export function RequirementsTable({
           ]),
           
           // Table body with rows
-          React.createElement(TableBody, {}, getTableRows())
+          React.createElement(TableBody, { key: "table-body" }, getTableRows())
         ])
       ])
     ])
