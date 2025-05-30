@@ -53,9 +53,9 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get workflows with filtering and pagination
+    // Get workflows with filtering and pagination using the new Workflow model
     const [workflows, totalCount] = await Promise.all([
-      prisma.workflows.findMany({
+      prisma.workflow.findMany({
         where: filter,
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -63,32 +63,11 @@ export async function GET(request: NextRequest) {
           createdAt: 'desc'
         },
         include: {
-          workflow_packages: {
-            include: {
-              packages: true
-            }
-          },
-          workflow_sections: true,
-          communication_templates: true,
-          users_workflows_createdByIdTousers: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true
-            }
-          },
-          users_workflows_updatedByIdTousers: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true
-            }
-          }
+          package: true,
+          sections: true
         }
       }),
-      prisma.workflows.count({ where: filter })
+      prisma.workflow.count({ where: filter })
     ]);
 
     console.log(`Workflows API: Found ${workflows.length} workflows`);
@@ -107,12 +86,10 @@ export async function GET(request: NextRequest) {
       disabled: workflow.disabled,
       createdAt: workflow.createdAt,
       updatedAt: workflow.updatedAt,
-      createdBy: workflow.users_workflows_createdByIdTousers,
-      updatedBy: workflow.users_workflows_updatedByIdTousers,
-      packageCount: workflow.workflow_packages.length,
-      sectionCount: workflow.workflow_sections.length,
-      templateCount: workflow.communication_templates.length,
-      packages: workflow.workflow_packages.map(wp => wp.packages)
+      packageId: workflow.packageId,
+      package: workflow.package,
+      sectionCount: workflow.sections.length,
+      sections: workflow.sections
     }));
 
     return NextResponse.json({
@@ -125,7 +102,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching workflows:", error);
     return NextResponse.json(
-      { error: "Error fetching workflows" },
+      { error: "Error fetching workflows", details: error.message },
       { status: 500 }
     );
   }
@@ -158,53 +135,37 @@ export async function POST(request: NextRequest) {
 
     const { packageIds, ...workflowData } = validationResult.data;
 
-    // Create workflow with associations in a transaction
-    const newWorkflow = await prisma.$transaction(async (tx) => {
-      // Create the workflow
-      const workflow = await tx.workflows.create({
-        data: {
-          id: crypto.randomUUID(),
-          ...workflowData,
-          createdById: userId,
-          updatedById: userId,
-        }
-      });
+    // Check if a package ID is provided
+    if (!packageIds || packageIds.length === 0) {
+      return NextResponse.json(
+        { error: "A package must be selected for the workflow" },
+        { status: 400 }
+      );
+    }
 
-      // Create package associations if provided
-      if (packageIds && packageIds.length > 0) {
-        await Promise.all(
-          packageIds.map(packageId =>
-            tx.workflow_packages.create({
-              data: {
-                id: crypto.randomUUID(),
-                workflowId: workflow.id,
-                packageId: packageId,
-              }
-            })
-          )
-        );
-      }
+    // Use the first packageId from the array (since we now support only one package per workflow)
+    const packageId = packageIds[0];
 
-      return workflow;
+    // Create workflow with direct package relationship
+    const workflowCreateData = {
+      ...workflowData,
+      packageId: packageId,
+      // Add any required fields
+      createdById: userId,
+      updatedById: userId,
+    };
+
+    // Create the workflow
+    const newWorkflow = await prisma.workflow.create({
+      data: workflowCreateData
     });
 
     // Fetch the complete workflow with associations
-    const completeWorkflow = await prisma.workflows.findUnique({
+    const completeWorkflow = await prisma.workflow.findUnique({
       where: { id: newWorkflow.id },
       include: {
-        workflow_packages: {
-          include: {
-            packages: true
-          }
-        },
-        users_workflows_createdByIdTousers: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true
-          }
-        }
+        package: true,
+        sections: true
       }
     });
 
@@ -212,7 +173,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error creating workflow:", error);
     return NextResponse.json(
-      { error: "Error creating workflow" },
+      { error: "Error creating workflow", details: error.message },
       { status: 500 }
     );
   }

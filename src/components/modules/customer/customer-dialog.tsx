@@ -87,7 +87,14 @@ export function CustomerDialog({ customerId, onClose }: CustomerDialogProps) {
     
     // Trigger validation
     trigger();
-  }, [formInputs, setValue, trigger]);
+    
+    // Debug validation state
+    console.log("Form validation state:", {
+      isValid,
+      errors,
+      formValues: formInputs
+    });
+  }, [formInputs, setValue, trigger, isValid, errors]);
   
   // Show the dialog when the component mounts
   useEffect(() => {

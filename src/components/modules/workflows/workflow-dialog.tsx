@@ -378,21 +378,20 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
                 name="packageIds"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('module.candidateWorkflow.assignedPackages')}</FormLabel>
+                    <FormLabel>{t('module.candidateWorkflow.assignedPackage')}</FormLabel>
                     <div className="space-y-2">
                       {packages.map(pkg => (
                         <div key={pkg.id} className="flex items-center space-x-2">
                           <input
-                            type="checkbox"
+                            type="radio"
                             id={`package-${pkg.id}`}
                             checked={field.value?.includes(pkg.id)}
-                            onChange={(e) => {
-                              const newValue = e.target.checked
-                                ? [...(field.value || []), pkg.id]
-                                : (field.value || []).filter(id => id !== pkg.id);
-                              field.onChange(newValue);
+                            onChange={() => {
+                              // Radio buttons should select just one package
+                              field.onChange([pkg.id]);
+                              console.log(`Selected package: ${pkg.id}`);
                             }}
-                            className="rounded border-gray-300"
+                            className="rounded-full border-gray-300"
                           />
                           <label htmlFor={`package-${pkg.id}`} className="text-sm">
                             {pkg.name}
@@ -400,6 +399,9 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
                         </div>
                       ))}
                     </div>
+                    <FormDescription>
+                      {t('module.candidateWorkflow.packageSelectionDescription', 'A workflow can only be associated with one package.')}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
