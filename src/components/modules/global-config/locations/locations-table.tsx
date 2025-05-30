@@ -330,7 +330,7 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
                   />
                 </td>
                 <td className="px-3 py-4 text-center" style={{ width: '8%', maxWidth: '8%' }}>
-                  {location.status !== false ? 'Active' : 'Disabled'}
+                  {location.disabled !== true ? 'Active' : 'Disabled'}
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-center" style={{ width: '8%', maxWidth: '8%' }}>
                   <div className="flex space-x-2 justify-center">
@@ -391,8 +391,8 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
                   {getSubregion3(location)}
                 </td>
                 <td className="px-3 py-4 text-sm text-center" style={{ width: '8%', maxWidth: '8%' }}>
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${location.status !== false && location.disabled !== true ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {location.status !== false && location.disabled !== true ? 'Active' : 'Disabled'}
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${location.disabled !== true ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {location.disabled !== true ? 'Active' : 'Disabled'}
                   </span>
                 </td>
                 <td className="px-3 py-4 text-sm font-medium text-center" style={{ width: '8%', maxWidth: '8%' }}>
@@ -454,13 +454,13 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
                               textAlign: 'left',
                               padding: '6px 8px',
                               fontSize: '12px',
-                              color: location.status !== false && location.disabled !== true ? '#dc2626' : '#16a34a',
+                              color: location.disabled !== true ? '#dc2626' : '#16a34a',
                               backgroundColor: 'white',
                               border: 'none',
                               cursor: 'pointer'
                             }}
                           >
-                            {location.status !== false && location.disabled !== true ? 'Disable' : 'Enable'}
+                            {location.disabled !== true ? 'Disable' : 'Enable'}
                           </button>
                         </div>
                       </div>

@@ -32,8 +32,11 @@ export async function PATCH(
       );
     }
 
-    // Toggle the disabled status
-    const newDisabledValue = !currentLocation.disabled;
+    // Toggle the disabled status - ensure we're handling nulls properly
+    const currentDisabled = currentLocation.disabled === true;
+    const newDisabledValue = !currentDisabled;
+
+    console.log(`Toggling location status: Current disabled value: ${currentDisabled}, new value: ${newDisabledValue}`);
 
     // Update the location status
     const location = await prisma.country.update({
@@ -45,14 +48,16 @@ export async function PATCH(
 
     return NextResponse.json({
       id: location.id,
-      countryName: location.name,
-      twoLetter: location.code2,
-      threeLetter: location.code3,
+      name: location.name,
+      code2: location.code2,
+      code3: location.code3,
       numeric: location.numeric || "",
       subregion1: location.subregion1,
       subregion2: location.subregion2,
       subregion3: location.subregion3,
-      status: location.disabled === true ? false : true
+      disabled: location.disabled,
+      // Add status property for backward compatibility
+      status: location.disabled !== true
     });
   } catch (error) {
     console.error("Error toggling location status:", error);
