@@ -9,7 +9,7 @@ export const workflowBaseSchema = z.object({
   expirationDays: z.number().int().positive().optional().default(90),
   autoCloseEnabled: z.boolean().default(true),
   extensionAllowed: z.boolean().default(false),
-  extensionDays: z.number().int().positive().optional(),
+  extensionDays: z.union([z.number().int().positive(), z.null()]).optional(),
   disabled: z.boolean().default(false),
 });
 
@@ -17,7 +17,9 @@ export const workflowCreateSchema = workflowBaseSchema.extend({
   packageIds: z.array(z.string().uuid()).optional(),
 });
 
-export const workflowUpdateSchema = workflowBaseSchema.partial();
+export const workflowUpdateSchema = workflowBaseSchema.extend({
+  packageIds: z.array(z.string().uuid()).optional(),
+}).partial();
 
 export const workflowPackageSchema = z.object({
   packageId: z.string().uuid(),

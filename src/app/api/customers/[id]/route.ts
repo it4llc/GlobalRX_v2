@@ -57,9 +57,12 @@ function hasPermission(user: any, resource: string, action?: string): boolean {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    // Get params safely
+    const params = await context.params;
+    
     // Check authentication
     const session = await getServerSession(authOptions);
     
@@ -150,9 +153,12 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    // Get params safely
+    const params = await context.params;
+    
     // Check authentication
     const session = await getServerSession(authOptions);
     
@@ -396,9 +402,12 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    // Get params safely
+    const params = await context.params;
+    
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session) {

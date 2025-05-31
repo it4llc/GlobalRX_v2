@@ -11,9 +11,12 @@ import { prisma } from '@/lib/prisma';
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    // Get params safely
+    const params = await context.params;
+    
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session) {

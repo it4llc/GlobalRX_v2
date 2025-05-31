@@ -147,6 +147,24 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
       
       const method = workflow ? 'PUT' : 'POST';
       
+      // Make sure packageIds is an array of strings
+      if (data.packageIds && !Array.isArray(data.packageIds)) {
+        data.packageIds = [data.packageIds as unknown as string];
+      }
+      
+      // Make sure expirationDays is a number
+      if (typeof data.expirationDays === 'string') {
+        data.expirationDays = parseInt(data.expirationDays);
+      }
+      
+      // Make sure extensionDays is a number if provided
+      if (data.extensionDays && typeof data.extensionDays === 'string') {
+        data.extensionDays = parseInt(data.extensionDays);
+      }
+      
+      // Log what we're sending
+      console.log('Sending workflow data:', JSON.stringify(data, null, 2));
+      
       // Add customerId to the data when creating a new workflow
       const requestData = {
         ...data,

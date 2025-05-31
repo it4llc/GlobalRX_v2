@@ -8,9 +8,12 @@ import { workflowSectionUpdateSchema } from "@/types/workflow";
 // GET: Fetch a single section by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; sectionId: string } }
+  context: { params: { id: string; sectionId: string } }
 ) {
   try {
+    // Get params safely
+    const params = await context.params;
+    
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -67,9 +70,12 @@ export async function GET(
 // PUT: Update a section
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; sectionId: string } }
+  context: { params: { id: string; sectionId: string } }
 ) {
   try {
+    // Get params safely
+    const params = await context.params;
+    
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -186,9 +192,12 @@ export async function PUT(
 // DELETE: Delete a section
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; sectionId: string } }
+  context: { params: { id: string; sectionId: string } }
 ) {
   try {
+    // Get params safely
+    const params = await context.params;
+    
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

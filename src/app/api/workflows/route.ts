@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     const workflowCreateData = {
       ...workflowData,
       packageId: packageId,
-      // Add any required fields
+      // Add user tracking fields
       createdById: userId,
       updatedById: userId,
     };

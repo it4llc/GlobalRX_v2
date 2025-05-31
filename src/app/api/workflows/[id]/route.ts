@@ -1,4 +1,4 @@
-// src/app/api/workflows/[id]/route-prisma.ts
+// src/app/api/workflows/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -9,9 +9,12 @@ import { hasPermission } from "@/lib/permission-utils";
 // GET: Fetch a single workflow by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    // Get params safely
+    const params = await context.params;
+    
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,44 +29,34 @@ export async function GET(
 
     const workflowId = params.id;
 
-    const workflow = await prisma.workflows.findUnique({
+    const workflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
       include: {
-        workflow_packages: {
-          include: {
-            packages: {
+        package: {
+          select: {
+            id: true,
+            name: true,
+            customer: {
               select: {
                 id: true,
                 name: true,
-                customer: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
               },
             },
           },
         },
-        workflow_sections: {
+        sections: {
           orderBy: {
             displayOrder: 'asc',
           },
-          include: {
-            workflow_sections: true,
-            workflow_translations: true,
-          },
         },
-        communication_templates: true,
-        workflow_translations: true,
-        users_workflows_createdByIdTousers: {
+        createdBy: {
           select: {
             firstName: true,
             lastName: true,
             email: true,
           },
         },
-        users_workflows_updatedByIdTousers: {
+        updatedBy: {
           select: {
             firstName: true,
             lastName: true,
@@ -80,13 +73,7 @@ export async function GET(
     // Transform the data to match expected format
     const transformedWorkflow = {
       ...workflow,
-      createdBy: workflow.users_workflows_createdByIdTousers,
-      updatedBy: workflow.users_workflows_updatedByIdTousers,
-      packages: workflow.workflow_packages.map(wp => wp.packages),
-      packageIds: workflow.workflow_packages.map(wp => wp.packageId),
-      sections: workflow.workflow_sections,
-      templates: workflow.communication_templates,
-      translations: workflow.workflow_translations
+      packageIds: [workflow.packageId],
     };
 
     return NextResponse.json(transformedWorkflow);
@@ -102,9 +89,13 @@ export async function GET(
 // PUT: Update a workflow
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    // Get params safely
+    const params = await context.params;
+    const workflowId = params.id;
+    
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -118,12 +109,15 @@ export async function PUT(
     }
 
     const userId = session.user.id;
-    const workflowId = params.id;
     const body = await request.json();
+    
+    // Log the request body for debugging
+    console.log("Workflow update request body:", JSON.stringify(body, null, 2));
     
     // Validate request body using Zod schema
     const validationResult = workflowUpdateSchema.safeParse(body);
     if (!validationResult.success) {
+      console.error("Workflow validation error:", JSON.stringify(validationResult.error, null, 2));
       return NextResponse.json(
         { error: "Invalid request data", details: validationResult.error },
         { status: 400 }
@@ -133,93 +127,55 @@ export async function PUT(
     const { packageIds, ...workflowData } = validationResult.data;
 
     // Check if workflow exists
-    const existingWorkflow = await prisma.workflows.findUnique({
+    const existingWorkflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
-      include: {
-        workflow_packages: true,
-      },
     });
 
     if (!existingWorkflow) {
       return NextResponse.json({ error: "Workflow not found" }, { status: 404 });
     }
 
-    // Update workflow in a transaction to handle both workflow and packages
-    const updatedWorkflow = await prisma.$transaction(async (tx) => {
-      // Update main workflow data
-      const updated = await tx.workflows.update({
-        where: { id: workflowId },
-        data: {
-          ...workflowData,
-          updatedById: userId,
-        },
-      });
+    // Update the packageId if provided
+    let updateData: any = {
+      ...workflowData,
+      updatedById: userId,
+    };
 
-      // If packages are provided, update the workflow package associations
-      if (packageIds !== undefined) {
-        // Delete existing associations
-        await tx.workflow_packages.deleteMany({
-          where: { workflowId },
-        });
+    // If packageIds are provided, update the packageId
+    if (packageIds && packageIds.length > 0) {
+      updateData.packageId = packageIds[0];
+    }
 
-        // Create new associations
-        if (packageIds.length > 0) {
-          await Promise.all(
-            packageIds.map(packageId =>
-              tx.workflow_packages.create({
-                data: {
-                  id: crypto.randomUUID(),
-                  workflowId,
-                  packageId,
-                },
-              })
-            )
-          );
-        }
-      }
-
-      return updated;
-    });
-
-    // Fetch the complete updated workflow with associations
-    const completeWorkflow = await prisma.workflows.findUnique({
+    // Update workflow
+    const updatedWorkflow = await prisma.workflow.update({
       where: { id: workflowId },
+      data: updateData,
       include: {
-        workflow_packages: {
-          include: {
-            packages: {
+        package: {
+          select: {
+            id: true,
+            name: true,
+            customer: {
               select: {
                 id: true,
                 name: true,
-                customer: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
               },
             },
           },
         },
-        workflow_sections: {
+        sections: {
           orderBy: {
             displayOrder: 'asc',
           },
-          include: {
-            workflow_sections: true,
-            workflow_translations: true,
-          },
         },
-        communication_templates: true,
-        workflow_translations: true,
-        users_workflows_createdByIdTousers: {
+        createdBy: {
           select: {
             firstName: true,
             lastName: true,
             email: true,
           },
         },
-        users_workflows_updatedByIdTousers: {
+        updatedBy: {
           select: {
             firstName: true,
             lastName: true,
@@ -231,21 +187,15 @@ export async function PUT(
 
     // Transform the data
     const transformedWorkflow = {
-      ...completeWorkflow,
-      createdBy: completeWorkflow.users_workflows_createdByIdTousers,
-      updatedBy: completeWorkflow.users_workflows_updatedByIdTousers,
-      packages: completeWorkflow.workflow_packages.map(wp => wp.packages),
-      packageIds: completeWorkflow.workflow_packages.map(wp => wp.packageId),
-      sections: completeWorkflow.workflow_sections,
-      templates: completeWorkflow.communication_templates,
-      translations: completeWorkflow.workflow_translations
+      ...updatedWorkflow,
+      packageIds: [updatedWorkflow.packageId],
     };
 
     return NextResponse.json(transformedWorkflow);
   } catch (error) {
     console.error("Error updating workflow:", error);
     return NextResponse.json(
-      { error: "Error updating workflow" },
+      { error: "Error updating workflow", details: error.message },
       { status: 500 }
     );
   }
@@ -254,9 +204,13 @@ export async function PUT(
 // DELETE: Delete a workflow
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    // Get params safely
+    const params = await context.params;
+    const workflowId = params.id;
+    
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -270,10 +224,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const workflowId = params.id;
-
     // First check if the workflow exists
-    const workflow = await prisma.workflows.findUnique({
+    const workflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
     });
 
@@ -282,7 +234,7 @@ export async function DELETE(
     }
 
     // Soft delete the workflow by setting disabled to true
-    await prisma.workflows.update({
+    await prisma.workflow.update({
       where: { id: workflowId },
       data: {
         disabled: true,
