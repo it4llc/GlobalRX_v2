@@ -71,9 +71,33 @@ export async function GET(
     }
 
     // Transform the data to match expected format
+    // Make sure all fields are explicitly included to avoid missing new fields
     const transformedWorkflow = {
-      ...workflow,
+      id: workflow.id,
+      name: workflow.name,
+      description: workflow.description,
+      status: workflow.status,
+      defaultLanguage: workflow.defaultLanguage,
+      expirationDays: workflow.expirationDays,
+      autoCloseEnabled: workflow.autoCloseEnabled,
+      extensionAllowed: workflow.extensionAllowed,
+      extensionDays: workflow.extensionDays,
+      // Include reminder fields
+      reminderEnabled: workflow.reminderEnabled,
+      reminderFrequency: workflow.reminderFrequency,
+      maxReminders: workflow.maxReminders,
+      disabled: workflow.disabled,
+      createdAt: workflow.createdAt,
+      updatedAt: workflow.updatedAt,
+      createdById: workflow.createdById,
+      updatedById: workflow.updatedById,
+      packageId: workflow.packageId,
       packageIds: [workflow.packageId],
+      // Include related data
+      package: workflow.package,
+      sections: workflow.sections,
+      createdBy: workflow.createdBy,
+      updatedBy: workflow.updatedBy
     };
 
     return NextResponse.json(transformedWorkflow);

@@ -38,6 +38,10 @@ interface Workflow {
   autoCloseEnabled: boolean;
   extensionAllowed: boolean;
   extensionDays: number | null;
+  // Reminder fields
+  reminderEnabled?: boolean;
+  reminderFrequency?: number;
+  maxReminders?: number;
   createdAt: string;
   updatedAt: string;
   packageCount: number;

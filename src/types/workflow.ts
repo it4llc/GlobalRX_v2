@@ -6,10 +6,14 @@ export const workflowBaseSchema = z.object({
   description: z.string().optional(),
   status: z.enum(['draft', 'active', 'archived']).default('draft'),
   defaultLanguage: z.string().default('en-US'),
-  expirationDays: z.number().int().positive().optional().default(90),
+  expirationDays: z.number().int().positive().optional().default(15),
   autoCloseEnabled: z.boolean().default(true),
   extensionAllowed: z.boolean().default(false),
   extensionDays: z.union([z.number().int().positive(), z.null()]).optional(),
+  // Reminder settings
+  reminderEnabled: z.boolean().default(false),
+  reminderFrequency: z.number().int().positive().min(1).max(30).optional().default(7),
+  maxReminders: z.number().int().nonnegative().min(1).max(10).optional().default(3),
   disabled: z.boolean().default(false),
 });
 

@@ -22,10 +22,13 @@ const workflowSchema = z.object({
   description: z.string().optional(),
   status: z.enum(['draft', 'active', 'archived']),
   defaultLanguage: z.string().default('en-US'),
-  expirationDays: z.number().min(1).max(365).default(90),
+  expirationDays: z.number().min(1).max(365).default(15),
   autoCloseEnabled: z.boolean().default(true),
   extensionAllowed: z.boolean().default(false),
   extensionDays: z.number().min(1).max(90).optional().nullable(),
+  reminderEnabled: z.boolean().default(false),
+  reminderFrequency: z.number().min(1).max(30).default(7),
+  maxReminders: z.number().min(1).max(10).default(3),
   packageIds: z.array(z.string()).optional(),
 });
 
@@ -44,6 +47,9 @@ interface WorkflowDialogProps {
     autoCloseEnabled: boolean;
     extensionAllowed: boolean;
     extensionDays?: number;
+    reminderEnabled?: boolean;
+    reminderFrequency?: number;
+    maxReminders?: number;
     packageIds?: string[];
     customerId?: string;
   };
@@ -82,10 +88,13 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
         description: workflow.description || '',
         status: (workflow.status as 'draft' | 'active' | 'archived') || 'draft',
         defaultLanguage: workflow.defaultLanguage || 'en-US',
-        expirationDays: workflow.expirationDays || 90,
+        expirationDays: workflow.expirationDays || 15,
         autoCloseEnabled: workflow.autoCloseEnabled ?? true,
         extensionAllowed: workflow.extensionAllowed ?? false,
         extensionDays: workflow.extensionDays,
+        reminderEnabled: workflow.reminderEnabled ?? false,
+        reminderFrequency: workflow.reminderFrequency || 7,
+        maxReminders: workflow.maxReminders || 3,
         packageIds: workflow.packageIds || [],
       });
     } else {
@@ -94,10 +103,13 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
         description: '',
         status: 'draft',
         defaultLanguage: 'en-US',
-        expirationDays: 90,
+        expirationDays: 15,
         autoCloseEnabled: true,
         extensionAllowed: false,
         extensionDays: undefined,
+        reminderEnabled: false,
+        reminderFrequency: 7,
+        maxReminders: 3,
         packageIds: [],
       });
     }
@@ -160,6 +172,16 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
       // Make sure extensionDays is a number if provided
       if (data.extensionDays && typeof data.extensionDays === 'string') {
         data.extensionDays = parseInt(data.extensionDays);
+      }
+      
+      // Make sure reminderFrequency is a number
+      if (typeof data.reminderFrequency === 'string') {
+        data.reminderFrequency = parseInt(data.reminderFrequency);
+      }
+      
+      // Make sure maxReminders is a number
+      if (typeof data.maxReminders === 'string') {
+        data.maxReminders = parseInt(data.maxReminders);
       }
       
       // Log what we're sending
@@ -388,6 +410,77 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
                   </FormItem>
                 )}
               />
+            )}
+
+            <FormField
+              control={form.control}
+              name="reminderEnabled"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <FormLabel>{t('module.candidateWorkflow.reminderEnabled')}</FormLabel>
+                    <FormDescription>
+                      {t('module.candidateWorkflow.reminderEnabledDescription')}
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {form.watch('reminderEnabled') && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="reminderFrequency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('module.candidateWorkflow.reminderFrequency')}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="1"
+                          max="30"
+                          {...field} 
+                          onChange={e => field.onChange(parseInt(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('module.candidateWorkflow.reminderFrequencyDescription')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="maxReminders"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('module.candidateWorkflow.maxReminders')}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="1"
+                          max="10"
+                          {...field} 
+                          onChange={e => field.onChange(parseInt(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('module.candidateWorkflow.maxRemindersDescription')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
             )}
 
             {!loadingPackages && packages.length > 0 && (

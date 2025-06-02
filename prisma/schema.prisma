@@ -240,25 +240,29 @@ model PackageService {
 }
 
 model Workflow {
-  id               String            @id @default(uuid())
-  name             String
-  description      String?
-  status           String            @default("draft")
-  defaultLanguage  String            @default("en-US")
-  expirationDays   Int               @default(90)
-  autoCloseEnabled Boolean           @default(true)
-  extensionAllowed Boolean           @default(false)
-  extensionDays    Int?
-  disabled         Boolean           @default(false)
-  createdAt        DateTime          @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
-  createdById      String?
-  updatedById      String?
-  packageId        String
-  sections         WorkflowSection[]
-  package          Package           @relation(fields: [packageId], references: [id])
-  createdBy        User?             @relation("WorkflowCreatedBy", fields: [createdById], references: [id])
-  updatedBy        User?             @relation("WorkflowUpdatedBy", fields: [updatedById], references: [id])
+  id                String            @id @default(uuid())
+  name              String
+  description       String?
+  status            String            @default("draft")
+  defaultLanguage   String            @default("en-US")
+  expirationDays    Int               @default(15)
+  autoCloseEnabled  Boolean           @default(true)
+  extensionAllowed  Boolean           @default(false)
+  extensionDays     Int?
+  // Reminder settings
+  reminderEnabled   Boolean           @default(false)
+  reminderFrequency Int               @default(7) // days between reminders
+  maxReminders      Int               @default(3)
+  disabled          Boolean           @default(false)
+  createdAt         DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+  createdById       String?
+  updatedById       String?
+  packageId         String
+  sections          WorkflowSection[]
+  package           Package           @relation(fields: [packageId], references: [id])
+  createdBy         User?             @relation("WorkflowCreatedBy", fields: [createdById], references: [id])
+  updatedBy         User?             @relation("WorkflowUpdatedBy", fields: [updatedById], references: [id])
 
   @@index([packageId])
   @@index([createdById])

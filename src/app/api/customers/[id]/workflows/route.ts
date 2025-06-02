@@ -61,6 +61,10 @@ export async function GET(
       autoCloseEnabled: workflow.autoCloseEnabled,
       extensionAllowed: workflow.extensionAllowed,
       extensionDays: workflow.extensionDays,
+      // Include reminder fields
+      reminderEnabled: workflow.reminderEnabled,
+      reminderFrequency: workflow.reminderFrequency,
+      maxReminders: workflow.maxReminders,
       disabled: workflow.disabled,
       createdAt: workflow.createdAt,
       updatedAt: workflow.updatedAt,
