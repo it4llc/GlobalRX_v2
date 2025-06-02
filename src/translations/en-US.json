@@ -53,6 +53,8 @@
   "module.candidateWorkflow.extensionAllowedDescription": "Allow candidates to request time extensions",
   "module.candidateWorkflow.extensionDays": "Extension Days",
   "module.candidateWorkflow.extensionDaysDescription": "Maximum number of days for extensions",
+  "module.candidateWorkflow.assignedPackage": "Assigned Package", 
+  "module.candidateWorkflow.packageSelectionDescription": "A workflow can only be associated with one package.",
   "module.candidateWorkflow.assignedPackages": "Assigned Packages",
   "module.candidateWorkflow.confirmDelete": "Are you sure you want to delete this workflow?",
   "module.candidateWorkflow.noWorkflows": "No workflows found",
