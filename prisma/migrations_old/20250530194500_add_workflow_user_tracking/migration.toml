@@ -1,0 +1,9 @@
+# migration.toml
+
+# This migration adds user tracking fields to the workflow model
+  
+# This migration applies to the following datasources
+datasource_types = ["postgresql"]
+
+# Checksum of the migration
+checksum = "d8e53a77e0ecc6f37d5ff682b5a26e7a6f33b95c3e88956a7c96545a6c646de1"
