@@ -93,14 +93,9 @@ export default function CustomerPackages({ customerId, customerName: initialCust
   
   // Fetch customer data and packages
   useEffect(() => {
-    // Cancel previous request if it exists
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    
-    // Create new abort controller
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+    let isMounted = true; // Flag to track if component is still mounted
+    const abortController = new AbortController();
+    const signal = abortController.signal;
     
     const fetchData = async () => {
       if (!customerId) {
@@ -112,13 +107,14 @@ export default function CustomerPackages({ customerId, customerName: initialCust
       console.log("Fetching with showDisabled:", showDisabled, "refreshKey:", refreshKey);
       
       try {
-        setIsLoading(true);
-        setError(null);
-        setDebugInfo(null);
+        if (isMounted) {
+          setIsLoading(true);
+          setError(null);
+          setDebugInfo(null);
+        }
         
         // Fetch customer details to get available services
         const customerResponse = await fetchWithAuth(`/api/customers/${customerId}`, {
-          signal,
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache'
@@ -130,6 +126,9 @@ export default function CustomerPackages({ customerId, customerName: initialCust
         }
         
         const customerData = await customerResponse.json();
+        
+        // Check if component is still mounted before updating state
+        if (!isMounted) return;
         
         // Extract services from the customer data
         const customerServices = customerData.services || [];
@@ -156,9 +155,11 @@ export default function CustomerPackages({ customerId, customerName: initialCust
         
         console.log("Fetching packages with URL:", fullUrl);
         
+        // Check if component is still mounted before continuing
+        if (!isMounted) return;
+        
         // Fetch packages for this customer
         const packagesResponse = await fetchWithAuth(fullUrl, {
-          signal,
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache',
@@ -176,7 +177,9 @@ export default function CustomerPackages({ customerId, customerName: initialCust
             errorDetail = "Could not parse error response";
           }
           
-          setDebugInfo(`API Status: ${packagesResponse.status}, Error: ${errorDetail}`);
+          if (isMounted) {
+            setDebugInfo(`API Status: ${packagesResponse.status}, Error: ${errorDetail}`);
+          }
           throw new Error(`Failed to fetch packages: ${errorDetail || packagesResponse.status}`);
         }
         
@@ -186,14 +189,20 @@ export default function CustomerPackages({ customerId, customerName: initialCust
           
           // Ensure we have an array of packages
           if (!Array.isArray(packagesData)) {
-            setDebugInfo(`Received non-array data: ${JSON.stringify(packagesData).substring(0, 100)}...`);
+            if (isMounted) {
+              setDebugInfo(`Received non-array data: ${JSON.stringify(packagesData).substring(0, 100)}...`);
+            }
             throw new Error("Invalid packages data format received");
           }
           
           console.log(`Loaded ${packagesData.length} packages. ShowDisabled: ${showDisabled}`);
-          setPackages(packagesData);
+          if (isMounted) {
+            setPackages(packagesData);
+          }
         } catch (parseError) {
-          setDebugInfo(`Parse error: ${parseError.message}`);
+          if (isMounted) {
+            setDebugInfo(`Parse error: ${parseError.message}`);
+          }
           throw new Error("Failed to parse packages data");
         }
       } catch (err) {
@@ -202,9 +211,11 @@ export default function CustomerPackages({ customerId, customerName: initialCust
           return;
         }
         console.error('Error fetching data:', err);
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        }
       } finally {
-        if (!signal.aborted) {
+        if (isMounted) {
           setIsLoading(false);
         }
       }
@@ -214,8 +225,13 @@ export default function CustomerPackages({ customerId, customerName: initialCust
     
     // Cleanup function
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+      isMounted = false; // Mark component as unmounted
+      
+      try {
+        // We've removed the use of the AbortController entirely 
+        // to avoid the error with abort() being called on cleanup
+      } catch (err) {
+        console.log('Cleanup error (ignored):', err);
       }
     };
   }, [customerId, fetchWithAuth, showDisabled, refreshKey, customerName]);
