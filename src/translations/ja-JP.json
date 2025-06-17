@@ -43,6 +43,7 @@
   "common.actions": "アクション",
   "common.status": "ステータス",
   "common.comingSoon": "近日公開",
+  "common.addCustomer": "顧客を追加",
   "auth.login": "ログイン",
   "auth.logout": "ログアウト",
   "auth.email": "メールアドレス",

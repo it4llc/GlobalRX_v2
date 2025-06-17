@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -35,6 +36,7 @@ interface Customer {
 
 export default function CustomerList() {
   const { checkPermission, fetchWithAuth } = useAuth();
+  const { t } = useTranslation();
   const router = useRouter();
   
   // State variables
@@ -353,7 +355,9 @@ export default function CustomerList() {
           )}
           
           {canCreate && !isDuplicateRemovalMode && (
-            <Button onClick={handleAddNew}>Add Customer</Button>
+            <Button onClick={handleAddNew}>
+              {t('common.addCustomer')}
+            </Button>
           )}
         </div>
       </div>

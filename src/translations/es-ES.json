@@ -43,6 +43,7 @@
   "common.actions": "Acciones",
   "common.status": "Estado",
   "common.comingSoon": "Próximamente",
+  "common.addCustomer": "Añadir Cliente",
   "auth.login": "Iniciar Sesión",
   "auth.logout": "Cerrar Sesión",
   "auth.email": "Correo Electrónico",
