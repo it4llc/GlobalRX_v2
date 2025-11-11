@@ -68,17 +68,17 @@ export function StandardDropdown({
   };
   
   return (
-    <div 
-      ref={dropdownRef} 
-      className={`standard-dropdown ${className}`} 
-      style={{ width, height: '28px' }}
+    <div
+      ref={dropdownRef}
+      className={`relative ${className}`}
+      style={{ width, minHeight: '28px' }}
     >
       <button
         type="button"
         id={id}
         onClick={handleToggleDropdown}
         className={`
-          dropdown-trigger w-full h-7 flex items-center justify-between
+          w-full h-7 flex items-center justify-between px-3
           border rounded text-left bg-white
           ${disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400'}
           ${error ? 'border-red-500' : 'border-gray-300'}
@@ -89,35 +89,34 @@ export function StandardDropdown({
         aria-expanded={isOpen}
         aria-labelledby={`${id}-label`}
       >
-        <span className="truncate text-sm">
-          {selectedOption ? selectedOption.label : placeholder}
+        <span className="truncate text-sm text-gray-900">
+          {selectedOption ? selectedOption.label : <span className="text-gray-400">{placeholder}</span>}
         </span>
-        <svg 
-          width="12" 
-          height="12" 
-          viewBox="0 0 12 12" 
-          fill="none" 
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`ml-2 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
         >
           <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
-      
+
       {isOpen && (
-        <div 
-          className="dropdown-menu"
+        <div
+          className="absolute left-0 right-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-[9999] max-h-60 overflow-y-auto"
           role="listbox"
           aria-labelledby={`${id}-label`}
-          style={{ width: '100%' }}
         >
           {options.length > 0 ? (
             options.map((option) => (
               <div
                 key={option.id}
                 className={`
-                  dropdown-item
-                  ${option.value === value ? 'selected' : ''}
+                  px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 transition-colors
+                  ${option.value === value ? 'bg-blue-50' : ''}
                 `}
                 onClick={() => handleSelectOption(option)}
                 role="option"
@@ -125,20 +124,20 @@ export function StandardDropdown({
               >
                 <div className="flex items-center">
                   {option.value === value && (
-                    <svg 
-                      width="16" 
-                      height="16" 
-                      viewBox="0 0 16 16" 
-                      fill="none" 
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
                       xmlns="http://www.w3.org/2000/svg"
-                      className="check-icon mr-2 h-4 w-4 text-blue-600 flex-shrink-0"
+                      className="mr-2 h-4 w-4 text-blue-600 flex-shrink-0"
                     >
-                      <path 
-                        d="M13.3334 4L6.00008 11.3333L2.66675 8" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
+                      <path
+                        d="M13.3334 4L6.00008 11.3333L2.66675 8"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
                     </svg>
                   )}
@@ -147,15 +146,15 @@ export function StandardDropdown({
               </div>
             ))
           ) : (
-            <div className="px-3 py-1 text-sm text-gray-500">
+            <div className="px-3 py-2 text-sm text-gray-500">
               No options available
             </div>
           )}
         </div>
       )}
-      
+
       {error && (
-        <p className="form-error text-red-500 text-xs mt-1">{error}</p>
+        <p className="text-red-500 text-xs mt-1">{error}</p>
       )}
     </div>
   );
