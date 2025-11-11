@@ -455,8 +455,8 @@ export function RequirementsTable({
     return React.createElement(TableCell, {
       key: `requirement-${locationId}-${requirementId}`,
       className: "checkbox-container"
-    }, [
-      React.createElement('div', { className: "checkbox-wrapper" }, [
+    },
+      React.createElement('div', { className: "checkbox-wrapper" },
         React.createElement(Checkbox, {
           id: `${locationId}-${requirementId}`,
           checked: isRequirementSelected(locationId, requirementId),
@@ -464,8 +464,8 @@ export function RequirementsTable({
           disabled: !isAvailable || disabled,
           className: !isAvailable ? "opacity-50" : ""
         })
-      ])
-    ]);
+      )
+    );
   }, [isRequirementSelected, handleCheckboxChange, disabled]);
 
   // Calculate row data with a completely different approach
@@ -489,23 +489,24 @@ export function RequirementsTable({
             React.createElement(TableCell, {
               key: `location-country-${location.id}`,
               className: "sticky-column country-name-column"
-            }, [
+            },
               React.createElement('div', { className: "tree-indent" }, [
-                hasChildLocations ? 
+                hasChildLocations ?
                   React.createElement('button', {
+                    key: "toggle-button",
                     type: "button",
                     className: "tree-toggle-button",
                     onClick: () => toggleRowExpansion(location.id),
                     'aria-label': isExpanded ? "Collapse" : "Expand"
-                  }, [
-                    isExpanded ? 
-                      React.createElement(ChevronDown, { className: "tree-toggle-icon" }) : 
+                  },
+                    isExpanded ?
+                      React.createElement(ChevronDown, { className: "tree-toggle-icon" }) :
                       React.createElement(ChevronRight, { className: "tree-toggle-icon" })
-                  ]) : 
-                  React.createElement('span', { className: "tree-toggle-spacer" }),
-                React.createElement('span', { className: "country-name-text" }, "ALL")
+                  ) :
+                  React.createElement('span', { key: "spacer", className: "tree-toggle-spacer" }),
+                React.createElement('span', { key: "name", className: "country-name-text" }, "ALL")
               ])
-            ]),
+            ),
             
             // Empty subregion columns for ALL
             React.createElement(TableCell, { className: "sticky-column subregion-column" }, ""),
@@ -515,16 +516,16 @@ export function RequirementsTable({
             // Available column
             React.createElement(TableCell, {
               className: "sticky-column available-column checkbox-container"
-            }, [
-              React.createElement('div', { className: "checkbox-wrapper" }, [
+            },
+              React.createElement('div', { className: "checkbox-wrapper" },
                 React.createElement(Checkbox, {
                   id: `available-${location.id}`,
                   checked: isAvailable,
                   onCheckedChange: (checked) => handleAvailabilityChange(location.id, checked === true),
                   disabled: disabled
                 })
-              ])
-            ]),
+              )
+            ),
             
             // Requirement checkboxes
             ...fields.map(field => renderCheckbox(location.id, field.id, isAvailable)),
@@ -603,23 +604,24 @@ export function RequirementsTable({
           React.createElement(TableCell, {
             key: `location-country-${location.id}`,
             className: "sticky-column country-name-column"
-          }, [
+          },
             React.createElement('div', { className: "tree-indent" }, [
-              hasChildLocations ? 
+              hasChildLocations ?
                 React.createElement('button', {
+                  key: "toggle-button",
                   type: "button",
                   className: "tree-toggle-button",
                   onClick: () => toggleRowExpansion(location.id),
                   'aria-label': isExpanded ? "Collapse" : "Expand"
-                }, [
-                  isExpanded ? 
-                    React.createElement(ChevronDown, { className: "tree-toggle-icon" }) : 
+                },
+                  isExpanded ?
+                    React.createElement(ChevronDown, { className: "tree-toggle-icon" }) :
                     React.createElement(ChevronRight, { className: "tree-toggle-icon" })
-                ]) : 
-                React.createElement('span', { className: "tree-toggle-spacer" }),
-              React.createElement('span', { className: "country-name-text" }, countryContent)
+                ) :
+                React.createElement('span', { key: "spacer", className: "tree-toggle-spacer" }),
+              React.createElement('span', { key: "name", className: "country-name-text" }, countryContent)
             ])
-          ]),
+          ),
           
           // Subregion columns
           React.createElement(TableCell, {
@@ -641,16 +643,16 @@ export function RequirementsTable({
           React.createElement(TableCell, {
             key: `location-available-${location.id}`,
             className: "sticky-column available-column checkbox-container"
-          }, [
-            React.createElement('div', { className: "checkbox-wrapper" }, [
+          },
+            React.createElement('div', { className: "checkbox-wrapper" },
               React.createElement(Checkbox, {
                 id: `available-${location.id}`,
                 checked: isAvailable,
                 onCheckedChange: (checked) => handleAvailabilityChange(location.id, checked === true),
                 disabled: disabled
               })
-            ])
-          ]),
+            )
+          ),
           
           // Requirement checkboxes
           ...fields.map(field => renderCheckbox(location.id, field.id, isAvailable)),
