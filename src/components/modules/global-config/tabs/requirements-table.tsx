@@ -507,14 +507,15 @@ export function RequirementsTable({
                 React.createElement('span', { key: "name", className: "country-name-text" }, "ALL")
               ])
             ),
-            
+
             // Empty subregion columns for ALL
-            React.createElement(TableCell, { className: "sticky-column subregion-column" }, ""),
-            React.createElement(TableCell, { className: "sticky-column subregion-column" }, ""),
-            React.createElement(TableCell, { className: "sticky-column subregion-column" }, ""),
-            
+            React.createElement(TableCell, { key: `location-subregion1-${location.id}`, className: "sticky-column subregion-column" }, ""),
+            React.createElement(TableCell, { key: `location-subregion2-${location.id}`, className: "sticky-column subregion-column" }, ""),
+            React.createElement(TableCell, { key: `location-subregion3-${location.id}`, className: "sticky-column subregion-column" }, ""),
+
             // Available column
             React.createElement(TableCell, {
+              key: `location-available-${location.id}`,
               className: "sticky-column available-column checkbox-container"
             },
               React.createElement('div', { className: "checkbox-wrapper" },
