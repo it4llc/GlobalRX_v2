@@ -1,0 +1,38 @@
+Workflow Functionality:
+
+Workflows should have the following functionality:
+- Have a name
+- Have a description
+- Have an expiration date, with the default being 10 days
+- Have the ability to enable reminders to be sent
+o Note if reminders are sent by email and/or SMS
+o Note if reminders are cc’d to the requestor
+o Set frequency of reminders
+o Set max # of reminders
+- Have the ability to use customer branding, or to insert custom branding
+- Choose which package will be used by the workflow.  A workflow can have only 1 package assigned.  A package can be assigned to multiple workflows.
+- Pick which sections a workflow can have.  The possible section types are:
+1. Form/Notice
+2. ID Information
+3. Personal Information and Address History
+4. Employment
+5. Education
+6. Other
+7. Document Collection
+8. Summary of provided information
+9. Review/Consent
+- The Form/Notice section can be used multiple times for one Worfklow.  The other sections will only appear once.
+- Form/Notice will allow for:
+o Large text blocks
+o A small text block for the signature
+o The option to require a signature
+o The option to require a checkbox acknowledgement
+o The option to display the User’s IP address, which would be captured and stored along with the application
+- Sections 2 – 7 will be tied to the services in the package to which the workflow is linked.  This means that what information is requested will be based on the ordering requirements for those services.
+- A user should be able to arrange the order of the sections with the following restrictions:
+o Form/Notice can go anwyere in the workflow
+o Sections 4, 5, and 6 must go after 3
+o 8 must go after 2-7
+o 9 will be last, except for a Form/Notice
+- When creating and editing workflows, all sections should be displayed, with a toggle to turn them on and off.  
+- There should be a way to add more Form/Notice sections.

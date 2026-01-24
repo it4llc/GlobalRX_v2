@@ -87,3 +87,11 @@ The application's providers should be set up in this order in `client-provider.t
   </TranslationProvider>
 </SessionProvider>
 ```
+
+## Styling Issues
+
+If Tailwind CSS styling suddenly stops working (buttons look like HTML, brand colors missing), see the detailed troubleshooting guide:
+
+📋 **[Styling Troubleshooting Guide](docs/troubleshooting-styling.md)**
+
+**Quick Fix**: Check if `postcss.config.js` exists and uses CommonJS syntax (`module.exports`), not ES modules (`export default`).
