@@ -33,6 +33,7 @@ export function LocationForm({ onLocationAdded }) {
   const [formError, setFormError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   
   // CSV import state
   const [csvFile, setCsvFile] = useState(null);
@@ -41,8 +42,6 @@ export function LocationForm({ onLocationAdded }) {
   // Use the auth context
   const { fetchWithAuth } = useAuth();
   
-  // Debug state
-  const [debug, setDebug] = useState('');
 
   // Load countries on component mount
   useEffect(() => {
@@ -84,7 +83,7 @@ export function LocationForm({ onLocationAdded }) {
   const fetchSubregions1 = async (countryId) => {
     try {
       setIsLoadingOptions(true);
-      setDebug(`Fetching subregions1 for country ID: ${countryId}`);
+      // setDebug(`Fetching subregions1 for country ID: ${countryId}`);
       
       const response = await fetchWithAuth(`/api/locations?type=subregions1&parentId=${countryId}`);
       if (!response.ok) {
@@ -92,7 +91,7 @@ export function LocationForm({ onLocationAdded }) {
       }
       
       const data = await response.json();
-      setDebug(`Received ${data.length} subregions1: ${JSON.stringify(data.slice(0, 2))}`);
+      // setDebug(`Received ${data.length} subregions1: ${JSON.stringify(data.slice(0, 2))}`);
       
       // Filter out any records that don't have parentId matching the selected country
       // This is to handle the API returning all countries instead of subregions
@@ -102,7 +101,7 @@ export function LocationForm({ onLocationAdded }) {
         (item.parentId === null && item.subregion1)
       );
       
-      setDebug(`Filtered to ${filteredData.length} valid subregions1`);
+      // setDebug(`Filtered to ${filteredData.length} valid subregions1`);
       
       // If we have no valid subregions after filtering, we need to show a message
       if (filteredData.length === 0) {
@@ -113,7 +112,7 @@ export function LocationForm({ onLocationAdded }) {
     } catch (error) {
       console.error('Error fetching subregions1:', error);
       setFormError('Failed to load subregions. Please try refreshing the page.');
-      setDebug(`Error: ${error.message}`);
+      // setDebug(`Error: ${error.message}`);
     } finally {
       setIsLoadingOptions(false);
     }
@@ -123,7 +122,7 @@ export function LocationForm({ onLocationAdded }) {
   const fetchSubregions2 = async (subregion1Id) => {
     try {
       setIsLoadingOptions(true);
-      setDebug(`Fetching subregions2 for subregion1 ID: ${subregion1Id}`);
+      // setDebug(`Fetching subregions2 for subregion1 ID: ${subregion1Id}`);
       
       const response = await fetchWithAuth(`/api/locations?type=subregions2&parentId=${subregion1Id}`);
       if (!response.ok) {
@@ -131,7 +130,7 @@ export function LocationForm({ onLocationAdded }) {
       }
       
       const data = await response.json();
-      setDebug(`Received ${data.length} subregions2: ${JSON.stringify(data.slice(0, 2))}`);
+      // setDebug(`Received ${data.length} subregions2: ${JSON.stringify(data.slice(0, 2))}`);
       
       // Filter for only valid subregions
       const filteredData = data.filter(item => 
@@ -139,14 +138,14 @@ export function LocationForm({ onLocationAdded }) {
         (item.parentId === null && item.subregion2)
       );
       
-      setDebug(`Filtered to ${filteredData.length} valid subregions2`);
+      // setDebug(`Filtered to ${filteredData.length} valid subregions2`);
       
       // Update the subregions2 state
       setSubregions2(filteredData);
     } catch (error) {
       console.error('Error fetching subregions2:', error);
       setFormError('Failed to load subregions. Please try refreshing the page.');
-      setDebug(`Error: ${error.message}`);
+      // setDebug(`Error: ${error.message}`);
     } finally {
       setIsLoadingOptions(false);
     }
@@ -182,7 +181,7 @@ export function LocationForm({ onLocationAdded }) {
     const countryId = e.target.value;
     const country = countries.find(c => c.id === countryId);
     
-    setDebug(`Selected country: ${JSON.stringify(country)}`);
+    // setDebug(`Selected country: ${JSON.stringify(country)}`);
     setSelectedCountry(country);
     
     // Auto-fill country fields if adding a subregion
@@ -205,7 +204,7 @@ export function LocationForm({ onLocationAdded }) {
     const subregion1Id = e.target.value;
     const subregion1 = subregions1.find(s => s.id === subregion1Id);
     
-    setDebug(`Selected subregion1: ${JSON.stringify(subregion1)}`);
+    // setDebug(`Selected subregion1: ${JSON.stringify(subregion1)}`);
     setSelectedSubregion1(subregion1);
     
     // Update form data with selected values
@@ -222,7 +221,7 @@ export function LocationForm({ onLocationAdded }) {
     const subregion2Id = e.target.value;
     const subregion2 = subregions2.find(s => s.id === subregion2Id);
     
-    setDebug(`Selected subregion2: ${JSON.stringify(subregion2)}`);
+    // setDebug(`Selected subregion2: ${JSON.stringify(subregion2)}`);
     setSelectedSubregion2(subregion2);
     
     // Update form data with selected values
@@ -265,36 +264,40 @@ const prepareFormData = () => {
       parentId: null
     };
   } else if (locationType === 'subregion1') {
-    // For subregion1, use country's data and add our own
+    // For subregion1, provide placeholder codes to pass API validation (API will generate real codes)
     submitData = {
       ...submitData,
-      countryName: data.subregion1, // Use subregion1 name as the countryName field
-      twoLetter: selectedCountry.code2 || selectedCountry.twoLetter || "",
-      threeLetter: selectedCountry.code3 || selectedCountry.threeLetter || "",
-      numeric: selectedCountry.numeric || "",
+      name: data.subregion1,  // Use 'name' field instead of 'countryName'
+      countryName: data.subregion1, // Also keep this for backward compatibility
+      twoLetter: "XX",  // Placeholder - API will generate actual code like "CA_BRI"
+      threeLetter: "XXX",
+      numeric: "",
       subregion1: data.subregion1,
+      subregion2: null,  // Explicitly set unused subregions
+      subregion3: null,
       parentId: selectedCountry.id
     };
   } else if (locationType === 'subregion2') {
-    // For subregion2, include both country and subregion1 data
+    // For subregion2, provide placeholder codes to pass API validation (API will generate real codes)
     submitData = {
       ...submitData,
       countryName: data.subregion2,  // Use subregion2 name as the countryName field
-      twoLetter: selectedCountry.code2 || selectedCountry.twoLetter || "",
-      threeLetter: selectedCountry.code3 || selectedCountry.threeLetter || "",
-      numeric: selectedCountry.numeric || "",
+      twoLetter: "XX",  // Placeholder - API will generate actual code
+      threeLetter: "XXX",
+      numeric: "",
       subregion1: selectedSubregion1.subregion1 || selectedSubregion1.name || "",
       subregion2: data.subregion2,
+      subregion3: null,  // Explicitly set unused subregion
       parentId: selectedSubregion1.id
     };
   } else if (locationType === 'subregion3') {
-    // For subregion3, include country, subregion1, and subregion2 data
+    // For subregion3, provide placeholder codes to pass API validation (API will generate real codes)
     submitData = {
       ...submitData,
       countryName: data.subregion3,  // Use subregion3 name as the countryName field
-      twoLetter: selectedCountry.code2 || selectedCountry.twoLetter || "",
-      threeLetter: selectedCountry.code3 || selectedCountry.threeLetter || "",
-      numeric: selectedCountry.numeric || "",
+      twoLetter: "XX",  // Placeholder - API will generate actual code
+      threeLetter: "XXX",
+      numeric: "",
       subregion1: selectedSubregion1.subregion1 || selectedSubregion1.name || "",
       subregion2: selectedSubregion2.subregion2 || selectedSubregion2.name || "",
       subregion3: data.subregion3,
@@ -302,7 +305,7 @@ const prepareFormData = () => {
     };
   }
 
-  setDebug(`Submitting data: ${JSON.stringify(submitData)}`);
+  // setDebug(`Submitting data: ${JSON.stringify(submitData)}`);
   return submitData;
 };
 
@@ -311,19 +314,18 @@ const prepareFormData = () => {
 const handleSubmit = async (e) => {
   e.preventDefault();
   setFormError(null);
+  setIsSuccess(false);
   setIsSubmitting(true);
   
   try {
     // Prepare data based on location type
     const submitData = prepareFormData();
-    setDebug(`Submitting data: ${JSON.stringify(submitData)}`);
-    
-    // Let's log the exact structure we're sending to the API
-    console.log('Sending data to API:', submitData);
     
     // Try sending with different field naming to match schema.prisma
     const apiData = {
       ...submitData,
+      // Ensure name field is always set
+      name: submitData.name || submitData.countryName,
       // Add any fields that might be missing
       disabled: false,
       // If we're adding a subregion, ensure we have this structure
@@ -332,8 +334,7 @@ const handleSubmit = async (e) => {
       })
     };
     
-    setDebug(`Modified data for API: ${JSON.stringify(apiData)}`);
-    
+
     const response = await fetchWithAuth('/api/locations', {
       method: 'POST',
       headers: {
@@ -341,12 +342,13 @@ const handleSubmit = async (e) => {
       },
       body: JSON.stringify(apiData),
     });
-    
+
     if (!response.ok) {
       // Try to get more detailed error information
       try {
         const errorData = await response.json();
-        setDebug(`Error response: ${JSON.stringify(errorData)}`);
+        console.log('API Error Response:', errorData);
+        // setDebug(`Error response: ${JSON.stringify(errorData)}`);
         throw new Error(errorData.error || `Failed to add location. Status: ${response.status}`);
       } catch (jsonError) {
         // If we can't parse the error as JSON, use the status text
@@ -369,9 +371,16 @@ const handleSubmit = async (e) => {
     setSelectedSubregion1(null);
     setSelectedSubregion2(null);
     
+    // Set success state
+    setIsSuccess(true);
+
     // Notify parent component that a location was added
     onLocationAdded();
-    setDebug('Location added successfully!');
+
+    // Reset success state after 2 seconds
+    setTimeout(() => {
+      setIsSuccess(false);
+    }, 2000);
   } catch (err) {
     console.error('Error adding location:', err);
     if (err.message !== "Session expired") {
@@ -438,14 +447,6 @@ const handleSubmit = async (e) => {
           {formError}
         </div>
       )}
-      
-      {/* Debug info */}
-      {debug && (
-        <div className="bg-gray-100 border border-gray-300 text-gray-700 text-xs px-4 py-2 rounded mb-4 font-mono overflow-auto max-h-32">
-          {debug}
-        </div>
-      )}
-      
       <form onSubmit={handleSubmit}>
         {/* Location Type Selection */}
         <div className="mb-6">
@@ -792,10 +793,14 @@ const handleSubmit = async (e) => {
         <div className="mt-6">
           <button
             type="submit"
-            disabled={isSubmitting || isLoadingOptions}
-            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50"
+            disabled={isSubmitting || isLoadingOptions || isSuccess}
+            className={`px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 disabled:opacity-50 transition-colors ${
+              isSuccess
+                ? 'bg-green-500 text-white hover:bg-green-600 focus:ring-green-500'
+                : 'bg-blue-500 text-white hover:bg-blue-600 focus:ring-blue-500'
+            }`}
           >
-            {isSubmitting ? 'Adding Location...' : 'Add Location'}
+            {isSubmitting ? 'Adding Location...' : isSuccess ? 'Added ✓' : 'Add Location'}
           </button>
         </div>
       </form>

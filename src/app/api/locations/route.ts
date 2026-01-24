@@ -96,13 +96,16 @@ export async function POST(request: NextRequest) {
 
       // If this is a subregion, create unique codes by combining parent code with a suffix
       if (parentLocation) {
-        // Create a sanitized suffix from the subregion name
-        const namePart = data.subregion1 || data.subregion2 || data.subregion3 || '';
+        // Create a sanitized suffix from the subregion name (sent as countryName for subregions)
+        const namePart = data.countryName || '';
         const suffix = namePart.replace(/[^A-Z0-9]/gi, '').substring(0, 3).toUpperCase();
-        
+
+        // Also add timestamp to ensure uniqueness
+        const timestamp = Date.now().toString().slice(-4);
+
         // Store the original parent codes in the metadata for UI display purposes
-        locationData['code2'] = `${parentLocation.code2}_${suffix}`;
-        locationData['code3'] = `${parentLocation.code3}_${suffix}`;
+        locationData['code2'] = `${parentLocation.code2}_${suffix}_${timestamp}`;
+        locationData['code3'] = `${parentLocation.code3}_${suffix}_${timestamp}`;
       } else {
         // For countries, use the provided codes
         locationData['code2'] = data.twoLetter.toUpperCase();

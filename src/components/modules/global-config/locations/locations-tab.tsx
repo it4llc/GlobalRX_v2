@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { LocationForm } from './location-form';
-import { LocationsTable } from './locations-table';
+import { LocationsDataTable } from '../tables/LocationsDataTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/contexts/TranslationContext';
 
@@ -63,6 +63,44 @@ export function LocationsTab() {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  const handleEdit = (location) => {
+    // Edit is now handled inline in the LocationsDataTable
+    console.log('Edit location:', location);
+  };
+
+  const handleToggleStatus = async (location) => {
+    const action = location.disabled ? 'enable' : 'disable';
+    if (!confirm(`Are you sure you want to ${action} this location?`)) {
+      return;
+    }
+
+    try {
+      console.log('Toggling status for location:', location);
+
+      const response = await fetchWithAuth(`/api/locations/${location.id}/toggle-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Toggle status error:', errorData);
+        throw new Error(errorData.error || `Failed to update location status: ${response.status}`);
+      }
+
+      // Refresh the list
+      handleLocationAdded();
+
+      // Clear any existing error
+      setError(null);
+    } catch (err) {
+      console.error('Error updating location status:', err);
+      setError(err.message || 'Failed to update location status');
+      // Also show an alert for immediate feedback
+      alert(`Failed to update location status: ${err.message}`);
+    }
+  };
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">{t('config.locations.title')}</h2>
@@ -89,11 +127,13 @@ export function LocationsTab() {
           </div>
         </div>
       
-        <LocationsTable 
+        <LocationsDataTable
           locations={locations}
           isLoading={isLoading}
           error={error}
           onRefresh={handleLocationAdded}
+          onEdit={handleEdit}
+          onToggleStatus={handleToggleStatus}
         />
       </div>
     </div>

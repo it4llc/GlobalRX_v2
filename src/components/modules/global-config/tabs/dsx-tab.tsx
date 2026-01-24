@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StandardDropdown } from '@/components/ui/standard-dropdown';
 import { Button } from '@/components/ui/button';
 import { Service, Requirement } from '@/types';
-import { RequirementsTable } from './requirements-table';
+import { RequirementsDataTable } from '../tables/RequirementsDataTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle } from 'lucide-react';
@@ -59,6 +59,11 @@ export function DSXTab() {
         }
         
         const data = await response.json();
+        console.log('Loaded locations data:', {
+          locationsCount: data?.length,
+          firstLocation: data?.[0],
+          data: data
+        });
         setLocations(data);
         locationsLoadedRef.current = true;
         console.log('Successfully loaded locations in DSX tab');
@@ -639,18 +644,26 @@ const saveSelectedRequirements = async () => {
       )}
 
       {selectedService && serviceRequirements.length > 0 && (
-        <RequirementsTable
-          serviceName={selectedServiceName}
-          requirements={serviceRequirements}
-          onMappingChange={handleMappingChange}
-          initialMappings={mappings}
-          serviceId={selectedService}
-          onAvailabilityChange={handleAvailabilityChange}
-          initialAvailability={availability}
-          isLoading={isLoading}
-          disabled={isSaving}
-          locations={locations}
-        />
+        <>
+          {locations.length === 0 && (
+            <div className="px-4 py-3 mb-4 rounded bg-red-50 text-red-700 border border-red-200">
+              <p>Warning: No locations loaded. The table cannot display without location data.</p>
+              <p className="text-sm mt-1">Locations count: {locations.length}</p>
+            </div>
+          )}
+          <RequirementsDataTable
+            serviceName={selectedServiceName}
+            requirements={serviceRequirements}
+            onMappingChange={handleMappingChange}
+            initialMappings={mappings}
+            serviceId={selectedService}
+            onAvailabilityChange={handleAvailabilityChange}
+            initialAvailability={availability}
+            isLoading={isLoading}
+            disabled={isSaving}
+            locations={locations}
+          />
+        </>
       )}
 
       {selectedService && isSavingRequirements && (

@@ -7,16 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Requirement } from '@/types';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead,
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
+import styles from '@/styles/tables.module.css';
 
 interface RequirementsTableProps {
   serviceName: string;
@@ -452,19 +445,18 @@ export function RequirementsTable({
 
   // Helper function for rendering checkboxes to reduce repetition
   const renderCheckbox = useCallback((locationId: string, requirementId: string, isAvailable: boolean) => {
-    return React.createElement(TableCell, {
-      key: `requirement-${locationId}-${requirementId}`,
-      className: "checkbox-container"
-    },
-      React.createElement('div', { className: "checkbox-wrapper" },
-        React.createElement(Checkbox, {
-          id: `${locationId}-${requirementId}`,
-          checked: isRequirementSelected(locationId, requirementId),
-          onCheckedChange: (checked) => handleCheckboxChange(locationId, requirementId, checked === true),
-          disabled: !isAvailable || disabled,
-          className: !isAvailable ? "opacity-50" : ""
-        })
-      )
+    return (
+      <td key={`requirement-${locationId}-${requirementId}`} className={styles.checkboxCell}>
+        <div className={styles.checkboxWrapper}>
+          <Checkbox
+            id={`${locationId}-${requirementId}`}
+            checked={isRequirementSelected(locationId, requirementId)}
+            onCheckedChange={(checked) => handleCheckboxChange(locationId, requirementId, checked === true)}
+            disabled={!isAvailable || disabled}
+            className={!isAvailable ? "opacity-50" : ""}
+          />
+        </div>
+      </td>
     );
   }, [isRequirementSelected, handleCheckboxChange, disabled]);
 
