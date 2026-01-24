@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // Helper function to check permissions (copied from dsx endpoint)
 function hasPermission(permissions: any, module: string): boolean {
   if (!permissions) return false;

@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * API route to fetch all available requirements that can be associated with a service
  * This bridges the gap between Data Rx tab and DSX tab

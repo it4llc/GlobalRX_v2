@@ -29,6 +29,19 @@ export const workflowPackageSchema = z.object({
   packageId: z.string().uuid(),
 });
 
+// Section type enum
+export const SectionTypeEnum = z.enum([
+  'form',
+  'idInfo',
+  'personalInfo',
+  'employment',
+  'education',
+  'other',
+  'documents',
+  'summary',
+  'consent'
+]);
+
 // Section schemas
 export const workflowSectionBaseSchema = z.object({
   name: z.string().min(2, 'Section name must be at least 2 characters'),
@@ -36,6 +49,7 @@ export const workflowSectionBaseSchema = z.object({
   isRequired: z.boolean().default(true),
   dependsOnSection: z.string().uuid().optional(),
   dependencyLogic: z.string().optional(),
+  sectionType: SectionTypeEnum.default('form'),
 });
 
 export const workflowSectionCreateSchema = workflowSectionBaseSchema;
