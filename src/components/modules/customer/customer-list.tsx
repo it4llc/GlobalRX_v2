@@ -76,7 +76,7 @@ export default function CustomerList() {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // Explicitly use string literal values for boolean parameters
       const params = new URLSearchParams({
         page: page.toString(),
@@ -84,11 +84,11 @@ export default function CustomerList() {
         masterOnly: showMasterOnly ? 'true' : 'false',
         includeDisabled: includeDisabled ? 'true' : 'false'
       });
-      
+
       if (searchTerm) {
         params.append('search', searchTerm);
       }
-      
+
       console.log('Fetching customers with params:', {
         page,
         pageSize,
@@ -96,19 +96,22 @@ export default function CustomerList() {
         includeDisabled: includeDisabled,
         search: searchTerm
       });
-      
+
       const apiUrl = `/api/customers?${params.toString()}`;
       console.log('API URL:', apiUrl);
-      
+
       const response = await fetchWithAuth(apiUrl);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch customers: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log('Received customers:', data.data.length, 'total:', data.meta.total);
-      setCustomers(data.data);
+
+      // Sort customers to show master accounts first, then their subaccounts
+      const sortedCustomers = sortCustomersByHierarchy(data.data);
+      setCustomers(sortedCustomers);
       setTotalPages(data.meta.totalPages);
     } catch (err) {
       console.error('Error fetching customers:', err);
@@ -116,6 +119,42 @@ export default function CustomerList() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Sort customers to show master accounts above their subaccounts
+  const sortCustomersByHierarchy = (customers: Customer[]) => {
+    const sorted: Customer[] = [];
+    const processedIds = new Set<string>();
+
+    // First, find all master accounts (no masterAccountId)
+    const masterAccounts = customers.filter(c => !c.masterAccount);
+
+    // Process each master account and its subaccounts
+    masterAccounts.forEach(master => {
+      if (!processedIds.has(master.id)) {
+        sorted.push(master);
+        processedIds.add(master.id);
+
+        // Find and add all direct subaccounts of this master
+        const subaccounts = customers.filter(c =>
+          c.masterAccount?.id === master.id && !processedIds.has(c.id)
+        );
+
+        subaccounts.forEach(sub => {
+          sorted.push(sub);
+          processedIds.add(sub.id);
+        });
+      }
+    });
+
+    // Add any remaining customers (edge case)
+    customers.forEach(customer => {
+      if (!processedIds.has(customer.id)) {
+        sorted.push(customer);
+      }
+    });
+
+    return sorted;
   };
   
   // Initial load and when filters change
@@ -378,11 +417,26 @@ export default function CustomerList() {
                 </TableCell>
               </TableRow>
             ) : (
-              customers.map((customer) => (
-                <TableRow key={customer.id} className={customer.disabled ? 'text-gray-400' : ''}>
-                  <TableCell className="font-medium" title={customer.name}>
-                    {customer.name}
-                  </TableCell>
+              customers.map((customer) => {
+                const isMasterAccount = !customer.masterAccount;
+                return (
+                  <TableRow
+                    key={customer.id}
+                    className={`
+                      ${customer.disabled ? 'text-gray-400' : ''}
+                      ${isMasterAccount ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}
+                    `}
+                  >
+                    <TableCell className="font-medium" title={customer.name}>
+                      <div className="flex items-center">
+                        {!isMasterAccount && (
+                          <span className="text-gray-400 mr-2">└</span>
+                        )}
+                        <span className={isMasterAccount ? 'font-semibold' : ''}>
+                          {customer.name}
+                        </span>
+                      </div>
+                    </TableCell>
                   <TableCell>
                     {customer.contactName ? (
                       customer.contactName
@@ -405,7 +459,7 @@ export default function CustomerList() {
                         )}
                       </div>
                     ) : (
-                      <div className="text-sm text-gray-500">Master Account</div>
+                      <div className="text-sm font-semibold text-blue-600">Master Account</div>
                     )}
                   </TableCell>
                   <TableCell className="whitespace-normal">
@@ -453,8 +507,9 @@ export default function CustomerList() {
                       ]}
                     />
                   </TableCell>
-                </TableRow>
-              ))
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
