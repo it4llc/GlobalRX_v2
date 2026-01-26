@@ -11,10 +11,13 @@ import {
 import Link from 'next/link';
 
 interface DashboardStats {
-  totalOrders: number;
-  pendingOrders: number;
-  completedOrders: number;
-  draftOrders: number;
+  total: number;
+  pending: number;
+  completed: number;
+  draft: number;
+  submitted: number;
+  processing: number;
+  cancelled: number;
 }
 
 interface RecentOrder {
@@ -29,10 +32,13 @@ interface RecentOrder {
 export default function CustomerDashboard() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<DashboardStats>({
-    totalOrders: 0,
-    pendingOrders: 0,
-    completedOrders: 0,
-    draftOrders: 0,
+    total: 0,
+    pending: 0,
+    completed: 0,
+    draft: 0,
+    submitted: 0,
+    processing: 0,
+    cancelled: 0,
   });
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,35 +51,41 @@ export default function CustomerDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // For now, we'll use placeholder data since the API isn't implemented yet
-      // This will be replaced with actual API calls
-      setStats({
-        totalOrders: 12,
-        pendingOrders: 3,
-        completedOrders: 8,
-        draftOrders: 1,
-      });
-
-      setRecentOrders([
-        {
-          id: '1',
-          orderNumber: 'ORD-2025-001',
-          statusCode: 'pending',
-          subject: { name: 'John Doe', birthDate: '1985-03-15' },
-          createdAt: new Date().toISOString(),
-          totalPrice: 1250.00,
-        },
-        {
-          id: '2',
-          orderNumber: 'ORD-2025-002',
-          statusCode: 'completed',
-          subject: { name: 'Jane Smith', birthDate: '1990-07-22' },
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          totalPrice: 850.00,
-        },
+      // Fetch real order statistics
+      const [statsResponse, ordersResponse] = await Promise.all([
+        fetch('/api/portal/orders/stats'),
+        fetch('/api/portal/orders?limit=5'),
       ]);
+
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        setStats(statsData);
+      }
+
+      if (ordersResponse.ok) {
+        const ordersData = await ordersResponse.json();
+        const formattedOrders = ordersData.orders.map((order: any) => ({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          statusCode: order.statusCode,
+          subject: order.subject,
+          createdAt: order.createdAt,
+          totalPrice: order.totalPrice,
+        }));
+        setRecentOrders(formattedOrders);
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      // Set default values on error
+      setStats({
+        total: 0,
+        pending: 0,
+        completed: 0,
+        draft: 0,
+        submitted: 0,
+        processing: 0,
+        cancelled: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -124,7 +136,7 @@ export default function CustomerDashboard() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Orders</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {stats.totalOrders}
+                {stats.total}
               </p>
             </div>
           </div>
@@ -138,7 +150,7 @@ export default function CustomerDashboard() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Pending</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {stats.pendingOrders}
+                {stats.pending}
               </p>
             </div>
           </div>
@@ -152,7 +164,7 @@ export default function CustomerDashboard() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Completed</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {stats.completedOrders}
+                {stats.completed}
               </p>
             </div>
           </div>
@@ -166,7 +178,7 @@ export default function CustomerDashboard() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Drafts</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {stats.draftOrders}
+                {stats.draft}
               </p>
             </div>
           </div>
@@ -240,7 +252,9 @@ export default function CustomerDashboard() {
                     {order.orderNumber}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {order.subject.name}
+                    {order.subject?.firstName && order.subject?.lastName
+                      ? `${order.subject.firstName} ${order.subject.lastName}`
+                      : 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
