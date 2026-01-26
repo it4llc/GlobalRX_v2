@@ -37,8 +37,8 @@ export default function PortalLayout({
     { name: 'Profile', href: '/portal/profile', icon: UserCircleIcon },
   ];
 
-  const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/login' });
+  const handleSignOut = () => {
+    signOut({ callbackUrl: '/login' });
   };
 
   if (status === 'loading') {
