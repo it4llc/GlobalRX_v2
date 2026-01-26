@@ -31,6 +31,9 @@ export const authOptions: NextAuthOptions = {
             where: {
               email: credentials.email,
             },
+            include: {
+              customer: true, // Include customer relation for customer users
+            },
           });
 
           if (!user) {
@@ -38,18 +41,47 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
+          // Check if account is locked
+          if (user.lockedUntil && user.lockedUntil > new Date()) {
+            console.log(`Account locked for user: ${credentials.email}`);
+            return null;
+          }
+
           const isPasswordValid = await verifyPassword(credentials.password, user.password);
 
           if (!isPasswordValid) {
             console.log(`Invalid password for user: ${credentials.email}`);
+            // Increment failed login attempts
+            await authPrisma.user.update({
+              where: { id: user.id },
+              data: {
+                failedLoginAttempts: user.failedLoginAttempts + 1,
+                // Lock account after 5 failed attempts
+                lockedUntil: user.failedLoginAttempts >= 4 ? new Date(Date.now() + 15 * 60 * 1000) : null,
+              },
+            });
             return null;
           }
+
+          // Reset failed attempts and update last login
+          await authPrisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginAttempts: 0,
+              lockedUntil: null,
+              lastLoginAt: new Date(),
+              lastLoginIp: credentials.loginIp || null,
+            },
+          });
 
           return {
             id: user.id,
             email: user.email,
             name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
             permissions: user.permissions,
+            userType: user.userType,
+            customerId: user.customerId,
+            customerName: user.customer?.name,
             rememberMe: credentials.rememberMe === 'true',
           };
         } catch (error) {
@@ -64,6 +96,9 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.id as string;
         session.user.permissions = token.permissions as any;
+        session.user.userType = token.userType as string;
+        session.user.customerId = token.customerId as string | null;
+        session.user.customerName = token.customerName as string | undefined;
       }
       return session;
     },
@@ -71,6 +106,9 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.permissions = user.permissions;
+        token.userType = user.userType;
+        token.customerId = user.customerId;
+        token.customerName = user.customerName;
       }
       return token;
     },

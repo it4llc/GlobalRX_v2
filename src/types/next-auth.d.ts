@@ -17,6 +17,12 @@ declare module "next-auth" {
         dsx?: string[];
         customers?: string[];
       };
+      /** User type - admin or customer */
+      userType?: string;
+      /** Customer ID for customer users */
+      customerId?: string | null;
+      /** Customer name for customer users */
+      customerName?: string;
     } & DefaultSession["user"];
   }
 
@@ -28,6 +34,9 @@ declare module "next-auth" {
       dsx?: string[];
       customers?: string[];
     };
+    userType?: string;
+    customerId?: string | null;
+    customerName?: string;
   }
 }
 
@@ -43,5 +52,11 @@ declare module "next-auth/jwt" {
       dsx?: string[];
       customers?: string[];
     };
+    /** User type - admin or customer */
+    userType?: string;
+    /** Customer ID for customer users */
+    customerId?: string | null;
+    /** Customer name for customer users */
+    customerName?: string;
   }
 }
