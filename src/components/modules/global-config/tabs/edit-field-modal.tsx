@@ -29,6 +29,12 @@ const retentionOptions = [
   { id: 'global_rule', value: 'global_rule', label: 'Delete at global rule' },
 ];
 
+// Collection tab options (same as in add-field-modal.tsx)
+const collectionTabOptions = [
+  { id: 'subject', value: 'subject', label: 'Subject Information (Order Level)' },
+  { id: 'search', value: 'search', label: 'Search Details (Service Level)' },
+];
+
 // Interface for a dropdown option
 export interface DropdownOption {
   value: string;
@@ -66,6 +72,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
   const [dataType, setDataType] = useState('');
   const [instructions, setInstructions] = useState('');
   const [retentionHandling, setRetentionHandling] = useState('');
+  const [collectionTab, setCollectionTab] = useState('subject');
   const [optionsText, setOptionsText] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -94,6 +101,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
         setDataType(field.dataType);
         setInstructions(field.instructions || '');
         setRetentionHandling(field.retentionHandling || '');
+        setCollectionTab(field.collectionTab || 'subject');
         
         // Set options text
         if (field.options && field.options.length > 0) {
@@ -127,6 +135,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
     setDataType('');
     setInstructions('');
     setRetentionHandling('');
+    setCollectionTab('subject');
     setOptionsText('');
     setErrors({});
   };
@@ -199,8 +208,9 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
       dataType,
       instructions,
       retentionHandling,
+      collectionTab,
     };
-    
+
     // Add options if data type is select, checkbox, or radio
     if (dataType === 'select' || dataType === 'checkbox' || dataType === 'radio') {
       fieldData.options = parseOptions(optionsText);
@@ -358,7 +368,21 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
                 placeholder="Select retention policy"
               />
             </FormRow>
-            
+
+            <FormRow
+              label="Collection Tab"
+              htmlFor="collection-tab"
+              required={true}
+            >
+              <StandardDropdown
+                id="collection-tab"
+                options={collectionTabOptions}
+                value={collectionTab}
+                onChange={setCollectionTab}
+                placeholder="Select where field is collected"
+              />
+            </FormRow>
+
             {/* Options Section - Simplified with text area */}
             {showOptions && (
               <FormRow

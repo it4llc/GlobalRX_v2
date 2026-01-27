@@ -28,6 +28,12 @@ const retentionOptions = [
   { id: 'global_rule', value: 'global_rule', label: 'Delete at global rule' },
 ];
 
+// Collection tab options
+const collectionTabOptions = [
+  { id: 'subject', value: 'subject', label: 'Subject Information (Order Level)' },
+  { id: 'search', value: 'search', label: 'Search Details (Service Level)' },
+];
+
 // Interface for a dropdown option
 export interface DropdownOption {
   value: string;
@@ -55,6 +61,7 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
   const [dataType, setDataType] = useState('');
   const [instructions, setInstructions] = useState('');
   const [retentionHandling, setRetentionHandling] = useState('');
+  const [collectionTab, setCollectionTab] = useState('subject');
   const [optionsText, setOptionsText] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -70,6 +77,7 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
     setDataType('');
     setInstructions('');
     setRetentionHandling('');
+    setCollectionTab('subject');
     setOptionsText('');
     setErrors({});
   };
@@ -141,8 +149,9 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
       dataType,
       instructions,
       retentionHandling,
+      collectionTab,
     };
-    
+
     // Add options if data type is select, checkbox, or radio
     if (dataType === 'select' || dataType === 'checkbox' || dataType === 'radio') {
       fieldData.options = parseOptions(optionsText);
@@ -246,7 +255,21 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
             placeholder="Select retention policy"
           />
         </FormRow>
-        
+
+        <FormRow
+          label="Collection Tab"
+          htmlFor="collection-tab"
+          required={true}
+        >
+          <StandardDropdown
+            id="collection-tab"
+            options={collectionTabOptions}
+            value={collectionTab}
+            onChange={setCollectionTab}
+            placeholder="Select where field is collected"
+          />
+        </FormRow>
+
         {/* Options Section - Simplified with text area */}
         {showOptions && (
           <FormRow

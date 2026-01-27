@@ -218,7 +218,8 @@ export function DataRxTab() {
         shortName: fieldData.shortName,
         dataType: fieldData.dataType,
         instructions: fieldData.instructions || "",
-        retentionHandling: fieldData.retentionHandling || "no_delete"
+        retentionHandling: fieldData.retentionHandling || "no_delete",
+        collectionTab: fieldData.collectionTab || "subject"
       };
       
       // Add options property for dropdown fields
@@ -262,6 +263,7 @@ export function DataRxTab() {
         dataType: fieldData.dataType,
         instructions: fieldData.instructions || "",
         retentionHandling: fieldData.retentionHandling || "no_delete",
+        collectionTab: fieldData.collectionTab || "subject",
         options: fieldData.options || []
       };
       

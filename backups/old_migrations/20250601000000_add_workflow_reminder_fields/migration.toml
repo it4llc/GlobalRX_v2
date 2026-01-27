@@ -1,0 +1,4 @@
+# This is an empty migration.toml file indicating this migration is handled manually
+# https://www.prisma.io/docs/concepts/components/prisma-migrate/migration-histories#manual-migration
+
+migration_name = "20250601000000_add_workflow_reminder_fields"

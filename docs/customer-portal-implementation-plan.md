@@ -1,5 +1,54 @@
 # Customer Portal Implementation Plan
 
+## Current Status (As of Jan 26, 2025)
+
+### ✅ Completed
+- Customer authentication system with role-based access
+- Portal layout and navigation structure
+- Database schema for all portal models
+- Middleware for customer/admin separation
+- Account security (lockout, failed attempts tracking)
+- Complete Order API system with professional order numbering
+- Dashboard with real order statistics and recent orders
+- Order service layer with CRUD operations
+- Test scripts and data validation
+
+### 🎉 Recently Completed (Jan 26, 2025)
+**Order Management System Foundation:**
+- **Professional Order Numbering**: Format `YYYYMMDD-ABC-0001` with consistent customer codes
+- **Complete Order API**: All CRUD operations, status management, statistics
+- **OrderService Layer**: Comprehensive business logic with validation
+- **Real Dashboard Data**: Live statistics and recent orders from database
+- **Test Infrastructure**: Scripts for creating sample data and validation
+
+**Key Technical Achievement**:
+Order numbers now follow enterprise format (e.g., `20260126-CLM-0001`) where:
+- `20260126` = Date (YYYY-MM-DD format)
+- `CLM` = Consistent 3-char customer code (same customer always gets same code)
+- `0001` = Daily sequence counter per customer (resets each day)
+
+### 🚧 In Progress - NEW 4-STEP ORDER WORKFLOW
+- **Redesigning order creation to properly integrate DSX Requirements**
+- Adding `collectionTab` field to data fields (subject vs search level)
+- Building dynamic form generation based on field configurations
+
+### 📋 Next Priority - UPDATED IMPLEMENTATION PLAN
+1. **Phase 1: Database & UI Updates**
+   - Add `collectionTab` field to DSXRequirement.fieldData JSON
+   - Update Data & Documents UI to include collection tab selection
+   - Modify API endpoints to save/retrieve this field
+
+2. **Phase 2: Refactor Order Form (4 Steps)**
+   - Step 1: Service & Location (Country only) - Shopping cart pattern
+   - Step 2: Subject Information - Order-level fields
+   - Step 3: Search Details - Subregion selection + service-specific fields
+   - Step 4: Documents - Location-specific requirements
+
+3. **Phase 3: Dynamic Features**
+   - Tab status indicators (Green/Red)
+   - Dynamic requirement updates based on subregion selection
+   - Non-blocking navigation with save draft at any point
+
 ## Architecture Recommendation
 **Single Application with Role-Based Access** - Extend the current Next.js application rather than creating a separate one. This approach offers:
 - Shared authentication/session management
@@ -10,10 +59,10 @@
 
 ## Security Implementation Phases
 
-### Phase 1: Implement Now (Foundation)
+### Phase 1: Implement Now (Foundation) ✅ COMPLETED
 These changes set up the structure without slowing development:
 
-#### Database Schema Changes (Implement Now)
+#### Database Schema Changes ✅ COMPLETED
 ```prisma
 // Add to existing User model
 model User {
@@ -173,25 +222,25 @@ model AuditLog {
 }
 ```
 
-#### Basic Security Features (Implement Now)
-1. **Role-based access control** - Simple userType check (admin vs customer)
-2. **Customer data isolation** - Customers can only see their own data
-3. **Basic password requirements** - 8+ characters minimum
-4. **Session management** - Using NextAuth existing functionality
-5. **HTTPS only** - Already in place
-6. **Input validation** - Using Zod for API validation
-7. **SQL injection prevention** - Prisma handles this
-8. **XSS prevention** - React handles this by default
-9. **Basic audit logging** - Track who does what
-10. **Secure file storage** - Store uploads outside public directory
+#### Basic Security Features ✅ MOSTLY COMPLETED
+1. ✅ **Role-based access control** - Simple userType check (admin vs customer)
+2. ✅ **Customer data isolation** - Customers can only see their own data via middleware
+3. ✅ **Basic password requirements** - 8+ characters minimum
+4. ✅ **Session management** - Using NextAuth with customer support
+5. ✅ **HTTPS only** - Already in place
+6. ✅ **Input validation** - Using Zod for API validation
+7. ✅ **SQL injection prevention** - Prisma handles this
+8. ✅ **XSS prevention** - React handles this by default
+9. 🔧 **Basic audit logging** - Model created, implementation pending
+10. 📋 **Secure file storage** - Not yet implemented
 
-### Phase 2: Pre-MVP (Add Before Testing with Real Data)
+### Phase 2: Pre-MVP (Add Before Testing with Real Data) 🚧 PARTIALLY COMPLETE
 Add these once core functionality works but before any real data:
 
 1. **Enhanced authentication**:
-   - Increase password complexity requirements (12+ chars, complexity rules)
-   - Add account lockout after 5 failed attempts
-   - Implement password history (prevent reuse of last 10)
+   - 📋 Increase password complexity requirements (12+ chars, complexity rules)
+   - ✅ Add account lockout after 5 failed attempts (COMPLETED)
+   - 📋 Implement password history (prevent reuse of last 10)
 
 2. **File upload security**:
    - File type validation (magic number checking)
@@ -263,38 +312,93 @@ Implement these before handling real customer data:
 
 ## MVP Implementation Features
 
-### 1. Authentication & User Management
-- Extend existing User model with `userType` field (admin/customer)
-- Add `customerId` foreign key for customer users
-- Create customer registration flow
-- Implement role-based route protection
-- Add customer-specific permission checks
+### 1. Authentication & User Management ✅ COMPLETED
+- ✅ Extend existing User model with `userType` field (admin/customer)
+- ✅ Add `customerId` foreign key for customer users
+- ✅ Create test customer user script
+- ✅ Implement role-based route protection via middleware
+- ✅ Add customer-specific permission checks
+- ✅ Account locking after failed attempts
+- ✅ Last login tracking with IP
 
-### 2. Customer Portal Routes (/portal)
-- `/portal/dashboard` - Overview of orders and account info
-- `/portal/orders/new` - Create new order
-- `/portal/orders/[id]` - View order details/status
-- `/portal/orders` - List all orders with filtering
-- `/portal/reports` - Download completed reports
-- `/portal/account` - View/edit account settings
+### 2. Customer Portal Routes (/portal) 🚧 PARTIALLY COMPLETE
+- ✅ `/portal/dashboard` - Overview page created (placeholder data)
+- ✅ `/portal/orders/new` - UI created (not functional)
+- 📋 `/portal/orders/[id]` - View order details/status
+- ✅ `/portal/orders` - List page created (placeholder)
+- 📋 `/portal/reports` - Download completed reports
+- ✅ `/portal/profile` - Basic profile page (view only)
 
-### 3. Order Creation Flow
-1. **Subject Information**: Name and basic details
-2. **Service Selection**: Choose services from customer's available list
-3. **Location & Requirements**:
-   - Select location per service
-   - Dynamic form generation based on DSX requirements
-   - Document upload with validation
-4. **Review & Submit**: Summary with pricing (structure only)
-5. **Save as Draft**: Allow incomplete orders to be saved
+### 3. Order Creation Flow - NEW 4-STEP WORKFLOW 🚧 REDESIGNING
+**Major Change**: Moving from 3-step to 4-step workflow to properly integrate DSX Requirements
 
-### 4. Dynamic Requirement Collection
-- Query DSX requirements by service + location
-- Generate forms dynamically from field definitions
-- Handle document requirements with upload UI
-- Validate file types/sizes (PDF, JPG, PNG - 5MB max)
-- Show/hide locations based on service availability
-- Grey out unavailable locations with tooltip explanations
+#### Step 1: Service & Location Selection (Country Level)
+- ✅ Shopping cart pattern implemented
+- ✅ Service selection from customer's available services
+- ✅ Country-level location selection
+- ✅ Add to cart functionality
+- Multiple instances of same service allowed
+
+#### Step 2: Subject Information (Order Level)
+- 📋 Dynamic fields based on DSXRequirement where `collectionTab: "subject"`
+- 📋 Fields collected once for entire order
+- 📋 May update if Step 3 subregion adds requirements (tab turns red)
+- Standard subject fields (name, DOB, etc.)
+
+#### Step 3: Search Details (Per Service Instance)
+- 📋 For each service+country combination:
+  - Subregion drill-down (region → city → district)
+  - Service-specific fields where `collectionTab: "search"`
+  - Different data for each service instance
+- 📋 Can trigger new subject requirements
+
+#### Step 4: Documents (Location-Specific)
+- 📋 Based on final service+location combinations
+- 📋 Documents can be mapped at country or subregion levels
+- 📋 Upload validation (PDF, JPG, PNG - 5MB max)
+- Document scope already exists (per case/per search type/per search)
+
+#### Key Features:
+- **Tab Status Indicators**: Green (complete) / Red (incomplete)
+- **Non-blocking Navigation**: Move between tabs freely
+- **Dynamic Requirements**: Subregion selection can add subject fields
+- **Save Draft**: Available at any point, even with incomplete tabs
+
+### 4. Dynamic Requirement Collection 🚧 IMPLEMENTING
+**Technical Implementation Details**:
+
+#### Database Schema Updates Needed:
+```javascript
+// Add to DSXRequirement.fieldData JSON:
+{
+  dataType: "text",
+  shortName: "dob",
+  instructions: "Enter date of birth",
+  retentionHandling: "no_delete",
+  collectionTab: "subject" | "search"  // NEW FIELD
+}
+```
+
+#### API Endpoints Required:
+- `GET /api/portal/orders/requirements` - Fetch all requirements for service+location combinations
+  - Query ServiceRequirement for service-level requirements
+  - Query DSXMapping for location-specific overrides
+  - Group by collectionTab (subject vs search)
+  - Return deduplicated field list
+
+#### Dynamic Form Generation:
+- Build forms based on `dataType`: text, number, date, email, phone, select, checkbox, radio
+- Handle options for select/radio/checkbox fields
+- Apply validation based on dataType
+- Show instructions and help text
+- Track which fields come from which requirement source
+
+#### Requirement Resolution Logic:
+1. Get base requirements from ServiceRequirement
+2. Check DSXMapping for country-level overrides
+3. When subregions selected, check DSXMapping for subregion overrides
+4. Deduplicate fields (same field required by multiple sources = collect once)
+5. Group by collectionTab for proper placement in workflow
 
 ### 5. Data Retention Integration
 Use existing field-level retention configuration:
@@ -334,45 +438,46 @@ Additional statuses can be added via the OrderStatus configuration table.
 - Status change history/audit trail
 - Save drafts and return later
 
-### 7. API Structure
-- RESTful endpoints under `/api/portal/`
-- Separate middleware for customer authentication
-- Basic rate limiting for customer endpoints
-- Audit logging for all actions
+### 7. API Structure ✅ LARGELY COMPLETE
+- ✅ RESTful endpoints under `/api/portal/orders/`
+- ✅ Separate middleware for customer authentication
+- 📋 Basic rate limiting for customer endpoints
+- 📋 Audit logging for all actions
 
-#### API Endpoints
-- `POST /api/portal/orders` - Create new order
-- `GET /api/portal/orders` - List customer's orders
-- `GET /api/portal/orders/[id]` - Get order details
-- `PUT /api/portal/orders/[id]` - Update draft order
-- `POST /api/portal/orders/[id]/submit` - Submit order
-- `DELETE /api/portal/orders/[id]` - Delete draft order
-- `POST /api/portal/documents/upload` - Upload document
-- `GET /api/portal/requirements` - Get dynamic requirements
-- `GET /api/portal/services/availability` - Check service availability
+#### API Endpoints ✅ CORE ENDPOINTS COMPLETE
+- ✅ `POST /api/portal/orders` - Create new order
+- ✅ `GET /api/portal/orders` - List customer's orders
+- ✅ `GET /api/portal/orders/[id]` - Get order details
+- ✅ `PUT /api/portal/orders/[id]` - Update draft order
+- ✅ `POST /api/portal/orders/[id]/submit` - Submit order
+- ✅ `DELETE /api/portal/orders/[id]` - Delete draft order
+- ✅ `GET /api/portal/orders/stats` - Order statistics
+- 📋 `POST /api/portal/documents/upload` - Upload document
+- 📋 `GET /api/portal/requirements` - Get dynamic requirements
+- 📋 `GET /api/portal/services/availability` - Check service availability
 
-### 8. UI/UX Components
-- Responsive design for mobile/tablet
-- Progress indicator for multi-step forms
-- Real-time validation feedback
-- Loading states and error handling
-- Accessible form controls
+### 8. UI/UX Components 🚧 PARTIALLY COMPLETE
+- ✅ Responsive design for mobile/tablet
+- ✅ Progress indicator for multi-step forms (UI only)
+- 📋 Real-time validation feedback
+- ✅ Loading states and error handling patterns
+- ✅ Accessible form controls
 
 ## Implementation Steps
 
-### Immediate Actions (Week 1-2)
-1. Create database migrations for new models
-2. Set up OrderStatus configuration with initial statuses
-3. Build basic customer user authentication
-4. Create portal layout and navigation
-5. Implement basic audit logging
+### Immediate Actions (Week 1-2) ✅ COMPLETED
+1. ✅ Create database migrations for new models
+2. ✅ Set up OrderStatus configuration with initial statuses (in schema)
+3. ✅ Build basic customer user authentication
+4. ✅ Create portal layout and navigation
+5. 🔧 Implement basic audit logging (model created, implementation pending)
 
-### Core Features (Week 3-4)
-6. Build order creation flow with dynamic forms
-7. Implement service/location selection logic
-8. Add document upload functionality
-9. Create order listing and filtering
-10. Implement draft saving
+### Core Features (Week 3-4) 🚧 IN PROGRESS
+6. 🚧 Build order creation flow with dynamic forms (API complete, form needs wiring)
+7. 📋 Implement service/location selection logic
+8. 📋 Add document upload functionality
+9. 🚧 Create order listing and filtering (basic API complete, UI needs connection)
+10. ✅ Implement draft saving (API complete)
 
 ### Integration & Polish (Week 5-6)
 11. Integrate with existing DSX requirements

@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
         shortName: standardizedData.shortName || field.name,
         instructions: standardizedData.instructions || '',
         retentionHandling: standardizedData.retentionHandling,
+        collectionTab: standardizedData.collectionTab || 'subject', // NEW: default to subject
         options: standardizedData.options || [],
         disabled: field.disabled,
         // Map services from the join table
@@ -184,12 +185,13 @@ export async function POST(request: NextRequest) {
           instructions: data.instructions || '',
           options: data.options || [],
           // Use standardized property name
-          retentionHandling: data.retentionHandling || 'no_delete'
+          retentionHandling: data.retentionHandling || 'no_delete',
+          collectionTab: data.collectionTab || 'subject' // NEW: add collectionTab
         }
       }
     });
     
-    return NextResponse.json({ 
+    return NextResponse.json({
       field: {
         id: field.id,
         fieldLabel: field.name,
@@ -197,6 +199,7 @@ export async function POST(request: NextRequest) {
         shortName: field.fieldData.shortName,
         instructions: field.fieldData.instructions,
         retentionHandling: field.fieldData.retentionHandling,
+        collectionTab: field.fieldData.collectionTab || 'subject', // NEW: include collectionTab
         options: field.fieldData.options || [],
         services: []
       }

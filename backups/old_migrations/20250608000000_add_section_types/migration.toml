@@ -1,0 +1,4 @@
+# migration.toml
+# This is used by Prisma Migrate for tracking information about the migration
+
+migration_name = "add_section_types"
