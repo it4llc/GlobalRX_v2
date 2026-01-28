@@ -53,17 +53,16 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(locationsWithAvailability);
     } else {
-      // Get subregions for a specific location
-      const subregions = await prisma.region.findMany({
+      // Get subcountries/regions for a specific location
+      const subregions = await prisma.country.findMany({
         where: {
-          countryId: parentId,
+          parentId: parentId,
         },
         select: {
           id: true,
           name: true,
-          code: true,
+          code2: true,
           disabled: true,
-          level: true,
         },
         orderBy: {
           name: 'asc',
@@ -74,6 +73,7 @@ export async function GET(request: NextRequest) {
         ...region,
         available: !region.disabled,
         hasSublocations: false, // Could check for further sub-levels
+        level: 1, // Add level for compatibility
       }));
 
       return NextResponse.json(sublocationsWithAvailability);

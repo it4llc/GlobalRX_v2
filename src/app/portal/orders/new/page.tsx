@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { DynamicFieldInput } from '@/components/dynamic-field-input';
 
 interface SubjectInfo {
   firstName: string;
@@ -69,8 +70,21 @@ export default function NewOrderPage() {
   const [availableLocations, setAvailableLocations] = useState<AvailableLocation[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string>('');
-  const [selectedSubregions, setSelectedSubregions] = useState<{[level: number]: string}>({});
   const [sublocations, setSublocations] = useState<{[parentId: string]: AvailableLocation[]}>({});
+
+  // Requirements and dynamic fields state
+  const [requirements, setRequirements] = useState<{
+    subjectFields: any[];
+    searchFields: any[];
+    documents: any[];
+  }>({ subjectFields: [], searchFields: [], documents: [] });
+  const [subjectFieldValues, setSubjectFieldValues] = useState<Record<string, any>>({});
+  const [searchFieldValues, setSearchFieldValues] = useState<Record<string, Record<string, any>>>({});
+  const [uploadedDocuments, setUploadedDocuments] = useState<Record<string, File>>({});
+
+  // Subregion selection state for Step 3
+  const [selectedSubregions, setSelectedSubregions] = useState<Record<string, string>>({});
+  const [availableSubregions, setAvailableSubregions] = useState<Record<string, AvailableLocation[]>>({});
 
   // Fetch available services for the customer
   useEffect(() => {
@@ -126,6 +140,24 @@ export default function NewOrderPage() {
     } finally {
       setLoadingLocations(false);
     }
+  };
+
+  // Fetch subregions for a country
+  const fetchSubregions = async (countryId: string) => {
+    try {
+      const response = await fetch(`/api/portal/locations?parentId=${countryId}`);
+      if (response.ok) {
+        const subregions = await response.json();
+        setAvailableSubregions(prev => ({
+          ...prev,
+          [countryId]: subregions
+        }));
+        return subregions;
+      }
+    } catch (error) {
+      console.error('Error fetching subregions:', error);
+    }
+    return [];
   };
 
   // Update form data
@@ -186,6 +218,48 @@ export default function NewOrderPage() {
     }));
   };
 
+  // Fetch requirements based on selected service+location pairs
+  const fetchRequirements = async () => {
+    if (formData.serviceItems.length === 0) {
+      console.log('No service items to fetch requirements for');
+      return;
+    }
+
+    console.log('Fetching requirements for service items:', formData.serviceItems);
+
+    try {
+      const requestBody = {
+        items: formData.serviceItems.map(item => ({
+          serviceId: item.serviceId,
+          locationId: item.locationId,
+        })),
+      };
+
+      console.log('Requirements request body:', requestBody);
+
+      const response = await fetch('/api/portal/orders/requirements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('Requirements response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Requirements data received:', data);
+        setRequirements(data);
+      } else {
+        const errorData = await response.text();
+        console.error('Failed to fetch requirements. Status:', response.status, 'Response:', errorData);
+      }
+    } catch (error) {
+      console.error('Error fetching requirements:', error);
+    }
+  };
+
 
   // Validate step 1 (service and location selection)
   const validateStep1 = (): boolean => {
@@ -203,46 +277,115 @@ export default function NewOrderPage() {
     return isValid;
   };
 
-  // Validate step 3 (subject information)
-  const validateStep3 = (): boolean => {
+  // Validate step 2 (subject information)
+  const validateStep2 = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.subject.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
-    }
-    if (!formData.subject.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
-    }
-    if (formData.subject.email && !/\S+@\S+\.\S+/.test(formData.subject.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
+    // Validate required subject fields from dynamic requirements
+    requirements.subjectFields.forEach(field => {
+      if (field.required && !subjectFieldValues[field.id]) {
+        newErrors[field.id] = `${field.name} is required`;
+      }
+    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Validate step 3 (search details)
+  const validateStep3 = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Validate search-level fields for each service item
+    formData.serviceItems.forEach(item => {
+      const itemFields = requirements.searchFields.filter(
+        field => field.serviceId === item.serviceId && field.locationId === item.locationId
+      );
+
+      itemFields.forEach(field => {
+        if (field.required && !searchFieldValues[item.itemId]?.[field.id]) {
+          newErrors[`${item.itemId}_${field.id}`] = `${field.name} is required`;
+        }
+      });
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Check if a step is complete (for status indicators)
+  const isStepComplete = (stepNumber: number): boolean => {
+    switch (stepNumber) {
+      case 1:
+        return formData.serviceItems.length > 0;
+      case 2:
+        return requirements.subjectFields.every(field =>
+          !field.required || subjectFieldValues[field.id]
+        );
+      case 3:
+        return formData.serviceItems.every(item => {
+          const itemFields = requirements.searchFields.filter(
+            field => field.serviceId === item.serviceId && field.locationId === item.locationId
+          );
+          return itemFields.every(field =>
+            !field.required || searchFieldValues[item.itemId]?.[field.id]
+          );
+        });
+      case 4:
+        return requirements.documents.every(document =>
+          !document.required || uploadedDocuments[document.id]
+        );
+      default:
+        return false;
+    }
+  };
+
+  // Check if a step has been started but not completed (for red status)
+  const isStepIncomplete = (stepNumber: number): boolean => {
+    if (step < stepNumber) return false; // Not reached yet
+    return step >= stepNumber && !isStepComplete(stepNumber);
+  };
+
   // Handle next button
-  const handleNext = () => {
+  const handleNext = async () => {
     console.log('handleNext called, current step:', step);
     console.log('formData.serviceItems:', formData.serviceItems);
 
-    if (step === 1 && !validateStep1()) {
-      console.log('Step 1 validation failed');
-      return;
-    }
-    if (step === 2 && !validateStep3()) {  // Step 2 is now subject info
-      console.log('Step 2 validation failed');
+    if (step === 1) {
+      if (!validateStep1()) {
+        console.log('Step 1 validation failed');
+        return;
+      }
+      // Fetch requirements when moving from step 1 to 2
+      console.log('Fetching requirements...');
+      await fetchRequirements();
+      setStep(2);
       return;
     }
 
-    if (step === 3) {  // Step 3 is now review & submit
+    if (step === 2) {
+      if (!validateStep2()) {
+        console.log('Step 2 (subject info) validation failed');
+        return;
+      }
+      setStep(3);
+      return;
+    }
+
+    if (step === 3) {
+      if (!validateStep3()) {
+        console.log('Step 3 (search details) validation failed');
+        return;
+      }
+      setStep(4);
+      return;
+    }
+
+    if (step === 4) {
+      // Step 4 is documents & review, then submit
       handleSubmitOrder();
       return;
     }
-
-    const nextStep = Math.min(3, step + 1);
-    console.log('Moving to next step:', nextStep);
-    setStep(nextStep);
   };
 
   // Submit order
@@ -333,24 +476,40 @@ export default function NewOrderPage() {
       {/* Steps Indicator */}
       <div className="bg-white rounded-lg shadow px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className={`flex items-center ${step >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-            <div className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${step >= 1 ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'}`}>
-              1
-            </div>
-            <span className="ml-2 text-sm font-medium">Services & Locations</span>
-          </div>
-          <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
-            <div className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${step >= 2 ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'}`}>
-              2
-            </div>
-            <span className="ml-2 text-sm font-medium">Subject Information</span>
-          </div>
-          <div className={`flex items-center ${step >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
-            <div className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${step >= 3 ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'}`}>
-              3
-            </div>
-            <span className="ml-2 text-sm font-medium">Review & Submit</span>
-          </div>
+          {[1, 2, 3, 4].map((stepNum) => {
+            const isComplete = isStepComplete(stepNum);
+            const isIncomplete = isStepIncomplete(stepNum);
+            const isCurrent = step === stepNum;
+            const stepLabels = [
+              'Services & Locations',
+              'Subject Information',
+              'Search Details',
+              'Documents & Review'
+            ];
+
+            let statusColor = 'text-gray-400';
+            let circleColor = 'border-gray-300';
+
+            if (isComplete) {
+              statusColor = 'text-green-600';
+              circleColor = 'border-green-600 bg-green-600 text-white';
+            } else if (isIncomplete) {
+              statusColor = 'text-red-600';
+              circleColor = 'border-red-600 bg-red-600 text-white';
+            } else if (isCurrent) {
+              statusColor = 'text-blue-600';
+              circleColor = 'border-blue-600 bg-blue-600 text-white';
+            }
+
+            return (
+              <div key={stepNum} className={`flex items-center ${statusColor}`}>
+                <div className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${circleColor}`}>
+                  {stepNum}
+                </div>
+                <span className="ml-2 text-sm font-medium">{stepLabels[stepNum - 1]}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -531,141 +690,274 @@ export default function NewOrderPage() {
               Subject Information
             </h3>
             <p className="text-gray-600 mb-6">
-              Enter information about the person this order is for.
+              Enter information about the person this order is for. This information will be collected once for the entire order.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                  First Name *
-                </label>
-                <input
-                  type="text"
-                  id="firstName"
-                  name="firstName"
-                  value={formData.subject.firstName}
-                  onChange={(e) => updateSubject('firstName', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-brand-blue focus:border-brand-blue ${
-                    errors.firstName ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter first name"
-                />
-                {errors.firstName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
-                )}
+            {requirements.subjectFields.length === 0 ? (
+              <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">No subject information fields required for this order.</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Debug: {JSON.stringify(requirements, null, 2)}
+                </p>
               </div>
-
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Name *
-                </label>
-                <input
-                  type="text"
-                  id="lastName"
-                  name="lastName"
-                  value={formData.subject.lastName}
-                  onChange={(e) => updateSubject('lastName', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-brand-blue focus:border-brand-blue ${
-                    errors.lastName ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter last name"
-                />
-                {errors.lastName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
-                )}
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {requirements.subjectFields.map((field) => (
+                  <div key={field.id} className={field.dataType === 'textarea' ? 'md:col-span-2' : ''}>
+                    <DynamicFieldInput
+                      field={field}
+                      value={subjectFieldValues[field.id]}
+                      onChange={(value) => {
+                        setSubjectFieldValues(prev => ({
+                          ...prev,
+                          [field.id]: value
+                        }));
+                        // Clear error when user updates field
+                        if (errors[field.id]) {
+                          setErrors(prev => ({
+                            ...prev,
+                            [field.id]: ''
+                          }));
+                        }
+                      }}
+                      error={errors[field.id]}
+                    />
+                  </div>
+                ))}
               </div>
-
-              <div>
-                <label htmlFor="middleName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Middle Name
-                </label>
-                <input
-                  type="text"
-                  id="middleName"
-                  name="middleName"
-                  value={formData.subject.middleName}
-                  onChange={(e) => updateSubject('middleName', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-blue focus:border-brand-blue"
-                  placeholder="Enter middle name (optional)"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-2">
-                  Date of Birth
-                </label>
-                <input
-                  type="date"
-                  id="dateOfBirth"
-                  name="dateOfBirth"
-                  value={formData.subject.dateOfBirth}
-                  onChange={(e) => updateSubject('dateOfBirth', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-blue focus:border-brand-blue"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.subject.email}
-                  onChange={(e) => updateSubject('email', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-brand-blue focus:border-brand-blue ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter email address"
-                />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.subject.phone}
-                  onChange={(e) => updateSubject('phone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-blue focus:border-brand-blue"
-                  placeholder="Enter phone number"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                  Address
-                </label>
-                <textarea
-                  id="address"
-                  name="address"
-                  rows={3}
-                  value={formData.subject.address}
-                  onChange={(e) => updateSubject('address', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-blue focus:border-brand-blue"
-                  placeholder="Enter full address"
-                />
-              </div>
-            </div>
+            )}
           </div>
         )}
 
         {step === 3 && (
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Review & Submit
+              Search Details
             </h3>
-            <p className="text-gray-600">
-              Review your order before submitting.
+            <p className="text-gray-600 mb-6">
+              Select specific locations and provide details for each service in your order.
             </p>
-            {/* Order review will be added here */}
+
+            <div className="space-y-6">
+              {formData.serviceItems.map((item) => {
+                const itemFields = requirements.searchFields.filter(
+                  field => field.serviceId === item.serviceId && field.locationId === item.locationId
+                );
+
+                return (
+                  <div key={item.itemId} className="border border-gray-200 rounded-lg p-6">
+                    <h4 className="text-lg font-medium text-gray-900 mb-1">
+                      {item.serviceName}
+                    </h4>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Country: {item.locationName}
+                    </p>
+
+                    {/* Subregion Selection */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Specific Location
+                      </label>
+                      <div className="space-y-3">
+                        {!availableSubregions[item.locationId] ? (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await fetchSubregions(item.locationId);
+                            }}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                          >
+                            Load Available Regions
+                          </button>
+                        ) : availableSubregions[item.locationId].length === 0 ? (
+                          <div className="text-sm text-gray-500 bg-gray-50 rounded-md p-3">
+                            No subregions available. Using country-level search.
+                          </div>
+                        ) : (
+                          <select
+                            value={selectedSubregions[item.itemId] || ''}
+                            onChange={(e) => {
+                              setSelectedSubregions(prev => ({
+                                ...prev,
+                                [item.itemId]: e.target.value
+                              }));
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">-- Select Region --</option>
+                            {availableSubregions[item.locationId].map((subregion) => (
+                              <option key={subregion.id} value={subregion.id}>
+                                {subregion.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Service-specific Fields */}
+                    <div>
+                      <h5 className="text-md font-medium text-gray-700 mb-3">Search Parameters</h5>
+                      {itemFields.length === 0 ? (
+                        <div className="text-center py-4 bg-gray-50 rounded-lg">
+                          <p className="text-gray-500">No additional search parameters required for this service.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {itemFields.map((field) => (
+                            <div key={field.id} className={field.dataType === 'textarea' ? 'md:col-span-2' : ''}>
+                              <DynamicFieldInput
+                                field={field}
+                                value={searchFieldValues[item.itemId]?.[field.id]}
+                                onChange={(value) => {
+                                  setSearchFieldValues(prev => ({
+                                    ...prev,
+                                    [item.itemId]: {
+                                      ...prev[item.itemId],
+                                      [field.id]: value
+                                    }
+                                  }));
+                                  // Clear error when user updates field
+                                  const errorKey = `${item.itemId}_${field.id}`;
+                                  if (errors[errorKey]) {
+                                    setErrors(prev => ({
+                                      ...prev,
+                                      [errorKey]: ''
+                                    }));
+                                  }
+                                }}
+                                error={errors[`${item.itemId}_${field.id}`]}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Documents & Review
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Upload any required documents and review your order before submitting.
+            </p>
+
+            {/* Documents Section */}
+            {requirements.documents.length > 0 && (
+              <div className="mb-8">
+                <h4 className="text-md font-medium text-gray-900 mb-4">Required Documents</h4>
+                <div className="space-y-4">
+                  {requirements.documents.map((document) => (
+                    <div key={document.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-900">{document.name}</h5>
+                          {document.instructions && (
+                            <p className="text-xs text-gray-500 mt-1">{document.instructions}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1">
+                            Scope: {document.scope === 'per_case' ? 'Once per order' : 'Per service'}
+                          </p>
+                        </div>
+                        <div>
+                          <input
+                            type="file"
+                            id={`doc-${document.id}`}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setUploadedDocuments(prev => ({
+                                  ...prev,
+                                  [document.id]: file
+                                }));
+                              }
+                            }}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor={`doc-${document.id}`}
+                            className="cursor-pointer inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            {uploadedDocuments[document.id] ? 'Change File' : 'Choose File'}
+                          </label>
+                          {uploadedDocuments[document.id] && (
+                            <p className="text-xs text-green-600 mt-1">
+                              {uploadedDocuments[document.id].name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Order Summary */}
+            <div className="bg-gray-50 rounded-lg p-6">
+              <h4 className="text-md font-medium text-gray-900 mb-4">Order Summary</h4>
+
+              {/* Service Items */}
+              <div className="mb-4">
+                <h5 className="text-sm font-medium text-gray-700 mb-2">Services ({formData.serviceItems.length})</h5>
+                <div className="space-y-2">
+                  {formData.serviceItems.map((item) => (
+                    <div key={item.itemId} className="flex justify-between text-sm">
+                      <span>{item.serviceName}</span>
+                      <span className="text-gray-500">{item.locationName}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Subject Fields Summary */}
+              {requirements.subjectFields.length > 0 && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">Subject Information</h5>
+                  <div className="space-y-1">
+                    {requirements.subjectFields.map((field) => {
+                      const value = subjectFieldValues[field.id];
+                      if (!value) return null;
+                      return (
+                        <div key={field.id} className="flex justify-between text-sm">
+                          <span className="text-gray-600">{field.name}:</span>
+                          <span className="font-medium">
+                            {Array.isArray(value) ? value.join(', ') : value}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Documents Summary */}
+              {requirements.documents.length > 0 && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">Documents</h5>
+                  <div className="space-y-1">
+                    {requirements.documents.map((document) => {
+                      const file = uploadedDocuments[document.id];
+                      return (
+                        <div key={document.id} className="flex justify-between text-sm">
+                          <span className="text-gray-600">{document.name}:</span>
+                          <span className={file ? 'text-green-600' : 'text-red-600'}>
+                            {file ? file.name : 'Not uploaded'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -678,7 +970,7 @@ export default function NewOrderPage() {
 
         {/* Navigation Buttons */}
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-4">Step {step} of 3 • Items in cart: {formData.serviceItems.length}</p>
+          <p className="text-xs text-gray-500 mb-4">Step {step} of 4 • Items in cart: {formData.serviceItems.length}</p>
         </div>
 
         <div className="mt-4 flex justify-between border-t pt-6">
@@ -732,7 +1024,7 @@ export default function NewOrderPage() {
                 Processing...
               </>
             ) : (
-              <>{step === 3 ? 'Submit Order' : 'Next'}</>
+              <>{step === 4 ? 'Submit Order' : 'Next'}</>
             )}
           </button>
         </div>
