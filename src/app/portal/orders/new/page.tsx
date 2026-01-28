@@ -319,19 +319,31 @@ export default function NewOrderPage() {
       case 1:
         return formData.serviceItems.length > 0;
       case 2:
-        return requirements.subjectFields.every(field =>
-          !field.required || subjectFieldValues[field.id]
-        );
+        // Only consider complete if we have requirements and all required fields are filled
+        if (requirements.subjectFields.length === 0 && step > 2) {
+          return true; // No fields required, and we've moved past this step
+        }
+        return requirements.subjectFields.length > 0 &&
+               requirements.subjectFields.every(field =>
+                 !field.required || subjectFieldValues[field.id]
+               );
       case 3:
+        // Only consider complete if we've been to step 3 and filled all required fields
+        if (step < 3) return false;
         return formData.serviceItems.every(item => {
           const itemFields = requirements.searchFields.filter(
             field => field.serviceId === item.serviceId && field.locationId === item.locationId
           );
+          // If no fields for this item, it's complete
+          if (itemFields.length === 0) return true;
           return itemFields.every(field =>
             !field.required || searchFieldValues[item.itemId]?.[field.id]
           );
         });
       case 4:
+        // Only consider complete if we've been to step 4 and uploaded all required documents
+        if (step < 4) return false;
+        if (requirements.documents.length === 0) return true; // No documents required
         return requirements.documents.every(document =>
           !document.required || uploadedDocuments[document.id]
         );
@@ -344,6 +356,11 @@ export default function NewOrderPage() {
   const isStepIncomplete = (stepNumber: number): boolean => {
     if (step < stepNumber) return false; // Not reached yet
     return step >= stepNumber && !isStepComplete(stepNumber);
+  };
+
+  // Check if a step has been visited/started
+  const isStepStarted = (stepNumber: number): boolean => {
+    return step >= stepNumber;
   };
 
   // Handle next button
@@ -479,6 +496,7 @@ export default function NewOrderPage() {
           {[1, 2, 3, 4].map((stepNum) => {
             const isComplete = isStepComplete(stepNum);
             const isIncomplete = isStepIncomplete(stepNum);
+            const hasBeenStarted = isStepStarted(stepNum);
             const isCurrent = step === stepNum;
             const stepLabels = [
               'Services & Locations',
@@ -487,24 +505,39 @@ export default function NewOrderPage() {
               'Documents & Review'
             ];
 
-            let statusColor = 'text-gray-400';
-            let circleColor = 'border-gray-300';
+            // Determine the status color and style
+            let statusColor = 'text-gray-500'; // Not started (default)
+            let circleColor = 'border-gray-300 text-gray-500'; // Not started (default)
 
-            if (isComplete) {
+            if (!hasBeenStarted) {
+              // Step not reached yet - keep gray/neutral
+              statusColor = 'text-gray-500';
+              circleColor = 'border-gray-300 text-gray-500';
+            } else if (isComplete) {
+              // Step completed successfully
               statusColor = 'text-green-600';
               circleColor = 'border-green-600 bg-green-600 text-white';
-            } else if (isIncomplete) {
+            } else if (isCurrent) {
+              // Currently active step
+              if (!isComplete) {
+                // Current step but incomplete - show red
+                statusColor = 'text-red-600';
+                circleColor = 'border-red-600 bg-red-600 text-white';
+              } else {
+                // Current step and complete - show green
+                statusColor = 'text-green-600';
+                circleColor = 'border-green-600 bg-green-600 text-white';
+              }
+            } else if (hasBeenStarted && !isComplete) {
+              // Past step that's incomplete - show red
               statusColor = 'text-red-600';
               circleColor = 'border-red-600 bg-red-600 text-white';
-            } else if (isCurrent) {
-              statusColor = 'text-blue-600';
-              circleColor = 'border-blue-600 bg-blue-600 text-white';
             }
 
             return (
               <div key={stepNum} className={`flex items-center ${statusColor}`}>
                 <div className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${circleColor}`}>
-                  {stepNum}
+                  {isComplete && stepNum < step ? '✓' : stepNum}
                 </div>
                 <span className="ml-2 text-sm font-medium">{stepLabels[stepNum - 1]}</span>
               </div>
