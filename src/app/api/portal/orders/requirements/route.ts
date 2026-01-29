@@ -105,6 +105,11 @@ export async function POST(request: NextRequest) {
 
       if (requirement.type === 'field' && requirement.fieldData) {
         const fieldData = requirement.fieldData as any;
+        console.log(`Requirements API - Field ${requirement.name}:`, {
+          dataType: fieldData.dataType,
+          hasAddressConfig: !!fieldData.addressConfig,
+          addressConfig: fieldData.addressConfig
+        });
         const collectionTab = fieldData.collectionTab || 'subject';
 
         const field = {

@@ -209,9 +209,10 @@ export function DataRxTab() {
   
   // Handle adding a new data field
   const handleAddField = async (fieldData: FieldData) => {
+    console.log('DataRxTab - Received field data:', fieldData);
     try {
       setIsLoading(true);
-      
+
       // Create the field object
       const fieldObject = {
         fieldLabel: fieldData.fieldLabel,
@@ -222,6 +223,8 @@ export function DataRxTab() {
         collectionTab: fieldData.collectionTab || "subject",
         addressConfig: fieldData.addressConfig || null
       };
+
+      console.log('DataRxTab - Sending to API:', fieldObject);
 
       // Add options property for dropdown fields
       if (fieldData.dataType === 'select' && fieldData.options && fieldData.options.length > 0) {

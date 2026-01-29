@@ -163,10 +163,12 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
     }
 
     // Add address configuration if data type is address_block
-    if (dataType === 'address_block' && addressConfig) {
+    if (dataType === 'address_block') {
       fieldData.addressConfig = addressConfig;
+      console.log('AddFieldModal - Adding address block with config:', addressConfig);
     }
 
+    console.log('AddFieldModal - Submitting field data:', fieldData);
     onAddField(fieldData);
     resetForm();
     dialogRef.current?.close();

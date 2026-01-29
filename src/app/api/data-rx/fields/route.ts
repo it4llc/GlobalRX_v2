@@ -151,7 +151,8 @@ export async function POST(request: NextRequest) {
     
     // Parse request body
     const data = await request.json();
-    
+    console.log('API POST /data-rx/fields - Received data:', JSON.stringify(data, null, 2));
+
     // Validate required fields
     if (!data.fieldLabel || !data.dataType) {
       return NextResponse.json(
@@ -176,20 +177,24 @@ export async function POST(request: NextRequest) {
     }
     
     // Create field with standardized property names
+    const fieldDataToSave = {
+      dataType: data.dataType,
+      shortName: data.shortName || data.fieldLabel,
+      instructions: data.instructions || '',
+      options: data.options || [],
+      // Use standardized property name
+      retentionHandling: data.retentionHandling || 'no_delete',
+      collectionTab: data.collectionTab || 'subject', // NEW: add collectionTab
+      addressConfig: data.addressConfig || null // Add address configuration
+    };
+
+    console.log('API POST /data-rx/fields - Saving fieldData:', JSON.stringify(fieldDataToSave, null, 2));
+
     const field = await prisma.dSXRequirement.create({
       data: {
         name: data.fieldLabel,
         type: 'field',
-        fieldData: {
-          dataType: data.dataType,
-          shortName: data.shortName || data.fieldLabel,
-          instructions: data.instructions || '',
-          options: data.options || [],
-          // Use standardized property name
-          retentionHandling: data.retentionHandling || 'no_delete',
-          collectionTab: data.collectionTab || 'subject', // NEW: add collectionTab
-          addressConfig: data.addressConfig || null // Add address configuration
-        }
+        fieldData: fieldDataToSave
       }
     });
     

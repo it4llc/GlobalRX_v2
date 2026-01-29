@@ -135,6 +135,12 @@ export const DynamicFieldInput: FC<DynamicFieldInputProps> = ({
         );
 
       case 'address_block':
+        console.log('DynamicFieldInput - Rendering address block:', {
+          fieldId: field.id,
+          fieldName: field.name,
+          hasAddressConfig: !!field.addressConfig,
+          addressConfig: field.addressConfig
+        });
         if (field.addressConfig) {
           return (
             <AddressBlockInput
@@ -145,7 +151,7 @@ export const DynamicFieldInput: FC<DynamicFieldInputProps> = ({
             />
           );
         }
-        return <div className="text-red-500">Address block configuration missing</div>;
+        return <div className="text-red-500">Address block configuration missing (field: {field.name})</div>;
 
       default:
         return (
