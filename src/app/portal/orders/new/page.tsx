@@ -82,9 +82,7 @@ export default function NewOrderPage() {
   const [searchFieldValues, setSearchFieldValues] = useState<Record<string, Record<string, any>>>({});
   const [uploadedDocuments, setUploadedDocuments] = useState<Record<string, File>>({});
 
-  // Subregion selection state for Step 3
-  const [selectedSubregions, setSelectedSubregions] = useState<Record<string, string>>({});
-  const [availableSubregions, setAvailableSubregions] = useState<Record<string, AvailableLocation[]>>({});
+  // Note: Subregion selection removed - now handled through address blocks
 
   // Fetch available services for the customer
   useEffect(() => {
@@ -142,23 +140,7 @@ export default function NewOrderPage() {
     }
   };
 
-  // Fetch subregions for a country
-  const fetchSubregions = async (countryId: string) => {
-    try {
-      const response = await fetch(`/api/portal/locations?parentId=${countryId}`);
-      if (response.ok) {
-        const subregions = await response.json();
-        setAvailableSubregions(prev => ({
-          ...prev,
-          [countryId]: subregions
-        }));
-        return subregions;
-      }
-    } catch (error) {
-      console.error('Error fetching subregions:', error);
-    }
-    return [];
-  };
+  // Note: Subregion fetching removed - now handled through address blocks
 
   // Update form data
   const updateSubject = (field: keyof SubjectInfo, value: string) => {
@@ -199,7 +181,6 @@ export default function NewOrderPage() {
     // Reset selections
     setSelectedServiceForLocation(null);
     setSelectedCountry('');
-    setSelectedSubregions({});
 
     // Clear any service-related errors
     if (errors.services) {
@@ -581,7 +562,6 @@ export default function NewOrderPage() {
                           onClick={() => {
                             setSelectedServiceForLocation(service);
                             setSelectedCountry('');
-                            setSelectedSubregions({});
                           }}
                           className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
                             isSelected
@@ -631,7 +611,6 @@ export default function NewOrderPage() {
                         onChange={async (e) => {
                           const countryId = e.target.value;
                           setSelectedCountry(countryId);
-                          setSelectedSubregions({});
 
                           if (countryId) {
                             await fetchAvailableLocations(countryId);
@@ -768,7 +747,7 @@ export default function NewOrderPage() {
               Search Details
             </h3>
             <p className="text-gray-600 mb-6">
-              Select specific locations and provide details for each service in your order.
+              Provide details for each service in your order.
             </p>
 
             <div className="space-y-6">
@@ -785,48 +764,6 @@ export default function NewOrderPage() {
                     <p className="text-sm text-gray-500 mb-4">
                       Country: {item.locationName}
                     </p>
-
-                    {/* Subregion Selection */}
-                    <div className="mb-6">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Specific Location
-                      </label>
-                      <div className="space-y-3">
-                        {!availableSubregions[item.locationId] ? (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              await fetchSubregions(item.locationId);
-                            }}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                          >
-                            Load Available Regions
-                          </button>
-                        ) : availableSubregions[item.locationId].length === 0 ? (
-                          <div className="text-sm text-gray-500 bg-gray-50 rounded-md p-3">
-                            No subregions available. Using country-level search.
-                          </div>
-                        ) : (
-                          <select
-                            value={selectedSubregions[item.itemId] || ''}
-                            onChange={(e) => {
-                              setSelectedSubregions(prev => ({
-                                ...prev,
-                                [item.itemId]: e.target.value
-                              }));
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="">-- Select Region --</option>
-                            {availableSubregions[item.locationId].map((subregion) => (
-                              <option key={subregion.id} value={subregion.id}>
-                                {subregion.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    </div>
 
                     {/* Service-specific Fields */}
                     <div>

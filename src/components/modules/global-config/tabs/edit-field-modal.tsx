@@ -9,6 +9,7 @@ import { DialogRef, ModalDialog, DialogFooter } from '@/components/ui/modal-dial
 import { FormTable } from '@/components/ui/form-table';
 import { FormRow } from '@/components/ui/form-row';
 import { useAuth } from '@/contexts/AuthContext';
+import { AddressBlockConfigurator, AddressBlockConfig } from './address-block-configurator';
 
 // Data type options (same as in add-field-modal.tsx)
 const dataTypeOptions = [
@@ -20,6 +21,7 @@ const dataTypeOptions = [
   { id: 'select', value: 'select', label: 'Select (Drop-down)' },
   { id: 'checkbox', value: 'checkbox', label: 'Checkbox' },
   { id: 'radio', value: 'radio', label: 'Radio Buttons' },
+  { id: 'address_block', value: 'address_block', label: 'Address Block' },
 ];
 
 // Retention handling options (same as in add-field-modal.tsx)
@@ -55,6 +57,7 @@ export interface FieldData {
   instructions: string;
   retentionHandling: string;
   options?: DropdownOption[];
+  addressConfig?: AddressBlockConfig;
   disabled?: boolean;
   versions?: FieldVersion[];
 }
@@ -74,6 +77,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
   const [retentionHandling, setRetentionHandling] = useState('');
   const [collectionTab, setCollectionTab] = useState('subject');
   const [optionsText, setOptionsText] = useState('');
+  const [addressConfig, setAddressConfig] = useState<AddressBlockConfig | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -108,6 +112,11 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
           const optionsStr = field.options.map(option => option.label).join('\n');
           setOptionsText(optionsStr);
         }
+
+        // Set address configuration
+        if (field.addressConfig) {
+          setAddressConfig(field.addressConfig);
+        }
         
         // Set version history
         if (field.versions && field.versions.length > 0) {
@@ -137,6 +146,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
     setRetentionHandling('');
     setCollectionTab('subject');
     setOptionsText('');
+    setAddressConfig(null);
     setErrors({});
   };
 
@@ -216,6 +226,11 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
       fieldData.options = parseOptions(optionsText);
     }
 
+    // Add address configuration if data type is address_block
+    if (dataType === 'address_block' && addressConfig) {
+      fieldData.addressConfig = addressConfig;
+    }
+
     onEditField(fieldData);
     resetForm();
     dialogRef.current?.close();
@@ -223,6 +238,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
 
   // Check if options section should be shown
   const showOptions = dataType === 'select' || dataType === 'checkbox' || dataType === 'radio';
+  const showAddressConfig = dataType === 'address_block';
 
   // Format a timestamp to a readable date/time
   const formatTimestamp = (timestamp: string): string => {
@@ -244,6 +260,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
     <ModalDialog
       ref={dialogRef}
       title="Edit Data Field"
+      maxWidth={showAddressConfig ? '2xl' : 'md'}
       footer={
         <DialogFooter
           onCancel={handleCancel}
@@ -410,6 +427,21 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
                     Option 3
                   </p>
                 </div>
+              </FormRow>
+            )}
+
+            {/* Address Block Configuration */}
+            {showAddressConfig && (
+              <FormRow
+                label="Address Components"
+                htmlFor="address-config"
+                required={true}
+                alignTop={true}
+              >
+                <AddressBlockConfigurator
+                  value={addressConfig}
+                  onChange={setAddressConfig}
+                />
               </FormRow>
             )}
           </FormTable>

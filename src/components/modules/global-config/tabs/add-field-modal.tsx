@@ -8,6 +8,7 @@ import { StandardDropdown } from '@/components/ui/standard-dropdown';
 import { DialogRef, ModalDialog, DialogFooter } from '@/components/ui/modal-dialog';
 import { FormTable } from '@/components/ui/form-table';
 import { FormRow } from '@/components/ui/form-row';
+import { AddressBlockConfigurator, AddressBlockConfig } from './address-block-configurator';
 
 // Field data type options
 const dataTypeOptions = [
@@ -19,6 +20,7 @@ const dataTypeOptions = [
   { id: 'select', value: 'select', label: 'Select (Drop-down)' },
   { id: 'checkbox', value: 'checkbox', label: 'Checkbox' },
   { id: 'radio', value: 'radio', label: 'Radio Buttons' },
+  { id: 'address_block', value: 'address_block', label: 'Address Block' },
 ];
 
 // Retention handling options
@@ -47,6 +49,7 @@ export interface FieldData {
   instructions: string;
   retentionHandling: string;
   options?: DropdownOption[];
+  addressConfig?: AddressBlockConfig;
 }
 
 interface AddFieldModalProps {
@@ -63,6 +66,7 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
   const [retentionHandling, setRetentionHandling] = useState('');
   const [collectionTab, setCollectionTab] = useState('subject');
   const [optionsText, setOptionsText] = useState('');
+  const [addressConfig, setAddressConfig] = useState<AddressBlockConfig | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Show modal on component mount
@@ -79,6 +83,7 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
     setRetentionHandling('');
     setCollectionTab('subject');
     setOptionsText('');
+    setAddressConfig(null);
     setErrors({});
   };
 
@@ -157,6 +162,11 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
       fieldData.options = parseOptions(optionsText);
     }
 
+    // Add address configuration if data type is address_block
+    if (dataType === 'address_block' && addressConfig) {
+      fieldData.addressConfig = addressConfig;
+    }
+
     onAddField(fieldData);
     resetForm();
     dialogRef.current?.close();
@@ -164,11 +174,13 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
 
   // Check if options section should be shown
   const showOptions = dataType === 'select' || dataType === 'checkbox' || dataType === 'radio';
+  const showAddressConfig = dataType === 'address_block';
 
   return (
     <ModalDialog
       ref={dialogRef}
       title="Add New Data Field"
+      maxWidth={showAddressConfig ? '2xl' : 'md'}
       footer={
         <DialogFooter
           onCancel={handleCancel}
@@ -297,6 +309,21 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
                 Option 3
               </p>
             </div>
+          </FormRow>
+        )}
+
+        {/* Address Block Configuration */}
+        {showAddressConfig && (
+          <FormRow
+            label="Address Components"
+            htmlFor="address-config"
+            required={true}
+            alignTop={true}
+          >
+            <AddressBlockConfigurator
+              value={addressConfig}
+              onChange={setAddressConfig}
+            />
           </FormRow>
         )}
       </FormTable>

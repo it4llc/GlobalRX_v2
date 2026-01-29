@@ -57,6 +57,11 @@ model Country {
   serviceAvailability DSXAvailability[]
   mappings            DSXMapping[]
   orderItems          OrderItem[]
+  addressStates       AddressEntry[]       @relation("AddressState")
+  addressCounties     AddressEntry[]       @relation("AddressCounty")
+  addressCountries    AddressEntry[]       @relation("AddressCountry")
+  cityMappingStates   CityMapping[]        @relation("CityMappingState")
+  cityMappingLocations CityMapping[]       @relation("CityMappingLocation")
 
   @@index([parentId])
   @@map("countries")
@@ -144,6 +149,7 @@ model Customer {
   customerUsers    CustomerUser[]
   users            User[]            @relation("CustomerUserRelation")
   orders           Order[]
+  addressEntries   AddressEntry[]
 
   @@index([masterAccountId])
   @@index([billingAccountId])
@@ -351,6 +357,7 @@ model Order {
   updatedAt     DateTime             @updatedAt
   items         OrderItem[]
   statusHistory OrderStatusHistory[]
+  addressEntries AddressEntry[]
   customer      Customer             @relation(fields: [customerId], references: [id])
   user          User                 @relation(fields: [userId], references: [id])
 
@@ -436,4 +443,45 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model AddressEntry {
+  id          String   @id @default(uuid())
+  orderId     String?
+  customerId  String?
+  street1     String?
+  street2     String?
+  city        String
+  stateId     String?
+  countyId    String?
+  postalCode  String?
+  countryId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  order       Order?   @relation(fields: [orderId], references: [id])
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  state       Country? @relation("AddressState", fields: [stateId], references: [id])
+  county      Country? @relation("AddressCounty", fields: [countyId], references: [id])
+  country     Country? @relation("AddressCountry", fields: [countryId], references: [id])
+
+  @@index([customerId])
+  @@index([orderId])
+  @@index([city])
+  @@map("address_entries")
+}
+
+model CityMapping {
+  id         String   @id @default(uuid())
+  cityName   String
+  stateId    String?
+  locationId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  state      Country? @relation("CityMappingState", fields: [stateId], references: [id])
+  location   Country  @relation("CityMappingLocation", fields: [locationId], references: [id])
+
+  @@unique([cityName, stateId])
+  @@index([cityName])
+  @@index([stateId])
+  @@map("city_mappings")
 }

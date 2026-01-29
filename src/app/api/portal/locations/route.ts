@@ -27,6 +27,69 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const parentId = searchParams.get('parentId');
     const serviceId = searchParams.get('serviceId');
+    const type = searchParams.get('type'); // 'states', 'counties', etc.
+
+    // Handle state/territory requests for address blocks
+    if (type === 'states') {
+      // Get all first-level subregions (states/provinces/territories)
+      // First get all top-level countries
+      const countries = await prisma.country.findMany({
+        where: {
+          parentId: null,
+        },
+        select: {
+          id: true,
+        }
+      });
+
+      // Then get all their direct children (states/provinces)
+      const states = await prisma.country.findMany({
+        where: {
+          parentId: {
+            in: countries.map(c => c.id)
+          },
+          disabled: { not: true }
+        },
+        select: {
+          id: true,
+          name: true,
+          code2: true,
+          subregion1: true,
+        },
+        orderBy: {
+          name: 'asc',
+        }
+      });
+
+      return NextResponse.json(states.map(state => ({
+        id: state.id,
+        name: state.subregion1 || state.name,
+        code: state.code2,
+      })));
+    }
+
+    // Handle county requests for a specific state
+    if (type === 'counties' && parentId) {
+      const counties = await prisma.country.findMany({
+        where: {
+          parentId: parentId,
+          disabled: { not: true }
+        },
+        select: {
+          id: true,
+          name: true,
+          subregion2: true,
+        },
+        orderBy: {
+          name: 'asc',
+        }
+      });
+
+      return NextResponse.json(counties.map(county => ({
+        id: county.id,
+        name: county.subregion2 || county.name,
+      })));
+    }
 
     if (!parentId || parentId === 'root') {
       // Get all countries

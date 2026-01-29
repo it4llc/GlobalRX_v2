@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
           instructions: fieldData.instructions || '',
           retentionHandling: fieldData.retentionHandling || 'no_delete',
           options: fieldData.options || [],
+          addressConfig: fieldData.addressConfig || null,
           required: isRequired,
           serviceId,
           locationId

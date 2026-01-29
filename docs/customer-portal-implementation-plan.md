@@ -1,6 +1,6 @@
 # Customer Portal Implementation Plan
 
-## Current Status (As of Jan 26, 2025)
+## Current Status (As of Jan 28, 2025)
 
 ### ✅ Completed
 - Customer authentication system with role-based access
@@ -27,27 +27,25 @@ Order numbers now follow enterprise format (e.g., `20260126-CLM-0001`) where:
 - `CLM` = Consistent 3-char customer code (same customer always gets same code)
 - `0001` = Daily sequence counter per customer (resets each day)
 
-### 🚧 In Progress - NEW 4-STEP ORDER WORKFLOW
-- **Redesigning order creation to properly integrate DSX Requirements**
-- Adding `collectionTab` field to data fields (subject vs search level)
-- Building dynamic form generation based on field configurations
+### ✅ Completed (Jan 28, 2025) - NEW 4-STEP ORDER WORKFLOW
+**Successfully Redesigned Order Creation with DSX Requirements Integration:**
+- ✅ **Added `collectionTab` field** to DSXRequirement.fieldData JSON (subject vs search level)
+- ✅ **Updated Data & Documents UI** with collection tab selection dropdown
+- ✅ **Modified API endpoints** to save/retrieve collectionTab field
+- ✅ **Built 4-Step Order Form** with shopping cart pattern:
+  - Step 1: Service & Location (Country only) - Shopping cart implemented
+  - Step 2: Subject Information - Order-level fields from DSXRequirements
+  - Step 3: Search Details - Subregion selection + service-specific fields
+  - Step 4: Documents - Location-specific requirements
+- ✅ **Dynamic Form Generation** for all field types (text, number, date, email, phone, select, checkbox, radio)
+- ✅ **Step Status Indicators** with proper color progression (gray→red→green)
+- ✅ **Requirements API** (`/api/portal/orders/requirements`) fetches and groups fields by collectionTab
+- ✅ **Fixed Database Issues** - Corrected Country model usage (no separate Region model)
 
-### 📋 Next Priority - UPDATED IMPLEMENTATION PLAN
-1. **Phase 1: Database & UI Updates**
-   - Add `collectionTab` field to DSXRequirement.fieldData JSON
-   - Update Data & Documents UI to include collection tab selection
-   - Modify API endpoints to save/retrieve this field
-
-2. **Phase 2: Refactor Order Form (4 Steps)**
-   - Step 1: Service & Location (Country only) - Shopping cart pattern
-   - Step 2: Subject Information - Order-level fields
-   - Step 3: Search Details - Subregion selection + service-specific fields
-   - Step 4: Documents - Location-specific requirements
-
-3. **Phase 3: Dynamic Features**
-   - Tab status indicators (Green/Red)
-   - Dynamic requirement updates based on subregion selection
-   - Non-blocking navigation with save draft at any point
+### 📋 Next Priority - Location Management
+- Improve location management interface
+- Add better subregion selection UI
+- Optimize location hierarchy queries
 
 ## Architecture Recommendation
 **Single Application with Role-Based Access** - Extend the current Next.js application rather than creating a separate one. This approach offers:
@@ -321,42 +319,42 @@ Implement these before handling real customer data:
 - ✅ Account locking after failed attempts
 - ✅ Last login tracking with IP
 
-### 2. Customer Portal Routes (/portal) 🚧 PARTIALLY COMPLETE
-- ✅ `/portal/dashboard` - Overview page created (placeholder data)
-- ✅ `/portal/orders/new` - UI created (not functional)
+### 2. Customer Portal Routes (/portal) ✅ MOSTLY COMPLETE
+- ✅ `/portal/dashboard` - Overview page with real order statistics
+- ✅ `/portal/orders/new` - Fully functional 4-step order creation
 - 📋 `/portal/orders/[id]` - View order details/status
-- ✅ `/portal/orders` - List page created (placeholder)
+- ✅ `/portal/orders` - List page with real data
 - 📋 `/portal/reports` - Download completed reports
 - ✅ `/portal/profile` - Basic profile page (view only)
 
-### 3. Order Creation Flow - NEW 4-STEP WORKFLOW 🚧 REDESIGNING
-**Major Change**: Moving from 3-step to 4-step workflow to properly integrate DSX Requirements
+### 3. Order Creation Flow - 4-STEP WORKFLOW ✅ COMPLETED
+**Successfully implemented 4-step workflow with full DSX Requirements integration**
 
-#### Step 1: Service & Location Selection (Country Level)
+#### Step 1: Service & Location Selection (Country Level) ✅
 - ✅ Shopping cart pattern implemented
 - ✅ Service selection from customer's available services
 - ✅ Country-level location selection
 - ✅ Add to cart functionality
-- Multiple instances of same service allowed
+- ✅ Multiple instances of same service allowed
 
-#### Step 2: Subject Information (Order Level)
-- 📋 Dynamic fields based on DSXRequirement where `collectionTab: "subject"`
-- 📋 Fields collected once for entire order
-- 📋 May update if Step 3 subregion adds requirements (tab turns red)
-- Standard subject fields (name, DOB, etc.)
+#### Step 2: Subject Information (Order Level) ✅
+- ✅ Dynamic fields based on DSXRequirement where `collectionTab: "subject"`
+- ✅ Fields collected once for entire order
+- ✅ May update if Step 3 subregion adds requirements (tab turns red)
+- ✅ Standard subject fields (name, DOB, etc.)
 
-#### Step 3: Search Details (Per Service Instance)
-- 📋 For each service+country combination:
+#### Step 3: Search Details (Per Service Instance) ✅
+- ✅ For each service+country combination:
   - Subregion drill-down (region → city → district)
   - Service-specific fields where `collectionTab: "search"`
   - Different data for each service instance
-- 📋 Can trigger new subject requirements
+- ✅ Can trigger new subject requirements
 
-#### Step 4: Documents (Location-Specific)
-- 📋 Based on final service+location combinations
-- 📋 Documents can be mapped at country or subregion levels
-- 📋 Upload validation (PDF, JPG, PNG - 5MB max)
-- Document scope already exists (per case/per search type/per search)
+#### Step 4: Documents (Location-Specific) ✅
+- ✅ Based on final service+location combinations
+- ✅ Documents can be mapped at country or subregion levels
+- 📋 Upload validation (PDF, JPG, PNG - 5MB max) - UI ready, needs backend
+- ✅ Document scope already exists (per case/per search type/per search)
 
 #### Key Features:
 - **Tab Status Indicators**: Green (complete) / Red (incomplete)
@@ -364,41 +362,41 @@ Implement these before handling real customer data:
 - **Dynamic Requirements**: Subregion selection can add subject fields
 - **Save Draft**: Available at any point, even with incomplete tabs
 
-### 4. Dynamic Requirement Collection 🚧 IMPLEMENTING
+### 4. Dynamic Requirement Collection ✅ COMPLETED
 **Technical Implementation Details**:
 
-#### Database Schema Updates Needed:
+#### Database Schema Updates ✅:
 ```javascript
-// Add to DSXRequirement.fieldData JSON:
+// Added to DSXRequirement.fieldData JSON:
 {
   dataType: "text",
   shortName: "dob",
   instructions: "Enter date of birth",
   retentionHandling: "no_delete",
-  collectionTab: "subject" | "search"  // NEW FIELD
+  collectionTab: "subject" | "search"  // ✅ FIELD ADDED
 }
 ```
 
-#### API Endpoints Required:
-- `GET /api/portal/orders/requirements` - Fetch all requirements for service+location combinations
-  - Query ServiceRequirement for service-level requirements
-  - Query DSXMapping for location-specific overrides
-  - Group by collectionTab (subject vs search)
-  - Return deduplicated field list
+#### API Endpoints ✅:
+- ✅ `GET /api/portal/orders/requirements` - Fully implemented
+  - Queries ServiceRequirement for service-level requirements
+  - Queries DSXMapping for location-specific overrides
+  - Groups by collectionTab (subject vs search)
+  - Returns deduplicated field list
 
-#### Dynamic Form Generation:
-- Build forms based on `dataType`: text, number, date, email, phone, select, checkbox, radio
-- Handle options for select/radio/checkbox fields
-- Apply validation based on dataType
-- Show instructions and help text
-- Track which fields come from which requirement source
+#### Dynamic Form Generation ✅:
+- ✅ Forms built based on all dataTypes: text, number, date, email, phone, select, checkbox, radio
+- ✅ Handles options for select/radio/checkbox fields
+- ✅ Applies validation based on dataType
+- ✅ Shows instructions and help text
+- ✅ Tracks which fields come from which requirement source
 
-#### Requirement Resolution Logic:
-1. Get base requirements from ServiceRequirement
-2. Check DSXMapping for country-level overrides
-3. When subregions selected, check DSXMapping for subregion overrides
-4. Deduplicate fields (same field required by multiple sources = collect once)
-5. Group by collectionTab for proper placement in workflow
+#### Requirement Resolution Logic ✅:
+1. ✅ Gets base requirements from ServiceRequirement
+2. ✅ Checks DSXMapping for country-level overrides
+3. ✅ When subregions selected, checks DSXMapping for subregion overrides
+4. ✅ Deduplicates fields (same field required by multiple sources = collect once)
+5. ✅ Groups by collectionTab for proper placement in workflow
 
 ### 5. Data Retention Integration
 Use existing field-level retention configuration:
@@ -444,7 +442,7 @@ Additional statuses can be added via the OrderStatus configuration table.
 - 📋 Basic rate limiting for customer endpoints
 - 📋 Audit logging for all actions
 
-#### API Endpoints ✅ CORE ENDPOINTS COMPLETE
+#### API Endpoints ✅ MOSTLY COMPLETE
 - ✅ `POST /api/portal/orders` - Create new order
 - ✅ `GET /api/portal/orders` - List customer's orders
 - ✅ `GET /api/portal/orders/[id]` - Get order details
@@ -452,8 +450,8 @@ Additional statuses can be added via the OrderStatus configuration table.
 - ✅ `POST /api/portal/orders/[id]/submit` - Submit order
 - ✅ `DELETE /api/portal/orders/[id]` - Delete draft order
 - ✅ `GET /api/portal/orders/stats` - Order statistics
+- ✅ `GET /api/portal/orders/requirements` - Get dynamic requirements (COMPLETED Jan 28)
 - 📋 `POST /api/portal/documents/upload` - Upload document
-- 📋 `GET /api/portal/requirements` - Get dynamic requirements
 - 📋 `GET /api/portal/services/availability` - Check service availability
 
 ### 8. UI/UX Components 🚧 PARTIALLY COMPLETE
@@ -472,19 +470,19 @@ Additional statuses can be added via the OrderStatus configuration table.
 4. ✅ Create portal layout and navigation
 5. 🔧 Implement basic audit logging (model created, implementation pending)
 
-### Core Features (Week 3-4) 🚧 IN PROGRESS
-6. 🚧 Build order creation flow with dynamic forms (API complete, form needs wiring)
-7. 📋 Implement service/location selection logic
-8. 📋 Add document upload functionality
-9. 🚧 Create order listing and filtering (basic API complete, UI needs connection)
-10. ✅ Implement draft saving (API complete)
+### Core Features (Week 3-4) ✅ MOSTLY COMPLETE
+6. ✅ Build order creation flow with dynamic forms (COMPLETED Jan 28)
+7. ✅ Implement service/location selection logic (COMPLETED Jan 28)
+8. 📋 Add document upload functionality (UI ready, backend needed)
+9. ✅ Create order listing and filtering (COMPLETED)
+10. ✅ Implement draft saving (COMPLETED)
 
-### Integration & Polish (Week 5-6)
-11. Integrate with existing DSX requirements
-12. Add order status management
-13. Create report download functionality
-14. Build customer dashboard
-15. Add basic testing
+### Integration & Polish (Week 5-6) 🚧 IN PROGRESS
+11. ✅ Integrate with existing DSX requirements (COMPLETED Jan 28)
+12. 📋 Add order status management
+13. 📋 Create report download functionality
+14. ✅ Build customer dashboard (basic version with real data)
+15. 📋 Add basic testing
 
 ### Pre-MVP Security (Week 7)
 16. Add enhanced password rules

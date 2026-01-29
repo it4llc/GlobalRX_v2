@@ -2,6 +2,7 @@
 'use client';
 
 import { FC } from 'react';
+import { AddressBlockInput } from './address-block-input';
 
 interface DynamicFieldInputProps {
   field: {
@@ -11,6 +12,7 @@ interface DynamicFieldInputProps {
     dataType: string;
     instructions?: string;
     options?: { value: string; label: string }[];
+    addressConfig?: any; // Address block configuration
     required?: boolean;
   };
   value: any;
@@ -132,6 +134,19 @@ export const DynamicFieldInput: FC<DynamicFieldInputProps> = ({
           </div>
         );
 
+      case 'address_block':
+        if (field.addressConfig) {
+          return (
+            <AddressBlockInput
+              config={field.addressConfig}
+              value={value}
+              onChange={onChange}
+              error={error}
+            />
+          );
+        }
+        return <div className="text-red-500">Address block configuration missing</div>;
+
       default:
         return (
           <input
@@ -155,10 +170,10 @@ export const DynamicFieldInput: FC<DynamicFieldInputProps> = ({
         {field.required && <span className="text-red-500 ml-1">*</span>}
       </label>
       {renderField()}
-      {field.instructions && !['text', 'email', 'phone', 'number'].includes(field.dataType) && (
+      {field.instructions && !['text', 'email', 'phone', 'number'].includes(field.dataType) && field.dataType !== 'address_block' && (
         <p className="mt-1 text-xs text-gray-500">{field.instructions}</p>
       )}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && field.dataType !== 'address_block' && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
 };

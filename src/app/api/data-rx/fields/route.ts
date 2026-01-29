@@ -106,6 +106,7 @@ export async function GET(request: NextRequest) {
         instructions: standardizedData.instructions || '',
         retentionHandling: standardizedData.retentionHandling,
         collectionTab: standardizedData.collectionTab || 'subject', // NEW: default to subject
+        addressConfig: standardizedData.addressConfig || null, // Include address config
         options: standardizedData.options || [],
         disabled: field.disabled,
         // Map services from the join table
@@ -186,7 +187,8 @@ export async function POST(request: NextRequest) {
           options: data.options || [],
           // Use standardized property name
           retentionHandling: data.retentionHandling || 'no_delete',
-          collectionTab: data.collectionTab || 'subject' // NEW: add collectionTab
+          collectionTab: data.collectionTab || 'subject', // NEW: add collectionTab
+          addressConfig: data.addressConfig || null // Add address configuration
         }
       }
     });
@@ -200,6 +202,7 @@ export async function POST(request: NextRequest) {
         instructions: field.fieldData.instructions,
         retentionHandling: field.fieldData.retentionHandling,
         collectionTab: field.fieldData.collectionTab || 'subject', // NEW: include collectionTab
+        addressConfig: field.fieldData.addressConfig || null, // Include address config
         options: field.fieldData.options || [],
         services: []
       }
