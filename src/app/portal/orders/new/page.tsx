@@ -445,13 +445,41 @@ export default function NewOrderPage() {
     }
 
     setIsSubmitting(true);
+
+    // Convert UUID-based field values to name-based field values for better storage
+    const subjectFieldsByName: Record<string, any> = {};
+    Object.entries(subjectFieldValues).forEach(([fieldId, value]) => {
+      const field = requirements.subjectFields.find(f => f.id === fieldId);
+      if (field && value) {
+        subjectFieldsByName[field.name] = value;
+      }
+    });
+
+    const searchFieldsByName: Record<string, Record<string, any>> = {};
+    Object.entries(searchFieldValues).forEach(([itemId, itemFields]) => {
+      searchFieldsByName[itemId] = {};
+      Object.entries(itemFields).forEach(([fieldId, value]) => {
+        const field = requirements.searchFields.find(f => f.id === fieldId);
+        if (field && value) {
+          searchFieldsByName[itemId][field.name] = value;
+        }
+      });
+    });
+
+
     try {
       const response = await fetch('/api/portal/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          subjectFieldValues: subjectFieldsByName, // Send name-based fields
+          searchFieldValues: searchFieldsByName,   // Send name-based fields
+          uploadedDocuments,
+          status: 'submitted', // Explicitly mark as submitted when using Submit Order button
+        }),
       });
 
       if (!response.ok) {
@@ -483,16 +511,40 @@ export default function NewOrderPage() {
     }
 
     setIsSubmitting(true);
+
+    // Convert UUID-based field values to name-based field values for better storage
+    const subjectFieldsByName: Record<string, any> = {};
+    Object.entries(subjectFieldValues).forEach(([fieldId, value]) => {
+      const field = requirements.subjectFields.find(f => f.id === fieldId);
+      if (field && value) {
+        subjectFieldsByName[field.name] = value;
+      }
+    });
+
+    const searchFieldsByName: Record<string, Record<string, any>> = {};
+    Object.entries(searchFieldValues).forEach(([itemId, itemFields]) => {
+      searchFieldsByName[itemId] = {};
+      Object.entries(itemFields).forEach(([fieldId, value]) => {
+        const field = requirements.searchFields.find(f => f.id === fieldId);
+        if (field && value) {
+          searchFieldsByName[itemId][field.name] = value;
+        }
+      });
+    });
+
     try {
-      const response = await fetch('/api/portal/orders/draft', {
+      const response = await fetch('/api/portal/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          items: formData.serviceItems,
-          subject: formData.subject,
+          ...formData,
+          subjectFieldValues: subjectFieldsByName, // Send name-based fields
+          searchFieldValues: searchFieldsByName,   // Send name-based fields
+          uploadedDocuments,
           notes: formData.notes || 'Draft order',
+          status: 'draft', // Explicitly mark as draft when using Save as Draft button
         }),
       });
 

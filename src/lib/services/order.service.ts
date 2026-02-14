@@ -117,8 +117,23 @@ export class OrderService {
     searchFieldValues?: Record<string, Record<string, any>>;
     uploadedDocuments?: Record<string, any>;
     notes?: string;
+    status?: 'draft' | 'submitted';
   }) {
     const orderNumber = await this.generateOrderNumber(data.customerId);
+
+    // Prepare the merged subject object
+    const mergedSubject = {
+      ...data.subject,
+      ...data.subjectFieldValues,
+      // Ensure we have firstName/lastName for display compatibility
+      firstName: data.subject?.firstName ||
+                data.subjectFieldValues?.['First Name'] ||
+                data.subjectFieldValues?.firstName,
+      lastName: data.subject?.lastName ||
+               data.subjectFieldValues?.['Last Name'] ||
+               data.subjectFieldValues?.['Surname/Last Name'] ||
+               data.subjectFieldValues?.lastName,
+    };
 
     // Create the main order with transaction to ensure consistency
     return prisma.$transaction(async (tx) => {
@@ -128,11 +143,8 @@ export class OrderService {
           orderNumber,
           customerId: data.customerId,
           userId: data.userId,
-          statusCode: 'draft',
-          subject: {
-            ...data.subject,
-            ...data.subjectFieldValues, // Merge subject field values
-          },
+          statusCode: data.status || 'submitted', // Default to submitted for complete orders
+          subject: mergedSubject,
           notes: data.notes,
         },
         include: {

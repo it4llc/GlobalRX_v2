@@ -30,6 +30,7 @@ const createOrderSchema = z.object({
   searchFieldValues: z.record(z.record(z.any())).optional(),
   uploadedDocuments: z.record(z.any()).optional(),
   notes: z.string().optional(),
+  status: z.enum(['draft', 'submitted']).optional(),
 });
 
 /**
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
       searchFieldValues: validatedData.searchFieldValues,
       uploadedDocuments: validatedData.uploadedDocuments,
       notes: validatedData.notes,
+      status: validatedData.status,
     });
 
     return NextResponse.json(order, { status: 201 });
