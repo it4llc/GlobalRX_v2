@@ -19,6 +19,7 @@ interface AddressBlockInputProps {
   onChange: (value: AddressData) => void;
   error?: string;
   locations?: { states: any[]; counties: any[] };
+  countryId?: string; // Country context for filtering states
 }
 
 export const AddressBlockInput: FC<AddressBlockInputProps> = ({
@@ -26,7 +27,8 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
   value,
   onChange,
   error,
-  locations
+  locations,
+  countryId
 }) => {
   const [addressData, setAddressData] = useState<AddressData>(value || {});
   const [loading, setLoading] = useState(false);
@@ -35,10 +37,15 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
   const [cityAutocomplete, setCityAutocomplete] = useState<string[]>([]);
   const [showCityDropdown, setShowCityDropdown] = useState(false);
 
-  // Fetch state options on mount
+  // Fetch state options when countryId changes
   useEffect(() => {
-    fetchStateOptions();
-  }, []);
+    if (countryId) {
+      fetchStateOptions();
+    } else {
+      // Clear state options if no country selected
+      setStateOptions([]);
+    }
+  }, [countryId]);
 
   // Fetch county options when state changes
   useEffect(() => {
@@ -53,11 +60,18 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
   }, [addressData]);
 
   const fetchStateOptions = async () => {
+    if (!countryId) {
+      console.warn('No countryId provided for fetching states');
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await fetch('/api/portal/locations?type=states');
+      // Fetch states/provinces for the specific country
+      const response = await fetch(`/api/portal/locations?parentId=${countryId}`);
       if (response.ok) {
         const data = await response.json();
+        console.log(`Fetched states for country ${countryId}:`, data);
         setStateOptions(data);
       }
     } catch (error) {
@@ -135,9 +149,11 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
             value={fieldValue}
             onChange={(e) => handleFieldChange(field, e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={loading}
+            disabled={loading || !countryId}
           >
-            <option value="">Select {componentConfig.label}</option>
+            <option value="">
+              {!countryId ? 'Select country first' : `Select ${componentConfig.label}`}
+            </option>
             {stateOptions.map(state => (
               <option key={state.id} value={state.id}>
                 {state.name} {state.code ? `(${state.code})` : ''}

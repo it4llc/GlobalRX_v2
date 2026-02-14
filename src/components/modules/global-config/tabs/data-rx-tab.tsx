@@ -1,7 +1,7 @@
 // src/components/modules/global-config/tabs/data-rx-tab.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FieldData, AddFieldModal } from './add-field-modal';
@@ -12,6 +12,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { ActionDropdown } from '@/components/ui/action-dropdown';
 import { DialogRef, ModalDialog } from '@/components/ui/modal-dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { StandardDropdown } from '@/components/ui/standard-dropdown';
+import { Check, X, Edit2 } from 'lucide-react';
 
 interface DataField {
   id: string;
@@ -23,6 +27,8 @@ interface DataField {
   options?: Array<{ value: string; label: string }>;
   disabled?: boolean;
   services?: Array<{ id: string, name: string }>;
+  collectionTab?: string;
+  addressConfig?: any;
 }
 
 interface Document {
@@ -45,10 +51,15 @@ enum TabType {
 export function DataRxTab() {
   // State for active inner tab (fields or documents)
   const [activeTab, setActiveTab] = useState<TabType>(TabType.Fields);
-  
+
   // State for data fields and documents
   const [dataFields, setDataFields] = useState<DataField[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+
+  // State for inline editing
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editingValues, setEditingValues] = useState<Partial<DataField>>({});
+  const [isPending, startTransition] = useTransition();
   
   // State for modals
   const [showAddFieldModal, setShowAddFieldModal] = useState(false);
@@ -395,11 +406,33 @@ export function DataRxTab() {
       'phone': 'Phone',
       'select': 'Dropdown',
       'checkbox': 'Checkbox',
-      'radio': 'Radio Buttons'
+      'radio': 'Radio Buttons',
+      'address_block': 'Address Block'
     };
-    
+
     return typeMap[dataType] || dataType;
   };
+
+  // Data type options for dropdown
+  const dataTypeOptions = [
+    { id: 'text', value: 'text', label: 'Text' },
+    { id: 'number', value: 'number', label: 'Number' },
+    { id: 'date', value: 'date', label: 'Date' },
+    { id: 'email', value: 'email', label: 'Email' },
+    { id: 'phone', value: 'phone', label: 'Phone' },
+    { id: 'select', value: 'select', label: 'Dropdown' },
+    { id: 'checkbox', value: 'checkbox', label: 'Checkbox' },
+    { id: 'radio', value: 'radio', label: 'Radio Buttons' },
+    { id: 'address_block', value: 'address_block', label: 'Address Block' },
+  ];
+
+  // Retention handling options
+  const retentionOptions = [
+    { id: 'no_delete', value: 'no_delete', label: "Don't delete" },
+    { id: 'customer_rule', value: 'customer_rule', label: 'Customer rule' },
+    { id: 'global_rule', value: 'global_rule', label: 'Global rule' },
+    { id: 'none', value: 'none', label: 'None' },
+  ];
   
   // For the DataField type
   const getRetentionLabelForField = (field: DataField): string => {
@@ -409,8 +442,68 @@ export function DataRxTab() {
       'global_rule': 'Global rule',
       'none': 'None'
     };
-    
+
     return retentionMap[field.retentionHandling] || 'None';
+  };
+
+  // Start editing a field inline
+  const startEditing = (field: DataField) => {
+    setEditingField(field.id);
+    setEditingValues({
+      fieldLabel: field.fieldLabel,
+      shortName: field.shortName,
+      dataType: field.dataType,
+      instructions: field.instructions,
+      retentionHandling: field.retentionHandling,
+      options: field.options
+    });
+  };
+
+  // Cancel inline editing
+  const cancelEditing = () => {
+    setEditingField(null);
+    setEditingValues({});
+  };
+
+  // Save inline edit
+  const saveInlineEdit = async () => {
+    if (!editingField || !editingValues) return;
+
+    startTransition(async () => {
+      try {
+        const fieldToUpdate = dataFields.find(f => f.id === editingField);
+        if (!fieldToUpdate) return;
+
+        const response = await fetchWithAuth(`/api/data-rx/fields/${editingField}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fieldLabel: editingValues.fieldLabel,
+            shortName: editingValues.shortName,
+            dataType: editingValues.dataType,
+            instructions: editingValues.instructions || "",
+            retentionHandling: editingValues.retentionHandling || "no_delete",
+            collectionTab: fieldToUpdate.collectionTab || "subject",
+            addressConfig: fieldToUpdate.addressConfig || null,
+            options: editingValues.options || []
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || errorData.details || 'Failed to update field');
+        }
+
+        // Refresh data and close edit mode
+        await fetchData();
+        cancelEditing();
+      } catch (err) {
+        console.error('Error updating field:', err);
+        setError('Failed to update field: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      }
+    });
   };
   
   return (
@@ -490,10 +583,15 @@ export function DataRxTab() {
                 No data fields have been created yet. Click "Add Field" to create one.
               </div>
             ) : (
-              <Table>
+              <div className="relative">
+                {/* Scroll indicator */}
+                <div className="overflow-x-auto border rounded-lg shadow-sm data-rx-table-container" style={{ maxWidth: '100%' }}>
+                  {/* Gradient shadow on right side when scrollable */}
+                  <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-100 to-transparent pointer-events-none z-10 opacity-75" />
+                  <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead style={{ width: '25%' }}>Field Label</TableHead>
+                    <TableHead className="sticky-column" style={{ width: '25%' }}>Field Label</TableHead>
                     <TableHead style={{ width: '15%' }}>Short Name</TableHead>
                     <TableHead style={{ width: '10%' }}>Data Type</TableHead>
                     <TableHead style={{ width: '20%' }}>Instructions</TableHead>
@@ -503,19 +601,52 @@ export function DataRxTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dataFields.map((field) => (
-                    <TableRow 
-                      key={field.id} 
-                      className={field.disabled ? "opacity-60 bg-gray-50" : ""}
-                    >
-                      <TableCell className="font-medium">
-                        {field.fieldLabel}
-                        {field.disabled && <span className="ml-2 text-xs text-gray-500">(Disabled)</span>}
-                      </TableCell>
-                      <TableCell>{field.shortName}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <span>{getDataTypeLabel(field.dataType)}</span>
+                  {dataFields.map((field) => {
+                    const isEditing = editingField === field.id;
+
+                    return (
+                      <TableRow
+                        key={field.id}
+                        className={field.disabled ? "opacity-60 bg-gray-50" : ""}
+                      >
+                        <TableCell className={`font-medium sticky-column ${field.disabled ? 'bg-gray-50' : 'bg-white'}`}>
+                          {isEditing ? (
+                            <Input
+                              value={editingValues.fieldLabel || ''}
+                              onChange={(e) => setEditingValues({...editingValues, fieldLabel: e.target.value})}
+                              className="w-full"
+                              placeholder="Field Label"
+                            />
+                          ) : (
+                            <>
+                              {field.fieldLabel}
+                              {field.disabled && <span className="ml-2 text-xs text-gray-500">(Disabled)</span>}
+                            </>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isEditing ? (
+                            <Input
+                              value={editingValues.shortName || ''}
+                              onChange={(e) => setEditingValues({...editingValues, shortName: e.target.value})}
+                              className="w-full"
+                              placeholder="Short Name"
+                            />
+                          ) : (
+                            field.shortName
+                          )}
+                        </TableCell>
+                        <TableCell>
+                        {isEditing ? (
+                          <StandardDropdown
+                            options={dataTypeOptions}
+                            value={editingValues.dataType || ''}
+                            onChange={(value) => setEditingValues({...editingValues, dataType: value})}
+                            placeholder="Select type"
+                          />
+                        ) : (
+                          <div className="flex items-center">
+                            <span>{getDataTypeLabel(field.dataType)}</span>
                           {['select', 'checkbox', 'radio'].includes(field.dataType) && field.options && field.options.length > 0 && (
                             <span 
                               style={{ 
@@ -544,10 +675,33 @@ export function DataRxTab() {
                               }}>i</span>
                             </span>
                           )}
-                        </div>
+                          </div>
+                        )}
                       </TableCell>
-                      <TableCell className="truncate">{field.instructions}</TableCell>
-                      <TableCell>{getRetentionLabelForField(field)}</TableCell>
+                      <TableCell className="truncate">
+                        {isEditing ? (
+                          <Textarea
+                            value={editingValues.instructions || ''}
+                            onChange={(e) => setEditingValues({...editingValues, instructions: e.target.value})}
+                            className="w-full min-h-[60px]"
+                            placeholder="Instructions"
+                          />
+                        ) : (
+                          field.instructions
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <StandardDropdown
+                            options={retentionOptions}
+                            value={editingValues.retentionHandling || ''}
+                            onChange={(value) => setEditingValues({...editingValues, retentionHandling: value})}
+                            placeholder="Select retention"
+                          />
+                        ) : (
+                          getRetentionLabelForField(field)
+                        )}
+                      </TableCell>
                       <TableCell>
                         {field.services && field.services.length > 0 ? (
                           <span 
@@ -561,25 +715,68 @@ export function DataRxTab() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <ActionDropdown
-                          options={[
-                            {
-                              label: 'Edit',
-                              onClick: () => handleOpenEditModal(field.id),
-                              color: 'rgb(59, 130, 246)'
-                            },
-                            {
-                              label: field.disabled ? 'Enable' : 'Disable',
-                              onClick: () => handleToggleFieldStatus(field.id),
-                              color: field.disabled ? 'rgb(59, 130, 246)' : 'rgb(220, 38, 38)'
-                            }
-                          ]}
-                        />
+                        {isEditing ? (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={saveInlineEdit}
+                              disabled={isPending}
+                              title="Save changes"
+                            >
+                              <Check className="w-4 h-4 text-green-600" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={cancelEditing}
+                              disabled={isPending}
+                              title="Cancel editing"
+                            >
+                              <X className="w-4 h-4 text-red-600" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => startEditing(field)}
+                              title="Quick edit"
+                              className="hover:bg-blue-50 border-blue-300"
+                            >
+                              <Edit2 className="w-4 h-4 text-blue-600" />
+                            </Button>
+                            <ActionDropdown
+                              options={[
+                                {
+                                  label: 'Advanced Edit',
+                                  onClick: () => handleOpenEditModal(field.id),
+                                  color: 'rgb(59, 130, 246)'
+                                },
+                                {
+                                  label: field.disabled ? 'Enable' : 'Disable',
+                                  onClick: () => handleToggleFieldStatus(field.id),
+                                  color: field.disabled ? 'rgb(59, 130, 246)' : 'rgb(220, 38, 38)'
+                                }
+                              ]}
+                            />
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  );
+                  })}
                 </TableBody>
-              </Table>
+                  </Table>
+                </div>
+                {/* Scroll hint message */}
+                {dataFields.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-2 text-right italic">
+                    ↔ Scroll horizontally to see all columns and actions
+                  </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -700,29 +897,83 @@ export function DataRxTab() {
         </div>
       </ModalDialog>
       
-      {/* Add inline styles for the modal dialogs */}
+      {/* Add inline styles for the modal dialogs and scrollbar */}
       <style jsx global>{`
         .options-modal, .services-modal {
           min-width: 200px !important;
           max-width: 300px !important;
         }
-        
+
         .options-modal > div, .services-modal > div {
           padding: 8px !important;
         }
-        
+
         .options-modal h3, .services-modal h3 {
           font-size: 0.875rem !important;
           margin: 0 0 4px 0 !important;
         }
-        
+
         .options-modal .py-2, .services-modal .py-2 {
           padding-top: 4px !important;
           padding-bottom: 4px !important;
         }
-        
+
         .options-modal ul, .services-modal ul {
           margin: 0 !important;
+        }
+
+        /* Make horizontal scrollbar always visible and more prominent */
+        .data-rx-table-container {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e0 #f7fafc;
+          position: relative;
+        }
+
+        /* Sticky first column */
+        .sticky-column {
+          position: sticky !important;
+          left: 0;
+          z-index: 5;
+          background: white;
+          box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Ensure sticky column has proper background on hover */
+        tr:hover .sticky-column {
+          background: inherit;
+        }
+
+        /* Add border to separate sticky column */
+        .sticky-column::after {
+          content: '';
+          position: absolute;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: 1px;
+          background: #e2e8f0;
+        }
+
+        .data-rx-table-container::-webkit-scrollbar {
+          height: 12px;
+          display: block !important;
+          visibility: visible !important;
+        }
+
+        .data-rx-table-container::-webkit-scrollbar-track {
+          background: #f7fafc;
+          border-radius: 4px;
+          border: 1px solid #e2e8f0;
+        }
+
+        .data-rx-table-container::-webkit-scrollbar-thumb {
+          background: #cbd5e0;
+          border-radius: 4px;
+          border: 1px solid #a0aec0;
+        }
+
+        .data-rx-table-container::-webkit-scrollbar-thumb:hover {
+          background: #a0aec0;
         }
       `}</style>
     </div>

@@ -714,28 +714,34 @@ export default function NewOrderPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {requirements.subjectFields.map((field) => (
-                  <div key={field.id} className={field.dataType === 'textarea' ? 'md:col-span-2' : ''}>
-                    <DynamicFieldInput
-                      field={field}
-                      value={subjectFieldValues[field.id]}
-                      onChange={(value) => {
-                        setSubjectFieldValues(prev => ({
-                          ...prev,
-                          [field.id]: value
-                        }));
-                        // Clear error when user updates field
-                        if (errors[field.id]) {
-                          setErrors(prev => ({
+                {requirements.subjectFields.map((field) => {
+                  // Get the first country from the service items for subject-level fields
+                  const firstCountryId = formData.serviceItems.length > 0 ? formData.serviceItems[0].locationId : undefined;
+
+                  return (
+                    <div key={field.id} className={field.dataType === 'textarea' ? 'md:col-span-2' : ''}>
+                      <DynamicFieldInput
+                        field={field}
+                        value={subjectFieldValues[field.id]}
+                        onChange={(value) => {
+                          setSubjectFieldValues(prev => ({
                             ...prev,
-                            [field.id]: ''
+                            [field.id]: value
                           }));
-                        }
-                      }}
-                      error={errors[field.id]}
-                    />
-                  </div>
-                ))}
+                          // Clear error when user updates field
+                          if (errors[field.id]) {
+                            setErrors(prev => ({
+                              ...prev,
+                              [field.id]: ''
+                            }));
+                          }
+                        }}
+                        error={errors[field.id]}
+                        countryId={firstCountryId}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -797,6 +803,7 @@ export default function NewOrderPage() {
                                   }
                                 }}
                                 error={errors[`${item.itemId}_${field.id}`]}
+                                countryId={item.locationId}
                               />
                             </div>
                           ))}

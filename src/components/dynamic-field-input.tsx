@@ -14,17 +14,21 @@ interface DynamicFieldInputProps {
     options?: { value: string; label: string }[];
     addressConfig?: any; // Address block configuration
     required?: boolean;
+    locationId?: string; // Location ID for this field's context
+    serviceId?: string; // Service ID for this field's context
   };
   value: any;
   onChange: (value: any) => void;
   error?: string;
+  countryId?: string; // Country context for address fields
 }
 
 export const DynamicFieldInput: FC<DynamicFieldInputProps> = ({
   field,
   value,
   onChange,
-  error
+  error,
+  countryId
 }) => {
   const renderField = () => {
     switch (field.dataType) {
@@ -139,7 +143,8 @@ export const DynamicFieldInput: FC<DynamicFieldInputProps> = ({
           fieldId: field.id,
           fieldName: field.name,
           hasAddressConfig: !!field.addressConfig,
-          addressConfig: field.addressConfig
+          addressConfig: field.addressConfig,
+          countryId: countryId || field.locationId
         });
         if (field.addressConfig) {
           return (
@@ -148,6 +153,7 @@ export const DynamicFieldInput: FC<DynamicFieldInputProps> = ({
               value={value}
               onChange={onChange}
               error={error}
+              countryId={countryId || field.locationId}
             />
           );
         }
