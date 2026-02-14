@@ -139,7 +139,8 @@ export default function NewOrderPage() {
   useEffect(() => {
     if (session?.user?.customerId) {
       fetchAvailableServices();
-      fetchAvailableLocations('root');
+      // Don't fetch locations initially - wait for service selection
+      // fetchAvailableLocations('root');
     }
   }, [session]);
 
@@ -162,10 +163,14 @@ export default function NewOrderPage() {
     }
   };
 
-  const fetchAvailableLocations = async (parentId: string = 'root') => {
+  const fetchAvailableLocations = async (parentId: string = 'root', serviceId?: string) => {
     try {
       setLoadingLocations(true);
-      const response = await fetch(`/api/portal/locations?parentId=${parentId}`);
+      const params = new URLSearchParams({ parentId });
+      if (serviceId) {
+        params.append('serviceId', serviceId);
+      }
+      const response = await fetch(`/api/portal/locations?${params.toString()}`);
       if (response.ok) {
         const locations = await response.json();
 
@@ -662,9 +667,11 @@ export default function NewOrderPage() {
                       return (
                         <div
                           key={service.id}
-                          onClick={() => {
+                          onClick={async () => {
                             setSelectedServiceForLocation(service);
                             setSelectedCountry('');
+                            // Fetch locations with availability for this specific service
+                            await fetchAvailableLocations('root', service.id);
                           }}
                           className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
                             isSelected
@@ -722,16 +729,20 @@ export default function NewOrderPage() {
                         className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
                         <option value="">-- Select Country --</option>
-                        {availableLocations.map((location) => (
-                          <option
-                            key={location.id}
-                            value={location.id}
-                            disabled={!location.available}
-                          >
-                            {location.name} {location.code2 ? `(${location.code2})` : ''}
-                            {!location.available && ' - Not Available'}
-                          </option>
-                        ))}
+                        {availableLocations.length === 0 ? (
+                          <option value="" disabled>Loading countries for this service...</option>
+                        ) : (
+                          availableLocations
+                            .filter(location => location.available) // Only show available countries
+                            .map((location) => (
+                              <option
+                                key={location.id}
+                                value={location.id}
+                              >
+                                {location.name} {location.code2 ? `(${location.code2})` : ''}
+                              </option>
+                            ))
+                        )}
                       </select>
                     </div>
 
@@ -1022,7 +1033,14 @@ export default function NewOrderPage() {
                         <div key={field.id} className="flex justify-between text-sm">
                           <span className="text-gray-600">{field.name}:</span>
                           <span className="font-medium">
-                            {Array.isArray(value) ? value.join(', ') : value}
+                            {Array.isArray(value) ? value.join(', ') :
+                             (typeof value === 'object' && value !== null) ?
+                               // Handle address blocks and other objects
+                               (value.street1 ?
+                                 `${value.street1 || ''} ${value.city || ''} ${value.state || ''} ${value.postalCode || ''}`.trim() :
+                                 JSON.stringify(value)
+                               ) :
+                               value}
                           </span>
                         </div>
                       );
