@@ -1,6 +1,6 @@
 # Customer Portal Implementation Plan
 
-## Current Status (As of Jan 28, 2025)
+## Current Status (As of Feb 14, 2026)
 
 ### ✅ Completed
 - Customer authentication system with role-based access
@@ -12,6 +12,18 @@
 - Dashboard with real order statistics and recent orders
 - Order service layer with CRUD operations
 - Test scripts and data validation
+
+### 🎉 Recently Completed (Feb 14, 2026)
+**Complete Orders Listing & Enhanced Order Creation:**
+- ✅ **Full Orders Listing Page**: Complete implementation with search, filtering, pagination, and responsive design
+- ✅ **Subject Name Display Fix**: Orders now properly show subject names (First Name Last Name) in listing
+- ✅ **Field Priority Ordering**: Logical field arrangement (Company Name before Company Address) with extensible regex-based system
+- ✅ **Enhanced Order Submission**: Complete dynamic field support with proper UUID-to-field-name conversion
+- ✅ **Service Display Enhancement**: Better UX showing "Service Type: Country" format with improved visibility
+- ✅ **Country Dropdown Fix**: Restricted to show only countries, not subregions in order creation
+- ✅ **Order Status Handling**: Proper distinction between draft and submitted orders
+- ✅ **Data Flow Debugging**: Comprehensive debugging system implemented and removed after successful fixes
+- ✅ **Branch Synchronization**: All enhancements properly merged into main and dev branches
 
 ### 🎉 Recently Completed (Jan 26, 2025)
 **Order Management System Foundation:**
@@ -321,11 +333,12 @@ Implement these before handling real customer data:
 
 ### 2. Customer Portal Routes (/portal) ✅ MOSTLY COMPLETE
 - ✅ `/portal/dashboard` - Overview page with real order statistics
-- ✅ `/portal/orders/new` - Fully functional 4-step order creation
-- 📋 `/portal/orders/[id]` - View order details/status
-- ✅ `/portal/orders` - List page with real data
-- 📋 `/portal/reports` - Download completed reports
+- ✅ `/portal/orders/new` - Fully functional 4-step order creation with field priority ordering
+- ✅ `/portal/orders` - Complete listing with search, filtering, pagination, and subject name display
+- 📋 `/portal/orders/[id]` - **NEXT PRIORITY** - View order details/status (View links currently broken)
+- 📋 `/portal/orders/[id]/edit` - **HIGH PRIORITY** - Edit draft orders (Edit links currently broken)
 - ✅ `/portal/profile` - Basic profile page (view only)
+- 📋 `/portal/reports` - Download completed reports
 
 ### 3. Order Creation Flow - 4-STEP WORKFLOW ✅ COMPLETED
 **Successfully implemented 4-step workflow with full DSX Requirements integration**
@@ -477,19 +490,44 @@ Additional statuses can be added via the OrderStatus configuration table.
 9. ✅ Create order listing and filtering (COMPLETED)
 10. ✅ Implement draft saving (COMPLETED)
 
-### Integration & Polish (Week 5-6) 🚧 IN PROGRESS
+### Integration & Polish (Week 5-6) ✅ MOSTLY COMPLETE
 11. ✅ Integrate with existing DSX requirements (COMPLETED Jan 28)
-12. 📋 Add order status management
-13. 📋 Create report download functionality
+12. ✅ Orders listing with status management (COMPLETED Feb 14)
+13. ✅ Field priority ordering system (COMPLETED Feb 14)
 14. ✅ Build customer dashboard (basic version with real data)
-15. 📋 Add basic testing
+15. ✅ Subject name display and data flow fixes (COMPLETED Feb 14)
+
+### Next Phase - Order Details & Management 📋 UPCOMING
+16. **Order Details Page** (`/portal/orders/[id]`) - **IMMEDIATE PRIORITY**
+    - Complete order information and status display
+    - Subject details and all collected field data
+    - Service items with search parameters
+    - Status history and timeline
+    - Document attachments (when implemented)
+
+17. **Order Edit Functionality** (`/portal/orders/[id]/edit`) - **HIGH PRIORITY**
+    - Pre-populate order form with existing data
+    - Allow modifications to draft orders before submission
+    - Integrate with existing 4-step workflow
+
+18. **Document Upload System** - **MEDIUM PRIORITY**
+    - Complete the TODO in `order.service.ts` for document handling
+    - Implement file upload UI in the order form
+    - Store and retrieve documents for orders
+    - Display documents in order details
+
+19. **Enhanced Order Management** - **LOWER PRIORITY**
+    - Order cancellation for draft orders
+    - Advanced search and filtering
+    - Bulk operations
+    - Status change notifications
 
 ### Pre-MVP Security (Week 7)
-16. Add enhanced password rules
-17. Implement rate limiting
-18. Add security headers
-19. Set up environment separation
-20. Basic penetration testing
+20. Add enhanced password rules
+21. Implement rate limiting
+22. Add security headers
+23. Set up environment separation
+24. Basic penetration testing
 
 ## Development Guidelines
 - Use TypeScript for type safety
