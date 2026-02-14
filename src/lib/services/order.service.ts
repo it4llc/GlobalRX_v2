@@ -71,13 +71,16 @@ export class OrderService {
   }) {
     const orderNumber = await this.generateOrderNumber(data.customerId);
 
+    // Normalize the subject data to ensure consistency
+    const normalizedSubject = await this.normalizeSubjectData(data.subject);
+
     return prisma.order.create({
       data: {
         orderNumber,
         customerId: data.customerId,
         userId: data.userId,
         statusCode: 'draft',
-        subject: data.subject,
+        subject: normalizedSubject,
         notes: data.notes,
       },
       include: {
@@ -97,6 +100,131 @@ export class OrderService {
         },
       },
     });
+  }
+
+  /**
+   * Resolve field values that might contain IDs to their actual displayable values
+   */
+  private static async resolveFieldValues(fieldValues: Record<string, any>): Promise<Record<string, any>> {
+    const resolved: Record<string, any> = {};
+
+    for (const [fieldName, fieldValue] of Object.entries(fieldValues)) {
+      if (!fieldValue) {
+        continue;
+      }
+
+      // Handle address fields that might contain AddressEntry IDs
+      if (fieldName.toLowerCase().includes('address') && typeof fieldValue === 'string') {
+        // Check if it looks like a UUID (AddressEntry ID)
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+        if (uuidPattern.test(fieldValue)) {
+          try {
+            const addressEntry = await prisma.addressEntry.findUnique({
+              where: { id: fieldValue },
+              include: {
+                state: { select: { name: true } },
+                county: { select: { name: true } },
+                country: { select: { name: true } }
+              }
+            });
+
+            if (addressEntry) {
+              // Format the address as a readable string
+              const addressParts = [];
+              if (addressEntry.street1) addressParts.push(addressEntry.street1);
+              if (addressEntry.street2) addressParts.push(addressEntry.street2);
+              if (addressEntry.city) addressParts.push(addressEntry.city);
+              if (addressEntry.state?.name) addressParts.push(addressEntry.state.name);
+              if (addressEntry.postalCode) addressParts.push(addressEntry.postalCode);
+
+              resolved[fieldName] = addressParts.join(', ');
+              continue;
+            }
+          } catch (error) {
+            console.warn(`Failed to resolve address ID ${fieldValue}:`, error);
+          }
+        }
+      }
+
+      // Handle other potential ID fields in the future
+      // if (fieldName.toLowerCase().includes('location') && typeof fieldValue === 'string') {
+      //   // Similar logic for location IDs
+      // }
+
+      // If not resolved as an ID, use the original value
+      resolved[fieldName] = fieldValue;
+    }
+
+    return resolved;
+  }
+
+  /**
+   * Normalize and merge subject data, ensuring consistent field naming and resolved values
+   */
+  private static async normalizeSubjectData(
+    baseSubject: any,
+    subjectFieldValues?: Record<string, any>
+  ): Promise<Record<string, any>> {
+    // First, resolve any IDs in subjectFieldValues to actual values
+    const resolvedFieldValues = subjectFieldValues
+      ? await this.resolveFieldValues(subjectFieldValues)
+      : {};
+
+    // Define field mapping for consistent naming
+    const fieldMapping = {
+      // Name fields
+      'First Name': 'firstName',
+      'first_name': 'firstName',
+      'Last Name': 'lastName',
+      'Surname/Last Name': 'lastName',
+      'surname': 'lastName',
+      'last_name': 'lastName',
+      'Middle Name': 'middleName',
+      'middle_name': 'middleName',
+
+      // Contact fields
+      'Email Address': 'email',
+      'Phone Number': 'phone',
+      'phoneNumber': 'phone',
+
+      // Address fields
+      'Street Address': 'address',
+      'Residence Address': 'address',
+      'residenceAddress': 'address',
+
+      // Personal info
+      'Date of Birth': 'dateOfBirth',
+      'DOB': 'dateOfBirth',
+      'dob': 'dateOfBirth',
+    };
+
+    // Start with base subject data
+    const normalized: Record<string, any> = { ...baseSubject };
+
+    // Process resolved field values and normalize field names
+    for (const [originalKey, value] of Object.entries(resolvedFieldValues)) {
+      if (value === null || value === undefined || value === '') {
+        continue;
+      }
+
+      // Get the normalized field name
+      const normalizedKey = fieldMapping[originalKey] || originalKey;
+
+      // Only store if we don't already have this field or if the new value is more complete
+      if (!normalized[normalizedKey] || (typeof value === 'string' && value.trim().length > 0)) {
+        normalized[normalizedKey] = typeof value === 'string' ? value.trim() : value;
+      }
+    }
+
+    // Remove any empty or null values
+    Object.keys(normalized).forEach(key => {
+      if (normalized[key] === null || normalized[key] === undefined || normalized[key] === '') {
+        delete normalized[key];
+      }
+    });
+
+    return normalized;
   }
 
   /**
@@ -121,19 +249,11 @@ export class OrderService {
   }) {
     const orderNumber = await this.generateOrderNumber(data.customerId);
 
-    // Prepare the merged subject object
-    const mergedSubject = {
-      ...data.subject,
-      ...data.subjectFieldValues,
-      // Ensure we have firstName/lastName for display compatibility
-      firstName: data.subject?.firstName ||
-                data.subjectFieldValues?.['First Name'] ||
-                data.subjectFieldValues?.firstName,
-      lastName: data.subject?.lastName ||
-               data.subjectFieldValues?.['Last Name'] ||
-               data.subjectFieldValues?.['Surname/Last Name'] ||
-               data.subjectFieldValues?.lastName,
-    };
+    // Normalize and resolve the subject data properly
+    const normalizedSubject = await this.normalizeSubjectData(
+      data.subject,
+      data.subjectFieldValues
+    );
 
     // Create the main order with transaction to ensure consistency
     return prisma.$transaction(async (tx) => {
@@ -144,7 +264,7 @@ export class OrderService {
           customerId: data.customerId,
           userId: data.userId,
           statusCode: data.status || 'submitted', // Default to submitted for complete orders
-          subject: mergedSubject,
+          subject: normalizedSubject,
           notes: data.notes,
         },
         include: {

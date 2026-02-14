@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import OrderDetailsDialog from '@/components/portal/order-details-dialog';
 
 interface OrderItem {
   id: string;
@@ -66,6 +67,8 @@ export default function OrdersPage() {
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const fetchOrders = async (searchTerm = search, status = statusFilter, page = currentPage) => {
     try {
@@ -119,6 +122,16 @@ export default function OrdersPage() {
   };
 
   const totalPages = Math.ceil(total / limit);
+
+  const handleViewOrder = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedOrderId(null);
+  };
 
   if (!session) {
     return <div>Loading...</div>;
@@ -305,12 +318,12 @@ export default function OrdersPage() {
                         {new Date(order.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Link
-                          href={`/portal/orders/${order.id}`}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
+                        <button
+                          onClick={() => handleViewOrder(order.id)}
+                          className="text-blue-600 hover:text-blue-900 mr-3 cursor-pointer"
                         >
                           View
-                        </Link>
+                        </button>
                         {order.statusCode === 'draft' && (
                           <Link
                             href={`/portal/orders/${order.id}/edit`}
@@ -396,6 +409,13 @@ export default function OrdersPage() {
           </>
         )}
       </div>
+
+      {/* Order Details Dialog */}
+      <OrderDetailsDialog
+        orderId={selectedOrderId}
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+      />
     </div>
   );
 }
