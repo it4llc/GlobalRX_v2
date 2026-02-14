@@ -100,6 +100,97 @@ export class OrderService {
   }
 
   /**
+   * Create a complete order with service items and field data
+   */
+  static async createCompleteOrder(data: {
+    customerId: string;
+    userId: string;
+    serviceItems: Array<{
+      serviceId: string;
+      serviceName: string;
+      locationId: string;
+      locationName: string;
+      itemId: string;
+    }>;
+    subject: any;
+    subjectFieldValues?: Record<string, any>;
+    searchFieldValues?: Record<string, Record<string, any>>;
+    uploadedDocuments?: Record<string, any>;
+    notes?: string;
+  }) {
+    const orderNumber = await this.generateOrderNumber(data.customerId);
+
+    // Create the main order with transaction to ensure consistency
+    return prisma.$transaction(async (tx) => {
+      // Create the main order
+      const order = await tx.order.create({
+        data: {
+          orderNumber,
+          customerId: data.customerId,
+          userId: data.userId,
+          statusCode: 'draft',
+          subject: {
+            ...data.subject,
+            ...data.subjectFieldValues, // Merge subject field values
+          },
+          notes: data.notes,
+        },
+        include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      // Create order items for each service+location combination
+      for (const serviceItem of data.serviceItems) {
+        const orderItem = await tx.orderItem.create({
+          data: {
+            orderId: order.id,
+            serviceId: serviceItem.serviceId,
+            locationId: serviceItem.locationId,
+            status: 'pending',
+          },
+        });
+
+        // Create order data entries for search fields specific to this service item
+        const searchFields = data.searchFieldValues?.[serviceItem.itemId];
+        if (searchFields) {
+          for (const [fieldName, fieldValue] of Object.entries(searchFields)) {
+            if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+              await tx.orderData.create({
+                data: {
+                  orderItemId: orderItem.id,
+                  fieldName,
+                  fieldValue: typeof fieldValue === 'string' ? fieldValue : JSON.stringify(fieldValue),
+                  fieldType: 'search', // TODO: Get actual field type from requirements
+                },
+              });
+            }
+          }
+        }
+
+        // TODO: Handle document uploads for this order item
+        // const documents = data.uploadedDocuments?.[serviceItem.itemId];
+        // if (documents) { ... }
+      }
+
+      return order;
+    });
+  }
+
+  /**
    * Get orders for a customer
    */
   static async getCustomerOrders(customerId: string, filters?: {

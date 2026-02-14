@@ -45,6 +45,57 @@ interface OrderFormData {
   notes: string;
 }
 
+// Field priority mapping - lower numbers appear first
+const getFieldPriority = (fieldName: string, dataType: string): number => {
+  // Core identity fields (highest priority)
+  if (/^(company|business|organization)\s*(name)$/i.test(fieldName)) {
+    return 10;
+  }
+  if (/^(first|given)\s*(name)$/i.test(fieldName)) {
+    return 11;
+  }
+  if (/^(last|family|sur.*)\s*(name)$/i.test(fieldName)) {
+    return 12;
+  }
+  if (/^(middle)\s*(name)$/i.test(fieldName)) {
+    return 13;
+  }
+
+  // Contact information
+  if (/^(email|e.?mail)$/i.test(fieldName)) return 20;
+  if (/^(phone|telephone|mobile|cell)$/i.test(fieldName)) return 21;
+
+  // Address fields (in logical order)
+  if (/^(company|business|organization)\s*(address)$/i.test(fieldName)) {
+    return 30;
+  }
+  if (/^(address|street)$/i.test(fieldName)) {
+    return 31;
+  }
+  if (/^(city|town)$/i.test(fieldName)) return 32;
+  if (/^(state|province|region)$/i.test(fieldName)) return 33;
+  if (/^(zip|postal|post.*code)$/i.test(fieldName)) return 34;
+  if (/^country$/i.test(fieldName)) return 35;
+
+  // Birth/age information
+  if (/^(birth|dob|date.*birth)$/i.test(fieldName)) return 40;
+  if (/^age$/i.test(fieldName)) return 41;
+
+  // ID numbers and documents
+  if (/^(ssn|social.*security)$/i.test(fieldName)) return 50;
+  if (/^(id|identification)$/i.test(fieldName)) return 51;
+  if (/^(passport|driver.*license|license)$/i.test(fieldName)) return 52;
+
+  // Special data types - but check name patterns first for more specific ordering
+  if (dataType === 'address_block' && !/^(company|business|organization)\s*(address)$/i.test(fieldName)) {
+    return 36;
+  }
+  if (dataType === 'date') return 45;
+
+  // Default for unmatched fields - will appear at end
+  return 100;
+};
+
 export default function NewOrderPage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -673,8 +724,8 @@ export default function NewOrderPage() {
                   {formData.serviceItems.map((item) => (
                     <div key={item.itemId} className="flex items-center justify-between bg-white rounded-md p-2">
                       <div className="flex-1">
-                        <span className="text-sm font-medium text-gray-900">{item.serviceName}</span>
-                        <span className="text-xs text-gray-500 ml-2">→ {item.locationName}</span>
+                        <span className="text-sm font-medium text-gray-900">{item.serviceName}:</span>
+                        <span className="text-sm font-medium text-blue-700 ml-1">{item.locationName}</span>
                       </div>
                       <button
                         onClick={() => removeServiceFromCart(item.itemId)}
@@ -714,7 +765,16 @@ export default function NewOrderPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {requirements.subjectFields.map((field) => {
+                {requirements.subjectFields
+                  .sort((a, b) => {
+                    const priorityA = getFieldPriority(a.name, a.dataType);
+                    const priorityB = getFieldPriority(b.name, b.dataType);
+                    if (priorityA !== priorityB) {
+                      return priorityA - priorityB;
+                    }
+                    return a.name.localeCompare(b.name);
+                  })
+                  .map((field) => {
                   // Get the first country from the service items for subject-level fields
                   const firstCountryId = formData.serviceItems.length > 0 ? formData.serviceItems[0].locationId : undefined;
 
@@ -758,18 +818,22 @@ export default function NewOrderPage() {
 
             <div className="space-y-6">
               {formData.serviceItems.map((item) => {
-                const itemFields = requirements.searchFields.filter(
-                  field => field.serviceId === item.serviceId && field.locationId === item.locationId
-                );
+                const itemFields = requirements.searchFields
+                  .filter(field => field.serviceId === item.serviceId && field.locationId === item.locationId)
+                  .sort((a, b) => {
+                    const priorityA = getFieldPriority(a.name, a.dataType);
+                    const priorityB = getFieldPriority(b.name, b.dataType);
+                    if (priorityA !== priorityB) {
+                      return priorityA - priorityB;
+                    }
+                    return a.name.localeCompare(b.name);
+                  });
 
                 return (
                   <div key={item.itemId} className="border border-gray-200 rounded-lg p-6">
-                    <h4 className="text-lg font-medium text-gray-900 mb-1">
-                      {item.serviceName}
+                    <h4 className="text-lg font-medium text-gray-900 mb-4">
+                      {item.serviceName}: <span className="text-blue-700">{item.locationName}</span>
                     </h4>
-                    <p className="text-sm text-gray-500 mb-4">
-                      Country: {item.locationName}
-                    </p>
 
                     {/* Service-specific Fields */}
                     <div>
@@ -887,8 +951,8 @@ export default function NewOrderPage() {
                 <div className="space-y-2">
                   {formData.serviceItems.map((item) => (
                     <div key={item.itemId} className="flex justify-between text-sm">
-                      <span>{item.serviceName}</span>
-                      <span className="text-gray-500">{item.locationName}</span>
+                      <span>{item.serviceName}: <span className="font-medium text-blue-700">{item.locationName}</span></span>
+                      <span className="text-gray-400">Search</span>
                     </div>
                   ))}
                 </div>

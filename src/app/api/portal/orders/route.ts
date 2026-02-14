@@ -8,17 +8,27 @@ import { z } from 'zod';
 // Force dynamic route
 export const dynamic = 'force-dynamic';
 
-// Schema for creating an order
+// Schema for creating an order with full order data
 const createOrderSchema = z.object({
+  serviceItems: z.array(z.object({
+    serviceId: z.string(),
+    serviceName: z.string(),
+    locationId: z.string(),
+    locationName: z.string(),
+    itemId: z.string(),
+  })),
   subject: z.object({
-    firstName: z.string().min(1, 'First name is required'),
-    lastName: z.string().min(1, 'Last name is required'),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
     middleName: z.string().optional(),
     dateOfBirth: z.string().optional(),
-    email: z.string().email().optional(),
+    email: z.string().optional(),
     phone: z.string().optional(),
     address: z.string().optional(),
   }),
+  subjectFieldValues: z.record(z.any()).optional(),
+  searchFieldValues: z.record(z.record(z.any())).optional(),
+  uploadedDocuments: z.record(z.any()).optional(),
   notes: z.string().optional(),
 });
 
@@ -90,11 +100,15 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const validatedData = createOrderSchema.parse(body);
 
-    // Create the order
-    const order = await OrderService.createOrder({
+    // Create the complete order with all data
+    const order = await OrderService.createCompleteOrder({
       customerId,
       userId: session.user.id,
+      serviceItems: validatedData.serviceItems,
       subject: validatedData.subject,
+      subjectFieldValues: validatedData.subjectFieldValues,
+      searchFieldValues: validatedData.searchFieldValues,
+      uploadedDocuments: validatedData.uploadedDocuments,
       notes: validatedData.notes,
     });
 

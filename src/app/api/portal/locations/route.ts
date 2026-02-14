@@ -92,8 +92,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (!parentId || parentId === 'root') {
-      // Get all countries
+      // Get all top-level countries (parentId is null)
       const countries = await prisma.country.findMany({
+        where: {
+          parentId: null,
+        },
         select: {
           id: true,
           name: true,
