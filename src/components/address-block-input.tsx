@@ -9,7 +9,11 @@ interface AddressData {
   street2?: string;
   city?: string;
   state?: string;
+  stateId?: string; // Store the ID for lookups
+  stateName?: string; // Store the name for display
   county?: string;
+  countyId?: string; // Store the ID for lookups
+  countyName?: string; // Store the name for display
   postalCode?: string;
 }
 
@@ -49,10 +53,10 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
 
   // Fetch county options when state changes
   useEffect(() => {
-    if (addressData.state && config.county.enabled) {
-      fetchCountyOptions(addressData.state);
+    if (addressData.stateId && config.county.enabled) {
+      fetchCountyOptions(addressData.stateId);
     }
-  }, [addressData.state]);
+  }, [addressData.stateId]);
 
   // Update parent component when address data changes
   useEffect(() => {
@@ -114,13 +118,37 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
     }
   };
 
-  const handleFieldChange = (field: keyof AddressData, value: string) => {
-    setAddressData(prev => ({ ...prev, [field]: value }));
-
-    // If changing state, clear county
-    if (field === 'state' && config.county.enabled) {
-      setAddressData(prev => ({ ...prev, county: '' }));
-      setCountyOptions([]);
+  const handleFieldChange = (field: keyof AddressData, value: string, extraData?: any) => {
+    // Special handling for state field
+    if (field === 'state') {
+      const selectedState = stateOptions.find(s => s.id === value);
+      setAddressData(prev => ({
+        ...prev,
+        state: selectedState?.name || value, // Store the name as the primary value
+        stateId: value, // Store the ID for lookups
+        stateName: selectedState?.name || '',
+        // Clear county when state changes
+        county: '',
+        countyId: '',
+        countyName: ''
+      }));
+      if (config.county.enabled) {
+        setCountyOptions([]);
+      }
+    }
+    // Special handling for county field
+    else if (field === 'county') {
+      const selectedCounty = countyOptions.find(c => c.id === value);
+      setAddressData(prev => ({
+        ...prev,
+        county: selectedCounty?.name || value, // Store the name as the primary value
+        countyId: value, // Store the ID for lookups
+        countyName: selectedCounty?.name || ''
+      }));
+    }
+    // Regular text fields
+    else {
+      setAddressData(prev => ({ ...prev, [field]: value }));
     }
 
     // Handle city autocomplete
@@ -146,7 +174,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
             {componentConfig.required && <span className="text-red-500 ml-1">*</span>}
           </label>
           <select
-            value={fieldValue}
+            value={addressData.stateId || ''} // Use stateId for the select value
             onChange={(e) => handleFieldChange(field, e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={loading || !countryId}
@@ -173,13 +201,13 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
             {componentConfig.required && <span className="text-red-500 ml-1">*</span>}
           </label>
           <select
-            value={fieldValue}
+            value={addressData.countyId || ''} // Use countyId for the select value
             onChange={(e) => handleFieldChange(field, e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={!addressData.state || loading}
+            disabled={!addressData.stateId || loading}
           >
             <option value="">
-              {!addressData.state ? 'Select state first' : `Select ${componentConfig.label}`}
+              {!addressData.stateId ? 'Select state first' : `Select ${componentConfig.label}`}
             </option>
             {countyOptions.map(county => (
               <option key={county.id} value={county.id}>
