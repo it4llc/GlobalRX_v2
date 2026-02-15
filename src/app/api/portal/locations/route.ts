@@ -109,13 +109,55 @@ export async function GET(request: NextRequest) {
         },
       });
 
+      // If a serviceId is provided, check DSX availability for that service
+      let dsxAvailabilityMap: Record<string, boolean> = {};
+      if (serviceId) {
+        const dsxAvailability = await prisma.dSXAvailability.findMany({
+          where: {
+            serviceId: serviceId,
+          },
+          select: {
+            locationId: true,
+            isAvailable: true,
+          },
+        });
+
+        // Build a map of location availability
+        // Note: DSX only stores records for locations that are explicitly unavailable (false)
+        // If no record exists, the location is considered available by default
+        dsxAvailabilityMap = {};
+        dsxAvailability.forEach(item => {
+          dsxAvailabilityMap[item.locationId] = item.isAvailable;
+        });
+      }
+
       // For now, assume no countries have sublocations to avoid performance issues
       // We can check this when a specific country is selected
-      const locationsWithAvailability = countries.map(country => ({
-        ...country,
-        available: country.disabled !== true, // null or false means available
-        hasSublocations: false, // We'll check this on-demand
-      }));
+      const locationsWithAvailability = countries.map(country => {
+        let available = country.disabled !== true; // null or false means available in general
+
+        // If serviceId is provided, also check DSX availability
+        if (serviceId) {
+          const hasDSXRecords = Object.keys(dsxAvailabilityMap).length > 0;
+
+          if (hasDSXRecords) {
+            // If there are DSX records, countries are available UNLESS they have a record set to false
+            // Countries with no DSX record are considered AVAILABLE (default state)
+            if (dsxAvailabilityMap.hasOwnProperty(country.id)) {
+              // Country has a DSX record - use that value
+              available = available && dsxAvailabilityMap[country.id];
+            }
+            // No DSX record = available by default (no change to available)
+          }
+          // If no DSX records exist, use general availability (no change)
+        }
+
+        return {
+          ...country,
+          available,
+          hasSublocations: false, // We'll check this on-demand
+        };
+      });
 
       return NextResponse.json(locationsWithAvailability);
     } else {

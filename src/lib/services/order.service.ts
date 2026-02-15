@@ -4,6 +4,64 @@ import { Prisma } from '@prisma/client';
 
 export class OrderService {
   /**
+   * Create or find an AddressEntry record for the given address data
+   * This ensures we store addresses properly as references, not embedded data
+   */
+  private static async createOrFindAddressEntry(addressData: any, userId: string): Promise<string | null> {
+    if (!addressData || typeof addressData !== 'object') {
+      return null;
+    }
+
+    // Extract address components
+    const {
+      street1, street2, city,
+      state, stateId, stateName,
+      county, countyId, countyName,
+      postalCode
+    } = addressData;
+
+    // If we don't have minimum required fields, don't create an entry
+    if (!street1 && !city && !state && !postalCode) {
+      return null;
+    }
+
+    try {
+      // Try to find existing address entry with same details
+      const existingEntry = await prisma.addressEntry.findFirst({
+        where: {
+          street1: street1 || null,
+          street2: street2 || null,
+          city: city || null,
+          stateId: stateId || null,
+          countyId: countyId || null,
+          postalCode: postalCode || null
+        }
+      });
+
+      if (existingEntry) {
+        return existingEntry.id;
+      }
+
+      // Create new address entry
+      const newEntry = await prisma.addressEntry.create({
+        data: {
+          street1: street1 || null,
+          street2: street2 || null,
+          city: city || null,
+          stateId: stateId || null,
+          countyId: countyId || null,
+          postalCode: postalCode || null,
+          countryId: null // We could extract this from the order context if needed
+        }
+      });
+
+      return newEntry.id;
+    } catch (error) {
+      console.error('Failed to create AddressEntry:', error);
+      return null;
+    }
+  }
+  /**
    * Generate a consistent 3-character customer code based on customer ID
    * This ensures the same customer always gets the same code
    */
@@ -72,7 +130,7 @@ export class OrderService {
     const orderNumber = await this.generateOrderNumber(data.customerId);
 
     // Normalize the subject data to ensure consistency
-    const normalizedSubject = await this.normalizeSubjectData(data.subject);
+    const normalizedSubject = await this.normalizeSubjectData(data.subject, undefined, data.userId);
 
     return prisma.order.create({
       data: {
@@ -104,39 +162,104 @@ export class OrderService {
 
   /**
    * Resolve field values that might contain IDs to their actual displayable values
+   * This method ensures we store human-readable values instead of UUIDs
    */
   private static async resolveFieldValues(fieldValues: Record<string, any>): Promise<Record<string, any>> {
     const resolved: Record<string, any> = {};
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     for (const [fieldName, fieldValue] of Object.entries(fieldValues)) {
       if (!fieldValue) {
+        resolved[fieldName] = fieldValue;
         continue;
       }
 
-      // Handle address fields that might contain AddressEntry IDs
-      if (fieldName.toLowerCase().includes('address') && typeof fieldValue === 'string') {
-        // Check if it looks like a UUID (AddressEntry ID)
-        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      // Handle complex address objects (from AddressBlockInput)
+      if (typeof fieldValue === 'object' && !Array.isArray(fieldValue) &&
+          (fieldName.toLowerCase().includes('address') || fieldName.toLowerCase().includes('residence'))) {
 
-        if (uuidPattern.test(fieldValue)) {
+        // Check if this is an address object with state/county IDs
+        const addressObj = fieldValue as any;
+        const resolvedAddress: any = { ...addressObj };
+
+        // Resolve state ID if present
+        if (addressObj.state && uuidPattern.test(addressObj.state)) {
+          try {
+            const state = await prisma.country.findUnique({
+              where: { id: addressObj.state },
+              select: { name: true, code2: true, subregion1: true }
+            });
+            if (state) {
+              resolvedAddress.state = state.subregion1 || state.name;
+              resolvedAddress.stateCode = state.code2;
+            }
+          } catch (error) {
+            console.warn(`Failed to resolve state ID ${addressObj.state}:`, error);
+          }
+        }
+
+        // Resolve county ID if present
+        if (addressObj.county && uuidPattern.test(addressObj.county)) {
+          try {
+            const county = await prisma.country.findUnique({
+              where: { id: addressObj.county },
+              select: { name: true, subregion2: true }
+            });
+            if (county) {
+              resolvedAddress.county = county.subregion2 || county.name;
+            }
+          } catch (error) {
+            console.warn(`Failed to resolve county ID ${addressObj.county}:`, error);
+          }
+        }
+
+        // Format as a readable string if all parts are resolved
+        const addressParts = [];
+        if (resolvedAddress.street1) addressParts.push(resolvedAddress.street1);
+        if (resolvedAddress.street2) addressParts.push(resolvedAddress.street2);
+        if (resolvedAddress.city) addressParts.push(resolvedAddress.city);
+        if (resolvedAddress.county) addressParts.push(resolvedAddress.county);
+        if (resolvedAddress.state) {
+          addressParts.push(resolvedAddress.stateCode ?
+            `${resolvedAddress.state} (${resolvedAddress.stateCode})` :
+            resolvedAddress.state);
+        }
+        if (resolvedAddress.postalCode) addressParts.push(resolvedAddress.postalCode);
+
+        resolved[fieldName] = addressParts.length > 0 ? addressParts.join(', ') : fieldValue;
+        continue;
+      }
+
+      // Handle string fields that might be UUIDs
+      if (typeof fieldValue === 'string' && uuidPattern.test(fieldValue)) {
+
+        // Try to resolve as AddressEntry ID
+        if (fieldName.toLowerCase().includes('address') || fieldName.toLowerCase().includes('residence')) {
           try {
             const addressEntry = await prisma.addressEntry.findUnique({
               where: { id: fieldValue },
               include: {
-                state: { select: { name: true } },
+                state: { select: { name: true, code2: true } },
                 county: { select: { name: true } },
-                country: { select: { name: true } }
+                country: { select: { name: true, code2: true } }
               }
             });
 
             if (addressEntry) {
-              // Format the address as a readable string
               const addressParts = [];
               if (addressEntry.street1) addressParts.push(addressEntry.street1);
               if (addressEntry.street2) addressParts.push(addressEntry.street2);
               if (addressEntry.city) addressParts.push(addressEntry.city);
-              if (addressEntry.state?.name) addressParts.push(addressEntry.state.name);
+              if (addressEntry.county?.name) addressParts.push(addressEntry.county.name);
+              if (addressEntry.state?.name) {
+                addressParts.push(addressEntry.state.code2 ?
+                  `${addressEntry.state.name} (${addressEntry.state.code2})` :
+                  addressEntry.state.name);
+              }
               if (addressEntry.postalCode) addressParts.push(addressEntry.postalCode);
+              if (addressEntry.country?.name && addressEntry.country.name !== 'United States') {
+                addressParts.push(addressEntry.country.name);
+              }
 
               resolved[fieldName] = addressParts.join(', ');
               continue;
@@ -145,12 +268,79 @@ export class OrderService {
             console.warn(`Failed to resolve address ID ${fieldValue}:`, error);
           }
         }
-      }
 
-      // Handle other potential ID fields in the future
-      // if (fieldName.toLowerCase().includes('location') && typeof fieldValue === 'string') {
-      //   // Similar logic for location IDs
-      // }
+        // Try to resolve as location/country ID
+        if (fieldName.toLowerCase().includes('location') ||
+            fieldName.toLowerCase().includes('country') ||
+            fieldName.toLowerCase().includes('region')) {
+          try {
+            const location = await prisma.country.findUnique({
+              where: { id: fieldValue },
+              select: {
+                name: true,
+                code2: true,
+                subregion1: true,
+                subregion2: true
+              }
+            });
+
+            if (location) {
+              // Use the most specific name available
+              const displayName = location.subregion2 || location.subregion1 || location.name;
+              resolved[fieldName] = location.code2 ?
+                `${displayName} (${location.code2})` :
+                displayName;
+              continue;
+            }
+          } catch (error) {
+            console.warn(`Failed to resolve location ID ${fieldValue}:`, error);
+          }
+        }
+
+        // Try to resolve as state/province ID
+        if (fieldName.toLowerCase().includes('state') || fieldName.toLowerCase().includes('province')) {
+          try {
+            const state = await prisma.country.findUnique({
+              where: { id: fieldValue },
+              select: {
+                name: true,
+                code2: true,
+                subregion1: true
+              }
+            });
+
+            if (state) {
+              const displayName = state.subregion1 || state.name;
+              resolved[fieldName] = state.code2 ?
+                `${displayName} (${state.code2})` :
+                displayName;
+              continue;
+            }
+          } catch (error) {
+            console.warn(`Failed to resolve state ID ${fieldValue}:`, error);
+          }
+        }
+
+        // Try to resolve as county ID
+        if (fieldName.toLowerCase().includes('county')) {
+          try {
+            const county = await prisma.country.findUnique({
+              where: { id: fieldValue },
+              select: {
+                name: true,
+                subregion2: true
+              }
+            });
+
+            if (county) {
+              resolved[fieldName] = county.subregion2 || county.name;
+              continue;
+            }
+          } catch (error) {
+            console.warn(`Failed to resolve county ID ${fieldValue}:`, error);
+          }
+        }
+      }
 
       // If not resolved as an ID, use the original value
       resolved[fieldName] = fieldValue;
@@ -164,7 +354,8 @@ export class OrderService {
    */
   private static async normalizeSubjectData(
     baseSubject: any,
-    subjectFieldValues?: Record<string, any>
+    subjectFieldValues?: Record<string, any>,
+    userId?: string
   ): Promise<Record<string, any>> {
     // First, resolve any IDs in subjectFieldValues to actual values
     const resolvedFieldValues = subjectFieldValues
@@ -252,7 +443,8 @@ export class OrderService {
     // Normalize and resolve the subject data properly
     const normalizedSubject = await this.normalizeSubjectData(
       data.subject,
-      data.subjectFieldValues
+      data.subjectFieldValues,
+      data.userId
     );
 
     // Create the main order with transaction to ensure consistency
@@ -299,8 +491,12 @@ export class OrderService {
         // Create order data entries for search fields specific to this service item
         const searchFields = data.searchFieldValues?.[serviceItem.itemId];
         if (searchFields) {
-          for (const [fieldName, fieldValue] of Object.entries(searchFields)) {
+          // Resolve IDs in search fields to human-readable values
+          const resolvedSearchFields = await this.resolveFieldValues(searchFields);
+
+          for (const [fieldName, fieldValue] of Object.entries(resolvedSearchFields)) {
             if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+              // Store the resolved value, not the raw ID
               await tx.orderData.create({
                 data: {
                   orderItemId: orderItem.id,
