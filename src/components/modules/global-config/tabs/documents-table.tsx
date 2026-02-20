@@ -270,17 +270,20 @@ export function DocumentsTable({ documents, isLoading, onToggleStatus, onRefresh
               )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Document Name</TableHead>
-                  <TableHead>Scope</TableHead>
-                  <TableHead>Instructions</TableHead>
-                  <TableHead>Retention</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
+            <>
+              <div className="overflow-x-auto border rounded-lg shadow-sm documents-table-container" style={{ maxWidth: '100%' }}>
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-100 to-transparent pointer-events-none z-10 opacity-75" />
+                <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="sticky-actions" style={{ width: '8%' }}>Actions</TableHead>
+                    <TableHead className="sticky-label" style={{ width: '20%' }}>Document Name</TableHead>
+                    <TableHead style={{ width: '15%' }}>Scope</TableHead>
+                    <TableHead style={{ width: '25%' }}>Instructions</TableHead>
+                    <TableHead style={{ width: '12%' }}>Retention</TableHead>
+                    <TableHead style={{ width: '10%' }}>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {filteredDocuments.map((document) => {
                   const scope = getDocumentScope(document);
@@ -288,11 +291,30 @@ export function DocumentsTable({ documents, isLoading, onToggleStatus, onRefresh
                   const retention = getRetentionHandling(document);
                   
                   return (
-                    <TableRow 
+                    <TableRow
                       key={document.id}
-                      className={document.disabled ? 'opacity-60' : ''}
+                      className={document.disabled ? 'opacity-60 bg-gray-50' : ''}
                     >
-                      <TableCell className="font-medium">{document.documentName}</TableCell>
+                      <TableCell className={`sticky-actions ${document.disabled ? 'bg-gray-50' : 'bg-white'}`}>
+                        <ActionDropdown
+                          options={[
+                            {
+                              label: 'Edit',
+                              onClick: () => handleEdit(document.id),
+                              color: 'rgb(59, 130, 246)'
+                            },
+                            {
+                              label: document.disabled ? 'Enable' : 'Disable',
+                              onClick: () => onToggleStatus(document.id, document.disabled),
+                              color: document.disabled ? 'rgb(59, 130, 246)' : 'rgb(220, 38, 38)'
+                            },
+                          ]}
+                        />
+                      </TableCell>
+                      <TableCell className={`font-medium sticky-label ${document.disabled ? 'bg-gray-50' : 'bg-white'}`}>
+                        {document.documentName}
+                        {document.disabled && <span className="ml-2 text-xs text-gray-500">(Disabled)</span>}
+                      </TableCell>
                       <TableCell>{getScopeLabel(scope)}</TableCell>
                       <TableCell className="truncate max-w-xs" title={instructions}>
                         {instructions || '-'}
@@ -305,27 +327,19 @@ export function DocumentsTable({ documents, isLoading, onToggleStatus, onRefresh
                           <Badge variant="default">Active</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <ActionDropdown
-                          options={[
-                            {
-                              label: 'Edit',
-                              onClick: () => handleEdit(document.id),
-                              color: 'rgb(37, 99, 235)', // Blue color
-                            },
-                            {
-                              label: document.disabled ? 'Enable' : 'Disable',
-                              onClick: () => onToggleStatus(document.id, document.disabled),
-                              color: document.disabled ? 'rgb(37, 99, 235)' : 'rgb(220, 38, 38)', // Blue or red color
-                            },
-                          ]}
-                        />
-                      </TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
-            </Table>
+              </Table>
+              </div>
+              {/* Scroll hint message */}
+              {filteredDocuments.length > 0 && (
+                <p className="text-xs text-gray-500 mt-2 text-right italic">
+                  ↔ Scroll horizontally to see all columns
+                </p>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -338,6 +352,85 @@ export function DocumentsTable({ documents, isLoading, onToggleStatus, onRefresh
           onCancel={handleCancelEdit}
         />
       )}
+
+      {/* Add inline styles for sticky columns and scrollbar */}
+      <style jsx global>{`
+        /* Make horizontal scrollbar always visible and more prominent */
+        .documents-table-container {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e0 #f7fafc;
+          position: relative;
+        }
+
+        /* Sticky first column (Actions) */
+        .documents-table-container .sticky-actions {
+          position: sticky !important;
+          left: 0px !important;
+          z-index: 6;
+          background: white;
+          min-width: 100px;
+          width: 100px;
+        }
+
+        /* Sticky second column (Document Name) */
+        .documents-table-container .sticky-label {
+          position: sticky !important;
+          left: 100px !important;
+          z-index: 5;
+          background: white;
+          box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+          min-width: 200px;
+        }
+
+        /* Ensure sticky columns have proper background on hover */
+        .documents-table-container tr:hover .sticky-actions,
+        .documents-table-container tr:hover .sticky-label {
+          background: inherit;
+        }
+
+        /* Add border to separate sticky columns */
+        .documents-table-container .sticky-actions::after {
+          content: '';
+          position: absolute;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: 1px;
+          background: #e2e8f0;
+        }
+
+        .documents-table-container .sticky-label::after {
+          content: '';
+          position: absolute;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: 1px;
+          background: #e2e8f0;
+        }
+
+        .documents-table-container::-webkit-scrollbar {
+          height: 12px;
+          display: block !important;
+          visibility: visible !important;
+        }
+
+        .documents-table-container::-webkit-scrollbar-track {
+          background: #f7fafc;
+          border-radius: 4px;
+          border: 1px solid #e2e8f0;
+        }
+
+        .documents-table-container::-webkit-scrollbar-thumb {
+          background: #cbd5e0;
+          border-radius: 4px;
+          border: 1px solid #a0aec0;
+        }
+
+        .documents-table-container::-webkit-scrollbar-thumb:hover {
+          background: #a0aec0;
+        }
+      `}</style>
     </>
   );
 }
