@@ -84,12 +84,15 @@ export class OrderService {
    * Generate a unique order number in format: YYYYMMDD-ABC-0001
    * Where ABC is a consistent 3-char code per customer and 0001 increments per customer per day
    */
-  static async generateOrderNumber(customerId: string): Promise<string> {
+  static async generateOrderNumber(customerId: string, maxRetries = 5): Promise<string> {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const dateStr = `${year}${month}${day}`;
+
+    // Generate consistent customer code based on customer ID
+    const customerCode = this.generateCustomerCode(customerId);
 
     // Get start and end of current day
     const startOfDay = new Date(date);
@@ -98,24 +101,57 @@ export class OrderService {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Get the count of orders for this customer today
-    const count = await prisma.order.count({
-      where: {
-        customerId: customerId,
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      // Get the highest sequence number for this customer today
+      const lastOrder = await prisma.order.findFirst({
+        where: {
+          customerId: customerId,
+          createdAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
         },
-      },
-    });
+        orderBy: {
+          createdAt: 'desc'
+        },
+        select: {
+          orderNumber: true
+        }
+      });
 
-    // Generate consistent customer code based on customer ID
-    const customerCode = this.generateCustomerCode(customerId);
+      let nextSequence = 1;
+      if (lastOrder && lastOrder.orderNumber) {
+        // Extract sequence number from the order number
+        const parts = lastOrder.orderNumber.split('-');
+        if (parts.length >= 3) {
+          const lastSequence = parseInt(parts[2], 10);
+          if (!isNaN(lastSequence)) {
+            nextSequence = lastSequence + 1;
+          }
+        }
+      }
 
-    // Create sequence number (starts at 1, padded to 4 digits)
-    const sequence = String(count + 1).padStart(4, '0');
+      // Create sequence number (padded to 4 digits)
+      const sequence = String(nextSequence).padStart(4, '0');
+      const orderNumber = `${dateStr}-${customerCode}-${sequence}`;
 
-    return `${dateStr}-${customerCode}-${sequence}`;
+      // Check if this order number already exists (race condition protection)
+      const existing = await prisma.order.findUnique({
+        where: { orderNumber }
+      });
+
+      if (!existing) {
+        return orderNumber;
+      }
+
+      // If we reach here, there was a collision, try again with a small delay
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
+    }
+
+    // Fallback: add timestamp if all retries failed
+    const timestamp = Date.now().toString().slice(-6);
+    const sequence = String(1).padStart(4, '0');
+    return `${dateStr}-${customerCode}-${sequence}-${timestamp}`;
   }
 
   /**
@@ -419,6 +455,223 @@ export class OrderService {
   }
 
   /**
+   * Validate that all required fields and documents are provided for an order
+   * Returns validation result with missing requirements and whether order can be submitted
+   */
+  static async validateOrderRequirements(data: {
+    serviceItems: Array<{
+      serviceId: string;
+      locationId: string;
+      itemId: string;
+    }>;
+    subjectFieldValues?: Record<string, any>;
+    searchFieldValues?: Record<string, Record<string, any>>;
+    uploadedDocuments?: Record<string, any>;
+  }): Promise<{
+    isValid: boolean;
+    missingRequirements: {
+      subjectFields: Array<{ fieldName: string; serviceLocation: string }>;
+      searchFields: Array<{ fieldName: string; serviceLocation: string }>;
+      documents: Array<{ documentName: string; serviceLocation: string }>;
+    };
+  }> {
+    const missingRequirements = {
+      subjectFields: [] as Array<{ fieldName: string; serviceLocation: string }>,
+      searchFields: [] as Array<{ fieldName: string; serviceLocation: string }>,
+      documents: [] as Array<{ documentName: string; serviceLocation: string }>,
+    };
+
+    // Extract unique service and location IDs
+    const serviceIds = [...new Set(data.serviceItems.map(item => item.serviceId))];
+    const locationIds = [...new Set(data.serviceItems.map(item => item.locationId))];
+
+    // Get all service-level requirements
+    const serviceRequirements = await prisma.serviceRequirement.findMany({
+      where: {
+        serviceId: { in: serviceIds }
+      },
+      include: {
+        requirement: true,
+        service: {
+          select: { name: true }
+        }
+      }
+    });
+
+    // Get all location-specific mappings (both required and optional)
+    const locationMappings = await prisma.dSXMapping.findMany({
+      where: {
+        AND: [
+          { serviceId: { in: serviceIds } },
+          { locationId: { in: locationIds } }
+        ]
+      },
+      include: {
+        requirement: true,
+        service: {
+          select: { name: true }
+        },
+        country: {
+          select: { name: true }
+        }
+      }
+    });
+
+    // Track which requirements we've already checked to avoid duplicates
+    const checkedSubjectFields = new Set<string>();
+    const checkedSearchFields = new Set<string>();
+    const checkedDocuments = new Set<string>();
+
+    // Create a map of what's required from DSX mappings
+    const requiredMap = new Map<string, boolean>();
+    locationMappings.forEach(mapping => {
+      const key = `${mapping.serviceId}_${mapping.locationId}_${mapping.requirementId}`;
+      requiredMap.set(key, mapping.isRequired);
+    });
+
+    // Check service-level requirements (only if marked as required in DSX mappings)
+    for (const sr of serviceRequirements) {
+      if (sr.requirement.disabled) continue;
+
+      // Check for each service item that uses this service
+      for (const item of data.serviceItems.filter(i => i.serviceId === sr.serviceId)) {
+        // Only validate if this requirement is marked as required in DSX mappings
+        const requirementKey = `${sr.serviceId}_${item.locationId}_${sr.requirementId}`;
+        if (!requiredMap.get(requirementKey)) continue;
+
+        const location = await prisma.country.findUnique({
+          where: { id: item.locationId },
+          select: { name: true }
+        });
+        const serviceLocation = `${sr.service.name} - ${location?.name || 'Unknown'}`;
+
+        if (sr.requirement.type === 'field' && sr.requirement.fieldData) {
+          const fieldData = sr.requirement.fieldData as any;
+          const collectionTab = fieldData.collectionTab || 'subject';
+
+          if (collectionTab === 'subject') {
+            // Check subject-level field only once
+            if (!checkedSubjectFields.has(sr.requirement.id)) {
+              checkedSubjectFields.add(sr.requirement.id);
+              const value = data.subjectFieldValues?.[sr.requirement.name];
+              if (!value || (typeof value === 'string' && value.trim() === '')) {
+                missingRequirements.subjectFields.push({
+                  fieldName: sr.requirement.name,
+                  serviceLocation
+                });
+              }
+            }
+          } else {
+            // Check search-level field for this specific item
+            const key = `${sr.requirement.id}_${item.itemId}`;
+            if (!checkedSearchFields.has(key)) {
+              checkedSearchFields.add(key);
+              const value = data.searchFieldValues?.[item.itemId]?.[sr.requirement.name];
+              if (!value || (typeof value === 'string' && value.trim() === '')) {
+                missingRequirements.searchFields.push({
+                  fieldName: sr.requirement.name,
+                  serviceLocation
+                });
+              }
+            }
+          }
+        } else if (sr.requirement.type === 'document' && sr.requirement.documentData) {
+          const documentData = sr.requirement.documentData as any;
+          const scope = documentData.scope || 'per_case';
+
+          const key = scope === 'per_case'
+            ? sr.requirement.id
+            : `${sr.requirement.id}_${item.itemId}`;
+
+          if (!checkedDocuments.has(key)) {
+            checkedDocuments.add(key);
+            const hasDocument = data.uploadedDocuments?.[sr.requirement.id];
+            if (!hasDocument) {
+              missingRequirements.documents.push({
+                documentName: sr.requirement.name,
+                serviceLocation
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Check location-specific requirements that are marked as required
+    for (const mapping of locationMappings) {
+      if (mapping.requirement.disabled || !mapping.isRequired) continue;
+
+      // Find the matching service item
+      const matchingItem = data.serviceItems.find(
+        item => item.serviceId === mapping.serviceId && item.locationId === mapping.locationId
+      );
+      if (!matchingItem) continue;
+
+      const serviceLocation = `${mapping.service.name} - ${mapping.country.name}`;
+
+      if (mapping.requirement.type === 'field' && mapping.requirement.fieldData) {
+        const fieldData = mapping.requirement.fieldData as any;
+        const collectionTab = fieldData.collectionTab || 'subject';
+
+        if (collectionTab === 'subject') {
+          // Check subject-level field only once
+          if (!checkedSubjectFields.has(mapping.requirement.id)) {
+            checkedSubjectFields.add(mapping.requirement.id);
+            const value = data.subjectFieldValues?.[mapping.requirement.name];
+            if (!value || (typeof value === 'string' && value.trim() === '')) {
+              missingRequirements.subjectFields.push({
+                fieldName: mapping.requirement.name,
+                serviceLocation
+              });
+            }
+          }
+        } else {
+          // Check search-level field for this specific item
+          const key = `${mapping.requirement.id}_${matchingItem.itemId}`;
+          if (!checkedSearchFields.has(key)) {
+            checkedSearchFields.add(key);
+            const value = data.searchFieldValues?.[matchingItem.itemId]?.[mapping.requirement.name];
+            if (!value || (typeof value === 'string' && value.trim() === '')) {
+              missingRequirements.searchFields.push({
+                fieldName: mapping.requirement.name,
+                serviceLocation
+              });
+            }
+          }
+        }
+      } else if (mapping.requirement.type === 'document' && mapping.requirement.documentData) {
+        const documentData = mapping.requirement.documentData as any;
+        const scope = documentData.scope || 'per_case';
+
+        const key = scope === 'per_case'
+          ? mapping.requirement.id
+          : `${mapping.requirement.id}_${matchingItem.itemId}`;
+
+        if (!checkedDocuments.has(key)) {
+          checkedDocuments.add(key);
+          const hasDocument = data.uploadedDocuments?.[mapping.requirement.id];
+          if (!hasDocument) {
+            missingRequirements.documents.push({
+              documentName: mapping.requirement.name,
+              serviceLocation
+            });
+          }
+        }
+      }
+    }
+
+    const isValid =
+      missingRequirements.subjectFields.length === 0 &&
+      missingRequirements.searchFields.length === 0 &&
+      missingRequirements.documents.length === 0;
+
+    return {
+      isValid,
+      missingRequirements
+    };
+  }
+
+  /**
    * Create a complete order with service items and field data
    */
   static async createCompleteOrder(data: {
@@ -447,6 +700,28 @@ export class OrderService {
       data.userId
     );
 
+    // Validate requirements if attempting to submit
+    let finalStatus = data.status;
+    let validationResult = null;
+
+    if (data.status === 'submitted' || !data.status) {
+      // Validate all requirements are met
+      validationResult = await this.validateOrderRequirements({
+        serviceItems: data.serviceItems,
+        subjectFieldValues: data.subjectFieldValues,
+        searchFieldValues: data.searchFieldValues,
+        uploadedDocuments: data.uploadedDocuments,
+      });
+
+      // If validation fails and trying to submit, force to draft
+      if (!validationResult.isValid) {
+        finalStatus = 'draft';
+        console.log('Order validation failed, saving as draft. Missing requirements:', validationResult.missingRequirements);
+      } else {
+        finalStatus = 'submitted';
+      }
+    }
+
     // Create the main order with transaction to ensure consistency
     return prisma.$transaction(async (tx) => {
       // Create the main order
@@ -455,7 +730,7 @@ export class OrderService {
           orderNumber,
           customerId: data.customerId,
           userId: data.userId,
-          statusCode: data.status || 'submitted', // Default to submitted for complete orders
+          statusCode: finalStatus || 'draft', // Default to draft if no status
           subject: normalizedSubject,
           notes: data.notes,
         },
@@ -514,7 +789,11 @@ export class OrderService {
         // if (documents) { ... }
       }
 
-      return order;
+      // Return order with validation result attached
+      return {
+        ...order,
+        validationResult: validationResult
+      };
     });
   }
 

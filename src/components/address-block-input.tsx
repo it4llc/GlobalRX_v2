@@ -24,6 +24,7 @@ interface AddressBlockInputProps {
   error?: string;
   locations?: { states: any[]; counties: any[] };
   countryId?: string; // Country context for filtering states
+  fieldRequired?: boolean; // Whether the field itself is required (from DSX mapping)
 }
 
 export const AddressBlockInput: FC<AddressBlockInputProps> = ({
@@ -32,7 +33,8 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
   onChange,
   error,
   locations,
-  countryId
+  countryId,
+  fieldRequired = false
 }) => {
   const [addressData, setAddressData] = useState<AddressData>(value || {});
   const [loading, setLoading] = useState(false);
@@ -171,7 +173,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         <div key={field}>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {componentConfig.label}
-            {componentConfig.required && <span className="text-red-500 ml-1">*</span>}
+            {fieldRequired && <span className="text-red-500 ml-1">*</span>}
           </label>
           <select
             value={addressData.stateId || ''} // Use stateId for the select value
@@ -198,7 +200,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         <div key={field}>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {componentConfig.label}
-            {componentConfig.required && <span className="text-red-500 ml-1">*</span>}
+            {fieldRequired && <span className="text-red-500 ml-1">*</span>}
           </label>
           <select
             value={addressData.countyId || ''} // Use countyId for the select value
@@ -225,7 +227,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         <div key={field} className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {componentConfig.label}
-            {componentConfig.required && <span className="text-red-500 ml-1">*</span>}
+            {fieldRequired && <span className="text-red-500 ml-1">*</span>}
           </label>
           <input
             type="text"
@@ -260,7 +262,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
       <div key={field}>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {componentConfig.label}
-          {componentConfig.required && <span className="text-red-500 ml-1">*</span>}
+          {fieldRequired && <span className="text-red-500 ml-1">*</span>}
         </label>
         <input
           type="text"
