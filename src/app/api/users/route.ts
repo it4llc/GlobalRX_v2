@@ -19,8 +19,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Forbidden: Insufficient permissions' }, { status: 403 });
     }
 
-    // Fetch all users
+    // Fetch only admin users (not customer users)
     const users = await prisma.user.findMany({
+      where: {
+        userType: 'admin',
+      },
       select: {
         id: true,
         email: true,
@@ -29,6 +32,7 @@ export async function GET(request: NextRequest) {
         permissions: true,
         createdAt: true,
         updatedAt: true,
+        userType: true,
       },
       orderBy: {
         email: 'asc',
@@ -81,7 +85,7 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create new user
+    // Create new admin user (always set userType to 'admin')
     const newUser = await prisma.user.create({
       data: {
         email,
@@ -89,6 +93,7 @@ export async function POST(request: NextRequest) {
         firstName: firstName || null,
         lastName: lastName || null,
         permissions: permissions || {},
+        userType: 'admin', // Always create admin users from User Admin
       },
       select: {
         id: true,
@@ -98,6 +103,7 @@ export async function POST(request: NextRequest) {
         permissions: true,
         createdAt: true,
         updatedAt: true,
+        userType: true,
       },
     });
 
