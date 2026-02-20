@@ -8,18 +8,29 @@ import { z } from 'zod';
 // Force dynamic route
 export const dynamic = 'force-dynamic';
 
-// Schema for updating an order
+// Schema for updating an order - now supports full order updates
 const updateOrderSchema = z.object({
+  serviceItems: z.array(z.object({
+    serviceId: z.string(),
+    serviceName: z.string(),
+    locationId: z.string(),
+    locationName: z.string(),
+    itemId: z.string(),
+  })).optional(),
   subject: z.object({
-    firstName: z.string().min(1),
-    lastName: z.string().min(1),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
     middleName: z.string().optional(),
     dateOfBirth: z.string().optional(),
-    email: z.string().email().optional(),
+    email: z.string().optional(),
     phone: z.string().optional(),
     address: z.string().optional(),
   }).optional(),
+  subjectFieldValues: z.record(z.any()).optional(),
+  searchFieldValues: z.record(z.record(z.any())).optional(),
+  uploadedDocuments: z.record(z.any()).optional(),
   notes: z.string().optional(),
+  status: z.enum(['draft', 'submitted']).optional(),
 });
 
 /**
@@ -83,13 +94,70 @@ export async function PUT(
     const body = await request.json();
     const validatedData = updateOrderSchema.parse(body);
 
-    const order = await OrderService.updateOrder(
-      params.id,
-      customerId,
-      validatedData
-    );
+    // For full order updates (with service items), use the comprehensive update method
+    if (validatedData.serviceItems || validatedData.subjectFieldValues || validatedData.searchFieldValues) {
+      // First get the existing order to preserve the order number
+      const existingOrder = await OrderService.getOrderById(params.id, customerId);
+      if (!existingOrder) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      }
 
-    return NextResponse.json(order);
+      // Use a transaction to delete the old order and create the updated one
+      const { prisma } = await import('@/lib/prisma');
+
+      const updatedOrder = await prisma.$transaction(async (tx) => {
+        // First get all order items for this order
+        const orderItems = await tx.orderItem.findMany({
+          where: { orderId: params.id },
+          select: { id: true }
+        });
+
+        // Delete related order data entries for each order item
+        if (orderItems.length > 0) {
+          await tx.orderData.deleteMany({
+            where: {
+              orderItemId: {
+                in: orderItems.map(item => item.id)
+              }
+            }
+          });
+        }
+
+        // Delete related order items
+        await tx.orderItem.deleteMany({
+          where: { orderId: params.id }
+        });
+
+        // Delete the old order
+        await tx.order.delete({
+          where: { id: params.id }
+        });
+
+        // Create the updated order with the same order number
+        return OrderService.createCompleteOrder({
+          customerId,
+          userId: session.user.id,
+          serviceItems: validatedData.serviceItems || [],
+          subject: validatedData.subject || {},
+          subjectFieldValues: validatedData.subjectFieldValues,
+          searchFieldValues: validatedData.searchFieldValues,
+          uploadedDocuments: validatedData.uploadedDocuments,
+          notes: validatedData.notes,
+          status: validatedData.status,
+        });
+      });
+
+      return NextResponse.json(updatedOrder);
+    } else {
+      // For simple updates, use the existing update method
+      const order = await OrderService.updateOrder(
+        params.id,
+        customerId,
+        validatedData
+      );
+
+      return NextResponse.json(order);
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

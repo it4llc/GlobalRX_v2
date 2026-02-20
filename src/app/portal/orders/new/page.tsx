@@ -2,8 +2,9 @@
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DynamicFieldInput } from '@/components/dynamic-field-input';
+import { MissingRequirementsDialog } from '@/components/portal/MissingRequirementsDialog';
 
 interface SubjectInfo {
   firstName: string;
@@ -99,6 +100,10 @@ const getFieldPriority = (fieldName: string, dataType: string): number => {
 export default function NewOrderPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editOrderId = searchParams.get('edit'); // Get order ID if in edit mode
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<OrderFormData>({
@@ -133,16 +138,190 @@ export default function NewOrderPage() {
   const [searchFieldValues, setSearchFieldValues] = useState<Record<string, Record<string, any>>>({});
   const [uploadedDocuments, setUploadedDocuments] = useState<Record<string, File>>({});
 
+  // Missing requirements dialog state
+  const [showMissingRequirementsDialog, setShowMissingRequirementsDialog] = useState(false);
+  const [missingRequirements, setMissingRequirements] = useState<{
+    subjectFields: Array<{ fieldName: string; serviceLocation: string }>;
+    searchFields: Array<{ fieldName: string; serviceLocation: string }>;
+    documents: Array<{ documentName: string; serviceLocation: string }>;
+  }>({ subjectFields: [], searchFields: [], documents: [] });
+
   // Note: Subregion selection removed - now handled through address blocks
+
+  // Load existing order data if in edit mode
+  useEffect(() => {
+    const loadOrderForEdit = async () => {
+      if (!editOrderId || !session?.user?.customerId) return;
+
+      setIsLoadingOrder(true);
+      try {
+        const response = await fetch(`/api/portal/orders/${editOrderId}`);
+        if (!response.ok) {
+          throw new Error('Failed to load order');
+        }
+
+        const order = await response.json();
+
+        // Check if order is a draft
+        if (order.statusCode !== 'draft') {
+          setErrors({ submit: 'Only draft orders can be edited' });
+          router.push('/portal/orders');
+          return;
+        }
+
+        // Set edit mode
+        setIsEditMode(true);
+
+        // Populate service items
+        const serviceItems = order.items.map((item: any) => ({
+          serviceId: item.service.id,
+          serviceName: item.service.name,
+          locationId: item.location.id,
+          locationName: item.location.name,
+          itemId: `${item.service.id}-${item.location.id}-${Date.now()}`,
+        }));
+
+        setFormData(prev => ({
+          ...prev,
+          serviceItems: serviceItems,
+          subject: order.subject || prev.subject,
+          notes: order.notes || '',
+        }));
+
+        // Load field values from order data
+        if (order.items && order.items.length > 0) {
+          // Extract field values from order data
+          const searchFields: Record<string, Record<string, any>> = {};
+
+          order.items.forEach((item: any, index: number) => {
+            const itemId = serviceItems[index].itemId;
+            searchFields[itemId] = {};
+
+            if (item.data && item.data.length > 0) {
+              item.data.forEach((dataEntry: any) => {
+                // Map field values back to field IDs (we'll need to match by name)
+                searchFields[itemId][dataEntry.fieldName] = dataEntry.fieldValue;
+              });
+            }
+          });
+
+          // Set search field values
+          setSearchFieldValues(searchFields);
+        }
+
+        // Store the order subject data to populate fields after requirements are loaded
+        if (order.subject) {
+          // We'll populate this after requirements are loaded and we have field IDs
+          sessionStorage.setItem(`order_${editOrderId}_subject`, JSON.stringify(order.subject));
+        }
+
+        // Start at step 2 since we already have services selected
+        setStep(2);
+
+        // Fetch requirements for the loaded services
+        if (serviceItems.length > 0) {
+          await fetchRequirementsForEditMode(serviceItems);
+        }
+      } catch (error) {
+        console.error('Error loading order for edit:', error);
+        setErrors({ submit: 'Failed to load order for editing' });
+      } finally {
+        setIsLoadingOrder(false);
+      }
+    };
+
+    loadOrderForEdit();
+  }, [editOrderId, session]);
+
+  // Separate function to fetch requirements in edit mode
+  const fetchRequirementsForEditMode = async (serviceItems: ServiceItem[]) => {
+    try {
+      const requestBody = {
+        items: serviceItems.map(item => ({
+          serviceId: item.serviceId,
+          locationId: item.locationId,
+        })),
+      };
+
+      const response = await fetch('/api/portal/orders/requirements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRequirements(data);
+
+        // If in edit mode, populate subject fields from stored data
+        if (editOrderId) {
+          const storedSubject = sessionStorage.getItem(`order_${editOrderId}_subject`);
+          if (storedSubject) {
+            const subjectData = JSON.parse(storedSubject);
+            const fieldValues: Record<string, any> = {};
+
+            // Map stored subject data to field IDs
+            data.subjectFields.forEach((field: any) => {
+              // Try to match field name to subject data keys
+              const fieldNameLower = field.name.toLowerCase();
+
+              // Direct matches
+              if (subjectData[field.name]) {
+                fieldValues[field.id] = subjectData[field.name];
+              }
+              // Try common mappings
+              else if (fieldNameLower.includes('first') && fieldNameLower.includes('name') && subjectData.firstName) {
+                fieldValues[field.id] = subjectData.firstName;
+              }
+              else if (fieldNameLower.includes('last') && fieldNameLower.includes('name') && subjectData.lastName) {
+                fieldValues[field.id] = subjectData.lastName;
+              }
+              else if (fieldNameLower.includes('middle') && fieldNameLower.includes('name') && subjectData.middleName) {
+                fieldValues[field.id] = subjectData.middleName;
+              }
+              else if (fieldNameLower.includes('email') && subjectData.email) {
+                fieldValues[field.id] = subjectData.email;
+              }
+              else if (fieldNameLower.includes('phone') && subjectData.phone) {
+                fieldValues[field.id] = subjectData.phone;
+              }
+              else if ((fieldNameLower.includes('birth') || fieldNameLower.includes('dob')) && subjectData.dateOfBirth) {
+                fieldValues[field.id] = subjectData.dateOfBirth;
+              }
+              else if (fieldNameLower.includes('address') && subjectData.address) {
+                fieldValues[field.id] = subjectData.address;
+              }
+              // Check for other fields stored directly by field name
+              else {
+                // Try camelCase version
+                const camelCaseName = field.name.replace(/\s+(.)/g, (_: any, chr: string) => chr.toUpperCase())
+                  .replace(/^\w/, (c: string) => c.toLowerCase());
+                if (subjectData[camelCaseName]) {
+                  fieldValues[field.id] = subjectData[camelCaseName];
+                }
+              }
+            });
+
+            setSubjectFieldValues(fieldValues);
+            sessionStorage.removeItem(`order_${editOrderId}_subject`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching requirements:', error);
+    }
+  };
 
   // Fetch available services for the customer
   useEffect(() => {
-    if (session?.user?.customerId) {
+    if (session?.user?.customerId && !editOrderId) {
       fetchAvailableServices();
       // Don't fetch locations initially - wait for service selection
       // fetchAvailableLocations('root');
     }
-  }, [session]);
+  }, [session, editOrderId]);
 
   const fetchAvailableServices = async () => {
     try {
@@ -316,38 +495,16 @@ export default function NewOrderPage() {
 
   // Validate step 2 (subject information)
   const validateStep2 = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Validate required subject fields from dynamic requirements
-    requirements.subjectFields.forEach(field => {
-      if (field.required && !subjectFieldValues[field.id]) {
-        newErrors[field.id] = `${field.name} is required`;
-      }
-    });
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    // Don't block navigation on step 2 - let users continue even with empty fields
+    // The real validation happens when submitting
+    return true;
   };
 
   // Validate step 3 (search details)
   const validateStep3 = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Validate search-level fields for each service item
-    formData.serviceItems.forEach(item => {
-      const itemFields = requirements.searchFields.filter(
-        field => field.serviceId === item.serviceId && field.locationId === item.locationId
-      );
-
-      itemFields.forEach(field => {
-        if (field.required && !searchFieldValues[item.itemId]?.[field.id]) {
-          newErrors[`${item.itemId}_${field.id}`] = `${field.name} is required`;
-        }
-      });
-    });
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    // Don't block navigation on step 3 - let users continue even with empty fields
+    // The real validation happens when submitting
+    return true;
   };
 
   // Check if a step is complete (for status indicators)
@@ -442,11 +599,114 @@ export default function NewOrderPage() {
     }
   };
 
+  // Check for missing requirements locally before submission
+  const checkMissingRequirements = (): {
+    isValid: boolean;
+    missing: {
+      subjectFields: Array<{ fieldName: string; serviceLocation: string }>;
+      searchFields: Array<{ fieldName: string; serviceLocation: string }>;
+      documents: Array<{ documentName: string; serviceLocation: string }>;
+    };
+  } => {
+    const missing = {
+      subjectFields: [] as Array<{ fieldName: string; serviceLocation: string }>,
+      searchFields: [] as Array<{ fieldName: string; serviceLocation: string }>,
+      documents: [] as Array<{ documentName: string; serviceLocation: string }>,
+    };
+
+    // Check subject fields - including proper handling of address fields
+    requirements.subjectFields.forEach(field => {
+      if (field.required) {
+        const fieldValue = subjectFieldValues[field.id];
+
+        // Special handling for address blocks
+        if (field.dataType === 'address_block') {
+          // Check if address block has any meaningful data
+          if (!fieldValue || (typeof fieldValue === 'object' &&
+              !fieldValue.street1 && !fieldValue.city && !fieldValue.state && !fieldValue.postalCode)) {
+            missing.subjectFields.push({
+              fieldName: field.name,
+              serviceLocation: 'All services'
+            });
+          }
+        } else {
+          // Regular field check
+          if (!fieldValue || (typeof fieldValue === 'string' && fieldValue.trim() === '')) {
+            missing.subjectFields.push({
+              fieldName: field.name,
+              serviceLocation: 'All services'
+            });
+          }
+        }
+      }
+    });
+
+    // Check search fields for each service item - including address fields
+    formData.serviceItems.forEach(item => {
+      const itemFields = requirements.searchFields.filter(
+        field => field.serviceId === item.serviceId && field.locationId === item.locationId
+      );
+
+      itemFields.forEach(field => {
+        if (field.required) {
+          const fieldValue = searchFieldValues[item.itemId]?.[field.id];
+
+          // Special handling for address blocks
+          if (field.dataType === 'address_block') {
+            // Check if address block has any meaningful data
+            if (!fieldValue || (typeof fieldValue === 'object' &&
+                !fieldValue.street1 && !fieldValue.city && !fieldValue.state && !fieldValue.postalCode)) {
+              missing.searchFields.push({
+                fieldName: field.name,
+                serviceLocation: `${item.serviceName} - ${item.locationName}`
+              });
+            }
+          } else {
+            // Regular field check
+            if (!fieldValue || (typeof fieldValue === 'string' && fieldValue.trim() === '')) {
+              missing.searchFields.push({
+                fieldName: field.name,
+                serviceLocation: `${item.serviceName} - ${item.locationName}`
+              });
+            }
+          }
+        }
+      });
+    });
+
+    // Check documents
+    requirements.documents.forEach(document => {
+      if (document.required && !uploadedDocuments[document.id]) {
+        missing.documents.push({
+          documentName: document.name,
+          serviceLocation: document.scope === 'per_case' ? 'All services' : 'Service specific'
+        });
+      }
+    });
+
+    const isValid =
+      missing.subjectFields.length === 0 &&
+      missing.searchFields.length === 0 &&
+      missing.documents.length === 0;
+
+    return { isValid, missing };
+  };
+
   // Submit order
-  const handleSubmitOrder = async () => {
+  const handleSubmitOrder = async (forceDraft = false) => {
     if (!validateStep3()) {
       setStep(3); // Go back to step 3 if validation fails
       return;
+    }
+
+    // Check for missing requirements unless forcing draft
+    if (!forceDraft) {
+      const { isValid, missing } = checkMissingRequirements();
+      if (!isValid) {
+        setMissingRequirements(missing);
+        setShowMissingRequirementsDialog(true);
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -473,8 +733,12 @@ export default function NewOrderPage() {
 
 
     try {
-      const response = await fetch('/api/portal/orders', {
-        method: 'POST',
+      // If in edit mode, update the existing order; otherwise create a new one
+      const url = isEditMode ? `/api/portal/orders/${editOrderId}` : '/api/portal/orders';
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -483,7 +747,7 @@ export default function NewOrderPage() {
           subjectFieldValues: subjectFieldsByName, // Send name-based fields
           searchFieldValues: searchFieldsByName,   // Send name-based fields
           uploadedDocuments,
-          status: 'submitted', // Explicitly mark as submitted when using Submit Order button
+          status: forceDraft ? 'draft' : 'submitted', // Set status based on forceDraft
         }),
       });
 
@@ -492,10 +756,24 @@ export default function NewOrderPage() {
         throw new Error(errorData.error || 'Failed to create order');
       }
 
-      const order = await response.json();
+      const result = await response.json();
+
+      // Check if server overrode status due to validation
+      if (result.statusOverride === 'draft' && !forceDraft) {
+        // Server forced to draft, show warning
+        setMissingRequirements(result.missingRequirements || missingRequirements);
+        setShowMissingRequirementsDialog(true);
+        setIsSubmitting(false);
+        return;
+      }
 
       // Redirect to order details or orders list
-      router.push(`/portal/orders?created=${order.id}`);
+      const orderId = result.order?.id || result.id;
+      if (forceDraft || result.statusOverride === 'draft') {
+        router.push('/portal/orders?draft=saved');
+      } else {
+        router.push(`/portal/orders?created=${orderId}`);
+      }
     } catch (error) {
       console.error('Error creating order:', error);
       setErrors({
@@ -570,12 +848,26 @@ export default function NewOrderPage() {
     }
   };
 
+  // Show loading state while loading order in edit mode
+  if (isLoadingOrder) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading draft order...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow px-6 py-4">
-        <h2 className="text-2xl font-bold text-gray-900">Create New Order</h2>
+        <h2 className="text-2xl font-bold text-gray-900">
+          {isEditMode ? 'Edit Draft Order' : 'Create New Order'}
+        </h2>
         <p className="mt-1 text-sm text-gray-600">
-          Follow the steps below to place a new order
+          {isEditMode ? 'Update your draft order before submitting' : 'Follow the steps below to place a new order'}
         </p>
       </div>
 
@@ -815,9 +1107,14 @@ export default function NewOrderPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Subject Information
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               Enter information about the person this order is for. This information will be collected once for the entire order.
             </p>
+            {requirements.subjectFields.some(f => f.required) && (
+              <p className="text-sm text-gray-500 mb-6">
+                <span className="text-red-500">*</span> Required fields must be completed before submission
+              </p>
+            )}
 
             {requirements.subjectFields.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
@@ -875,9 +1172,14 @@ export default function NewOrderPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Search Details
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               Provide details for each service in your order.
             </p>
+            {requirements.searchFields.some(f => f.required) && (
+              <p className="text-sm text-gray-500 mb-6">
+                <span className="text-red-500">*</span> Required fields must be completed before submission
+              </p>
+            )}
 
             <div className="space-y-6">
               {formData.serviceItems.map((item) => {
@@ -949,9 +1251,14 @@ export default function NewOrderPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Documents & Review
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               Upload any required documents and review your order before submitting.
             </p>
+            {requirements.documents.some(d => d.required) && (
+              <p className="text-sm text-gray-500 mb-6">
+                <span className="text-red-500">*</span> Required documents must be uploaded before submission
+              </p>
+            )}
 
             {/* Documents Section */}
             {requirements.documents.length > 0 && (
@@ -962,12 +1269,16 @@ export default function NewOrderPage() {
                     <div key={document.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h5 className="text-sm font-medium text-gray-900">{document.name}</h5>
+                          <h5 className="text-sm font-medium text-gray-900">
+                            {document.name}
+                            {document.required && <span className="text-red-500 ml-1">*</span>}
+                          </h5>
                           {document.instructions && (
                             <p className="text-xs text-gray-500 mt-1">{document.instructions}</p>
                           )}
                           <p className="text-xs text-gray-400 mt-1">
                             Scope: {document.scope === 'per_case' ? 'Once per order' : 'Per service'}
+                            {document.required && <span className="text-red-600 ml-2">(Required)</span>}
                           </p>
                         </div>
                         <div>
@@ -1028,19 +1339,36 @@ export default function NewOrderPage() {
                   <div className="space-y-1">
                     {requirements.subjectFields.map((field) => {
                       const value = subjectFieldValues[field.id];
-                      if (!value) return null;
+
+                      // Check if it's an empty address block
+                      const isEmptyAddressBlock = field.dataType === 'address_block' &&
+                        (!value || (typeof value === 'object' &&
+                          !value.street1 && !value.city && !value.state && !value.postalCode));
+
+                      // Show all required fields, even if empty
+                      if (!value && !field.required) return null;
+
                       return (
                         <div key={field.id} className="flex justify-between text-sm">
-                          <span className="text-gray-600">{field.name}:</span>
-                          <span className="font-medium">
-                            {Array.isArray(value) ? value.join(', ') :
-                             (typeof value === 'object' && value !== null) ?
-                               // Handle address blocks and other objects
-                               (value.street1 ?
-                                 `${value.street1 || ''} ${value.city || ''} ${value.state || ''} ${value.postalCode || ''}`.trim() :
-                                 JSON.stringify(value)
-                               ) :
-                               value}
+                          <span className="text-gray-600">
+                            {field.name}:
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          </span>
+                          <span className={!value || isEmptyAddressBlock ? 'text-red-600 font-medium' : 'font-medium'}>
+                            {!value || isEmptyAddressBlock ? (
+                              'Missing'
+                            ) : Array.isArray(value) ? (
+                              value.join(', ')
+                            ) : (typeof value === 'object' && value !== null) ? (
+                              // Handle address blocks and other objects
+                              value.street1 || value.city || value.state || value.postalCode ? (
+                                `${value.street1 || ''} ${value.city || ''} ${value.state || ''} ${value.postalCode || ''}`.trim()
+                              ) : (
+                                'Missing'
+                              )
+                            ) : (
+                              value
+                            )}
                           </span>
                         </div>
                       );
@@ -1058,9 +1386,12 @@ export default function NewOrderPage() {
                       const file = uploadedDocuments[document.id];
                       return (
                         <div key={document.id} className="flex justify-between text-sm">
-                          <span className="text-gray-600">{document.name}:</span>
-                          <span className={file ? 'text-green-600' : 'text-red-600'}>
-                            {file ? file.name : 'Not uploaded'}
+                          <span className="text-gray-600">
+                            {document.name}:
+                            {document.required && <span className="text-red-500 ml-1">*</span>}
+                          </span>
+                          <span className={file ? 'text-green-600' : (document.required ? 'text-red-600 font-medium' : 'text-gray-400')}>
+                            {file ? file.name : (document.required ? 'Missing (Required)' : 'Not uploaded')}
                           </span>
                         </div>
                       );
@@ -1068,6 +1399,40 @@ export default function NewOrderPage() {
                   </div>
                 </div>
               )}
+
+              {/* Missing Requirements Summary */}
+              {(() => {
+                const { isValid, missing } = checkMissingRequirements();
+                const totalMissing =
+                  missing.subjectFields.length +
+                  missing.searchFields.length +
+                  missing.documents.length;
+
+                if (totalMissing > 0) {
+                  return (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-sm font-medium text-red-800 mb-2">
+                        ⚠️ Missing Required Information ({totalMissing} items)
+                      </p>
+                      <ul className="text-xs text-red-700 space-y-1">
+                        {missing.subjectFields.map((field, idx) => (
+                          <li key={`sub-${idx}`}>• {field.fieldName} (Subject)</li>
+                        ))}
+                        {missing.searchFields.map((field, idx) => (
+                          <li key={`search-${idx}`}>• {field.fieldName} ({field.serviceLocation})</li>
+                        ))}
+                        {missing.documents.map((doc, idx) => (
+                          <li key={`doc-${idx}`}>• {doc.documentName} (Document)</li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-red-600 mt-2">
+                        Order will be saved as draft if submitted with missing requirements.
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
         )}
@@ -1140,6 +1505,29 @@ export default function NewOrderPage() {
           </button>
         </div>
       </div>
+
+      {/* Missing Requirements Dialog */}
+      <MissingRequirementsDialog
+        isOpen={showMissingRequirementsDialog}
+        onClose={() => setShowMissingRequirementsDialog(false)}
+        onSaveAsDraft={async () => {
+          setShowMissingRequirementsDialog(false);
+          await handleSubmitOrder(true); // Force save as draft
+        }}
+        onGoBack={() => {
+          setShowMissingRequirementsDialog(false);
+          // Go to the first step with missing requirements
+          if (missingRequirements.subjectFields.length > 0) {
+            setStep(2);
+          } else if (missingRequirements.searchFields.length > 0) {
+            setStep(3);
+          } else if (missingRequirements.documents.length > 0) {
+            setStep(4);
+          }
+        }}
+        missingRequirements={missingRequirements}
+        isSubmitting={isSubmitting}
+      />
     </div>
   );
 }
