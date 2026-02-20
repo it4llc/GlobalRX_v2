@@ -155,6 +155,14 @@ export async function GET(request: NextRequest) {
       availability.forEach(item => {
         availabilityObject[item.locationId] = item.isAvailable;
       });
+
+      // Special handling for the 'all' location:
+      // 'all' should be false if any country is explicitly set to false
+      // This ensures that when some countries are deselected, 'all' appears as deselected too
+      const hasAnyUnavailable = availability.some(item => item.isAvailable === false);
+      if (hasAnyUnavailable) {
+        availabilityObject['all'] = false;
+      }
       
       // Return the complete response
       return NextResponse.json({

@@ -115,6 +115,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         dataType: standardizedFieldData.dataType || 'text',
         instructions: standardizedFieldData.instructions || '',
         retentionHandling: standardizedFieldData.retentionHandling,
+        collectionTab: standardizedFieldData.collectionTab || 'subject', // NEW: add collectionTab
+        addressConfig: standardizedFieldData.addressConfig || null, // Add address configuration
         options: standardizedFieldData.options || [],
         disabled: requirement.disabled === true,
         services: requirement.serviceRequirements.map(sr => ({
@@ -171,7 +173,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     
     console.log("Request body:", JSON.stringify(body, null, 2));
     
-    const { fieldLabel, shortName, dataType, instructions, retentionHandling, options } = body;
+    const { fieldLabel, shortName, dataType, instructions, retentionHandling, collectionTab, addressConfig, options } = body;
 
     // Basic validation
     if (!fieldLabel) {
@@ -229,7 +231,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       if (standardizedFieldData.retentionHandling !== retentionHandling) {
         changes.retentionHandling = { from: standardizedFieldData.retentionHandling, to: retentionHandling };
       }
-      
+
+      if (standardizedFieldData.collectionTab !== collectionTab) {
+        changes.collectionTab = { from: standardizedFieldData.collectionTab || 'subject', to: collectionTab || 'subject' };
+      }
+
       // Only track options changes if they're different - do a deep comparison
       const existingOptions = standardizedFieldData.options || [];
       if (JSON.stringify(existingOptions) !== JSON.stringify(options || [])) {
@@ -253,6 +259,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         dataType: dataType || standardizedFieldData.dataType,
         instructions: instructions !== undefined ? instructions : standardizedFieldData.instructions,
         retentionHandling: retentionHandling || standardizedFieldData.retentionHandling,
+        collectionTab: collectionTab || standardizedFieldData.collectionTab || 'subject', // NEW: add collectionTab
+        addressConfig: addressConfig || standardizedFieldData.addressConfig || null, // Add address configuration
         options: options || standardizedFieldData.options || [],
         // Add version entry if there are changes
         versions: versionEntry ? [...(standardizedFieldData.versions || []), versionEntry] : standardizedFieldData.versions
@@ -292,6 +300,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         dataType: updatedFieldData.dataType,
         instructions: updatedFieldData.instructions || '',
         retentionHandling: updatedFieldData.retentionHandling,
+        collectionTab: updatedFieldData.collectionTab || 'subject', // NEW: add collectionTab
         options: updatedFieldData.options || [],
         disabled: updatedRequirement.disabled === true,
         services: updatedRequirement.serviceRequirements.map(sr => ({

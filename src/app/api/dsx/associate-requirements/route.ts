@@ -46,8 +46,30 @@ export async function POST(request: NextRequest) {
     
     console.log(`Associating ${requirements.length} requirements with service ${serviceId}`);
     
-    // First, check if we need to remove existing requirements
-    // We'll use serviceRequirement instead of dsxRequirement
+    // First, get the list of existing requirements that will be removed
+    const existingRequirements = await prisma.serviceRequirement.findMany({
+      where: { serviceId },
+      select: { requirementId: true }
+    });
+
+    const removedRequirementIds = existingRequirements
+      .map(r => r.requirementId)
+      .filter(id => !requirements.some(req => req.id === id));
+
+    // Remove DSX mappings for requirements that are being removed
+    if (removedRequirementIds.length > 0) {
+      console.log(`Removing DSX mappings for ${removedRequirementIds.length} requirements...`);
+      await prisma.dSXMapping.deleteMany({
+        where: {
+          serviceId,
+          requirementId: {
+            in: removedRequirementIds
+          }
+        }
+      });
+    }
+
+    // Now remove existing ServiceRequirement entries
     console.log('Removing existing ServiceRequirement entries for this service...');
     await prisma.serviceRequirement.deleteMany({
       where: { serviceId }

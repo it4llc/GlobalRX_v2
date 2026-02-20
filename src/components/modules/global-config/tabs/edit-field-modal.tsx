@@ -9,6 +9,7 @@ import { DialogRef, ModalDialog, DialogFooter } from '@/components/ui/modal-dial
 import { FormTable } from '@/components/ui/form-table';
 import { FormRow } from '@/components/ui/form-row';
 import { useAuth } from '@/contexts/AuthContext';
+import { AddressBlockConfigurator, AddressBlockConfig } from './address-block-configurator';
 
 // Data type options (same as in add-field-modal.tsx)
 const dataTypeOptions = [
@@ -20,6 +21,7 @@ const dataTypeOptions = [
   { id: 'select', value: 'select', label: 'Select (Drop-down)' },
   { id: 'checkbox', value: 'checkbox', label: 'Checkbox' },
   { id: 'radio', value: 'radio', label: 'Radio Buttons' },
+  { id: 'address_block', value: 'address_block', label: 'Address Block' },
 ];
 
 // Retention handling options (same as in add-field-modal.tsx)
@@ -27,6 +29,12 @@ const retentionOptions = [
   { id: 'no_delete', value: 'no_delete', label: 'Don\'t delete' },
   { id: 'customer_rule', value: 'customer_rule', label: 'Delete at customer rule' },
   { id: 'global_rule', value: 'global_rule', label: 'Delete at global rule' },
+];
+
+// Collection tab options (same as in add-field-modal.tsx)
+const collectionTabOptions = [
+  { id: 'subject', value: 'subject', label: 'Subject Information (Order Level)' },
+  { id: 'search', value: 'search', label: 'Search Details (Service Level)' },
 ];
 
 // Interface for a dropdown option
@@ -49,6 +57,7 @@ export interface FieldData {
   instructions: string;
   retentionHandling: string;
   options?: DropdownOption[];
+  addressConfig?: AddressBlockConfig;
   disabled?: boolean;
   versions?: FieldVersion[];
 }
@@ -66,7 +75,9 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
   const [dataType, setDataType] = useState('');
   const [instructions, setInstructions] = useState('');
   const [retentionHandling, setRetentionHandling] = useState('');
+  const [collectionTab, setCollectionTab] = useState('subject');
   const [optionsText, setOptionsText] = useState('');
+  const [addressConfig, setAddressConfig] = useState<AddressBlockConfig | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -94,11 +105,17 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
         setDataType(field.dataType);
         setInstructions(field.instructions || '');
         setRetentionHandling(field.retentionHandling || '');
+        setCollectionTab(field.collectionTab || 'subject');
         
         // Set options text
         if (field.options && field.options.length > 0) {
           const optionsStr = field.options.map(option => option.label).join('\n');
           setOptionsText(optionsStr);
+        }
+
+        // Set address configuration
+        if (field.addressConfig) {
+          setAddressConfig(field.addressConfig);
         }
         
         // Set version history
@@ -127,7 +144,9 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
     setDataType('');
     setInstructions('');
     setRetentionHandling('');
+    setCollectionTab('subject');
     setOptionsText('');
+    setAddressConfig(null);
     setErrors({});
   };
 
@@ -199,11 +218,17 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
       dataType,
       instructions,
       retentionHandling,
+      collectionTab,
     };
-    
+
     // Add options if data type is select, checkbox, or radio
     if (dataType === 'select' || dataType === 'checkbox' || dataType === 'radio') {
       fieldData.options = parseOptions(optionsText);
+    }
+
+    // Add address configuration if data type is address_block
+    if (dataType === 'address_block' && addressConfig) {
+      fieldData.addressConfig = addressConfig;
     }
 
     onEditField(fieldData);
@@ -213,6 +238,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
 
   // Check if options section should be shown
   const showOptions = dataType === 'select' || dataType === 'checkbox' || dataType === 'radio';
+  const showAddressConfig = dataType === 'address_block';
 
   // Format a timestamp to a readable date/time
   const formatTimestamp = (timestamp: string): string => {
@@ -234,6 +260,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
     <ModalDialog
       ref={dialogRef}
       title="Edit Data Field"
+      maxWidth={showAddressConfig ? '2xl' : 'md'}
       footer={
         <DialogFooter
           onCancel={handleCancel}
@@ -358,7 +385,21 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
                 placeholder="Select retention policy"
               />
             </FormRow>
-            
+
+            <FormRow
+              label="Collection Tab"
+              htmlFor="collection-tab"
+              required={true}
+            >
+              <StandardDropdown
+                id="collection-tab"
+                options={collectionTabOptions}
+                value={collectionTab}
+                onChange={setCollectionTab}
+                placeholder="Select where field is collected"
+              />
+            </FormRow>
+
             {/* Options Section - Simplified with text area */}
             {showOptions && (
               <FormRow
@@ -386,6 +427,21 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
                     Option 3
                   </p>
                 </div>
+              </FormRow>
+            )}
+
+            {/* Address Block Configuration */}
+            {showAddressConfig && (
+              <FormRow
+                label="Address Components"
+                htmlFor="address-config"
+                required={true}
+                alignTop={true}
+              >
+                <AddressBlockConfigurator
+                  value={addressConfig}
+                  onChange={setAddressConfig}
+                />
               </FormRow>
             )}
           </FormTable>

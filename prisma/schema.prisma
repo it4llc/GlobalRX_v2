@@ -8,19 +8,34 @@ datasource db {
 }
 
 model User {
-  id               String     @id @default(uuid())
-  email            String     @unique
-  password         String
-  firstName        String?
-  lastName         String?
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  permissions      Json?
-  servicesCreated  Service[]  @relation("ServiceCreatedBy")
-  servicesUpdated  Service[]  @relation("ServiceUpdatedBy")
-  workflowsCreated Workflow[] @relation("WorkflowCreatedBy")
-  workflowsUpdated Workflow[] @relation("WorkflowUpdatedBy")
+  id                  String          @id @default(uuid())
+  email               String          @unique
+  password            String
+  firstName           String?
+  lastName            String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  permissions         Json?
+  userType            String          @default("admin") // "admin" or "customer"
+  customerId          String?         // For customer users
+  failedLoginAttempts Int             @default(0)
+  lockedUntil         DateTime?
+  lastPasswordChange  DateTime        @default(now())
+  mfaEnabled          Boolean         @default(false)
+  mfaSecret           String?         // Will use later
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  servicesCreated     Service[]       @relation("ServiceCreatedBy")
+  servicesUpdated     Service[]       @relation("ServiceUpdatedBy")
+  workflowsCreated    Workflow[]      @relation("WorkflowCreatedBy")
+  workflowsUpdated    Workflow[]      @relation("WorkflowUpdatedBy")
+  customerUser        CustomerUser?
+  customer            Customer?       @relation("CustomerUserRelation", fields: [customerId], references: [id])
+  orders              Order[]
+  orderStatusChanges  OrderStatusHistory[]
+  auditLogs           AuditLog[]
 
+  @@index([customerId])
   @@map("users")
 }
 
@@ -41,6 +56,12 @@ model Country {
   children            Country[]         @relation("CountryToCountry")
   serviceAvailability DSXAvailability[]
   mappings            DSXMapping[]
+  orderItems          OrderItem[]
+  addressStates       AddressEntry[]       @relation("AddressState")
+  addressCounties     AddressEntry[]       @relation("AddressCounty")
+  addressCountries    AddressEntry[]       @relation("AddressCountry")
+  cityMappingStates   CityMapping[]        @relation("CityMappingState")
+  cityMappingLocations CityMapping[]       @relation("CityMappingLocation")
 
   @@index([parentId])
   @@map("countries")
@@ -62,6 +83,7 @@ model Service {
   mappings            DSXMapping[]
   packageServices     PackageService[]
   serviceRequirements ServiceRequirement[]
+  orderItems          OrderItem[]
   createdBy           User?                @relation("ServiceCreatedBy", fields: [createdById], references: [id])
   updatedBy           User?                @relation("ServiceUpdatedBy", fields: [updatedById], references: [id])
 
@@ -124,6 +146,10 @@ model Customer {
   masterAccount    Customer?         @relation("MasterSubaccounts", fields: [masterAccountId], references: [id])
   subaccounts      Customer[]        @relation("MasterSubaccounts")
   packages         Package[]
+  customerUsers    CustomerUser[]
+  users            User[]            @relation("CustomerUserRelation")
+  orders           Order[]
+  addressEntries   AddressEntry[]
 
   @@index([masterAccountId])
   @@index([billingAccountId])
@@ -283,4 +309,179 @@ model WorkflowSection {
 
   @@index([workflowId])
   @@map("workflow_sections")
+}
+
+// Customer Portal Models
+
+model CustomerUser {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  customerId String
+  role       String   @default("user")
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@map("customer_users")
+}
+
+model OrderStatus {
+  id                  String   @id @default(uuid())
+  code                String   @unique
+  name                String
+  description         String?
+  color               String?
+  sequence            Int
+  isActive            Boolean  @default(true)
+  allowedNextStatuses Json?
+  createdAt           DateTime @default(now())
+
+  @@map("order_statuses")
+}
+
+model Order {
+  id            String               @id @default(uuid())
+  orderNumber   String               @unique
+  customerId    String
+  userId        String
+  statusCode    String
+  subject       Json
+  totalPrice    Decimal?             @db.Decimal(10, 2)
+  notes         String?
+  submittedAt   DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+  addressEntries AddressEntry[]
+  customer      Customer             @relation(fields: [customerId], references: [id])
+  user          User                 @relation(fields: [userId], references: [id])
+
+  @@index([customerId])
+  @@index([statusCode])
+  @@index([orderNumber])
+  @@map("orders")
+}
+
+model OrderStatusHistory {
+  id         String   @id @default(uuid())
+  orderId    String
+  fromStatus String?
+  toStatus   String
+  changedBy  String
+  reason     String?
+  createdAt  DateTime @default(now())
+  order      Order    @relation(fields: [orderId], references: [id])
+  user       User     @relation(fields: [changedBy], references: [id])
+
+  @@index([orderId])
+  @@map("order_status_history")
+}
+
+model OrderItem {
+  id         String          @id @default(uuid())
+  orderId    String
+  serviceId  String
+  locationId String
+  status     String
+  price      Decimal?        @db.Decimal(10, 2)
+  createdAt  DateTime        @default(now())
+  order      Order           @relation(fields: [orderId], references: [id])
+  service    Service         @relation(fields: [serviceId], references: [id])
+  location   Country         @relation(fields: [locationId], references: [id])
+  data       OrderData[]
+  documents  OrderDocument[]
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderData {
+  id          String    @id @default(uuid())
+  orderItemId String
+  fieldName   String
+  fieldValue  String // Will encrypt sensitive fields later
+  fieldType   String // To identify PII level
+  createdAt   DateTime  @default(now())
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+
+  @@index([orderItemId])
+  @@map("order_data")
+}
+
+model OrderDocument {
+  id           String    @id @default(uuid())
+  orderItemId  String
+  documentType String
+  fileName     String
+  filePath     String // Store in secure location
+  fileSize     Int
+  mimeType     String
+  uploadedAt   DateTime  @default(now())
+  orderItem    OrderItem @relation(fields: [orderItemId], references: [id])
+
+  @@index([orderItemId])
+  @@map("order_documents")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model AddressEntry {
+  id          String   @id @default(uuid())
+  orderId     String?
+  customerId  String?
+  street1     String?
+  street2     String?
+  city        String
+  stateId     String?
+  countyId    String?
+  postalCode  String?
+  countryId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  order       Order?   @relation(fields: [orderId], references: [id])
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  state       Country? @relation("AddressState", fields: [stateId], references: [id])
+  county      Country? @relation("AddressCounty", fields: [countyId], references: [id])
+  country     Country? @relation("AddressCountry", fields: [countryId], references: [id])
+
+  @@index([customerId])
+  @@index([orderId])
+  @@index([city])
+  @@map("address_entries")
+}
+
+model CityMapping {
+  id         String   @id @default(uuid())
+  cityName   String
+  stateId    String?
+  locationId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  state      Country? @relation("CityMappingState", fields: [stateId], references: [id])
+  location   Country  @relation("CityMappingLocation", fields: [locationId], references: [id])
+
+  @@unique([cityName, stateId])
+  @@index([cityName])
+  @@index([stateId])
+  @@map("city_mappings")
 }

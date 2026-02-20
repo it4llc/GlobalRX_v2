@@ -599,7 +599,17 @@ const saveSelectedRequirements = async () => {
                                 </label>
                               </td>
                               <td key={`type-cell-${requirement.id}`} className="p-3">
-                                {requirement.type.charAt(0).toUpperCase() + requirement.type.slice(1)}
+                                {requirement.type === 'field' && requirement.dataType
+                                  ? (requirement.dataType === 'address_block'
+                                      ? 'Address Block'
+                                      : requirement.dataType === 'select'
+                                      ? 'Dropdown'
+                                      : requirement.dataType === 'radio'
+                                      ? 'Radio'
+                                      : requirement.dataType === 'checkbox'
+                                      ? 'Checkbox'
+                                      : requirement.dataType.charAt(0).toUpperCase() + requirement.dataType.slice(1))
+                                  : 'Document'}
                               </td>
                               <td key={`desc-cell-${requirement.id}`} className="p-3 text-sm text-gray-600">
                                 {requirement.description || requirement.instructions || '-'}

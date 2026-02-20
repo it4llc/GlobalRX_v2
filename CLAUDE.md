@@ -60,20 +60,22 @@ Avoid using:
 
 ### Running commands
 
+**IMPORTANT: This project uses pnpm, not npm!**
+
 Recommended commands to run after making changes:
 
 ```bash
 # Development server
-npm run dev
+pnpm dev:alt
 
 # Build check
-npm run build
+pnpm build
 
 # Type checking
-npm run typecheck
+pnpm typecheck
 
 # Lint check
-npm run lint
+pnpm lint
 ```
 
 ## API Routes with Permission Checks

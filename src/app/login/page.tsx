@@ -11,10 +11,14 @@ export const metadata: Metadata = {
 };
 
 export default async function LoginPage() {
-  // If the user is already logged in, redirect to the homepage
+  // If the user is already logged in, redirect based on user type
   const session = await auth();
   if (session) {
-    redirect('/');
+    if (session.user.userType === 'customer') {
+      redirect('/portal/dashboard');
+    } else {
+      redirect('/');
+    }
   }
 
   return (

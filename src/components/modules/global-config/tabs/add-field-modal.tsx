@@ -8,6 +8,7 @@ import { StandardDropdown } from '@/components/ui/standard-dropdown';
 import { DialogRef, ModalDialog, DialogFooter } from '@/components/ui/modal-dialog';
 import { FormTable } from '@/components/ui/form-table';
 import { FormRow } from '@/components/ui/form-row';
+import { AddressBlockConfigurator, AddressBlockConfig } from './address-block-configurator';
 
 // Field data type options
 const dataTypeOptions = [
@@ -19,6 +20,7 @@ const dataTypeOptions = [
   { id: 'select', value: 'select', label: 'Select (Drop-down)' },
   { id: 'checkbox', value: 'checkbox', label: 'Checkbox' },
   { id: 'radio', value: 'radio', label: 'Radio Buttons' },
+  { id: 'address_block', value: 'address_block', label: 'Address Block' },
 ];
 
 // Retention handling options
@@ -26,6 +28,12 @@ const retentionOptions = [
   { id: 'no_delete', value: 'no_delete', label: 'Don\'t delete' },
   { id: 'customer_rule', value: 'customer_rule', label: 'Delete at customer rule' },
   { id: 'global_rule', value: 'global_rule', label: 'Delete at global rule' },
+];
+
+// Collection tab options
+const collectionTabOptions = [
+  { id: 'subject', value: 'subject', label: 'Subject Information (Order Level)' },
+  { id: 'search', value: 'search', label: 'Search Details (Service Level)' },
 ];
 
 // Interface for a dropdown option
@@ -41,6 +49,7 @@ export interface FieldData {
   instructions: string;
   retentionHandling: string;
   options?: DropdownOption[];
+  addressConfig?: AddressBlockConfig;
 }
 
 interface AddFieldModalProps {
@@ -55,7 +64,9 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
   const [dataType, setDataType] = useState('');
   const [instructions, setInstructions] = useState('');
   const [retentionHandling, setRetentionHandling] = useState('');
+  const [collectionTab, setCollectionTab] = useState('subject');
   const [optionsText, setOptionsText] = useState('');
+  const [addressConfig, setAddressConfig] = useState<AddressBlockConfig | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Show modal on component mount
@@ -70,7 +81,9 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
     setDataType('');
     setInstructions('');
     setRetentionHandling('');
+    setCollectionTab('subject');
     setOptionsText('');
+    setAddressConfig(null);
     setErrors({});
   };
 
@@ -141,13 +154,21 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
       dataType,
       instructions,
       retentionHandling,
+      collectionTab,
     };
-    
+
     // Add options if data type is select, checkbox, or radio
     if (dataType === 'select' || dataType === 'checkbox' || dataType === 'radio') {
       fieldData.options = parseOptions(optionsText);
     }
 
+    // Add address configuration if data type is address_block
+    if (dataType === 'address_block') {
+      fieldData.addressConfig = addressConfig;
+      console.log('AddFieldModal - Adding address block with config:', addressConfig);
+    }
+
+    console.log('AddFieldModal - Submitting field data:', fieldData);
     onAddField(fieldData);
     resetForm();
     dialogRef.current?.close();
@@ -155,11 +176,13 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
 
   // Check if options section should be shown
   const showOptions = dataType === 'select' || dataType === 'checkbox' || dataType === 'radio';
+  const showAddressConfig = dataType === 'address_block';
 
   return (
     <ModalDialog
       ref={dialogRef}
       title="Add New Data Field"
+      maxWidth={showAddressConfig ? '2xl' : 'md'}
       footer={
         <DialogFooter
           onCancel={handleCancel}
@@ -246,7 +269,21 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
             placeholder="Select retention policy"
           />
         </FormRow>
-        
+
+        <FormRow
+          label="Collection Tab"
+          htmlFor="collection-tab"
+          required={true}
+        >
+          <StandardDropdown
+            id="collection-tab"
+            options={collectionTabOptions}
+            value={collectionTab}
+            onChange={setCollectionTab}
+            placeholder="Select where field is collected"
+          />
+        </FormRow>
+
         {/* Options Section - Simplified with text area */}
         {showOptions && (
           <FormRow
@@ -274,6 +311,21 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
                 Option 3
               </p>
             </div>
+          </FormRow>
+        )}
+
+        {/* Address Block Configuration */}
+        {showAddressConfig && (
+          <FormRow
+            label="Address Components"
+            htmlFor="address-config"
+            required={true}
+            alignTop={true}
+          >
+            <AddressBlockConfigurator
+              value={addressConfig}
+              onChange={setAddressConfig}
+            />
           </FormRow>
         )}
       </FormTable>

@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,9 +39,17 @@ export function LoginForm() {
         return;
       }
 
-      // Redirect to the homepage on successful login
+      // Fetch the session to determine user type for redirect
+      const response = await fetch('/api/auth/session');
+      const session = await response.json();
+
+      // Redirect based on user type
       router.refresh();
-      router.push('/');
+      if (session?.user?.userType === 'customer') {
+        router.push('/portal/dashboard');
+      } else {
+        router.push('/');
+      }
     } catch (error) {
       console.error('Login error:', error);
       setError('An unexpected error occurred. Please try again.');

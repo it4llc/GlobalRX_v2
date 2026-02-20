@@ -105,6 +105,8 @@ export async function GET(request: NextRequest) {
         shortName: standardizedData.shortName || field.name,
         instructions: standardizedData.instructions || '',
         retentionHandling: standardizedData.retentionHandling,
+        collectionTab: standardizedData.collectionTab || 'subject', // NEW: default to subject
+        addressConfig: standardizedData.addressConfig || null, // Include address config
         options: standardizedData.options || [],
         disabled: field.disabled,
         // Map services from the join table
@@ -149,7 +151,8 @@ export async function POST(request: NextRequest) {
     
     // Parse request body
     const data = await request.json();
-    
+    console.log('API POST /data-rx/fields - Received data:', JSON.stringify(data, null, 2));
+
     // Validate required fields
     if (!data.fieldLabel || !data.dataType) {
       return NextResponse.json(
@@ -174,22 +177,28 @@ export async function POST(request: NextRequest) {
     }
     
     // Create field with standardized property names
+    const fieldDataToSave = {
+      dataType: data.dataType,
+      shortName: data.shortName || data.fieldLabel,
+      instructions: data.instructions || '',
+      options: data.options || [],
+      // Use standardized property name
+      retentionHandling: data.retentionHandling || 'no_delete',
+      collectionTab: data.collectionTab || 'subject', // NEW: add collectionTab
+      addressConfig: data.addressConfig || null // Add address configuration
+    };
+
+    console.log('API POST /data-rx/fields - Saving fieldData:', JSON.stringify(fieldDataToSave, null, 2));
+
     const field = await prisma.dSXRequirement.create({
       data: {
         name: data.fieldLabel,
         type: 'field',
-        fieldData: {
-          dataType: data.dataType,
-          shortName: data.shortName || data.fieldLabel,
-          instructions: data.instructions || '',
-          options: data.options || [],
-          // Use standardized property name
-          retentionHandling: data.retentionHandling || 'no_delete'
-        }
+        fieldData: fieldDataToSave
       }
     });
     
-    return NextResponse.json({ 
+    return NextResponse.json({
       field: {
         id: field.id,
         fieldLabel: field.name,
@@ -197,6 +206,8 @@ export async function POST(request: NextRequest) {
         shortName: field.fieldData.shortName,
         instructions: field.fieldData.instructions,
         retentionHandling: field.fieldData.retentionHandling,
+        collectionTab: field.fieldData.collectionTab || 'subject', // NEW: include collectionTab
+        addressConfig: field.fieldData.addressConfig || null, // Include address config
         options: field.fieldData.options || [],
         services: []
       }
