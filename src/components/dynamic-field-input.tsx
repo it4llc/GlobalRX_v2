@@ -139,13 +139,6 @@ export const DynamicFieldInput: FC<DynamicFieldInputProps> = ({
         );
 
       case 'address_block':
-        console.log('DynamicFieldInput - Rendering address block:', {
-          fieldId: field.id,
-          fieldName: field.name,
-          hasAddressConfig: !!field.addressConfig,
-          addressConfig: field.addressConfig,
-          countryId: countryId || field.locationId
-        });
         if (field.addressConfig) {
           return (
             <AddressBlockInput
@@ -154,6 +147,7 @@ export const DynamicFieldInput: FC<DynamicFieldInputProps> = ({
               onChange={onChange}
               error={error}
               countryId={countryId || field.locationId}
+              fieldRequired={field.required}
             />
           );
         }

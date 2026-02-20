@@ -1345,8 +1345,8 @@ export default function NewOrderPage() {
                         (!value || (typeof value === 'object' &&
                           !value.street1 && !value.city && !value.state && !value.postalCode));
 
-                      // Show all required fields, even if empty
-                      if (!value && !field.required) return null;
+                      // Don't show optional empty fields
+                      if ((!value || isEmptyAddressBlock) && !field.required) return null;
 
                       return (
                         <div key={field.id} className="flex justify-between text-sm">
@@ -1354,9 +1354,9 @@ export default function NewOrderPage() {
                             {field.name}:
                             {field.required && <span className="text-red-500 ml-1">*</span>}
                           </span>
-                          <span className={!value || isEmptyAddressBlock ? 'text-red-600 font-medium' : 'font-medium'}>
+                          <span className={((!value || isEmptyAddressBlock) && field.required) ? 'text-red-600 font-medium' : 'font-medium'}>
                             {!value || isEmptyAddressBlock ? (
-                              'Missing'
+                              field.required ? 'Missing' : 'Not provided'
                             ) : Array.isArray(value) ? (
                               value.join(', ')
                             ) : (typeof value === 'object' && value !== null) ? (
