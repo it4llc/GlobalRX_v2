@@ -233,12 +233,28 @@ export default function OrderDetailsDialog({ orderId, open, onClose }: OrderDeta
                           }
                         });
 
-                        return fields.map(({ key, value, label }) => (
-                          <div key={key} className="text-sm">
-                            <span className="font-medium text-gray-700">{label}:</span>{' '}
-                            <span className="text-gray-900">{value}</span>
-                          </div>
-                        ));
+                        return fields.map(({ key, value, label }) => {
+                          // Special handling for address field to show with line breaks
+                          if (key === 'address') {
+                            return (
+                              <div key={key} className="text-sm">
+                                <span className="font-medium text-gray-700">{label}:</span>
+                                <div className="text-gray-900 mt-1">
+                                  {value.split(',').map((line, index) => (
+                                    <div key={index}>{line.trim()}</div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={key} className="text-sm">
+                              <span className="font-medium text-gray-700">{label}:</span>{' '}
+                              <span className="text-gray-900">{value}</span>
+                            </div>
+                          );
+                        });
                       })()}
                     </div>
                   </div>

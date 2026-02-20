@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
                   serviceId,
                   requirementId,
                   locationId,
-                  isRequired: true
+                  isRequired: false  // Default to false since UI doesn't currently support marking as required
                 });
               }
             }

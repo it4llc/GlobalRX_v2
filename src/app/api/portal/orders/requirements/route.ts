@@ -166,24 +166,46 @@ export async function POST(request: NextRequest) {
       }
     };
 
+    // Create a map to track which requirements are required for each service+location
+    const requiredMap = new Map<string, boolean>();
+
+    // First, build the required map from DSX mappings
+    locationMappings.forEach(mapping => {
+      const key = `${mapping.serviceId}_${mapping.locationId}_${mapping.requirementId}`;
+      requiredMap.set(key, mapping.isRequired);
+    });
+
     // Process service-level requirements
     serviceRequirements.forEach(sr => {
       // Apply to all locations for this service
       items
         .filter(item => item.serviceId === sr.serviceId)
         .forEach(item => {
-          processRequirement(sr.requirement, sr.serviceId, item.locationId, true);
+          // Check if this specific requirement is marked as required in DSXMapping
+          const key = `${sr.serviceId}_${item.locationId}_${sr.requirementId}`;
+          const isRequired = requiredMap.get(key) || false;
+
+          processRequirement(sr.requirement, sr.serviceId, item.locationId, isRequired);
         });
     });
 
-    // Process location-specific mappings (these can override or add to service requirements)
+    // Process location-specific mappings that might not be in service requirements
     locationMappings.forEach(mapping => {
-      processRequirement(
-        mapping.requirement,
-        mapping.serviceId,
-        mapping.locationId,
-        mapping.isRequired
+      // Check if this requirement was already processed as a service requirement
+      const alreadyProcessed = serviceRequirements.some(sr =>
+        sr.requirementId === mapping.requirementId &&
+        sr.serviceId === mapping.serviceId
       );
+
+      // Only process if not already handled as a service requirement
+      if (!alreadyProcessed) {
+        processRequirement(
+          mapping.requirement,
+          mapping.serviceId,
+          mapping.locationId,
+          mapping.isRequired
+        );
+      }
     });
 
     // Get locations for subregion selection

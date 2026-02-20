@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createOrderSchema.parse(body);
 
     // Create the complete order with all data
-    const order = await OrderService.createCompleteOrder({
+    const orderResult = await OrderService.createCompleteOrder({
       customerId,
       userId: session.user.id,
       serviceItems: validatedData.serviceItems,
@@ -114,7 +114,20 @@ export async function POST(request: NextRequest) {
       status: validatedData.status,
     });
 
-    return NextResponse.json(order, { status: 201 });
+    // Extract validation result if present
+    const { validationResult, ...order } = orderResult;
+
+    // If validation failed, include warning in response
+    if (validationResult && !validationResult.isValid) {
+      return NextResponse.json({
+        order,
+        warning: 'Order saved as draft due to missing requirements',
+        missingRequirements: validationResult.missingRequirements,
+        statusOverride: 'draft'
+      }, { status: 201 });
+    }
+
+    return NextResponse.json({ order }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
