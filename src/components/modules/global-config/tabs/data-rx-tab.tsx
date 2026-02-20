@@ -15,7 +15,7 @@ import { DialogRef, ModalDialog } from '@/components/ui/modal-dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { StandardDropdown } from '@/components/ui/standard-dropdown';
-import { Check, X, Edit2 } from 'lucide-react';
+import { Check, X, Edit2, Shield, ShieldCheck } from 'lucide-react';
 
 interface DataField {
   id: string;
@@ -24,6 +24,7 @@ interface DataField {
   dataType: string;
   instructions: string;
   retentionHandling: string;
+  requiresVerification?: boolean;
   options?: Array<{ value: string; label: string }>;
   disabled?: boolean;
   services?: Array<{ id: string, name: string }>;
@@ -232,7 +233,8 @@ export function DataRxTab() {
         instructions: fieldData.instructions || "",
         retentionHandling: fieldData.retentionHandling || "no_delete",
         collectionTab: fieldData.collectionTab || "subject",
-        addressConfig: fieldData.addressConfig || null
+        addressConfig: fieldData.addressConfig || null,
+        requiresVerification: fieldData.requiresVerification || false
       };
 
       console.log('DataRxTab - Sending to API:', fieldObject);
@@ -280,6 +282,7 @@ export function DataRxTab() {
         retentionHandling: fieldData.retentionHandling || "no_delete",
         collectionTab: fieldData.collectionTab || "subject",
         addressConfig: fieldData.addressConfig || null,
+        requiresVerification: fieldData.requiresVerification || false,
         options: fieldData.options || []
       };
       
@@ -455,6 +458,7 @@ export function DataRxTab() {
       dataType: field.dataType,
       instructions: field.instructions,
       retentionHandling: field.retentionHandling,
+      requiresVerification: field.requiresVerification,
       options: field.options
     });
   };
@@ -487,6 +491,7 @@ export function DataRxTab() {
             retentionHandling: editingValues.retentionHandling || "no_delete",
             collectionTab: fieldToUpdate.collectionTab || "subject",
             addressConfig: fieldToUpdate.addressConfig || null,
+            requiresVerification: editingValues.requiresVerification || false,
             options: editingValues.options || []
           }),
         });
@@ -591,13 +596,14 @@ export function DataRxTab() {
                   <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="sticky-column" style={{ width: '25%' }}>Field Label</TableHead>
-                    <TableHead style={{ width: '15%' }}>Short Name</TableHead>
+                    <TableHead className="sticky-column" style={{ width: '20%' }}>Field Label</TableHead>
+                    <TableHead style={{ width: '12%' }}>Short Name</TableHead>
                     <TableHead style={{ width: '10%' }}>Data Type</TableHead>
-                    <TableHead style={{ width: '20%' }}>Instructions</TableHead>
+                    <TableHead style={{ width: '18%' }}>Instructions</TableHead>
                     <TableHead style={{ width: '10%' }}>Retention</TableHead>
+                    <TableHead style={{ width: '8%' }}>Verification</TableHead>
                     <TableHead style={{ width: '10%' }}>Services</TableHead>
-                    <TableHead style={{ width: '10%' }}>Actions</TableHead>
+                    <TableHead style={{ width: '12%' }}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -702,9 +708,36 @@ export function DataRxTab() {
                           getRetentionLabelForField(field)
                         )}
                       </TableCell>
+                      <TableCell className="text-center">
+                        {isEditing ? (
+                          <div className="flex justify-center">
+                            <input
+                              type="checkbox"
+                              checked={editingValues.requiresVerification || false}
+                              onChange={(e) => setEditingValues({...editingValues, requiresVerification: e.target.checked})}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              title="Requires verification during fulfillment"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex justify-center">
+                            {field.requiresVerification ? (
+                              <ShieldCheck
+                                className="w-5 h-5 text-green-600"
+                                title="Verification required during fulfillment"
+                              />
+                            ) : (
+                              <Shield
+                                className="w-5 h-5 text-gray-300"
+                                title="No verification required"
+                              />
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {field.services && field.services.length > 0 ? (
-                          <span 
+                          <span
                             className="text-blue-600 text-sm cursor-pointer hover:underline"
                             onClick={(e) => handleShowServices(field, e)}
                           >
