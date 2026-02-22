@@ -113,23 +113,37 @@ export async function GET(request: NextRequest) {
       
       // Get requirements associated with this service through ServiceRequirement
       const serviceRequirements = await prisma.serviceRequirement.findMany({
-        where: { 
+        where: {
           serviceId,
           requirement: {
             disabled: false // Only get active requirements
           }
         },
+        orderBy: {
+          displayOrder: 'asc'
+        },
         include: {
           requirement: true
         }
       });
-      
-      // Extract just the requirements
-      const requirements = serviceRequirements.map(sr => sr.requirement);
-      
+
+      // Extract requirements with display order
+      const requirements = serviceRequirements.map(sr => {
+        const req = {
+          ...sr.requirement,
+          displayOrder: sr.displayOrder
+        };
+        console.log(`Requirement ${sr.requirement.name}: displayOrder = ${sr.displayOrder} (type: ${typeof sr.displayOrder})`);
+        return req;
+      });
+
       console.log(`Found ${requirements.length} requirements for service: ${serviceId}`);
       if (requirements.length > 0) {
-        console.log('Sample requirement:', requirements[0]);
+        console.log('All requirements with displayOrder (sorted):', requirements.map(r => ({
+          name: r.name,
+          displayOrder: r.displayOrder,
+          id: r.id
+        })));
       }
 
       // Fetch mappings for the service
@@ -138,11 +152,14 @@ export async function GET(request: NextRequest) {
       });
 
       // Format mappings as a key-value object
+      // The existence of a mapping means the requirement is mapped to that location
+      // The isRequired field is for whether it's required vs optional (not used for checkbox state)
       const mappingsObject: Record<string, boolean> = {};
       mappings.forEach(mapping => {
         // Use the new format with triple underscore separator to avoid conflicts with UUIDs
         const key = `${mapping.locationId}___${mapping.requirementId}`;
-        mappingsObject[key] = mapping.isRequired;
+        // If a mapping exists, it means the checkbox should be checked
+        mappingsObject[key] = true;
       });
 
       // Fetch availability for the service
@@ -247,9 +264,10 @@ export async function POST(request: NextRequest) {
             
             // Then create new service-requirement relationships for each requirement
             const createdRelationships = [];
-            
-            // Process each requirement
-            for (const req of data) {
+
+            // Process each requirement with sequential display order
+            for (let i = 0; i < data.length; i++) {
+              const req = data[i];
               try {
                 // Skip if no ID provided
                 if (!req.id) {
@@ -267,11 +285,12 @@ export async function POST(request: NextRequest) {
                   continue;
                 }
                 
-                // Create relationship between service and requirement
+                // Create relationship between service and requirement with sequential display order
                 const serviceRequirement = await tx.serviceRequirement.create({
                   data: {
                     serviceId,
-                    requirementId: req.id
+                    requirementId: req.id,
+                    displayOrder: i * 10  // Use index * 10 to allow for future insertions
                   }
                 });
                 

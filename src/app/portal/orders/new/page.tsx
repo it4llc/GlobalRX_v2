@@ -46,56 +46,8 @@ interface OrderFormData {
   notes: string;
 }
 
-// Field priority mapping - lower numbers appear first
-const getFieldPriority = (fieldName: string, dataType: string): number => {
-  // Core identity fields (highest priority)
-  if (/^(company|business|organization)\s*(name)$/i.test(fieldName)) {
-    return 10;
-  }
-  if (/^(first|given)\s*(name)$/i.test(fieldName)) {
-    return 11;
-  }
-  if (/^(last|family|sur.*)\s*(name)$/i.test(fieldName)) {
-    return 12;
-  }
-  if (/^(middle)\s*(name)$/i.test(fieldName)) {
-    return 13;
-  }
-
-  // Contact information
-  if (/^(email|e.?mail)$/i.test(fieldName)) return 20;
-  if (/^(phone|telephone|mobile|cell)$/i.test(fieldName)) return 21;
-
-  // Address fields (in logical order)
-  if (/^(company|business|organization)\s*(address)$/i.test(fieldName)) {
-    return 30;
-  }
-  if (/^(address|street)$/i.test(fieldName)) {
-    return 31;
-  }
-  if (/^(city|town)$/i.test(fieldName)) return 32;
-  if (/^(state|province|region)$/i.test(fieldName)) return 33;
-  if (/^(zip|postal|post.*code)$/i.test(fieldName)) return 34;
-  if (/^country$/i.test(fieldName)) return 35;
-
-  // Birth/age information
-  if (/^(birth|dob|date.*birth)$/i.test(fieldName)) return 40;
-  if (/^age$/i.test(fieldName)) return 41;
-
-  // ID numbers and documents
-  if (/^(ssn|social.*security)$/i.test(fieldName)) return 50;
-  if (/^(id|identification)$/i.test(fieldName)) return 51;
-  if (/^(passport|driver.*license|license)$/i.test(fieldName)) return 52;
-
-  // Special data types - but check name patterns first for more specific ordering
-  if (dataType === 'address_block' && !/^(company|business|organization)\s*(address)$/i.test(fieldName)) {
-    return 36;
-  }
-  if (dataType === 'date') return 45;
-
-  // Default for unmatched fields - will appear at end
-  return 100;
-};
+// Note: Field ordering is now handled by the displayOrder from the API/database
+// The old getFieldPriority function has been removed in favor of server-side ordering
 
 export default function NewOrderPage() {
   const { data: session } = useSession();
@@ -1126,14 +1078,7 @@ export default function NewOrderPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {requirements.subjectFields
-                  .sort((a, b) => {
-                    const priorityA = getFieldPriority(a.name, a.dataType);
-                    const priorityB = getFieldPriority(b.name, b.dataType);
-                    if (priorityA !== priorityB) {
-                      return priorityA - priorityB;
-                    }
-                    return a.name.localeCompare(b.name);
-                  })
+                  // Fields are now pre-sorted by displayOrder from the API
                   .map((field) => {
                   // Get the first country from the service items for subject-level fields
                   const firstCountryId = formData.serviceItems.length > 0 ? formData.serviceItems[0].locationId : undefined;
@@ -1184,15 +1129,8 @@ export default function NewOrderPage() {
             <div className="space-y-6">
               {formData.serviceItems.map((item) => {
                 const itemFields = requirements.searchFields
-                  .filter(field => field.serviceId === item.serviceId && field.locationId === item.locationId)
-                  .sort((a, b) => {
-                    const priorityA = getFieldPriority(a.name, a.dataType);
-                    const priorityB = getFieldPriority(b.name, b.dataType);
-                    if (priorityA !== priorityB) {
-                      return priorityA - priorityB;
-                    }
-                    return a.name.localeCompare(b.name);
-                  });
+                  // Fields are now pre-sorted by displayOrder from the API
+                  .filter(field => field.serviceId === item.serviceId && field.locationId === item.locationId);
 
                 return (
                   <div key={item.itemId} className="border border-gray-200 rounded-lg p-6">

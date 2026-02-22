@@ -117,6 +117,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         retentionHandling: standardizedFieldData.retentionHandling,
         collectionTab: standardizedFieldData.collectionTab || 'subject', // NEW: add collectionTab
         addressConfig: standardizedFieldData.addressConfig || null, // Add address configuration
+        requiresVerification: standardizedFieldData.requiresVerification || false, // Add verification flag
         options: standardizedFieldData.options || [],
         disabled: requirement.disabled === true,
         services: requirement.serviceRequirements.map(sr => ({
@@ -173,7 +174,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     
     console.log("Request body:", JSON.stringify(body, null, 2));
     
-    const { fieldLabel, shortName, dataType, instructions, retentionHandling, collectionTab, addressConfig, options } = body;
+    const { fieldLabel, shortName, dataType, instructions, retentionHandling, collectionTab, addressConfig, requiresVerification, options } = body;
 
     // Basic validation
     if (!fieldLabel) {
@@ -236,6 +237,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         changes.collectionTab = { from: standardizedFieldData.collectionTab || 'subject', to: collectionTab || 'subject' };
       }
 
+      if (standardizedFieldData.requiresVerification !== requiresVerification) {
+        changes.requiresVerification = { from: standardizedFieldData.requiresVerification || false, to: requiresVerification || false };
+      }
+
       // Only track options changes if they're different - do a deep comparison
       const existingOptions = standardizedFieldData.options || [];
       if (JSON.stringify(existingOptions) !== JSON.stringify(options || [])) {
@@ -261,6 +266,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         retentionHandling: retentionHandling || standardizedFieldData.retentionHandling,
         collectionTab: collectionTab || standardizedFieldData.collectionTab || 'subject', // NEW: add collectionTab
         addressConfig: addressConfig || standardizedFieldData.addressConfig || null, // Add address configuration
+        requiresVerification: requiresVerification !== undefined ? requiresVerification : (standardizedFieldData.requiresVerification || false), // Add verification flag
         options: options || standardizedFieldData.options || [],
         // Add version entry if there are changes
         versions: versionEntry ? [...(standardizedFieldData.versions || []), versionEntry] : standardizedFieldData.versions
@@ -301,6 +307,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         instructions: updatedFieldData.instructions || '',
         retentionHandling: updatedFieldData.retentionHandling,
         collectionTab: updatedFieldData.collectionTab || 'subject', // NEW: add collectionTab
+        requiresVerification: updatedFieldData.requiresVerification || false, // Add verification flag
         options: updatedFieldData.options || [],
         disabled: updatedRequirement.disabled === true,
         services: updatedRequirement.serviceRequirements.map(sr => ({

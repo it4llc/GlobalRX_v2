@@ -48,6 +48,7 @@ export interface FieldData {
   dataType: string;
   instructions: string;
   retentionHandling: string;
+  requiresVerification?: boolean;
   options?: DropdownOption[];
   addressConfig?: AddressBlockConfig;
 }
@@ -67,6 +68,7 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
   const [collectionTab, setCollectionTab] = useState('subject');
   const [optionsText, setOptionsText] = useState('');
   const [addressConfig, setAddressConfig] = useState<AddressBlockConfig | null>(null);
+  const [requiresVerification, setRequiresVerification] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Show modal on component mount
@@ -84,6 +86,7 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
     setCollectionTab('subject');
     setOptionsText('');
     setAddressConfig(null);
+    setRequiresVerification(false);
     setErrors({});
   };
 
@@ -155,6 +158,7 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
       instructions,
       retentionHandling,
       collectionTab,
+      requiresVerification,
     };
 
     // Add options if data type is select, checkbox, or radio
@@ -282,6 +286,25 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
             onChange={setCollectionTab}
             placeholder="Select where field is collected"
           />
+        </FormRow>
+
+        <FormRow
+          label="Requires Verification"
+          htmlFor="requires-verification"
+          required={false}
+        >
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="requires-verification"
+              checked={requiresVerification}
+              onChange={(e) => setRequiresVerification(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="requires-verification" className="ml-2 text-sm text-gray-700">
+              This field requires verification during fulfillment
+            </label>
+          </div>
         </FormRow>
 
         {/* Options Section - Simplified with text area */}

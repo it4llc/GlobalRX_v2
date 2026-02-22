@@ -12,10 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { ActionDropdown } from '@/components/ui/action-dropdown';
 import { DialogRef, ModalDialog } from '@/components/ui/modal-dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { StandardDropdown } from '@/components/ui/standard-dropdown';
-import { Check, X, Edit2 } from 'lucide-react';
+import { Shield, ShieldCheck } from 'lucide-react';
 
 interface DataField {
   id: string;
@@ -24,6 +21,7 @@ interface DataField {
   dataType: string;
   instructions: string;
   retentionHandling: string;
+  requiresVerification?: boolean;
   options?: Array<{ value: string; label: string }>;
   disabled?: boolean;
   services?: Array<{ id: string, name: string }>;
@@ -56,10 +54,6 @@ export function DataRxTab() {
   const [dataFields, setDataFields] = useState<DataField[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
 
-  // State for inline editing
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [editingValues, setEditingValues] = useState<Partial<DataField>>({});
-  const [isPending, startTransition] = useTransition();
   
   // State for modals
   const [showAddFieldModal, setShowAddFieldModal] = useState(false);
@@ -232,7 +226,8 @@ export function DataRxTab() {
         instructions: fieldData.instructions || "",
         retentionHandling: fieldData.retentionHandling || "no_delete",
         collectionTab: fieldData.collectionTab || "subject",
-        addressConfig: fieldData.addressConfig || null
+        addressConfig: fieldData.addressConfig || null,
+        requiresVerification: fieldData.requiresVerification || false
       };
 
       console.log('DataRxTab - Sending to API:', fieldObject);
@@ -280,6 +275,7 @@ export function DataRxTab() {
         retentionHandling: fieldData.retentionHandling || "no_delete",
         collectionTab: fieldData.collectionTab || "subject",
         addressConfig: fieldData.addressConfig || null,
+        requiresVerification: fieldData.requiresVerification || false,
         options: fieldData.options || []
       };
       
@@ -446,65 +442,6 @@ export function DataRxTab() {
     return retentionMap[field.retentionHandling] || 'None';
   };
 
-  // Start editing a field inline
-  const startEditing = (field: DataField) => {
-    setEditingField(field.id);
-    setEditingValues({
-      fieldLabel: field.fieldLabel,
-      shortName: field.shortName,
-      dataType: field.dataType,
-      instructions: field.instructions,
-      retentionHandling: field.retentionHandling,
-      options: field.options
-    });
-  };
-
-  // Cancel inline editing
-  const cancelEditing = () => {
-    setEditingField(null);
-    setEditingValues({});
-  };
-
-  // Save inline edit
-  const saveInlineEdit = async () => {
-    if (!editingField || !editingValues) return;
-
-    startTransition(async () => {
-      try {
-        const fieldToUpdate = dataFields.find(f => f.id === editingField);
-        if (!fieldToUpdate) return;
-
-        const response = await fetchWithAuth(`/api/data-rx/fields/${editingField}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fieldLabel: editingValues.fieldLabel,
-            shortName: editingValues.shortName,
-            dataType: editingValues.dataType,
-            instructions: editingValues.instructions || "",
-            retentionHandling: editingValues.retentionHandling || "no_delete",
-            collectionTab: fieldToUpdate.collectionTab || "subject",
-            addressConfig: fieldToUpdate.addressConfig || null,
-            options: editingValues.options || []
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || errorData.details || 'Failed to update field');
-        }
-
-        // Refresh data and close edit mode
-        await fetchData();
-        cancelEditing();
-      } catch (err) {
-        console.error('Error updating field:', err);
-        setError('Failed to update field: ' + (err instanceof Error ? err.message : 'Unknown error'));
-      }
-    });
-  };
   
   return (
     <div className="space-y-6">
@@ -591,78 +528,65 @@ export function DataRxTab() {
                   <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="sticky-column" style={{ width: '25%' }}>Field Label</TableHead>
-                    <TableHead style={{ width: '15%' }}>Short Name</TableHead>
+                    <TableHead className="sticky-actions" style={{ width: '8%' }}>Actions</TableHead>
+                    <TableHead className="sticky-label" style={{ width: '20%' }}>Field Label</TableHead>
+                    <TableHead style={{ width: '12%' }}>Short Name</TableHead>
                     <TableHead style={{ width: '10%' }}>Data Type</TableHead>
-                    <TableHead style={{ width: '20%' }}>Instructions</TableHead>
+                    <TableHead style={{ width: '18%' }}>Instructions</TableHead>
                     <TableHead style={{ width: '10%' }}>Retention</TableHead>
+                    <TableHead style={{ width: '8%' }}>Verification</TableHead>
                     <TableHead style={{ width: '10%' }}>Services</TableHead>
-                    <TableHead style={{ width: '10%' }}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {dataFields.map((field) => {
-                    const isEditing = editingField === field.id;
-
                     return (
                       <TableRow
                         key={field.id}
                         className={field.disabled ? "opacity-60 bg-gray-50" : ""}
                       >
-                        <TableCell className={`font-medium sticky-column ${field.disabled ? 'bg-gray-50' : 'bg-white'}`}>
-                          {isEditing ? (
-                            <Input
-                              value={editingValues.fieldLabel || ''}
-                              onChange={(e) => setEditingValues({...editingValues, fieldLabel: e.target.value})}
-                              className="w-full"
-                              placeholder="Field Label"
-                            />
-                          ) : (
-                            <>
-                              {field.fieldLabel}
-                              {field.disabled && <span className="ml-2 text-xs text-gray-500">(Disabled)</span>}
-                            </>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {isEditing ? (
-                            <Input
-                              value={editingValues.shortName || ''}
-                              onChange={(e) => setEditingValues({...editingValues, shortName: e.target.value})}
-                              className="w-full"
-                              placeholder="Short Name"
-                            />
-                          ) : (
-                            field.shortName
-                          )}
-                        </TableCell>
-                        <TableCell>
-                        {isEditing ? (
-                          <StandardDropdown
-                            options={dataTypeOptions}
-                            value={editingValues.dataType || ''}
-                            onChange={(value) => setEditingValues({...editingValues, dataType: value})}
-                            placeholder="Select type"
+                        <TableCell className={`sticky-actions ${field.disabled ? 'bg-gray-50' : 'bg-white'}`}>
+                          <ActionDropdown
+                            options={[
+                              {
+                                label: 'Edit',
+                                onClick: () => handleOpenEditModal(field.id),
+                                color: 'rgb(59, 130, 246)'
+                              },
+                              {
+                                label: field.disabled ? 'Enable' : 'Disable',
+                                onClick: () => handleToggleFieldStatus(field.id),
+                                color: field.disabled ? 'rgb(59, 130, 246)' : 'rgb(220, 38, 38)'
+                              }
+                            ]}
                           />
-                        ) : (
+                        </TableCell>
+                        <TableCell className={`font-medium sticky-label ${field.disabled ? 'bg-gray-50' : 'bg-white'}`}>
+                          {field.fieldLabel}
+                          {field.disabled && <span className="ml-2 text-xs text-gray-500">(Disabled)</span>}
+                        </TableCell>
+                        <TableCell>
+                          {field.shortName}
+                        </TableCell>
+                        <TableCell>
                           <div className="flex items-center">
                             <span>{getDataTypeLabel(field.dataType)}</span>
                           {['select', 'checkbox', 'radio'].includes(field.dataType) && field.options && field.options.length > 0 && (
-                            <span 
-                              style={{ 
-                                fontSize: '8px', 
-                                marginLeft: '4px', 
-                                display: 'inline-flex', 
-                                alignItems: 'center', 
+                            <span
+                              style={{
+                                fontSize: '8px',
+                                marginLeft: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
                                 cursor: 'pointer',
                                 position: 'relative',
                               }}
                               title={`Options: ${field.options.map(o => o.label).join(', ')}`}
                               onClick={(e) => handleShowOptions(field, e)}
                             >
-                              <span style={{ 
-                                fontSize: '8px', 
-                                color: '#3b82f6', 
+                              <span style={{
+                                fontSize: '8px',
+                                color: '#3b82f6',
                                 fontWeight: 'bold',
                                 border: '1px solid #3b82f6',
                                 borderRadius: '50%',
@@ -676,96 +600,42 @@ export function DataRxTab() {
                             </span>
                           )}
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="truncate">
-                        {isEditing ? (
-                          <Textarea
-                            value={editingValues.instructions || ''}
-                            onChange={(e) => setEditingValues({...editingValues, instructions: e.target.value})}
-                            className="w-full min-h-[60px]"
-                            placeholder="Instructions"
-                          />
-                        ) : (
-                          field.instructions
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {isEditing ? (
-                          <StandardDropdown
-                            options={retentionOptions}
-                            value={editingValues.retentionHandling || ''}
-                            onChange={(value) => setEditingValues({...editingValues, retentionHandling: value})}
-                            placeholder="Select retention"
-                          />
-                        ) : (
-                          getRetentionLabelForField(field)
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {field.services && field.services.length > 0 ? (
-                          <span 
-                            className="text-blue-600 text-sm cursor-pointer hover:underline"
-                            onClick={(e) => handleShowServices(field, e)}
-                          >
-                            {field.services.length} service{field.services.length !== 1 ? 's' : ''}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 text-sm">None</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {isEditing ? (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={saveInlineEdit}
-                              disabled={isPending}
-                              title="Save changes"
-                            >
-                              <Check className="w-4 h-4 text-green-600" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={cancelEditing}
-                              disabled={isPending}
-                              title="Cancel editing"
-                            >
-                              <X className="w-4 h-4 text-red-600" />
-                            </Button>
+                        </TableCell>
+                        <TableCell className="truncate">
+                          {field.instructions}
+                        </TableCell>
+                        <TableCell>
+                          {getRetentionLabelForField(field)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            {field.requiresVerification ? (
+                              <ShieldCheck
+                                className="w-5 h-5 text-green-600"
+                                title="Verification required during fulfillment"
+                              />
+                            ) : (
+                              <Shield
+                                className="w-5 h-5 text-gray-300"
+                                title="No verification required"
+                              />
+                            )}
                           </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => startEditing(field)}
-                              title="Quick edit"
-                              className="hover:bg-blue-50 border-blue-300"
+                        </TableCell>
+                        <TableCell>
+                          {field.services && field.services.length > 0 ? (
+                            <span
+                              className="text-blue-600 text-sm cursor-pointer hover:underline"
+                              onClick={(e) => handleShowServices(field, e)}
                             >
-                              <Edit2 className="w-4 h-4 text-blue-600" />
-                            </Button>
-                            <ActionDropdown
-                              options={[
-                                {
-                                  label: 'Advanced Edit',
-                                  onClick: () => handleOpenEditModal(field.id),
-                                  color: 'rgb(59, 130, 246)'
-                                },
-                                {
-                                  label: field.disabled ? 'Enable' : 'Disable',
-                                  onClick: () => handleToggleFieldStatus(field.id),
-                                  color: field.disabled ? 'rgb(59, 130, 246)' : 'rgb(220, 38, 38)'
-                                }
-                              ]}
-                            />
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
+                              {field.services.length} service{field.services.length !== 1 ? 's' : ''}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">None</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
                   })}
                 </TableBody>
                   </Table>
@@ -929,22 +799,44 @@ export function DataRxTab() {
           position: relative;
         }
 
-        /* Sticky first column */
-        .sticky-column {
+        /* Sticky first column (Actions) */
+        .sticky-actions {
           position: sticky !important;
-          left: 0;
+          left: 0px !important;
+          z-index: 6;
+          background: white;
+          min-width: 100px;
+          width: 100px;
+        }
+
+        /* Sticky second column (Field Label) */
+        .sticky-label {
+          position: sticky !important;
+          left: 100px !important;
           z-index: 5;
           background: white;
           box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+          min-width: 200px;
         }
 
-        /* Ensure sticky column has proper background on hover */
-        tr:hover .sticky-column {
+        /* Ensure sticky columns have proper background on hover */
+        tr:hover .sticky-actions,
+        tr:hover .sticky-label {
           background: inherit;
         }
 
-        /* Add border to separate sticky column */
-        .sticky-column::after {
+        /* Add border to separate sticky columns */
+        .sticky-actions::after {
+          content: '';
+          position: absolute;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: 1px;
+          background: #e2e8f0;
+        }
+
+        .sticky-label::after {
           content: '';
           position: absolute;
           right: 0;

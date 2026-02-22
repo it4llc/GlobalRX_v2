@@ -43,10 +43,13 @@ export async function POST(request: NextRequest) {
     const serviceIds = [...new Set(items.map(item => item.serviceId))];
     const locationIds = [...new Set(items.map(item => item.locationId))];
 
-    // Get all service-level requirements
+    // Get all service-level requirements, sorted by displayOrder
     const serviceRequirements = await prisma.serviceRequirement.findMany({
       where: {
         serviceId: { in: serviceIds }
+      },
+      orderBy: {
+        displayOrder: 'asc'
       },
       include: {
         requirement: true,
@@ -99,7 +102,8 @@ export async function POST(request: NextRequest) {
       requirement: any,
       serviceId: string,
       locationId?: string,
-      isRequired: boolean = false
+      isRequired: boolean = false,
+      displayOrder: number = 999
     ) => {
       if (requirement.disabled) return;
 
@@ -123,7 +127,8 @@ export async function POST(request: NextRequest) {
           addressConfig: fieldData.addressConfig || null,
           required: isRequired,
           serviceId,
-          locationId
+          locationId,
+          displayOrder
         };
 
         if (collectionTab === 'subject') {
@@ -166,13 +171,20 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    // Create a map to track which requirements are required for each service+location
+    // Create maps to track requirements status and display order
     const requiredMap = new Map<string, boolean>();
+    const displayOrderMap = new Map<string, number>();
 
-    // First, build the required map from DSX mappings
+    // Build the required map from DSX mappings
     locationMappings.forEach(mapping => {
       const key = `${mapping.serviceId}_${mapping.locationId}_${mapping.requirementId}`;
       requiredMap.set(key, mapping.isRequired);
+    });
+
+    // Build the display order map from ServiceRequirements (service-level ordering)
+    serviceRequirements.forEach(sr => {
+      // Display order is per service, not per location
+      displayOrderMap.set(`${sr.serviceId}_${sr.requirementId}`, sr.displayOrder);
     });
 
     // Process service-level requirements
@@ -182,10 +194,12 @@ export async function POST(request: NextRequest) {
         .filter(item => item.serviceId === sr.serviceId)
         .forEach(item => {
           // Check if this specific requirement is marked as required in DSXMapping
-          const key = `${sr.serviceId}_${item.locationId}_${sr.requirementId}`;
-          const isRequired = requiredMap.get(key) || false;
+          const mappingKey = `${sr.serviceId}_${item.locationId}_${sr.requirementId}`;
+          const isRequired = requiredMap.get(mappingKey) || false;
+          // Display order is per service, not per location
+          const displayOrder = sr.displayOrder;
 
-          processRequirement(sr.requirement, sr.serviceId, item.locationId, isRequired);
+          processRequirement(sr.requirement, sr.serviceId, item.locationId, isRequired, displayOrder);
         });
     });
 
@@ -199,11 +213,16 @@ export async function POST(request: NextRequest) {
 
       // Only process if not already handled as a service requirement
       if (!alreadyProcessed) {
+        // Get display order from service requirements if available, otherwise default
+        const displayOrderKey = `${mapping.serviceId}_${mapping.requirementId}`;
+        const displayOrder = displayOrderMap.get(displayOrderKey) || 999;
+
         processRequirement(
           mapping.requirement,
           mapping.serviceId,
           mapping.locationId,
-          mapping.isRequired
+          mapping.isRequired,
+          displayOrder
         );
       }
     });
@@ -237,9 +256,13 @@ export async function POST(request: NextRequest) {
       })
     );
 
+    // Sort fields by displayOrder before returning
+    const sortedSubjectFields = subjectFields.sort((a, b) => a.displayOrder - b.displayOrder);
+    const sortedSearchFields = searchFields.sort((a, b) => a.displayOrder - b.displayOrder);
+
     return NextResponse.json({
-      subjectFields,
-      searchFields,
+      subjectFields: sortedSubjectFields,
+      searchFields: sortedSearchFields,
       documents,
       locations: locations.map(loc => {
         const subregionInfo = locationsWithSubregions.find(
