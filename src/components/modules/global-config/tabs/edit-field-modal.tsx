@@ -56,6 +56,7 @@ export interface FieldData {
   dataType: string;
   instructions: string;
   retentionHandling: string;
+  requiresVerification?: boolean;
   options?: DropdownOption[];
   addressConfig?: AddressBlockConfig;
   disabled?: boolean;
@@ -78,6 +79,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
   const [collectionTab, setCollectionTab] = useState('subject');
   const [optionsText, setOptionsText] = useState('');
   const [addressConfig, setAddressConfig] = useState<AddressBlockConfig | null>(null);
+  const [requiresVerification, setRequiresVerification] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -106,6 +108,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
         setInstructions(field.instructions || '');
         setRetentionHandling(field.retentionHandling || '');
         setCollectionTab(field.collectionTab || 'subject');
+        setRequiresVerification(field.requiresVerification || false);
         
         // Set options text
         if (field.options && field.options.length > 0) {
@@ -147,6 +150,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
     setCollectionTab('subject');
     setOptionsText('');
     setAddressConfig(null);
+    setRequiresVerification(false);
     setErrors({});
   };
 
@@ -219,6 +223,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
       instructions,
       retentionHandling,
       collectionTab,
+      requiresVerification,
     };
 
     // Add options if data type is select, checkbox, or radio
@@ -398,6 +403,25 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
                 onChange={setCollectionTab}
                 placeholder="Select where field is collected"
               />
+            </FormRow>
+
+            <FormRow
+              label="Requires Verification"
+              htmlFor="requires-verification"
+              required={false}
+            >
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="requires-verification"
+                  checked={requiresVerification}
+                  onChange={(e) => setRequiresVerification(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="requires-verification" className="ml-2 text-sm text-gray-700">
+                  This field requires verification during fulfillment
+                </label>
+              </div>
             </FormRow>
 
             {/* Options Section - Simplified with text area */}

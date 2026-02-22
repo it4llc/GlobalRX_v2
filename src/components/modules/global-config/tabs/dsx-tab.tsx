@@ -1,12 +1,13 @@
 // src/components/modules/global-config/tabs/dsx-tab.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StandardDropdown } from '@/components/ui/standard-dropdown';
 import { Button } from '@/components/ui/button';
 import { Service, Requirement } from '@/types';
 import { RequirementsDataTable } from '../tables/RequirementsDataTable';
+import { FieldOrderSection } from './FieldOrderSection';
 import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle } from 'lucide-react';
@@ -18,16 +19,18 @@ export function DSXTab() {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState<string>('');
   const [selectedServiceName, setSelectedServiceName] = useState<string>('');
-  
+  const [selectedCountry, setSelectedCountry] = useState<string>('');
+  const [selectedCountryName, setSelectedCountryName] = useState<string>('');
+
   // Store requirements directly associated with the service
   const [serviceRequirements, setServiceRequirements] = useState<Requirement[]>([]);
-  
+
   // Store all available requirements from Data RX tab
   const [availableRequirements, setAvailableRequirements] = useState<any[]>([]);
-  
+
   // Store IDs of requirements selected in the UI
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<string[]>([]);
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingRequirements, setIsLoadingRequirements] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,16 +39,11 @@ export function DSXTab() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingRequirements, setIsSavingRequirements] = useState(false);
   const [locations, setLocations] = useState<any[]>([]);
-  
-  // Use refs to track the service ID that we've already fetched data for
-  const lastFetchedServiceRef = useRef<string | null>(null);
-  const locationsLoadedRef = useRef(false);
-  
+
   const { fetchWithAuth } = useAuth();
   
   // Load locations once at the DSX tab level
   useEffect(() => {
-    if (locationsLoadedRef.current) return;
     
     const fetchLocations = async () => {
       try {
@@ -65,7 +63,6 @@ export function DSXTab() {
           data: data
         });
         setLocations(data);
-        locationsLoadedRef.current = true;
         console.log('Successfully loaded locations in DSX tab');
       } catch (err) {
         console.error('Failed to load locations in DSX tab:', err);
@@ -153,37 +150,49 @@ export function DSXTab() {
 
   // Function to fetch DSX data for a specific service
   const fetchDSXData = useCallback(async (serviceId: string) => {
-    // Skip if this is the service we've already fetched
-    if (!serviceId || serviceId === lastFetchedServiceRef.current) return;
-    
+    if (!serviceId) return;
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       console.log(`Fetching DSX data for service: ${serviceId}`);
-      
-      // Use the URL with the service ID parameter
+
       const response = await fetchWithAuth(`/api/dsx?serviceId=${serviceId}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch DSX data');
       }
-      
+
       const data = await response.json();
-      console.log("Received DSX data:", data);
+      console.log("🔄 DSX Tab: Received fresh data from API");
+      console.log("📊 Requirements from API:", data.requirements?.map(r => ({
+        id: r.id,
+        name: r.name,
+        displayOrder: r.displayOrder,
+        orderType: typeof r.displayOrder
+      })));
+      console.log("Mappings received:", Object.keys(data.mappings || {}).length, "mappings");
+      const sampleKeys = Object.keys(data.mappings || {}).slice(0, 5);
+      console.log("Sample mapping keys:", sampleKeys);
+      console.log("Sample mapping values from API:", sampleKeys.map(k => ({ key: k, value: data.mappings[k], type: typeof data.mappings[k] })));
 
       // Set the requirements associated with this service
       setServiceRequirements(data.requirements || []);
-      
-      // Process mappings
+
+      // Process mappings - back to simple booleans
       const filteredMappings: Record<string, boolean> = {};
       Object.entries(data.mappings || {}).forEach(([key, value]) => {
-        const [locationId] = key.split('-');
+        const [locationId] = key.split('___');  // Fix: split returns array, take first element
         if (!IGNORED_LOCATION_IDS.has(locationId)) {
+          // The API now returns true for any existing mapping
           filteredMappings[key] = value === true;
         }
       });
+      console.log("Filtered mappings count:", Object.keys(filteredMappings).length);
+      console.log("Sample filtered mapping:", Object.entries(filteredMappings).slice(0, 3));
       setMappings(filteredMappings);
+      console.log("Mappings state will be updated to:", filteredMappings);
       
       // Process availability
       const filteredAvailability: Record<string, boolean> = {};
@@ -197,9 +206,7 @@ export function DSXTab() {
       // Set selected requirement IDs based on the requirements returned
       const requirementIds = (data.requirements || []).map((req: any) => req.id);
       setSelectedRequirementIds(requirementIds);
-      
-      // Update the last fetched service ref
-      lastFetchedServiceRef.current = serviceId;
+
     } catch (err) {
       console.error('Error fetching DSX data:', err);
       setError('Failed to load DSX data. Please try again.');
@@ -223,18 +230,18 @@ export function DSXTab() {
     }
     
     // Clear current data when service changes
-    if (value !== lastFetchedServiceRef.current) {
-      setServiceRequirements([]);
-      setSelectedRequirementIds([]);
-      setMappings({});
-      setAvailability({});
-      setError(null);
-    }
+    setServiceRequirements([]);
+    setSelectedRequirementIds([]);
+    setMappings({});
+    setAvailability({});
+    setError(null);
   }, [services, isSaving]);
 
   // Load DSX data when service changes
   useEffect(() => {
-    if (selectedService && selectedService !== lastFetchedServiceRef.current) {
+    if (selectedService) {
+      // Always fetch fresh data when service changes
+      console.log('Service changed, fetching fresh data for:', selectedService);
       fetchDSXData(selectedService);
     }
   }, [selectedService, fetchDSXData]);
@@ -301,9 +308,8 @@ const saveSelectedRequirements = async () => {
     // Parse the response
     const responseData = await response.json();
     console.log('Save response:', responseData);
-    
+
     // Refresh DSX data to get the updated requirements
-    lastFetchedServiceRef.current = null; // Reset to force refresh
     await fetchDSXData(selectedService);
     
     // Success response
@@ -653,6 +659,21 @@ const saveSelectedRequirements = async () => {
         </Card>
       )}
 
+      {/* Field Display Order Section */}
+      {selectedService && serviceRequirements.length > 0 && (
+        <FieldOrderSection
+          serviceId={selectedService}
+          serviceName={selectedServiceName}
+          requirements={serviceRequirements}
+          onOrderChanged={() => {
+            // Field order has been saved successfully
+            console.log('Field order saved, refreshing data...');
+            // Refresh to get the updated display order from the database
+            fetchDSXData(selectedService);
+          }}
+        />
+      )}
+
       {selectedService && serviceRequirements.length > 0 && (
         <>
           {locations.length === 0 && (
@@ -661,6 +682,13 @@ const saveSelectedRequirements = async () => {
               <p className="text-sm mt-1">Locations count: {locations.length}</p>
             </div>
           )}
+          {console.log('Passing to RequirementsDataTable:', {
+            mappingsCount: Object.keys(mappings).length,
+            sampleKeys: Object.keys(mappings).slice(0, 5),
+            sampleEntries: Object.entries(mappings).slice(0, 3),
+            mappingsType: typeof mappings,
+            isArray: Array.isArray(mappings)
+          })}
           <RequirementsDataTable
             serviceName={selectedServiceName}
             requirements={serviceRequirements}
@@ -694,8 +722,7 @@ const saveSelectedRequirements = async () => {
           <div className="mt-2">
             <button 
               onClick={() => {
-                // Force refresh of DSX data
-                lastFetchedServiceRef.current = null;
+                // Refresh DSX data
                 fetchDSXData(selectedService);
               }}
               className="text-sm underline text-blue-600 hover:text-blue-800"

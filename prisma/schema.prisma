@@ -189,6 +189,7 @@ model ServiceRequirement {
   id            String         @id @default(uuid())
   serviceId     String
   requirementId String
+  displayOrder  Int            @default(999)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   requirement   DSXRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)

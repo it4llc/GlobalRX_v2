@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
         retentionHandling: standardizedData.retentionHandling,
         collectionTab: standardizedData.collectionTab || 'subject', // NEW: default to subject
         addressConfig: standardizedData.addressConfig || null, // Include address config
+        requiresVerification: standardizedData.requiresVerification || false, // Include verification flag
         options: standardizedData.options || [],
         disabled: field.disabled,
         // Map services from the join table
@@ -185,7 +186,8 @@ export async function POST(request: NextRequest) {
       // Use standardized property name
       retentionHandling: data.retentionHandling || 'no_delete',
       collectionTab: data.collectionTab || 'subject', // NEW: add collectionTab
-      addressConfig: data.addressConfig || null // Add address configuration
+      addressConfig: data.addressConfig || null, // Add address configuration
+      requiresVerification: data.requiresVerification || false // Add verification flag
     };
 
     console.log('API POST /data-rx/fields - Saving fieldData:', JSON.stringify(fieldDataToSave, null, 2));
@@ -208,6 +210,7 @@ export async function POST(request: NextRequest) {
         retentionHandling: field.fieldData.retentionHandling,
         collectionTab: field.fieldData.collectionTab || 'subject', // NEW: include collectionTab
         addressConfig: field.fieldData.addressConfig || null, // Include address config
+        requiresVerification: field.fieldData.requiresVerification || false, // Include verification flag
         options: field.fieldData.options || [],
         services: []
       }
@@ -303,7 +306,8 @@ export async function PATCH(request: NextRequest) {
           instructions: data.instructions !== undefined ? data.instructions : standardizedFieldData.instructions,
           options: data.options || standardizedFieldData.options,
           // Use standardized property name
-          retentionHandling: data.retentionHandling || standardizedFieldData.retentionHandling || 'no_delete'
+          retentionHandling: data.retentionHandling || standardizedFieldData.retentionHandling || 'no_delete',
+          requiresVerification: data.requiresVerification !== undefined ? data.requiresVerification : (standardizedFieldData.requiresVerification || false)
         }
       },
       include: {
@@ -329,6 +333,7 @@ export async function PATCH(request: NextRequest) {
         instructions: field.fieldData.instructions,
         options: field.fieldData.options,
         retentionHandling: field.fieldData.retentionHandling,
+        requiresVerification: field.fieldData.requiresVerification || false,
         disabled: field.disabled,
         services: field.serviceRequirements.map(sr => ({
           id: sr.service.id,
