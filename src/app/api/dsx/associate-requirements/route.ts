@@ -45,12 +45,22 @@ export async function POST(request: NextRequest) {
     }
     
     console.log(`Associating ${requirements.length} requirements with service ${serviceId}`);
-    
-    // First, get the list of existing requirements that will be removed
+
+    // First, get the list of existing requirements WITH their display order to preserve it
     const existingRequirements = await prisma.serviceRequirement.findMany({
       where: { serviceId },
-      select: { requirementId: true }
+      select: {
+        requirementId: true,
+        displayOrder: true
+      }
     });
+
+    // Create a map of existing display orders to preserve them
+    const displayOrderMap = new Map<string, number>();
+    existingRequirements.forEach(req => {
+      displayOrderMap.set(req.requirementId, req.displayOrder);
+    });
+    console.log(`Preserving display orders for ${displayOrderMap.size} existing requirements`);
 
     const removedRequirementIds = existingRequirements
       .map(r => r.requirementId)
@@ -75,23 +85,39 @@ export async function POST(request: NextRequest) {
       where: { serviceId }
     });
     
+    // Get the maximum display order for completely new requirements
+    const maxDisplayOrder = Math.max(...Array.from(displayOrderMap.values()), 0);
+    let nextDisplayOrder = maxDisplayOrder + 10;
+
     // Create new associations
     console.log('Creating new requirement associations...');
     const createdRequirements = [];
-    
-    for (const req of requirements) {
+
+    for (let i = 0; i < requirements.length; i++) {
+      const req = requirements[i];
       try {
         // Check if it's a data field or document
         const isDataField = req.type === 'data-field' || req.type === 'field';
-        
-        // Create the service requirement association
+
+        // Use preserved display order if it exists, otherwise assign new one at the end
+        let displayOrder = displayOrderMap.get(req.id);
+        if (displayOrder === undefined) {
+          displayOrder = nextDisplayOrder;
+          nextDisplayOrder += 10;
+          console.log(`Assigning new displayOrder ${displayOrder} to new requirement ${req.id}`);
+        } else {
+          console.log(`Preserving displayOrder ${displayOrder} for existing requirement ${req.id}`);
+        }
+
+        // Create the service requirement association with display order
         const serviceRequirement = await prisma.serviceRequirement.create({
           data: {
             serviceId,
-            requirementId: req.id
+            requirementId: req.id,
+            displayOrder
           }
         });
-        
+
         createdRequirements.push(serviceRequirement);
       } catch (error) {
         console.error('Error creating requirement:', error);
