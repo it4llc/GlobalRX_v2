@@ -65,7 +65,7 @@ function buildLocationHierarchy(
     name: 'ALL',
     level: 0,
     children: [],
-    available: availability['all'] !== false,
+    available: true, // Will be computed later
     requirements: {}
   };
 
@@ -110,6 +110,56 @@ function buildLocationHierarchy(
       location.requirements[requirementId] = value;
     }
   });
+
+  // Compute ALL checkbox state for each requirement based on whether all children are checked
+  const computeAllState = (parentLocation: Location, requirementId: string): boolean => {
+    if (!parentLocation.children || parentLocation.children.length === 0) {
+      return false;
+    }
+
+    // Check if all children have this requirement checked
+    return parentLocation.children.every(child => {
+      const childKey = `${child.id}___${requirementId}`;
+      // If the child has its own children, recursively check them
+      if (child.children && child.children.length > 0) {
+        return mappings[childKey] === true || computeAllState(child, requirementId);
+      }
+      // For leaf nodes, check the mapping directly
+      return mappings[childKey] === true;
+    });
+  };
+
+  // Update the ALL location's requirements based on children states
+  if (allLocation.requirements) {
+    // Get all unique requirement IDs from mappings
+    const requirementIds = new Set<string>();
+    Object.keys(mappings).forEach(key => {
+      const [, requirementId] = key.split('___');
+      if (requirementId) {
+        requirementIds.add(requirementId);
+      }
+    });
+
+    // For each requirement, check if ALL should be checked
+    requirementIds.forEach(requirementId => {
+      const allChecked = computeAllState(allLocation, requirementId);
+      allLocation.requirements[requirementId] = allChecked;
+    });
+  }
+
+  // Compute ALL availability state based on whether all children are available
+  if (allLocation.children && allLocation.children.length > 0) {
+    allLocation.available = allLocation.children.every(child => {
+      // If the child has its own children, check them recursively
+      const checkAvailability = (loc: Location): boolean => {
+        if (loc.children && loc.children.length > 0) {
+          return availability[loc.id] !== false || loc.children.every(checkAvailability);
+        }
+        return availability[loc.id] !== false;
+      };
+      return checkAvailability(child);
+    });
+  }
 
   // Sort countries alphabetically
   allLocation.children?.sort((a, b) =>
@@ -398,10 +448,14 @@ export function RequirementsDataTable({
         size: 50,
         cell: ({ row }) => {
           const location = row.original;
+          // For ALL location, use the computed available state
+          const isChecked = location.id === 'all'
+            ? location.available === true
+            : localAvailability[location.id] !== false;
           return (
             <div className="flex justify-center">
               <Checkbox
-                checked={localAvailability[location.id] !== false}
+                checked={isChecked}
                 onCheckedChange={(checked) =>
                   handleAvailabilityChange(location.id, checked === true)
                 }
@@ -425,7 +479,10 @@ export function RequirementsDataTable({
         size: 80,
         cell: ({ row }) => {
           const location = row.original;
-          const isChecked = localMappings[`${location.id}___${field.id}`] === true;
+          // For ALL location, use the computed state from location.requirements
+          const isChecked = location.id === 'all'
+            ? location.requirements?.[field.id] === true
+            : localMappings[`${location.id}___${field.id}`] === true;
           const isAvailable = localAvailability[location.id] !== false;
           return (
             <div className="flex justify-center">
@@ -451,7 +508,10 @@ export function RequirementsDataTable({
         size: 80,
         cell: ({ row }) => {
           const location = row.original;
-          const isChecked = localMappings[`${location.id}___${doc.id}`] === true;
+          // For ALL location, use the computed state from location.requirements
+          const isChecked = location.id === 'all'
+            ? location.requirements?.[doc.id] === true
+            : localMappings[`${location.id}___${doc.id}`] === true;
           const isAvailable = localAvailability[location.id] !== false;
           return (
             <div className="flex justify-center">
@@ -477,7 +537,10 @@ export function RequirementsDataTable({
         size: 80,
         cell: ({ row }) => {
           const location = row.original;
-          const isChecked = localMappings[`${location.id}___${form.id}`] === true;
+          // For ALL location, use the computed state from location.requirements
+          const isChecked = location.id === 'all'
+            ? location.requirements?.[form.id] === true
+            : localMappings[`${location.id}___${form.id}`] === true;
           const isAvailable = localAvailability[location.id] !== false;
           return (
             <div className="flex justify-center">
