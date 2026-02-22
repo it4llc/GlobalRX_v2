@@ -157,8 +157,12 @@ export function RequirementsDataTable({
     serviceName,
     requirementsCount: requirements?.length,
     locationsCount: locations?.length,
-    requirements: requirements,
-    locations: locations,
+    requirements: requirements?.map(r => ({
+      id: r.id,
+      name: r.name,
+      type: r.type,
+      displayOrder: r.displayOrder
+    })),
     initialMappings: Object.keys(initialMappings).length,
     initialAvailability: Object.keys(initialAvailability).length,
   });
@@ -170,10 +174,56 @@ export function RequirementsDataTable({
   const [expanded, setExpanded] = useState<ExpandedState>({ 'all': true }); // Expand ALL by default using row ID
   const parentRef = React.useRef<HTMLDivElement>(null);
 
-  // Separate requirements by type
-  const fields = useMemo(() => requirements.filter(r => r.type === 'field'), [requirements]);
-  const documents = useMemo(() => requirements.filter(r => r.type === 'document'), [requirements]);
-  const forms = useMemo(() => requirements.filter(r => r.type === 'form'), [requirements]);
+  // Separate requirements by type and sort by displayOrder to match the field order section
+  const fields = useMemo(() => {
+    const fieldReqs = requirements.filter(r => r.type === 'field');
+    // Sort by displayOrder to match the order shown in the Field Display Order section
+    const sorted = fieldReqs.sort((a, b) => {
+      const orderA = a.displayOrder ?? 999;
+      const orderB = b.displayOrder ?? 999;
+      return orderA - orderB;
+    });
+    console.log('Fields for table columns (sorted by displayOrder):', sorted.map(f => ({
+      id: f.id,
+      name: f.name,
+      displayOrder: f.displayOrder
+    })));
+    return sorted;
+  }, [requirements]);
+
+  const documents = useMemo(() => {
+    const docReqs = requirements.filter(r => r.type === 'document');
+    // Sort by displayOrder to maintain consistent ordering
+    const sorted = docReqs.sort((a, b) => {
+      const orderA = a.displayOrder ?? 999;
+      const orderB = b.displayOrder ?? 999;
+      return orderA - orderB;
+    });
+    console.log('Documents for table columns (sorted by displayOrder):', sorted.map(d => ({
+      id: d.id,
+      name: d.name,
+      displayOrder: d.displayOrder
+    })));
+    return sorted;
+  }, [requirements]);
+
+  const forms = useMemo(() => {
+    const formReqs = requirements.filter(r => r.type === 'form');
+    // Sort by displayOrder to maintain consistent ordering
+    const sorted = formReqs.sort((a, b) => {
+      const orderA = a.displayOrder ?? 999;
+      const orderB = b.displayOrder ?? 999;
+      return orderA - orderB;
+    });
+    if (sorted.length > 0) {
+      console.log('Forms for table columns (sorted by displayOrder):', sorted.map(f => ({
+        id: f.id,
+        name: f.name,
+        displayOrder: f.displayOrder
+      })));
+    }
+    return sorted;
+  }, [requirements]);
 
   // Build hierarchical data
   const hierarchicalData = useMemo(() => {
@@ -446,7 +496,20 @@ export function RequirementsDataTable({
     ];
 
     return [...baseColumns, ...requirementColumns];
-  }, [fields, documents, forms, localMappings, localAvailability, handleRequirementChange, handleAvailabilityChange, disabled]);
+  }, [
+    fields,
+    documents,
+    forms,
+    localMappings,
+    localAvailability,
+    handleRequirementChange,
+    handleAvailabilityChange,
+    disabled,
+    // Add a key based on the requirement IDs and their order to force column re-render when order changes
+    fields.map(f => f.id).join(','),
+    documents.map(d => d.id).join(','),
+    forms.map(f => f.id).join(',')
+  ]);
 
   // Create table instance
   const table = useReactTable({
