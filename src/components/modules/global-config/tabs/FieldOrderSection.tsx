@@ -88,6 +88,7 @@ export function FieldOrderSection({
 }: FieldOrderSectionProps) {
   const [personalInfoFields, setPersonalInfoFields] = useState<FieldOrderItem[]>([]);
   const [searchInfoFields, setSearchInfoFields] = useState<FieldOrderItem[]>([]);
+  const [documentFields, setDocumentFields] = useState<FieldOrderItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const { fetchWithAuth } = useAuth();
@@ -138,19 +139,23 @@ export function FieldOrderSection({
       return fieldOrder;
     });
 
-    // Separate into sections FIRST, then sort within each section
-    const personalFields = fields.filter(f => f.collectionTab === 'subject');
-    const searchFields = fields.filter(f => f.collectionTab !== 'subject');
+    // Separate into sections: documents get their own section, then personal vs search for fields
+    const documentFieldsList = fields.filter(f => f.type === 'document');
+    const personalFields = fields.filter(f => f.type === 'field' && f.collectionTab === 'subject');
+    const searchFields = fields.filter(f => f.type === 'field' && f.collectionTab !== 'subject');
 
     // Sort each section independently by display order
     personalFields.sort((a, b) => a.displayOrder - b.displayOrder);
     searchFields.sort((a, b) => a.displayOrder - b.displayOrder);
+    documentFieldsList.sort((a, b) => a.displayOrder - b.displayOrder);
 
     console.log('🔢 Personal Info fields after sorting:', personalFields.map(f => `${f.name}(${f.displayOrder})`).join(', '));
     console.log('🔢 Search Info fields after sorting:', searchFields.map(f => `${f.name}(${f.displayOrder})`).join(', '));
+    console.log('🔢 Document fields after sorting:', documentFieldsList.map(f => `${f.name}(${f.displayOrder})`).join(', '));
 
     setPersonalInfoFields(personalFields);
     setSearchInfoFields(searchFields);
+    setDocumentFields(documentFieldsList);
     setHasChanges(false);
   }, [requirements, serviceId]); // Re-run when requirements or serviceId changes
 
@@ -188,6 +193,23 @@ export function FieldOrderSection({
     }
   };
 
+  // Handle drag end for document fields
+  const handleDocumentDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = documentFields.findIndex(f => f.requirementId === active.id);
+      const newIndex = documentFields.findIndex(f => f.requirementId === over.id);
+
+      const newFields = [...documentFields];
+      const [movedField] = newFields.splice(oldIndex, 1);
+      newFields.splice(newIndex, 0, movedField);
+
+      setDocumentFields(newFields);
+      setHasChanges(true);
+    }
+  };
+
   // Save the new order to the backend
   const saveOrder = async () => {
     setIsSaving(true);
@@ -196,6 +218,7 @@ export function FieldOrderSection({
       // Assign display orders with section prefixes to maintain proper grouping
       // Personal Info fields: 1000, 1010, 1020, etc.
       // Search Info fields: 2000, 2010, 2020, etc.
+      // Document fields: 3000, 3010, 3020, etc.
       const personalOrders = personalInfoFields.map((field, index) => ({
         requirementId: field.requirementId,
         displayOrder: 1000 + (index * 10),
@@ -210,7 +233,14 @@ export function FieldOrderSection({
         name: field.name
       }));
 
-      const fieldOrders = [...personalOrders, ...searchOrders].map(({ requirementId, displayOrder }) => ({
+      const documentOrders = documentFields.map((field, index) => ({
+        requirementId: field.requirementId,
+        displayOrder: 3000 + (index * 10),
+        section: 'documents',
+        name: field.name
+      }));
+
+      const fieldOrders = [...personalOrders, ...searchOrders, ...documentOrders].map(({ requirementId, displayOrder }) => ({
         requirementId,
         displayOrder
       }));
@@ -218,7 +248,8 @@ export function FieldOrderSection({
       console.log('💾 Saving field orders for service:', serviceId);
       console.log('💾 Personal Info order:', personalOrders.map(fo => `${fo.name}=${fo.displayOrder}`).join(', '));
       console.log('💾 Search Info order:', searchOrders.map(fo => `${fo.name}=${fo.displayOrder}`).join(', '));
-      console.log('💾 All field orders being sent:', [...personalOrders, ...searchOrders]);
+      console.log('💾 Document order:', documentOrders.map(fo => `${fo.name}=${fo.displayOrder}`).join(', '));
+      console.log('💾 All field orders being sent:', [...personalOrders, ...searchOrders, ...documentOrders]);
 
       const response = await fetchWithAuth('/api/dsx/update-field-order', {
         method: 'POST',
@@ -281,20 +312,23 @@ export function FieldOrderSection({
       };
     });
 
-    // Separate into sections FIRST, then sort within each section
-    const personalFields = fields.filter(f => f.collectionTab === 'subject');
-    const searchFields = fields.filter(f => f.collectionTab !== 'subject');
+    // Separate into sections: documents get their own section, then personal vs search for fields
+    const documentFieldsList = fields.filter(f => f.type === 'document');
+    const personalFields = fields.filter(f => f.type === 'field' && f.collectionTab === 'subject');
+    const searchFields = fields.filter(f => f.type === 'field' && f.collectionTab !== 'subject');
 
     // Sort each section independently
     personalFields.sort((a, b) => a.displayOrder - b.displayOrder);
     searchFields.sort((a, b) => a.displayOrder - b.displayOrder);
+    documentFieldsList.sort((a, b) => a.displayOrder - b.displayOrder);
 
     setPersonalInfoFields(personalFields);
     setSearchInfoFields(searchFields);
+    setDocumentFields(documentFieldsList);
     setHasChanges(false);
   };
 
-  if (personalInfoFields.length === 0 && searchInfoFields.length === 0) {
+  if (personalInfoFields.length === 0 && searchInfoFields.length === 0 && documentFields.length === 0) {
     return null;
   }
 
@@ -398,6 +432,46 @@ export function FieldOrderSection({
                       <tr>
                         <td colSpan={3} className="p-4 text-center text-gray-500">
                           No search info fields
+                        </td>
+                      </tr>
+                    )}
+                  </SortableContext>
+                </tbody>
+              </table>
+            </DndContext>
+          </div>
+        </div>
+
+        {/* Documents Section */}
+        <div className="mb-6">
+          <h4 className="text-md font-medium text-gray-700 mb-2">Documents</h4>
+          <div className="border rounded-lg overflow-hidden">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDocumentDragEnd}
+            >
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="p-2 text-left w-12"></th>
+                    <th className="p-2 text-left">Document Name</th>
+                    <th className="p-2 text-left">Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <SortableContext
+                    items={documentFields.map(f => f.requirementId)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {documentFields.length > 0 ? (
+                      documentFields.map(field => (
+                        <SortableField key={field.requirementId} field={field} />
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={3} className="p-4 text-center text-gray-500">
+                          No documents
                         </td>
                       </tr>
                     )}

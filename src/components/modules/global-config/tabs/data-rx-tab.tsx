@@ -803,7 +803,7 @@ export function DataRxTab() {
         .sticky-actions {
           position: sticky !important;
           left: 0px !important;
-          z-index: 6;
+          z-index: 20;
           background: white;
           min-width: 100px;
           width: 100px;
@@ -813,7 +813,7 @@ export function DataRxTab() {
         .sticky-label {
           position: sticky !important;
           left: 100px !important;
-          z-index: 5;
+          z-index: 15;
           background: white;
           box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
           min-width: 200px;
