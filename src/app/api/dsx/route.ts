@@ -324,33 +324,49 @@ export async function POST(request: NextRequest) {
         try {
           // Start transaction for consistency
           const result = await prisma.$transaction(async (tx) => {
+            // First, get existing mappings to preserve isRequired status
+            const existingMappings = await tx.dSXMapping.findMany({
+              where: { serviceId }
+            });
+
+            // Create a map to preserve existing isRequired values
+            const existingRequiredMap = new Map<string, boolean>();
+            existingMappings.forEach(mapping => {
+              const key = `${mapping.locationId}_${mapping.requirementId}`;
+              existingRequiredMap.set(key, mapping.isRequired);
+            });
+
             // Delete existing mappings for this service
             await tx.dSXMapping.deleteMany({
               where: { serviceId }
             });
-            
+
             // Process each requirement and its location mappings
             const allMappingsToCreate = [];
-            
+
             for (const [requirementId, locationIds] of Object.entries(data)) {
               if (!Array.isArray(locationIds) || locationIds.length === 0) {
                 continue;
               }
-              
+
               // Filter out invalid location IDs
               const validLocationIds = await filterValidLocationIds(locationIds);
-              
+
               if (validLocationIds.length === 0) {
                 continue;
               }
-              
+
               // Create mapping objects for each valid location
               for (const locationId of validLocationIds) {
+                // Preserve existing isRequired status if it exists, otherwise default to true
+                const key = `${locationId}_${requirementId}`;
+                const isRequired = existingRequiredMap.get(key) ?? true; // Default to true for new mappings
+
                 allMappingsToCreate.push({
                   serviceId,
                   requirementId,
                   locationId,
-                  isRequired: false  // Default to false since UI doesn't currently support marking as required
+                  isRequired
                 });
               }
             }
