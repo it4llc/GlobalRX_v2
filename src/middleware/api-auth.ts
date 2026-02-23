@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { hasPermission } from '@/lib/permission-utils';
+import { logDatabaseError, logPermissionDenied } from '@/lib/logger';
 
 /**
  * Middleware to check authentication for API routes
@@ -27,7 +28,7 @@ export async function withAuth(
     // Call the handler with the session
     return handler(req, session);
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    logDatabaseError('auth_middleware', error as Error);
     return NextResponse.json(
       { error: 'Internal server error', code: 'INTERNAL_ERROR' },
       { status: 500 }
@@ -47,9 +48,8 @@ export async function withPermission(
   return withAuth(async (req, session) => {
     // Check if user has permission
     if (!hasPermission(session.user, resource, action)) {
-      console.log(`Permission denied: ${resource}.${action} for user ${session.user.email}`);
-      console.log('User permissions:', JSON.stringify(session.user.permissions));
-      
+      logPermissionDenied(session.user.id, resource, action, req.url);
+
       return NextResponse.json(
         { 
           error: 'Forbidden', 

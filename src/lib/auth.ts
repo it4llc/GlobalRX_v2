@@ -3,6 +3,7 @@ import { NextAuthOptions, getServerSession } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaClient } from '@prisma/client';
 import { verifyPassword } from './auth.server';
+import { logAuthError, logDatabaseError, logAuthEvent } from './logger';
 
 // Create a simple prisma client just for auth
 const authPrisma = new PrismaClient();
@@ -22,7 +23,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          console.log('Missing email or password');
+          logAuthError('missing_credentials');
           return null;
         }
 
@@ -37,20 +38,20 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!user) {
-            console.log(`No user found with email: ${credentials.email}`);
+            logAuthError('user_not_found');
             return null;
           }
 
           // Check if account is locked
           if (user.lockedUntil && user.lockedUntil > new Date()) {
-            console.log(`Account locked for user: ${credentials.email}`);
+            logAuthError('account_locked', { userId: user.id });
             return null;
           }
 
           const isPasswordValid = await verifyPassword(credentials.password, user.password);
 
           if (!isPasswordValid) {
-            console.log(`Invalid password for user: ${credentials.email}`);
+            logAuthError('invalid_password', { userId: user.id });
             // Increment failed login attempts
             await authPrisma.user.update({
               where: { id: user.id },
@@ -74,6 +75,9 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
+          // Log successful authentication
+          logAuthEvent('login_success', { userId: user.id });
+
           return {
             id: user.id,
             email: user.email,
@@ -85,7 +89,7 @@ export const authOptions: NextAuthOptions = {
             rememberMe: credentials.rememberMe === 'true',
           };
         } catch (error) {
-          console.error('Database error during authentication:', error);
+          logDatabaseError('authentication', error as Error);
           return null;
         }
       },
