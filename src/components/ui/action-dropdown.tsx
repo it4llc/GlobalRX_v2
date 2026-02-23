@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ActionOption {
   label: string;
@@ -15,21 +16,35 @@ interface ActionDropdownProps {
 
 export function ActionDropdown({ options }: ActionDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+          buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Update dropdown position when opened
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 4,
+        left: rect.right - 80 // Width of dropdown
+      });
+    }
+  }, [isOpen]);
 
   // Toggle dropdown
   const handleToggle = () => {
@@ -43,8 +58,9 @@ export function ActionDropdown({ options }: ActionDropdownProps) {
   };
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <>
       <button
+        ref={buttonRef}
         onClick={handleToggle}
         style={{
           backgroundColor: 'rgb(243, 244, 246)',
@@ -61,15 +77,15 @@ export function ActionDropdown({ options }: ActionDropdownProps) {
         <span style={{ marginRight: '4px' }}>Actions</span>
         <span>▼</span>
       </button>
-      
-      {isOpen && (
-        <div 
+
+      {isOpen && typeof window !== 'undefined' && createPortal(
+        <div
+          ref={dropdownRef}
           style={{
-            position: 'absolute',
-            top: '100%',
-            right: '0px',
-            marginTop: '4px',
-            zIndex: '50',
+            position: 'fixed',
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left}px`,
+            zIndex: 99999,
             backgroundColor: 'white',
             border: '1px solid rgb(229, 231, 235)',
             borderRadius: '4px',
@@ -102,8 +118,9 @@ export function ActionDropdown({ options }: ActionDropdownProps) {
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
