@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions (optional, you might want to allow all authenticated users to see users)
-    const userPermissions = session.user.permissions;
-    if (!userPermissions || Object.keys(userPermissions).length === 0) {
-      return NextResponse.json({ message: 'Forbidden: Insufficient permissions' }, { status: 403 });
+    // Check permissions - require admin permission for user management
+    // This is a critical security check per our audit report
+    if (!session.user?.permissions?.admin) {
+      return NextResponse.json({ message: 'Forbidden: Admin permission required for user management' }, { status: 403 });
     }
 
     // Fetch only admin users (not customer users)

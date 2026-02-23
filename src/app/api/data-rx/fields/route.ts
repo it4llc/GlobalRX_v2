@@ -56,12 +56,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // In development mode, bypass permission check
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Always check permissions
+    if (!hasPermission(session.user.permissions, 'dsx')) {
       return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
     }
     
@@ -141,12 +137,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // In development mode, bypass permission check
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Always check permissions
+    if (!hasPermission(session.user.permissions, 'dsx')) {
       return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
     }
     
@@ -232,12 +224,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // In development mode, bypass permission check
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Always check permissions
+    if (!hasPermission(session.user.permissions, 'dsx')) {
       return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
     }
     
@@ -358,12 +346,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // In development mode, bypass permission check
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Always check permissions
+    if (!hasPermission(session.user.permissions, 'dsx')) {
       return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
     }
     

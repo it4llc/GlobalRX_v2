@@ -10,20 +10,15 @@ import { authOptions } from '@/lib/auth';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Skip authentication in development mode
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Development mode - bypassing permission check');
-    } else {
-      // Check authentication
-      const session = await getServerSession(authOptions);
-      if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      
-      // Check permissions
-      if (!session.user.permissions.dsx.manage) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    // Always check authentication
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Always check permissions
+    if (!session.user.permissions.dsx.manage) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Parse request body

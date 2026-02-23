@@ -22,16 +22,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Modified Authorization check - More permissive approach
-    // Check if the user has any customer-related permission
-    const hasCustomerPermission = 
-      session.user.permissions?.customers || // Check if customers object exists
-      (session.user.permissions?.customers && 
-       Object.values(session.user.permissions.customers).some(val => val === true)); // Any permission is true
-    
-    if (!hasCustomerPermission) {
+    // 2. Authorization check - Require specific edit permission for deduplication
+    // Deduplication is a destructive operation that modifies customer data
+    if (!session.user?.permissions?.customers?.edit) {
       return NextResponse.json(
-        { error: 'You need customer permission to deduplicate customers' },
+        { error: 'You need customers.edit permission to deduplicate customers' },
         { status: 403 }
       );
     }

@@ -2,10 +2,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 // Handler for GET requests - retrieve translations for a specific locale
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     // Get the locale from the URL parameters
     const url = new URL(request.url);
     const locale = url.searchParams.get('locale');
@@ -47,6 +54,16 @@ export async function GET(request: NextRequest) {
 // Handler for POST requests - save translations for a specific locale
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication and admin permissions
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Only admins should be able to modify translations
+    if (!session.user?.permissions?.admin) {
+      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+    }
     // Parse the request body
     const body = await request.json();
     const { locale, translations } = body;

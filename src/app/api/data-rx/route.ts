@@ -47,12 +47,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Always allow access in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Always check permissions
+    if (!hasPermission(session.user.permissions, 'dsx')) {
       return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
     }
 

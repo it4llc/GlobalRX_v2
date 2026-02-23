@@ -10,12 +10,12 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
-      return NextResponse.json({ 
-        error: 'No session found',
+      return NextResponse.json({
+        error: 'Unauthorized - No session found',
         authenticated: false
-      });
+      }, { status: 401 });
     }
 
     // Return session info for debugging (remove in production)

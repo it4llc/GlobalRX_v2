@@ -12,20 +12,15 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
-    // Skip authentication in development mode
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Development mode - bypassing permission check');
-    } else {
-      // Check authentication
-      const session = await getServerSession(authOptions);
-      if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      
-      // Check permissions
-      if (!session.user.permissions.dsx.view) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    // Always check authentication
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check permissions
+    if (!session.user?.permissions?.dsx?.view) {
+      return NextResponse.json({ error: 'Forbidden - DSX view permission required' }, { status: 403 });
     }
 
     // Get service ID if provided for filtering already associated requirements

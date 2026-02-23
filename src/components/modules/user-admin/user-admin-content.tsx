@@ -180,7 +180,7 @@ export function UserAdminContent() {
                   <TableHead>Name</TableHead>
                   <TableHead>Countries</TableHead>
                   <TableHead>Services</TableHead>
-                  <TableHead>DSX</TableHead>
+                  <TableHead>Data Rx/DSX</TableHead>
                   <TableHead>Customers</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
