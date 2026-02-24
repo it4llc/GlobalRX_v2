@@ -10,10 +10,10 @@ export class LoginPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.emailInput = page.locator('input[name="email"]');
-    this.passwordInput = page.locator('input[name="password"]');
-    this.submitButton = page.locator('button[type="submit"]');
-    this.errorMessage = page.locator('[role="alert"], .error-message');
+    this.emailInput = page.locator('input[id="email"], input[type="email"]').first();
+    this.passwordInput = page.locator('input[id="password"], input[type="password"]').first();
+    this.submitButton = page.locator('button[type="submit"], button:has-text("Sign In")').first();
+    this.errorMessage = page.locator('[role="alert"], .error-message, .text-red-500');
     this.forgotPasswordLink = page.locator('a[href*="forgot-password"]');
   }
 

@@ -69,7 +69,7 @@ export default defineConfig({
   webServer: {
     command: 'pnpm dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true, // Always reuse existing server for local testing
     timeout: 120 * 1000,
     env: {
       NODE_ENV: 'test',
