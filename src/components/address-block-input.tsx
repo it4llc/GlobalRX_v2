@@ -3,6 +3,7 @@
 
 import { FC, useState, useEffect } from 'react';
 import { AddressBlockConfig } from './modules/global-config/tabs/address-block-configurator';
+import clientLogger from '@/lib/client-logger';
 
 interface AddressData {
   street1?: string;
