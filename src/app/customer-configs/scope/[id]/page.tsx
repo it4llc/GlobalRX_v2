@@ -1,5 +1,7 @@
-// src/app/customer-configs/scope/[id]/page.tsx
 'use client';
+
+// src/app/customer-configs/scope/[id]/page.tsx
+import clientLogger from '@/lib/client-logger';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -32,7 +34,7 @@ export default function CustomerScopePage() {
         const data = await response.json();
         setCustomerName(data.name);
       } catch (err) {
-        console.error('Error fetching customer info:', err);
+        clientLogger.error('Error fetching customer info:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);

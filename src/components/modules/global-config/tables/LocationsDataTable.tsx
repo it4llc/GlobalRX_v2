@@ -1,5 +1,6 @@
-// Enterprise-grade Locations Table using TanStack Table
 'use client';
+// Enterprise-grade Locations Table using TanStack Table
+import clientLogger from '@/lib/client-logger';
 
 import React, { useState, useMemo, useCallback } from 'react';
 import {
@@ -146,7 +147,7 @@ export function LocationsDataTable({
       setEditFormData({});
       if (onRefresh) onRefresh();
     } catch (err) {
-      console.error('Error updating location:', err);
+      clientLogger.error('Error updating location:', err);
       alert(`Failed to update location: ${err.message}`);
     } finally {
       setIsSaving(false);

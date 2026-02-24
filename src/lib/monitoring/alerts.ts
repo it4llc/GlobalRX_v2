@@ -43,7 +43,7 @@ export class AlertManager {
       await this.sendToExternalServices(alert);
     } catch (error) {
       // Last resort logging if alert system fails
-      console.error("Failed to send alert:", error, "Original alert:", alert);
+      logger.error("Failed to send alert", { error: error.message, alert: alert });
     }
   }
 

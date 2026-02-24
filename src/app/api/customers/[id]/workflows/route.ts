@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -79,7 +80,7 @@ export async function GET(
 
     return NextResponse.json(transformedWorkflows);
   } catch (error) {
-    console.error('Error fetching customer workflows:', error);
+    logger.error('Error fetching customer workflows:', error);
     return NextResponse.json(
       { error: 'Error fetching customer workflows' },
       { status: 500 }

@@ -1,5 +1,6 @@
 // src/app/api/workflows/[id]/route-raw.ts
 import { NextRequest, NextResponse } from "next/server";
+import logger from '@/lib/logger';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
@@ -49,11 +50,11 @@ export async function GET(
 
       return NextResponse.json(workflow);
     } catch (error) {
-      console.error("Error fetching workflow with raw SQL:", error);
+      logger.error("Error fetching workflow with raw SQL:", error);
       throw error;
     }
   } catch (error) {
-    console.error("Error fetching workflow:", error);
+    logger.error("Error fetching workflow:", error);
     return NextResponse.json(
       { error: "Error fetching workflow" },
       { status: 500 }
@@ -160,7 +161,7 @@ export async function PUT(
 
     return NextResponse.json(updatedWorkflow);
   } catch (error) {
-    console.error("Error updating workflow:", error);
+    logger.error("Error updating workflow:", error);
     return NextResponse.json(
       { error: "Error updating workflow" },
       { status: 500 }
@@ -219,7 +220,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("Error deleting workflow:", error);
+    logger.error("Error deleting workflow:", error);
     return NextResponse.json(
       { error: "Error deleting workflow" },
       { status: 500 }

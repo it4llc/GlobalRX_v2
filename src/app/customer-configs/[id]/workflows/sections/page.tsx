@@ -1,4 +1,5 @@
 'use client';
+import clientLogger from '@/lib/client-logger';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
@@ -112,7 +113,7 @@ function WorkflowSectionsContent() {
         const sectionsData = await sectionsResponse.json();
         setSections(sectionsData);
       } catch (err) {
-        console.error('Error fetching workflow data:', err);
+        clientLogger.error('Error fetching workflow data:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);
@@ -205,10 +206,10 @@ function WorkflowSectionsContent() {
               try {
                 const response = await fetchWithAuth('/api/debug-workflow-permissions');
                 const data = await response.json();
-                console.log('Debug permissions:', data);
+                clientLogger.info('Debug permissions:', data);
                 alert('Permissions debug info logged to console');
               } catch (err) {
-                console.error('Error fetching permissions debug:', err);
+                clientLogger.error('Error fetching permissions debug:', err);
                 alert('Error checking permissions: ' + (err instanceof Error ? err.message : String(err)));
               }
             }}

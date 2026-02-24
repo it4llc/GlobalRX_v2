@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import clientLogger from '@/lib/client-logger';
 import { Button } from '@/components/ui/button';
 import { 
   Card, 
@@ -70,7 +71,7 @@ export function UserAdminContent() {
       setUsers(data);
     } catch (err) {
       setError('An error occurred while fetching users');
-      console.error(err);
+      clientLogger.error(err);
     } finally {
       setLoading(false);
     }

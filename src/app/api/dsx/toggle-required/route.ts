@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       message: `Mapping ${isRequired ? 'marked as required' : 'marked as optional'}`
     });
   } catch (error) {
-    console.error('Error toggling required status:', error);
+    logger.error('Error toggling required status:', error);
     return NextResponse.json(
       { error: "Failed to toggle required status", details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -167,7 +167,7 @@ export async function PATCH(request: NextRequest) {
       message: `Updated ${result.length} mappings`
     });
   } catch (error) {
-    console.error('Error bulk updating required status:', error);
+    logger.error('Error bulk updating required status:', error);
     return NextResponse.json(
       { error: "Failed to bulk update required status", details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

@@ -1,5 +1,6 @@
-// src/components/modules/global-config/locations/location-form.tsx
 'use client';
+// src/components/modules/global-config/locations/location-form.tsx
+import clientLogger from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,7 +73,7 @@ export function LocationForm({ onLocationAdded }) {
       const data = await response.json();
       setCountries(data);
     } catch (error) {
-      console.error('Error fetching countries:', error);
+      clientLogger.error('Error fetching countries:', error);
       setFormError('Failed to load countries. Please try refreshing the page.');
     } finally {
       setIsLoadingOptions(false);
@@ -110,7 +111,7 @@ export function LocationForm({ onLocationAdded }) {
         setSubregions1(filteredData);
       }
     } catch (error) {
-      console.error('Error fetching subregions1:', error);
+      clientLogger.error('Error fetching subregions1:', error);
       setFormError('Failed to load subregions. Please try refreshing the page.');
       // setDebug(`Error: ${error.message}`);
     } finally {
@@ -143,7 +144,7 @@ export function LocationForm({ onLocationAdded }) {
       // Update the subregions2 state
       setSubregions2(filteredData);
     } catch (error) {
-      console.error('Error fetching subregions2:', error);
+      clientLogger.error('Error fetching subregions2:', error);
       setFormError('Failed to load subregions. Please try refreshing the page.');
       // setDebug(`Error: ${error.message}`);
     } finally {
@@ -347,7 +348,7 @@ const handleSubmit = async (e) => {
       // Try to get more detailed error information
       try {
         const errorData = await response.json();
-        console.log('API Error Response:', errorData);
+        clientLogger.info('API Error Response:', errorData);
         // setDebug(`Error response: ${JSON.stringify(errorData)}`);
         throw new Error(errorData.error || `Failed to add location. Status: ${response.status}`);
       } catch (jsonError) {
@@ -382,7 +383,7 @@ const handleSubmit = async (e) => {
       setIsSuccess(false);
     }, 2000);
   } catch (err) {
-    console.error('Error adding location:', err);
+    clientLogger.error('Error adding location:', err);
     if (err.message !== "Session expired") {
       setFormError(err.message);
     }
@@ -431,7 +432,7 @@ const handleSubmit = async (e) => {
       setCsvFile(null);
       onLocationAdded();
     } catch (err) {
-      console.error('Error importing locations:', err);
+      clientLogger.error('Error importing locations:', err);
       if (err.message !== "Session expired") {
         setImportStatus({ loading: false, message: err.message, error: true });
       }

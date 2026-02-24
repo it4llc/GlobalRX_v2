@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import logger from '@/lib/logger';
 
 // Validation schema for updating a customer
 const customerUpdateSchema = z.object({
@@ -138,7 +139,7 @@ export async function GET(
 
     return NextResponse.json(formattedCustomer);
   } catch (error) {
-    console.error(`Error in GET /api/customers/${params.id}:`, error);
+    logger.error('Error in GET /api/customers/[id]', { customerId: params.id, error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -201,7 +202,7 @@ export async function PUT(
     const { serviceIds, ...customerData } = data;
     
     // Debug the customer data being sent to the database
-    console.log("Customer update data:", JSON.stringify(customerData, null, 2));
+    logger.debug('Customer update data', { customerData });
 
     // Validation checks
     if (data.masterAccountId) {
@@ -277,11 +278,9 @@ export async function PUT(
       };
       
       // Log the cleaned data
-      console.log("Cleaned data for Prisma update:", {
+      logger.debug('Cleaned data for Prisma update', {
         validUpdateData,
-        relationFields: { masterAccountId, billingAccountId },
-        // Skip other fields that don't exist in the schema
-        ignoredFields: "primaryColor, secondaryColor, accentColor, dataRetentionDays, etc."
+        relationFields: { masterAccountId, billingAccountId }
       });
       
       // Prepare the update data with correct nested structure for relations
@@ -380,14 +379,14 @@ export async function PUT(
       
       return NextResponse.json(formattedCustomer);
     } catch (txError) {
-      console.error("Transaction error:", txError);
+      logger.error('Transaction error', { error: txError.message, stack: txError.stack });
       return NextResponse.json(
         { error: txError.message || 'Error updating customer data' },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error(`Error in PUT /api/customers/${params.id}:`, error);
+    logger.error('Error in PUT /api/customers/[id]', { customerId: params.id, error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -463,7 +462,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Customer deleted successfully' });
   } catch (error) {
-    console.error(`Error in DELETE /api/customers/${params.id}:`, error);
+    logger.error('Error in DELETE /api/customers/[id]', { customerId: params.id, error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

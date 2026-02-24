@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,14 +149,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ fields, documents, forms });
       }
     } catch (dbError) {
-      console.error('Database error in GET /api/data-rx:', dbError);
+      logger.error('Database error in GET /api/data-rx', { error: dbError.message, stack: dbError.stack });
       return NextResponse.json(
         { error: "Database error while fetching Data Rx data", details: dbError.message },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error('Error in GET /api/data-rx:', error);
+    logger.error('Error in GET /api/data-rx', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while processing your request", details: error.message },
       { status: 500 }

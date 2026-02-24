@@ -1,5 +1,6 @@
 // src/app/api/customers/[id]/toggle-status/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -51,7 +52,7 @@ export async function PATCH(
       disabled: updatedCustomer.disabled
     });
   } catch (error) {
-    console.error(`Error in PATCH /api/customers/${params.id}/toggle-status:`, error);
+    logger.error(`Error in PATCH /api/customers/${params.id}/toggle-status:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

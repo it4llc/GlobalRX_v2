@@ -1,5 +1,7 @@
-// src/components/modules/global-config/tabs/translations-tab.tsx
 "use client";
+
+// src/components/modules/global-config/tabs/translations-tab.tsx
+import clientLogger from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { TranslationManager } from '@/components/modules/translations/TranslationManager';
@@ -47,7 +49,7 @@ export function TranslationsTab() {
         
         setAllTranslations(translations);
       } catch (error) {
-        console.error('Error loading translations:', error);
+        clientLogger.error('Error loading translations:', error);
       } finally {
         setIsLoading(false);
       }
@@ -59,7 +61,7 @@ export function TranslationsTab() {
   // Handle export to CSV/Excel
   const handleExportToCSV = async () => {
     try {
-      console.log("Export to CSV clicked");
+      clientLogger.info("Export to CSV clicked");
       setIsLoading(true);
       
       // Prepare data in CSV format
@@ -97,7 +99,7 @@ export function TranslationsTab() {
       
       setIsLoading(false);
     } catch (error) {
-      console.error('Error exporting translations:', error);
+      clientLogger.error('Error exporting translations:', error);
       alert('Error exporting translations');
       setIsLoading(false);
     }
@@ -186,7 +188,7 @@ export function TranslationsTab() {
           // Reload the page to see changes
           window.location.reload();
         } catch (error) {
-          console.error('Error importing translations:', error);
+          clientLogger.error('Error importing translations:', error);
           setImportError('Error importing translations: ' + (error instanceof Error ? error.message : String(error)));
         } finally {
           setIsLoading(false);
@@ -201,7 +203,7 @@ export function TranslationsTab() {
       fileReader.readAsText(importFile);
       
     } catch (error) {
-      console.error('Error importing translations:', error);
+      clientLogger.error('Error importing translations:', error);
       setImportError('Error importing translations: ' + (error instanceof Error ? error.message : String(error)));
       setIsLoading(false);
     }
@@ -250,7 +252,7 @@ export function TranslationsTab() {
       // Reload the page to see changes
       window.location.reload();
     } catch (error) {
-      console.error('Error adding new language:', error);
+      clientLogger.error('Error adding new language:', error);
       setNewLocaleError('Error adding new language: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsLoading(false);

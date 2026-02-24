@@ -1,5 +1,6 @@
 // src/app/api/portal/cities/autocomplete/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(suggestions);
   } catch (error) {
-    console.error('Error fetching city suggestions:', error);
+    logger.error('Error fetching city suggestions:', error);
     return NextResponse.json(
       { error: 'Failed to fetch city suggestions' },
       { status: 500 }

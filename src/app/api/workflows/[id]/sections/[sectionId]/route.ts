@@ -1,5 +1,6 @@
 // src/app/api/workflows/[id]/sections/[sectionId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import logger from '@/lib/logger';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
@@ -59,7 +60,7 @@ export async function GET(
 
     return NextResponse.json(section);
   } catch (error) {
-    console.error("Error fetching workflow section:", error);
+    logger.error("Error fetching workflow section:", error);
     return NextResponse.json(
       { error: "Error fetching workflow section" },
       { status: 500 }
@@ -181,7 +182,7 @@ export async function PUT(
 
     return NextResponse.json(completeSection);
   } catch (error) {
-    console.error("Error updating workflow section:", error);
+    logger.error("Error updating workflow section:", error);
     return NextResponse.json(
       { error: "Error updating workflow section" },
       { status: 500 }
@@ -273,7 +274,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Section deleted successfully" });
   } catch (error) {
-    console.error("Error deleting workflow section:", error);
+    logger.error("Error deleting workflow section:", error);
     return NextResponse.json(
       { error: "Error deleting workflow section" },
       { status: 500 }

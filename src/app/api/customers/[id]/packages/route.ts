@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import logger from '@/lib/logger';
 
 // Validation schema for package
 const packageSchema = z.object({
@@ -28,7 +29,7 @@ export async function GET(
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session) {
-      console.log("API: Session not found");
+      logger.warn('API: Session not found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -38,13 +39,15 @@ export async function GET(
     // Check if user has permission to view customers using hasPermission
     if (!hasPermission(session.user, "customers", "view") && 
         !hasPermission(session.user, "admin")) {
-      console.log("API: User lacks permission");
+      logger.warn('API: User lacks permission', { userId: session.user.id });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Debug: Log user and permissions
-    console.log("API: User:", session.user.email);
-    console.log("API: Raw Permissions:", JSON.stringify(session.user.permissions || {}));
+    logger.debug('API: User permissions', {
+      userId: session.user.id,
+      permissions: session.user.permissions
+    });
 
     const { id } = await params;
 
@@ -87,10 +90,10 @@ export async function GET(
       }))
     }));
 
-    console.log(`API: Successfully fetched ${formattedPackages.length} packages for customer ${id}`);
+    logger.info('API: Successfully fetched packages', { customerId: id, packageCount: formattedPackages.length });
     return NextResponse.json(formattedPackages);
   } catch (error) {
-    console.error(`Error in GET /api/customers/${id}/packages:`, error);
+    logger.error('Error in GET /api/customers/[id]/packages', { customerId: id, error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -251,7 +254,7 @@ export async function POST(
 
     return NextResponse.json(formattedPackage, { status: 201 });
   } catch (error) {
-    console.error(`Error in POST /api/customers/${id}/packages:`, error);
+    logger.error('Error in POST /api/customers/[id]/packages', { customerId: id, error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

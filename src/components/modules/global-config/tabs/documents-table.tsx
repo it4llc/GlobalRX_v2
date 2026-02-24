@@ -36,7 +36,7 @@ export function DocumentsTable({ documents, isLoading, onToggleStatus, onRefresh
   // Log documents structure to help with debugging
   useEffect(() => {
     if (documents && documents.length > 0) {
-      console.log("First document structure:", documents[0]);
+      clientLogger.info("First document structure:", documents[0]);
     }
   }, [documents]);
   
@@ -201,7 +201,7 @@ export function DocumentsTable({ documents, isLoading, onToggleStatus, onRefresh
       onRefresh();
       
     } catch (error) {
-      console.error('Error updating document:', error);
+      clientLogger.error('Error updating document:', error);
       setError('Failed to update document. Please try again.');
     } finally {
       // Clear selected document

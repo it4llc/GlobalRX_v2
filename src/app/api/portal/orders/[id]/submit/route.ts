@@ -1,5 +1,6 @@
 // src/app/api/portal/orders/[id]/submit/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { OrderService } from '@/lib/services/order.service';
@@ -43,7 +44,7 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
 
-    console.error('Error submitting order:', error);
+    logger.error('Error submitting order:', error);
     return NextResponse.json(
       { error: 'Failed to submit order' },
       { status: 500 }

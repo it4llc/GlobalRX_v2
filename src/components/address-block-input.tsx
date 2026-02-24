@@ -67,7 +67,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
 
   const fetchStateOptions = async () => {
     if (!countryId) {
-      console.warn('No countryId provided for fetching states');
+      clientLogger.warn('No countryId provided for fetching states');
       return;
     }
 
@@ -77,11 +77,11 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
       const response = await fetch(`/api/portal/locations?parentId=${countryId}`);
       if (response.ok) {
         const data = await response.json();
-        console.log(`Fetched states for country ${countryId}:`, data);
+        clientLogger.info(`Fetched states for country ${countryId}:`, data);
         setStateOptions(data);
       }
     } catch (error) {
-      console.error('Failed to fetch states:', error);
+      clientLogger.error('Failed to fetch states:', error);
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         setCountyOptions(data);
       }
     } catch (error) {
-      console.error('Failed to fetch counties:', error);
+      clientLogger.error('Failed to fetch counties:', error);
     } finally {
       setLoading(false);
     }
@@ -116,7 +116,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         setShowCityDropdown(suggestions.length > 0);
       }
     } catch (error) {
-      console.error('Failed to fetch city suggestions:', error);
+      clientLogger.error('Failed to fetch city suggestions:', error);
     }
   };
 

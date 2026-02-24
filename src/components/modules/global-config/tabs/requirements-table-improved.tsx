@@ -1,5 +1,6 @@
-// src/components/modules/global-config/tabs/requirements-table-improved.tsx
 'use client';
+// src/components/modules/global-config/tabs/requirements-table-improved.tsx
+import logger from '@/lib/logger';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -171,7 +172,7 @@ export function RequirementsTable({
       setExpandedRows(prev => ({ ...prev, 'all': true }));
 
     } catch (err) {
-      console.error('Error processing locations:', err);
+      logger.error('Error processing locations:', err);
       setError('Failed to process location data.');
     } finally {
       setIsGeneratingHierarchy(false);

@@ -1,4 +1,5 @@
 'use client';
+import clientLogger from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,11 +54,11 @@ export default function CustomerPackagesPage() {
           setCustomers(activeCustomers);
         } else {
           // Handle unexpected data format
-          console.error('Unexpected data format:', data);
+          clientLogger.error('Unexpected data format:', data);
           setCustomers([]);
         }
       } catch (err) {
-        console.error('Error fetching customers:', err);
+        clientLogger.error('Error fetching customers:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);

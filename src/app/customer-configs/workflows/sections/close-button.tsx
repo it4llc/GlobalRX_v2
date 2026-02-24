@@ -1,4 +1,5 @@
 'use client';
+import clientLogger from '@/lib/client-logger';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -34,7 +35,7 @@ export function CloseButton() {
           setCustomerId(data.customerId);
         }
       } catch (err) {
-        console.error('Error fetching workflow customer:', err);
+        clientLogger.error('Error fetching workflow customer:', err);
         setError('Could not determine customer for this workflow');
       }
     };

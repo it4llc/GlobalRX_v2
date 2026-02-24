@@ -1,5 +1,6 @@
 // src/app/api/data-rx/documents/[id]/upload-pdf/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error uploading PDF file:', error);
+    logger.error('Error uploading PDF file:', error);
     return NextResponse.json(
       { error: 'Failed to upload PDF file' },
       { status: 500 }

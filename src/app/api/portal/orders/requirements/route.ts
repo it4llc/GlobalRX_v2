@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/logger';
 
 // Force dynamic route
 export const dynamic = 'force-dynamic';
@@ -109,10 +110,10 @@ export async function POST(request: NextRequest) {
 
       if (requirement.type === 'field' && requirement.fieldData) {
         const fieldData = requirement.fieldData as any;
-        console.log(`Requirements API - Field ${requirement.name}:`, {
+        logger.debug('Requirements API - Field details', {
+          fieldName: requirement.name,
           dataType: fieldData.dataType,
-          hasAddressConfig: !!fieldData.addressConfig,
-          addressConfig: fieldData.addressConfig
+          hasAddressConfig: !!fieldData.addressConfig
         });
         const collectionTab = fieldData.collectionTab || 'subject';
 
@@ -275,7 +276,7 @@ export async function POST(request: NextRequest) {
       })
     });
   } catch (error) {
-    console.error('Error fetching requirements:', error);
+    logger.error('Error fetching requirements', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'Failed to fetch requirements' },
       { status: 500 }

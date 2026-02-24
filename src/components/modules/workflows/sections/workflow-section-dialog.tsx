@@ -1,4 +1,5 @@
 'use client';
+import clientLogger from '@/lib/client-logger';
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
@@ -175,7 +176,7 @@ export function WorkflowSectionDialog({
     setError(null);
     setSuccessMessage(null);
     
-    console.log('Permission check before submitting:', {
+    clientLogger.info('Permission check before submitting:', {
       canEdit,
       'workflows.edit': checkPermission('workflows', 'edit'),
       'customers.edit': checkPermission('customers', 'edit'),
@@ -197,7 +198,7 @@ export function WorkflowSectionDialog({
       const method = section ? 'PUT' : 'POST';
       
       // Log the form data being submitted
-      console.log('Submitting form data:', {
+      clientLogger.info('Submitting form data:', {
         ...data,
         // Convert dependency values for optional fields
         dependsOnSection: data.dependsOnSection || null,
@@ -234,7 +235,7 @@ export function WorkflowSectionDialog({
           
           // For validation errors, add more details
           if (response.status === 400 && errorData.details) {
-            console.log('Validation error details:', errorData.details);
+            clientLogger.info('Validation error details:', errorData.details);
             
             // Format validation errors for display
             if (errorData.details.issues && Array.isArray(errorData.details.issues)) {
@@ -246,14 +247,14 @@ export function WorkflowSectionDialog({
             }
           }
           
-          console.log('API Error Response:', errorData);
+          clientLogger.info('API Error Response:', errorData);
         } catch (e) {
           // Ignore parsing error
-          console.log('Error parsing API response:', e);
+          clientLogger.info('Error parsing API response:', e);
         }
         
-        console.log('API Error Status:', response.status, 'URL:', url);
-        console.log('Form data submitted:', data);
+        clientLogger.info('API Error Status:', response.status, 'URL:', url);
+        clientLogger.info('Form data submitted:', data);
         
         // For forbidden errors, provide more detailed message
         if (response.status === 403) {
@@ -273,7 +274,7 @@ export function WorkflowSectionDialog({
         onOpenChange(false);
       }, 1500);
     } catch (err) {
-      console.error('Error saving section:', err);
+      clientLogger.error('Error saving section:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsSubmitting(false);
@@ -610,10 +611,10 @@ export function WorkflowSectionDialog({
                     try {
                       const response = await fetchWithAuth('/api/debug-workflow-permissions');
                       const data = await response.json();
-                      console.log('Debug permissions:', data);
+                      clientLogger.info('Debug permissions:', data);
                       setError(`Permissions debug info has been logged to console.`);
                     } catch (err) {
-                      console.error('Error fetching permissions debug:', err);
+                      clientLogger.error('Error fetching permissions debug:', err);
                     }
                   }}
                 >

@@ -1,5 +1,6 @@
 // src/app/api/workflows/[id]/sections/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import logger from '@/lib/logger';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
@@ -53,7 +54,7 @@ export async function GET(
 
     return NextResponse.json(sections);
   } catch (error) {
-    console.error("Error fetching workflow sections:", error);
+    logger.error("Error fetching workflow sections:", error);
     return NextResponse.json(
       { error: "Error fetching workflow sections" },
       { status: 500 }
@@ -120,7 +121,7 @@ export async function POST(
 
     return NextResponse.json(completeSection, { status: 201 });
   } catch (error) {
-    console.error("Error creating workflow section:", error);
+    logger.error("Error creating workflow section:", error);
     return NextResponse.json(
       { error: "Error creating workflow section" },
       { status: 500 }
@@ -189,7 +190,7 @@ export async function PATCH(
 
     return NextResponse.json(allSections);
   } catch (error) {
-    console.error("Error updating workflow section order:", error);
+    logger.error("Error updating workflow section order:", error);
     return NextResponse.json(
       { error: "Error updating workflow section order" },
       { status: 500 }

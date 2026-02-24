@@ -1,5 +1,6 @@
 // src/app/api/portal/orders/stats/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { OrderService } from '@/lib/services/order.service';
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(stats);
   } catch (error) {
-    console.error('Error fetching order stats:', error);
+    logger.error('Error fetching order stats:', error);
     return NextResponse.json(
       { error: 'Failed to fetch order statistics' },
       { status: 500 }

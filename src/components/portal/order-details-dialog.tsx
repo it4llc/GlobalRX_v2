@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import clientLogger from '@/lib/client-logger';
 import {
   Dialog,
   DialogContent,
@@ -118,7 +119,7 @@ export default function OrderDetailsDialog({ orderId, open, onClose }: OrderDeta
       const orderData = await response.json();
       setOrder(orderData);
     } catch (err) {
-      console.error('Error fetching order details:', err);
+      clientLogger.error('Error fetching order details:', err);
       setError(err instanceof Error ? err.message : 'Failed to load order details');
     } finally {
       setLoading(false);

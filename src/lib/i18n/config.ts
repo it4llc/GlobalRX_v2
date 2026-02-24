@@ -68,7 +68,14 @@ export async function addNewLocale(localeCode: string, localeName: string): Prom
     // Return success
     return Promise.resolve();
   } catch (error) {
-    console.error('Error adding new locale:', error);
+    // Use dynamic import to avoid Winston on client side
+    if (typeof window === 'undefined') {
+      const logger = require('@/lib/logger').default;
+      logger.error('Error adding new locale:', error);
+    } else {
+      const clientLogger = require('@/lib/client-logger').default;
+      clientLogger.error('Error adding new locale', { error });
+    }
     return Promise.reject(error);
   }
 }

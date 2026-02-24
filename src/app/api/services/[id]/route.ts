@@ -1,5 +1,6 @@
 // src/app/api/services/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import logger from '@/lib/logger';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
@@ -58,7 +59,7 @@ export async function GET(
 
     return NextResponse.json(serviceWithUsage);
   } catch (error) {
-    console.error("Error fetching service:", error);
+    logger.error("Error fetching service:", error);
     return NextResponse.json(
       { error: "Error fetching service" },
       { status: 500 }
@@ -115,7 +116,7 @@ export async function PUT(
 
     return NextResponse.json(updatedService);
   } catch (error) {
-    console.error("Error updating service:", error);
+    logger.error("Error updating service:", error);
     return NextResponse.json(
       { error: "Error updating service" },
       { status: 500 }
@@ -179,7 +180,7 @@ export async function PATCH(
 
     return NextResponse.json(updatedService);
   } catch (error) {
-    console.error("Error updating service:", error);
+    logger.error("Error updating service:", error);
     return NextResponse.json(
       { error: "Error updating service" },
       { status: 500 }

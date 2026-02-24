@@ -1,5 +1,6 @@
-// src/components/modules/customer/scope-dialog.tsx
 'use client';
+// src/components/modules/customer/scope-dialog.tsx
+import clientLogger from '@/lib/client-logger';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,7 @@ export function ScopeDialog({
   
   // Debug logging
   useEffect(() => {
-    console.log("ScopeDialog initialized with:", { 
+    clientLogger.info("ScopeDialog initialized with:", { 
       serviceName, 
       serviceType, 
       initialScope,
@@ -45,7 +46,7 @@ export function ScopeDialog({
   
   // Create stable handler functions that don't close over changing state
   const handleSave = useCallback(() => {
-    console.log("Saving scope:", scope);
+    clientLogger.info("Saving scope:", scope);
     onClose(scope);
   }, [scope, onClose]);
   
@@ -81,7 +82,7 @@ export function ScopeDialog({
           serviceType={serviceType}
           value={scope}
           onChange={(newScope) => {
-            console.log("Scope updated:", newScope);
+            clientLogger.info("Scope updated:", newScope);
             setScope(newScope);
           }}
         />

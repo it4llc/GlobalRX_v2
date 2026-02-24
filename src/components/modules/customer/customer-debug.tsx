@@ -1,5 +1,6 @@
-// src/components/modules/customer/customer-debug.tsx
 'use client';
+// src/components/modules/customer/customer-debug.tsx
+import clientLogger from '@/lib/client-logger';
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,10 +27,10 @@ export function CustomerDebug({ customerId }: CustomerDebugProps) {
         setIsLoading(true);
         setError(null);
         
-        console.log(`Fetching customer data for ID: ${customerId}`);
+        clientLogger.info(`Fetching customer data for ID: ${customerId}`);
         const response = await fetchWithAuth(`/api/customers/${customerId}`);
         
-        console.log(`Response status: ${response.status}`);
+        clientLogger.info(`Response status: ${response.status}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch customer (Status: ${response.status})`);
@@ -37,7 +38,7 @@ export function CustomerDebug({ customerId }: CustomerDebugProps) {
         
         // Parse response
         const data = await response.json();
-        console.log('Received data:', data);
+        clientLogger.info('Received data:', data);
         
         // Save raw data
         setRawData(JSON.stringify(data, null, 2));
@@ -46,7 +47,7 @@ export function CustomerDebug({ customerId }: CustomerDebugProps) {
         setCustomerData(data);
         
       } catch (err) {
-        console.error('Error fetching customer:', err);
+        clientLogger.error('Error fetching customer:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);

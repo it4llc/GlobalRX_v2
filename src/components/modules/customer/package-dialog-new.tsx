@@ -1,4 +1,5 @@
 'use client';
+import clientLogger from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
@@ -134,9 +135,9 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
           }
           
           // Log package data for debugging
-          console.log("Package data received:", packageData);
-          console.log("Package name:", packageData.name);
-          console.log("Package disabled status:", packageData.disabled);
+          clientLogger.info("Package data received:", packageData);
+          clientLogger.info("Package name:", packageData.name);
+          clientLogger.info("Package disabled status:", packageData.disabled);
           
           // Store the package disabled status
           setIsPackageDisabled(Boolean(packageData.disabled));
@@ -160,15 +161,15 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
           }));
           
           // First update the basic fields in a sequential way
-          console.log("Setting basic fields first...");
+          clientLogger.info("Setting basic fields first...");
           setValue('name', packageData.name || '', { shouldDirty: false });
           setValue('description', packageData.description || '', { shouldDirty: false });
           
           // Then update services 
-          console.log("Setting services field...");
+          clientLogger.info("Setting services field...");
           setValue('services', servicesData, { shouldDirty: false });
           
-          console.log("Current values after setValues:", {
+          clientLogger.info("Current values after setValues:", {
             name: watch('name'),
             description: watch('description'),
             serviceCount: watch('services')?.length
@@ -182,7 +183,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
         // Mark data as loaded to prevent reloading
         dataLoadedRef.current = true;
       } catch (err) {
-        console.error("Error loading data:", err);
+        clientLogger.error("Error loading data:", err);
         if (isMounted) {
           setError(err instanceof Error ? err.message : 'Unknown error');
         }
@@ -271,7 +272,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
         }))
       };
       
-      console.log("Submitting package data:", completeData);
+      clientLogger.info("Submitting package data:", completeData);
       
       // API URL and method
       const url = packageId
@@ -293,7 +294,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
       // Close dialog with refresh
       onClose(true);
     } catch (err) {
-      console.error('Error saving:', err);
+      clientLogger.error('Error saving:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsSubmitting(false);
@@ -318,12 +319,12 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
   // Track form changes
   useEffect(() => {
     if (!isLoading && packageId) {
-      console.log("Current watched name:", watchedName);
+      clientLogger.info("Current watched name:", watchedName);
       
       // Get all form values
       const allValues = watch();
-      console.log("All form values:", allValues);
-      console.log("Form state:", { 
+      clientLogger.info("All form values:", allValues);
+      clientLogger.info("Form state:", { 
         isValid, 
         formIsDirty, 
         dirtyFields: { name: isDirtyName, description: isDirtyDesc, services: isDirtyServices },
@@ -334,7 +335,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
       const nameChanged = Boolean(packageId) && typeof watchedName === 'string' && watchedName !== originalName.current;
       const descChanged = Boolean(packageId) && watch('description') !== originalDescription.current;
       
-      console.log("Direct value comparison:", {
+      clientLogger.info("Direct value comparison:", {
         nameChanged,
         descChanged,
         originalName: originalName.current,
@@ -345,7 +346,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
       
       // Override dirty state for disabled packages if we detect any changes directly
       if (isPackageDisabled && (nameChanged || descChanged || isDirtyServices)) {
-        console.log("Forcing dirty state for disabled package due to detected changes");
+        clientLogger.info("Forcing dirty state for disabled package due to detected changes");
         setIsDirty(true);
         setForceEnabled(true);
       } else {
@@ -421,7 +422,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
                         
                         // For disabled packages, check direct value change
                         if (isPackageDisabled && newValue !== originalName.current) {
-                          console.log("Name changed for disabled package", { original: originalName.current, new: newValue });
+                          clientLogger.info("Name changed for disabled package", { original: originalName.current, new: newValue });
                           setForceEnabled(true);
                         }
                       }}
@@ -448,7 +449,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
                         
                         // For disabled packages, check direct value change 
                         if (isPackageDisabled && newValue !== originalDescription.current) {
-                          console.log("Description changed for disabled package", { original: originalDescription.current, new: newValue });
+                          clientLogger.info("Description changed for disabled package", { original: originalDescription.current, new: newValue });
                           setForceEnabled(true);
                         }
                       }}

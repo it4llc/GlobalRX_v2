@@ -1,5 +1,6 @@
 // src/app/api/translations/import/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
 import Papa from 'papaparse';
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
       locales: Object.values(localeColumns)
     });
   } catch (error) {
-    console.error('Error importing translations:', error);
+    logger.error('Error importing translations:', error);
     return NextResponse.json(
       { error: 'Failed to import translations', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }

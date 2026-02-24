@@ -1,5 +1,6 @@
-// src/components/modules/customer/service-selection.tsx
 'use client';
+// src/components/modules/customer/service-selection.tsx
+import clientLogger from '@/lib/client-logger';
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -88,7 +89,7 @@ export function ServiceSelection({
         setServices(servicesArray.filter(s => !s.disabled));
         setGroupedServices(groupedByCategory);
       } catch (err) {
-        console.error('Error fetching services:', err);
+        clientLogger.error('Error fetching services:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);

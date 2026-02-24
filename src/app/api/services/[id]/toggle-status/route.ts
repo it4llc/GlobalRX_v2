@@ -1,5 +1,6 @@
 // src/app/api/services/[id]/toggle-status/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import logger from '@/lib/logger';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
@@ -40,7 +41,7 @@ export async function PATCH(
 
     return NextResponse.json(updatedService);
   } catch (error) {
-    console.error("Error toggling service status:", error);
+    logger.error("Error toggling service status:", error);
     return NextResponse.json(
       { error: "Error toggling service status" },
       { status: 500 }

@@ -1,5 +1,6 @@
 // src/app/api/locations/import/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import logger from '@/lib/logger';
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
 
         imported++;
       } catch (error) {
-        console.error("Error importing row:", error, row);
+        logger.error("Error importing row:", error, row);
         skipped++;
       }
     }
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
       message: `Successfully imported ${imported} locations. ${skipped} skipped.`
     });
   } catch (error) {
-    console.error("Error importing locations:", error);
+    logger.error("Error importing locations:", error);
     return NextResponse.json(
       { error: "Failed to import locations" },
       { status: 500 }

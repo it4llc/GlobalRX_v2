@@ -102,7 +102,7 @@ export async function GET(
 
     return NextResponse.json(transformedWorkflow);
   } catch (error) {
-    console.error("Error fetching workflow:", error);
+    logger.error("Error fetching workflow:", error);
     return NextResponse.json(
       { error: "Error fetching workflow" },
       { status: 500 }
@@ -136,12 +136,12 @@ export async function PUT(
     const body = await request.json();
     
     // Log the request body for debugging
-    console.log("Workflow update request body:", JSON.stringify(body, null, 2));
+    logger.info("Workflow update request body:", JSON.stringify(body, null, 2));
     
     // Validate request body using Zod schema
     const validationResult = workflowUpdateSchema.safeParse(body);
     if (!validationResult.success) {
-      console.error("Workflow validation error:", JSON.stringify(validationResult.error, null, 2));
+      logger.error("Workflow validation error:", JSON.stringify(validationResult.error, null, 2));
       return NextResponse.json(
         { error: "Invalid request data", details: validationResult.error },
         { status: 400 }
@@ -217,7 +217,7 @@ export async function PUT(
 
     return NextResponse.json(transformedWorkflow);
   } catch (error) {
-    console.error("Error updating workflow:", error);
+    logger.error("Error updating workflow:", error);
     return NextResponse.json(
       { error: "Error updating workflow", details: error.message },
       { status: 500 }
@@ -269,7 +269,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Workflow deleted successfully" });
   } catch (error) {
-    console.error("Error deleting workflow:", error);
+    logger.error("Error deleting workflow:", error);
     return NextResponse.json(
       { error: "Error deleting workflow" },
       { status: 500 }

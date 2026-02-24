@@ -1,4 +1,5 @@
 'use client';
+import clientLogger from '@/lib/client-logger';
 
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -46,7 +47,7 @@ export default function CustomerConfigLayout({
         const data = await response.json();
         setCustomer(data);
       } catch (err) {
-        console.error('Error fetching customer info:', err);
+        clientLogger.error('Error fetching customer info:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);

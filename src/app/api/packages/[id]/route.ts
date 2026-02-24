@@ -74,7 +74,7 @@ export async function GET(
 
     return NextResponse.json(formattedPackage);
   } catch (error) {
-    console.error(`Error in GET /api/packages/${params.id}:`, error);
+    logger.error(`Error in GET /api/packages/${params.id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -228,7 +228,7 @@ export async function PUT(
 
     return NextResponse.json(packageWithServices);
   } catch (error) {
-    console.error(`Error in PUT /api/packages/${params.id}:`, error);
+    logger.error(`Error in PUT /api/packages/${params.id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -276,7 +276,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(`Error in DELETE /api/packages/${params.id}:`, error);
+    logger.error(`Error in DELETE /api/packages/${params.id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

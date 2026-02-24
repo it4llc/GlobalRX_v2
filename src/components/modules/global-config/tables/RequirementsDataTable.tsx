@@ -203,7 +203,7 @@ export function RequirementsDataTable({
   isLoading = false,
 }: RequirementsDataTableProps) {
   // Debug logging
-  console.log('RequirementsDataTable rendered with:', {
+  clientLogger.info('RequirementsDataTable rendered with:', {
     serviceName,
     requirementsCount: requirements?.length,
     locationsCount: locations?.length,
@@ -233,7 +233,7 @@ export function RequirementsDataTable({
       const orderB = b.displayOrder ?? 999;
       return orderA - orderB;
     });
-    console.log('Fields for table columns (sorted by displayOrder):', sorted.map(f => ({
+    clientLogger.info('Fields for table columns (sorted by displayOrder):', sorted.map(f => ({
       id: f.id,
       name: f.name,
       displayOrder: f.displayOrder
@@ -249,7 +249,7 @@ export function RequirementsDataTable({
       const orderB = b.displayOrder ?? 999;
       return orderA - orderB;
     });
-    console.log('Documents for table columns (sorted by displayOrder):', sorted.map(d => ({
+    clientLogger.info('Documents for table columns (sorted by displayOrder):', sorted.map(d => ({
       id: d.id,
       name: d.name,
       displayOrder: d.displayOrder
@@ -266,7 +266,7 @@ export function RequirementsDataTable({
       return orderA - orderB;
     });
     if (sorted.length > 0) {
-      console.log('Forms for table columns (sorted by displayOrder):', sorted.map(f => ({
+      clientLogger.info('Forms for table columns (sorted by displayOrder):', sorted.map(f => ({
         id: f.id,
         name: f.name,
         displayOrder: f.displayOrder
@@ -278,7 +278,7 @@ export function RequirementsDataTable({
   // Build hierarchical data
   const hierarchicalData = useMemo(() => {
     const data = buildLocationHierarchy(locations, localMappings, localAvailability);
-    console.log('Hierarchical data built:', {
+    clientLogger.info('Hierarchical data built:', {
       dataLength: data?.length,
       firstItem: data?.[0],
       data: data
@@ -615,7 +615,7 @@ export function RequirementsDataTable({
 
   // Virtualization for performance - use expanded row model
   const { rows } = table.getExpandedRowModel();
-  console.log('Table rows:', {
+  clientLogger.info('Table rows:', {
     rowsCount: rows.length,
     rows: rows,
     firstRow: rows[0],
@@ -638,7 +638,7 @@ export function RequirementsDataTable({
       ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0)
       : 0;
 
-  console.log('Virtual rows:', {
+  clientLogger.info('Virtual rows:', {
     virtualRowsCount: virtualRows.length,
     totalSize,
     paddingTop,

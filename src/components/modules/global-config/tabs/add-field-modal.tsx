@@ -169,10 +169,10 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
     // Add address configuration if data type is address_block
     if (dataType === 'address_block') {
       fieldData.addressConfig = addressConfig;
-      console.log('AddFieldModal - Adding address block with config:', addressConfig);
+      clientLogger.info('AddFieldModal - Adding address block with config:', addressConfig);
     }
 
-    console.log('AddFieldModal - Submitting field data:', fieldData);
+    clientLogger.info('AddFieldModal - Submitting field data:', fieldData);
     onAddField(fieldData);
     resetForm();
     dialogRef.current?.close();
@@ -237,7 +237,7 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
             options={dataTypeOptions}
             value={dataType}
             onChange={(value) => {
-              console.log("Setting data type to:", value);
+              clientLogger.info("Setting data type to:", value);
               setDataType(value);
             }}
             placeholder="Select a data type"

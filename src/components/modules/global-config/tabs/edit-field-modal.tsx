@@ -126,7 +126,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
           setVersions(field.versions);
         }
       } catch (error) {
-        console.error('Error fetching field data:', error);
+        clientLogger.error('Error fetching field data:', error);
         // Show error in the UI
       } finally {
         setIsLoading(false);
@@ -354,7 +354,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
                 options={dataTypeOptions}
                 value={dataType}
                 onChange={(value) => {
-                  console.log("Setting data type to:", value);
+                  clientLogger.info("Setting data type to:", value);
                   setDataType(value);
                 }}
                 placeholder="Select a data type"

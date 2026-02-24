@@ -1,4 +1,5 @@
 'use client';
+import clientLogger from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -53,14 +54,14 @@ export default function CustomerWorkflowsPage() {
   const fetchWorkflows = async () => {
     try {
       setLoading(true);
-      console.log('Fetching workflows for customer:', customerId);
+      clientLogger.info('Fetching workflows for customer:', customerId);
       
       // Fetch all workflows and filter by customer
       const workflowsResponse = await fetchWithAuth(`/api/customers/${customerId}/workflows`);
       
       if (!workflowsResponse.ok) {
         const errorText = await workflowsResponse.text();
-        console.error('Workflow API Error:', errorText);
+        clientLogger.error('Workflow API Error:', errorText);
         
         // Fallback to fetching all workflows and filtering
         const allWorkflowsResponse = await fetchWithAuth('/api/workflows');
@@ -92,7 +93,7 @@ export default function CustomerWorkflowsPage() {
       
       setError(null);
     } catch (err) {
-      console.error('Error fetching workflows:', err);
+      clientLogger.error('Error fetching workflows:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setLoading(false);
@@ -153,7 +154,7 @@ export default function CustomerWorkflowsPage() {
       // Refresh the workflows list
       fetchWorkflows();
     } catch (err) {
-      console.error('Error deleting workflow:', err);
+      clientLogger.error('Error deleting workflow:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete workflow');
     }
   };

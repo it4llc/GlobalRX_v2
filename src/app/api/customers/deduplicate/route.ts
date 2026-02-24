@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import logger from '@/lib/logger';
 
 // Validation schema
 const deduplicateSchema = z.object({
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (!deleteCustomer) {
-        console.warn(`Customer to delete not found: ${deleteCustomerId}`);
+        logger.warn('Customer to delete not found', { customerId: deleteCustomerId });
         continue;
       }
 
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
           });
         });
       } catch (txError) {
-        console.error(`Transaction failed for customer ${deleteCustomerId}:`, txError);
+        logger.error('Transaction failed for customer', { customerId: deleteCustomerId, error: txError.message, stack: txError.stack });
         return NextResponse.json(
           { 
             error: `Failed to deduplicate customer ${deleteCustomerId}. Database operation failed.`,
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
       message: 'Customers deduplicated successfully'
     });
   } catch (error) {
-    console.error('Error in deduplication process:', error);
+    logger.error('Error in deduplication process', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { 
         error: 'An error occurred during deduplication',

@@ -1,5 +1,6 @@
-// src/components/modules/global-config/tabs/edit-document-modal.tsx
 'use client';
+// src/components/modules/global-config/tabs/edit-document-modal.tsx
+import clientLogger from '@/lib/client-logger';
 
 import { useRef, useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
@@ -88,7 +89,7 @@ export function EditDocumentModal({ documentId, onEditDocument, onCancel }: Edit
           setVersions(document.versions);
         }
       } catch (error) {
-        console.error('Error fetching document data:', error);
+        clientLogger.error('Error fetching document data:', error);
         // Show error in the UI
       } finally {
         setIsLoading(false);

@@ -1,5 +1,6 @@
-// src/components/modules/global-config/locations/locations-tab.tsx
 'use client';
+// src/components/modules/global-config/locations/locations-tab.tsx
+import clientLogger from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { LocationForm } from './location-form';
@@ -41,7 +42,7 @@ export function LocationsTab() {
       }
       
       const data = await response.json();
-      console.log("Locations data received:", data);
+      clientLogger.info("Locations data received:", data);
       setDebugInfo(`${t('locations.received')} ${data.length} ${t('locations.locationsLabel')}`);
       
       setLocations(data);
@@ -49,7 +50,7 @@ export function LocationsTab() {
     } catch (err) {
       // Don't set the error if it's a session error (already handled by AuthInterceptor)
       if (err.message !== "Session expired") {
-        console.error('Error fetching locations:', err);
+        clientLogger.error('Error fetching locations:', err);
         setError(t('locations.loadError'));
         setDebugInfo(`${t('common.error')}: ${err.message}`);
       }
@@ -65,7 +66,7 @@ export function LocationsTab() {
 
   const handleEdit = (location) => {
     // Edit is now handled inline in the LocationsDataTable
-    console.log('Edit location:', location);
+    clientLogger.info('Edit location:', location);
   };
 
   const handleToggleStatus = async (location) => {
@@ -75,7 +76,7 @@ export function LocationsTab() {
     }
 
     try {
-      console.log('Toggling status for location:', location);
+      clientLogger.info('Toggling status for location:', location);
 
       const response = await fetchWithAuth(`/api/locations/${location.id}/toggle-status`, {
         method: 'PATCH',
@@ -84,7 +85,7 @@ export function LocationsTab() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Toggle status error:', errorData);
+        clientLogger.error('Toggle status error:', errorData);
         throw new Error(errorData.error || `Failed to update location status: ${response.status}`);
       }
 
@@ -94,7 +95,7 @@ export function LocationsTab() {
       // Clear any existing error
       setError(null);
     } catch (err) {
-      console.error('Error updating location status:', err);
+      clientLogger.error('Error updating location status:', err);
       setError(err.message || 'Failed to update location status');
       // Also show an alert for immediate feedback
       alert(`Failed to update location status: ${err.message}`);

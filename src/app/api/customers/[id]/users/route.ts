@@ -148,7 +148,7 @@ export async function GET(
 
     return NextResponse.json(allUsers);
   } catch (error) {
-    console.error(`Error in GET /api/customers/${params.id}/users:`, error);
+    logger.error(`Error in GET /api/customers/${params.id}/users:`, error);
     return NextResponse.json(
       { error: 'An error occurred while fetching users' },
       { status: 500 }
@@ -256,7 +256,7 @@ export async function POST(
 
     return NextResponse.json(newUser, { status: 201 });
   } catch (error) {
-    console.error(`Error in POST /api/customers/${params.id}/users:`, error);
+    logger.error(`Error in POST /api/customers/${params.id}/users:`, error);
     return NextResponse.json(
       { error: 'An error occurred while creating the user' },
       { status: 500 }

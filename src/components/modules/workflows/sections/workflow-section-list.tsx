@@ -1,4 +1,5 @@
 'use client';
+import clientLogger from '@/lib/client-logger';
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
@@ -77,7 +78,7 @@ export function WorkflowSectionList({
         const sortedSections = [...data].sort((a, b) => a.displayOrder - b.displayOrder);
         setSections(sortedSections);
       } catch (err) {
-        console.error('Error fetching workflow sections:', err);
+        clientLogger.error('Error fetching workflow sections:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);
@@ -136,7 +137,7 @@ export function WorkflowSectionList({
       const updatedSections = await response.json();
       setSections(updatedSections);
     } catch (err) {
-      console.error('Error updating section order:', err);
+      clientLogger.error('Error updating section order:', err);
       setError(err instanceof Error ? err.message : 'Failed to update section order');
       // Refresh to get the correct order from the server
       setRefreshKey(prev => prev + 1);
@@ -174,7 +175,7 @@ export function WorkflowSectionList({
       // Remove the section from the state
       setSections(sections.filter(section => section.id !== sectionId));
     } catch (err) {
-      console.error('Error deleting section:', err);
+      clientLogger.error('Error deleting section:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsDeleting(null);

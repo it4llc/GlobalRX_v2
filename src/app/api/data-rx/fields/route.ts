@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger from '@/lib/logger';
 
 // Helper function for permission checks
 function hasPermission(permissions: any, module: string): boolean {
@@ -116,12 +117,12 @@ export async function GET(request: NextRequest) {
     
     // Log the first field for debugging
     if (transformedFields.length > 0) {
-      console.log("First field retention:", transformedFields[0].retentionHandling);
+      logger.debug('First field retention', { retention: transformedFields[0].retentionHandling });
     }
     
     return NextResponse.json({ fields: transformedFields });
   } catch (error) {
-    console.error('Error fetching data fields:', error);
+    logger.error('Error fetching data fields', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while fetching data fields" },
       { status: 500 }
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
     
     // Parse request body
     const data = await request.json();
-    console.log('API POST /data-rx/fields - Received data:', JSON.stringify(data, null, 2));
+    logger.debug('API POST /data-rx/fields - Received data', { data });
 
     // Validate required fields
     if (!data.fieldLabel || !data.dataType) {
@@ -182,7 +183,7 @@ export async function POST(request: NextRequest) {
       requiresVerification: data.requiresVerification || false // Add verification flag
     };
 
-    console.log('API POST /data-rx/fields - Saving fieldData:', JSON.stringify(fieldDataToSave, null, 2));
+    logger.debug('API POST /data-rx/fields - Saving fieldData', { fieldData: fieldDataToSave });
 
     const field = await prisma.dSXRequirement.create({
       data: {
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
       }
     }, { status: 201 });
   } catch (error) {
-    console.error('Error creating data field:', error);
+    logger.error('Error creating data field', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while creating the data field" },
       { status: 500 }
@@ -330,7 +331,7 @@ export async function PATCH(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Error updating data field:', error);
+    logger.error('Error updating data field', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while updating the data field" },
       { status: 500 }
@@ -399,7 +400,7 @@ export async function DELETE(request: NextRequest) {
     
     return NextResponse.json({ message: `Field "${existingField.name}" has been deleted` });
   } catch (error) {
-    console.error('Error deleting data field:', error);
+    logger.error('Error deleting data field', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while deleting the data field" },
       { status: 500 }

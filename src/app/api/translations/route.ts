@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger from '@/lib/logger';
 
 // Handler for GET requests - retrieve translations for a specific locale
 export async function GET(request: NextRequest) {
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
     // Return the translations
     return NextResponse.json(translations);
   } catch (error) {
-    console.error('Error retrieving translations:', error);
+    logger.error('Error retrieving translations', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'Failed to retrieve translations', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
       message: `Successfully saved translations for ${locale}` 
     });
   } catch (error) {
-    console.error('Error saving translations:', error);
+    logger.error('Error saving translations', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'Failed to save translations', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }

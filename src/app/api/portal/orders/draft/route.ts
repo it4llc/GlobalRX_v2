@@ -1,5 +1,6 @@
 // src/app/api/portal/orders/draft/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { OrderService } from '@/lib/services/order.service';
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(order);
   } catch (error) {
-    console.error('Error saving draft order:', error);
+    logger.error('Error saving draft order:', error);
     return NextResponse.json(
       { error: 'Failed to save draft order' },
       { status: 500 }

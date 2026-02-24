@@ -1,5 +1,6 @@
-// src/components/modules/customer/customer-api-test.tsx
 'use client';
+// src/components/modules/customer/customer-api-test.tsx
+import clientLogger from '@/lib/client-logger';
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ export function CustomerApiTest() {
     setResults('');
     
     try {
-      console.log(`Testing API call to /api/customers/${customerId}`);
+      clientLogger.info(`Testing API call to /api/customers/${customerId}`);
       
       // Test with fetch first
       const fetchResponse = await fetch(`/api/customers/${customerId}`);
@@ -53,7 +54,7 @@ export function CustomerApiTest() {
       
       setResults(fetchResult + authResult);
     } catch (err) {
-      console.error('Test error:', err);
+      clientLogger.error('Test error:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);

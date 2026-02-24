@@ -1,4 +1,5 @@
 'use client';
+import clientLogger from '@/lib/client-logger';
 // src/components/modules/workflows/workflow-list.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -113,42 +114,42 @@ export function WorkflowList() {
       }
       
       const data = await response.json();
-      console.log("Received workflows data:", data);
+      clientLogger.info("Received workflows data:", data);
       
       // Enhanced debug logging
       if (data.debug) {
-        console.log("API Debug info:", data.debug);
+        clientLogger.info("API Debug info:", data.debug);
         setApiDebugInfo(data.debug);
       }
       
       // Handle different response formats
       if (Array.isArray(data)) {
         // Direct array of workflows
-        console.log("Response is direct array of workflows");
+        clientLogger.info("Response is direct array of workflows");
         setWorkflows(data);
         // If data is direct array, we don't have pagination info, so we estimate
         setTotalPages(Math.ceil(data.length / ITEMS_PER_PAGE));
       } else if (data.workflows && Array.isArray(data.workflows)) {
         // Structured response with workflows property
-        console.log("Response has workflows array property");
+        clientLogger.info("Response has workflows array property");
         setWorkflows(data.workflows);
         setTotalPages(data.totalPages || 1);
         setCurrentPage(data.page || 1);
       } else if (data.message && data.message.includes("raw query")) {
         // Raw query response format
-        console.log("Response is from raw query");
+        clientLogger.info("Response is from raw query");
         setWorkflows(data.workflows || []);
         setTotalPages(data.totalPages || 1);
         setCurrentPage(data.page || 1);
       } else {
         // Unknown format - empty array
-        console.error("Unknown response format:", data);
+        clientLogger.error("Unknown response format:", data);
         setWorkflows([]);
         setTotalPages(1);
         setError("Received unexpected data format from server");
       }
     } catch (err) {
-      console.error('Error fetching workflows:', err);
+      clientLogger.error('Error fetching workflows:', err);
       setError('Failed to load workflows. Please try again.');
     } finally {
       setLoading(false);
@@ -208,7 +209,7 @@ export function WorkflowList() {
         // Refresh workflows after toggling
         fetchWorkflows();
       } catch (err) {
-        console.error('Error toggling workflow status:', err);
+        clientLogger.error('Error toggling workflow status:', err);
         setError('Failed to update workflow status. Please try again.');
       } finally {
         setAlertDialogOpen(false);
@@ -250,7 +251,7 @@ export function WorkflowList() {
         // Refresh workflows after updating
         fetchWorkflows();
       } catch (err) {
-        console.error('Error updating workflow status:', err);
+        clientLogger.error('Error updating workflow status:', err);
         setError('Failed to update workflow status. Please try again.');
       } finally {
         setAlertDialogOpen(false);
@@ -279,7 +280,7 @@ export function WorkflowList() {
         // Refresh workflows after deleting
         fetchWorkflows();
       } catch (err) {
-        console.error('Error deleting workflow:', err);
+        clientLogger.error('Error deleting workflow:', err);
         setError('Failed to delete workflow. Please try again.');
       } finally {
         setAlertDialogOpen(false);
@@ -324,7 +325,7 @@ export function WorkflowList() {
       handleCloseDialog();
       fetchWorkflows();
     } catch (err) {
-      console.error('Error saving workflow:', err);
+      clientLogger.error('Error saving workflow:', err);
       setError('Failed to save workflow. Please try again.');
     }
   };

@@ -1,4 +1,5 @@
 'use client';
+import clientLogger from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -74,7 +75,7 @@ export default function CustomerUsersPage() {
       const data = await response.json();
       setUsers(data);
     } catch (err) {
-      console.error('Error fetching users:', err);
+      clientLogger.error('Error fetching users:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);
@@ -151,7 +152,7 @@ export default function CustomerUsersPage() {
       setIsDeleteUserOpen(false);
       setSelectedUser(null);
     } catch (err) {
-      console.error('Error deleting user:', err);
+      clientLogger.error('Error deleting user:', err);
       alert(err instanceof Error ? err.message : 'Failed to delete user');
     }
   };
