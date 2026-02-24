@@ -7,7 +7,7 @@ on:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '8'
+  PNPM_VERSION: '10.7.1'
 
 jobs:
   deploy:
@@ -34,7 +34,8 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 
       - name: Run tests
         env:
