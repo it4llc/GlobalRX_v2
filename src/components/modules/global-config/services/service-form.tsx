@@ -110,14 +110,14 @@ export function ServiceForm({
   };
 
   // Format options for category dropdown
-  const categoryOptions = categories.map(cat => ({
+  const categoryOptions = categories.map((cat: any) => ({
     id: cat,
     value: cat,
     label: cat
   }));
 
   // Format options for functionality type dropdown
-  const functionalityTypeOptions = functionalityTypes.map(type => ({
+  const functionalityTypeOptions = functionalityTypes.map((type: any) => ({
     id: type,
     value: type,
     label: type.charAt(0).toUpperCase() + type.slice(1)

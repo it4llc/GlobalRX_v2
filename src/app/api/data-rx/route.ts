@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,12 +48,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Always allow access in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Always check permissions
+    if (!hasPermission(session.user.permissions, 'dsx')) {
       return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
     }
 
@@ -93,7 +90,7 @@ export async function GET(request: NextRequest) {
       // Transform the requirements to a more usable format
       const fields = requirements
         .filter(req => req.type === 'field')
-        .map(req => {
+        .map((req: any) => {
           const fieldData = req.fieldData as any || {};
           
           return {
@@ -111,7 +108,7 @@ export async function GET(request: NextRequest) {
         
       const documents = requirements
         .filter(req => req.type === 'document')
-        .map(req => {
+        .map((req: any) => {
           const documentData = req.documentData as any || {};
           
           return {
@@ -128,7 +125,7 @@ export async function GET(request: NextRequest) {
         
       const forms = requirements
         .filter(req => req.type === 'form')
-        .map(req => {
+        .map((req: any) => {
           const formData = req.formData as any || {};
           
           return {
@@ -151,17 +148,17 @@ export async function GET(request: NextRequest) {
       } else {
         return NextResponse.json({ fields, documents, forms });
       }
-    } catch (dbError) {
-      console.error('Database error in GET /api/data-rx:', dbError);
+    } catch (dbError: unknown) {
+      logger.error('Database error in GET /api/data-rx', { error: dbError.message, stack: dbError.stack });
       return NextResponse.json(
-        { error: "Database error while fetching Data Rx data", details: dbError.message },
+        { error: "Database error while fetching Data Rx data", details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error('Error in GET /api/data-rx:', error);
+  } catch (error: unknown) {
+    logger.error('Error in GET /api/data-rx', { error: error.message, stack: error.stack });
     return NextResponse.json(
-      { error: "An error occurred while processing your request", details: error.message },
+      { error: "An error occurred while processing your request", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

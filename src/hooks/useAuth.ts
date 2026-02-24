@@ -1,4 +1,5 @@
 // src/hooks/useAuth.ts
+import logger from '@/lib/logger';
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -25,8 +26,8 @@ export function useAuth() {
       }
       
       return response;
-    } catch (error) {
-      console.error('API request error:', error);
+    } catch (error: unknown) {
+      logger.error('API request error:', error);
       throw error;
     }
   }, [router]);

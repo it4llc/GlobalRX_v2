@@ -1,5 +1,6 @@
 // src/app/api/customers/[id]/users/[userId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -159,8 +160,8 @@ export async function PUT(
     });
 
     return NextResponse.json(updatedUser);
-  } catch (error) {
-    console.error(`Error in PUT /api/customers/${params.id}/users/${params.userId}:`, error);
+  } catch (error: unknown) {
+    logger.error(`Error in PUT /api/customers/${params.id}/users/${params.userId}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while updating the user' },
       { status: 500 }
@@ -233,8 +234,8 @@ export async function DELETE(
     });
 
     return NextResponse.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error(`Error in DELETE /api/customers/${params.id}/users/${params.userId}:`, error);
+  } catch (error: unknown) {
+    logger.error(`Error in DELETE /api/customers/${params.id}/users/${params.userId}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while deleting the user' },
       { status: 500 }

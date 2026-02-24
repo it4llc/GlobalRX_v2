@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth.server';
+import logger from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,10 +14,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions (optional, you might want to allow all authenticated users to see users)
-    const userPermissions = session.user.permissions;
-    if (!userPermissions || Object.keys(userPermissions).length === 0) {
-      return NextResponse.json({ message: 'Forbidden: Insufficient permissions' }, { status: 403 });
+    // Check permissions - require admin permission for user management
+    // This is a critical security check per our audit report
+    if (!session.user?.permissions?.admin) {
+      return NextResponse.json({ message: 'Forbidden: Admin permission required for user management' }, { status: 403 });
     }
 
     // Fetch only admin users (not customer users)
@@ -40,8 +41,8 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(users);
-  } catch (error) {
-    console.error('Error fetching users:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching users', { error: error.message, stack: error.stack });
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }
@@ -62,13 +63,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('Received user creation request:', body); // Add logging
+    logger.info('Received user creation request', { hasEmail: !!body.email, hasPassword: !!body.password });
 
     const { email, password, firstName, lastName, permissions } = body;
 
     // Validate required fields
     if (!email || !password) {
-      console.log('Missing required fields'); // Add logging
+      logger.warn('Missing required fields for user creation');
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
     }
 
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
-      console.log('Email already in use'); // Add logging
+      logger.warn('User creation failed: email already in use');
       return NextResponse.json({ message: 'Email is already in use' }, { status: 400 });
     }
 
@@ -107,10 +108,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log('User created successfully:', newUser.id); // Add logging
+    logger.info('User created successfully', { userId: newUser.id });
     return NextResponse.json(newUser, { status: 201 });
-  } catch (error) {
-    console.error('Error creating user:', error);
+  } catch (error: unknown) {
+    logger.error('Error creating user', { error: error.message, stack: error.stack });
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }

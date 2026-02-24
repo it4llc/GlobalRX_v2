@@ -1,5 +1,6 @@
 // src/app/api/translations/save/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
 
@@ -52,8 +53,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `Successfully saved translations for ${locale}` 
     });
-  } catch (error) {
-    console.error('Error saving translations:', error);
+  } catch (error: unknown) {
+    logger.error('Error saving translations:', error);
     return NextResponse.json(
       { error: 'Failed to save translations', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }

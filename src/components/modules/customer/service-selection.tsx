@@ -1,5 +1,6 @@
-// src/components/modules/customer/service-selection.tsx
 'use client';
+// src/components/modules/customer/service-selection.tsx
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -88,7 +89,7 @@ export function ServiceSelection({
         setServices(servicesArray.filter(s => !s.disabled));
         setGroupedServices(groupedByCategory);
       } catch (err) {
-        console.error('Error fetching services:', err);
+        clientLogger.error('Error fetching services:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);
@@ -113,7 +114,7 @@ export function ServiceSelection({
   const toggleCategory = (category: string, checked: boolean) => {
     if (disabled) return;
     
-    const categoryServiceIds = groupedServices[category]?.map(service => service.id) || [];
+    const categoryServiceIds = groupedServices[category]?.map((service: any) => service.id) || [];
     
     if (checked) {
       // Add all services in this category that aren't already selected
@@ -138,7 +139,7 @@ export function ServiceSelection({
     
     if (checked) {
       // Select all services
-      onChange(services.map(service => service.id));
+      onChange(services.map((service: any) => service.id));
     } else {
       // Deselect all services
       onChange([]);
@@ -235,7 +236,7 @@ export function ServiceSelection({
       ) : (
         <div className="grid gap-4">
           {Object.entries(filteredGroups).map(([category, categoryServices]) => {
-            const categoryServiceIds = categoryServices.map(service => service.id);
+            const categoryServiceIds = categoryServices.map((service: any) => service.id);
             const selectedInCategory = categoryServiceIds.filter(id => value.includes(id));
             const allInCategorySelected = categoryServiceIds.length > 0 && 
               selectedInCategory.length === categoryServiceIds.length;
@@ -269,7 +270,7 @@ export function ServiceSelection({
                   
                   {/* Services with indentation */}
                   <div style={{ marginLeft: '30px' }}>
-                    {categoryServices.map(service => (
+                    {categoryServices.map((service: any) => (
                       <div 
                         key={service.id} 
                         className="flex items-start space-x-2 mb-2"

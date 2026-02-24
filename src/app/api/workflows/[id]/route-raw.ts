@@ -1,5 +1,6 @@
 // src/app/api/workflows/[id]/route-raw.ts
 import { NextRequest, NextResponse } from "next/server";
+import logger from '@/lib/logger';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
@@ -45,15 +46,15 @@ export async function GET(
       `;
 
       workflow.packages = packagesResult || [];
-      workflow.packageIds = packagesResult.map(p => p.id);
+      workflow.packageIds = packagesResult.map((p: any) => p.id);
 
       return NextResponse.json(workflow);
-    } catch (error) {
-      console.error("Error fetching workflow with raw SQL:", error);
+    } catch (error: unknown) {
+      logger.error("Error fetching workflow with raw SQL:", error);
       throw error;
     }
-  } catch (error) {
-    console.error("Error fetching workflow:", error);
+  } catch (error: unknown) {
+    logger.error("Error fetching workflow:", error);
     return NextResponse.json(
       { error: "Error fetching workflow" },
       { status: 500 }
@@ -156,11 +157,11 @@ export async function PUT(
     `;
 
     updatedWorkflow.packages = packagesResult || [];
-    updatedWorkflow.packageIds = packagesResult.map(p => p.id);
+    updatedWorkflow.packageIds = packagesResult.map((p: any) => p.id);
 
     return NextResponse.json(updatedWorkflow);
-  } catch (error) {
-    console.error("Error updating workflow:", error);
+  } catch (error: unknown) {
+    logger.error("Error updating workflow:", error);
     return NextResponse.json(
       { error: "Error updating workflow" },
       { status: 500 }
@@ -218,8 +219,8 @@ export async function DELETE(
     `;
 
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error) {
-    console.error("Error deleting workflow:", error);
+  } catch (error: unknown) {
+    logger.error("Error deleting workflow:", error);
     return NextResponse.json(
       { error: "Error deleting workflow" },
       { status: 500 }

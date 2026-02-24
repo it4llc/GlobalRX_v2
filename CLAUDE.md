@@ -1,4 +1,28 @@
-# GlobalRX Debugging Guide
+# GlobalRx Development Guide
+
+## 📋 Development Standards
+
+**CRITICAL:** Before writing any code, read the comprehensive coding standards:
+
+📖 **[CODING_STANDARDS.md](docs/CODING_STANDARDS.md)** - Complete development rules and conventions
+
+### Key Standards Highlights:
+- ✅ **No console statements** - Use Winston structured logging
+- ✅ **Authentication required** on every API route (no exceptions)
+- ✅ **Tests required** for all new code
+- ✅ **No inline styles** - Use globals.css and Tailwind
+- ✅ **No TypeScript 'any'** types - Use proper typing
+- ✅ **No PII in logs** - Never log emails, passwords, tokens
+
+### Current Enterprise Readiness Status:
+- 🔴 **Critical security gaps** - 625 console statements with sensitive data
+- 🔴 **No testing** - Zero test coverage
+- 🔴 **No monitoring** - No error tracking or health checks
+- ⚠️ **TypeScript strict mode disabled** - 122 'any' types need fixing
+
+📊 **[Complete Audit Report](docs/audit/AUDIT_REPORT.md)** - Full enterprise readiness assessment
+
+---
 
 ## Authentication & Authorization
 
@@ -110,3 +134,32 @@ If Tailwind CSS styling suddenly stops working (buttons look like HTML, brand co
 📋 **[Styling Troubleshooting Guide](docs/troubleshooting-styling.md)**
 
 **Quick Fix**: Check if `postcss.config.js` exists and uses CommonJS syntax (`module.exports`), not ES modules (`export default`).
+
+---
+
+## 🛠️ Implementation Workflow
+
+### For Audit-Driven Improvements:
+1. **Create feature branch** for specific audit task
+2. **Follow CODING_STANDARDS.md** for all code changes
+3. **Add tests** for any new functionality
+4. **Use structured logging** instead of console statements
+5. **Verify changes work** before committing
+6. **Update progress** in audit report
+
+### Branch Naming Convention:
+- `fix/remove-sensitive-logging` - Security fixes
+- `feature/monitoring-setup` - New infrastructure
+- `test/api-routes` - Adding test coverage
+- `refactor/large-files` - Code quality improvements
+
+## 📌 Creating Pull Requests
+
+**NOTE: GitHub CLI (`gh`) is NOT installed on this system.**
+
+To create a pull request after pushing your branch:
+1. Push your branch: `git push -u origin <branch-name>`
+2. Open the URL provided in the git push output
+3. Or manually go to: https://github.com/it4llc/GlobalRX_v2/pulls and click "New pull request"
+
+Do not attempt to use `gh pr create` or other GitHub CLI commands.

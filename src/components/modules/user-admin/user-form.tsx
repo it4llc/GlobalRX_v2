@@ -279,7 +279,7 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
                   checked={formValues.permissions.dsx}
                   onCheckedChange={() => handlePermissionChange('dsx')}
                 />
-                <Label htmlFor="dsx" className="cursor-pointer">DSX</Label>
+                <Label htmlFor="dsx" className="cursor-pointer">Data Rx/DSX</Label>
               </div>
               
               <div className="flex items-center space-x-2">

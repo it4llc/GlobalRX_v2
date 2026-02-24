@@ -4,18 +4,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth'; // Adjust the path as needed
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
-      return NextResponse.json({ 
-        error: 'No session found',
+      return NextResponse.json({
+        error: 'Unauthorized - No session found',
         authenticated: false
-      });
+      }, { status: 401 });
     }
 
     // Return session info for debugging (remove in production)
@@ -32,8 +33,8 @@ export async function GET(request: NextRequest) {
         hasCustomersAll: Boolean(session.user?.permissions?.customers?.all)
       }
     });
-  } catch (error) {
-    console.error('Session debug error:', error);
+  } catch (error: unknown) {
+    logger.error('Session debug error', { error: error instanceof Error ? error.message : 'Unknown error' });
     return NextResponse.json({ error: 'Error fetching session data' }, { status: 500 });
   }
 }

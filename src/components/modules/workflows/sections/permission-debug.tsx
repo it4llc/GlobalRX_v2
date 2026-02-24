@@ -1,4 +1,5 @@
 'use client';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,7 +37,7 @@ export function PermissionDebug() {
       try {
         serverData = await serverResponse.json();
       } catch (e) {
-        console.error('Error parsing server response:', e);
+        clientLogger.error('Error parsing server response:', e);
       }
       
       // Try the workflow permissions debug endpoint too
@@ -46,7 +47,7 @@ export function PermissionDebug() {
       try {
         workflowData = await workflowResponse.json();
       } catch (e) {
-        console.error('Error parsing workflow permissions response:', e);
+        clientLogger.error('Error parsing workflow permissions response:', e);
       }
       
       setDebugInfo({
@@ -55,7 +56,7 @@ export function PermissionDebug() {
         workflowPermissions: workflowData
       });
     } catch (err) {
-      console.error('Error checking permissions:', err);
+      clientLogger.error('Error checking permissions:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);

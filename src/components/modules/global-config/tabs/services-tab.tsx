@@ -1,4 +1,5 @@
 'use client';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 // src/components/modules/global-config/tabs/services-tab.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -111,7 +112,7 @@ export function ServicesTab() {
       setTotalPages(data.totalPages || 1);
       setCurrentPage(data.currentPage || 1);
     } catch (err) {
-      console.error('Error fetching services:', err);
+      clientLogger.error('Error fetching services:', err);
       setError('Failed to load services. Please try again.');
     } finally {
       setLoading(false);
@@ -125,7 +126,7 @@ export function ServicesTab() {
 
   // Handle adding a new service
   const handleAddService = () => {
-    console.log("Add New Service button clicked");
+    clientLogger.info("Add New Service button clicked");
     setCurrentService(null);
     if (dialogRef.current) {
       dialogRef.current.showModal();
@@ -134,7 +135,7 @@ export function ServicesTab() {
 
   // Handle editing a service
   const handleEditService = (service: Service) => {
-    console.log("Edit service button clicked for:", service.name);
+    clientLogger.info("Edit service button clicked for:", service.name);
     setCurrentService(service);
     if (dialogRef.current) {
       dialogRef.current.showModal();
@@ -143,7 +144,7 @@ export function ServicesTab() {
 
   // Handle closing the dialog
   const handleCloseDialog = () => {
-    console.log("Closing dialog");
+    clientLogger.info("Closing dialog");
     if (dialogRef.current) {
       dialogRef.current.close();
     }
@@ -174,7 +175,7 @@ export function ServicesTab() {
       // Refresh services after toggling
       fetchServices();
     } catch (err) {
-      console.error('Error toggling service status:', err);
+      clientLogger.error('Error toggling service status:', err);
       setError('Failed to update service status. Please try again.');
     } finally {
       setAlertDialogOpen(false);
@@ -216,7 +217,7 @@ export function ServicesTab() {
       handleCloseDialog();
       fetchServices();
     } catch (err) {
-      console.error('Error saving service:', err);
+      clientLogger.error('Error saving service:', err);
       setError('Failed to save service. Please try again.');
     }
   };
@@ -294,7 +295,7 @@ export function ServicesTab() {
       ) : (
         <div className="mt-14">
           {/* Display services grouped by functionality type - maintaining the order */}
-          {functionalityTypes.map(type => {
+          {functionalityTypes.map((type: any) => {
             const servicesInGroup = groupedServices[type] || [];
             if (servicesInGroup.length === 0) return null;
             

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import logger from '@/lib/logger';
 
 // Define valid functionality types in the desired order
 const VALID_FUNCTIONALITY_TYPES = ["record", "verification-edu", "verification-emp", "other"];
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     // Add a placeholder usage count for each service
     // This will be replaced with actual package counts in the future
-    const servicesWithUsage = services.map(service => {
+    const servicesWithUsage = services.map((service: any) => {
       return {
         ...service,
         usage: 0 // Placeholder value
@@ -103,8 +104,8 @@ export async function GET(request: NextRequest) {
       categories: categories.map((c) => c.category),
       functionalityTypes: VALID_FUNCTIONALITY_TYPES, // Include valid functionality types in the response
     });
-  } catch (error) {
-    console.error("Error fetching services:", error);
+  } catch (error: unknown) {
+    logger.error('Error fetching services', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "Error fetching services" },
       { status: 500 }
@@ -153,8 +154,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(newService, { status: 201 });
-  } catch (error) {
-    console.error("Error creating service:", error);
+  } catch (error: unknown) {
+    logger.error('Error creating service', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "Error creating service" },
       { status: 500 }

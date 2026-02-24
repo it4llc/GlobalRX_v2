@@ -1,4 +1,5 @@
 'use client';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
@@ -77,7 +78,7 @@ export function WorkflowSectionList({
         const sortedSections = [...data].sort((a, b) => a.displayOrder - b.displayOrder);
         setSections(sortedSections);
       } catch (err) {
-        console.error('Error fetching workflow sections:', err);
+        clientLogger.error('Error fetching workflow sections:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);
@@ -121,7 +122,7 @@ export function WorkflowSectionList({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          sections: sectionsWithNewOrder.map(section => ({
+          sections: sectionsWithNewOrder.map((section: any) => ({
             id: section.id,
             displayOrder: section.displayOrder
           }))
@@ -136,7 +137,7 @@ export function WorkflowSectionList({
       const updatedSections = await response.json();
       setSections(updatedSections);
     } catch (err) {
-      console.error('Error updating section order:', err);
+      clientLogger.error('Error updating section order:', err);
       setError(err instanceof Error ? err.message : 'Failed to update section order');
       // Refresh to get the correct order from the server
       setRefreshKey(prev => prev + 1);
@@ -147,7 +148,7 @@ export function WorkflowSectionList({
 
   // Handle section deletion
   const handleDeleteSection = async (sectionId: string) => {
-    if (!confirm(t('module.candidateWorkflow.confirmDeleteSection', 'Are you sure you want to delete this section?'))) {
+    if (!confirm(t('module.candidateWorkflow.confirmDeleteSection'))) {
       return;
     }
     
@@ -174,7 +175,7 @@ export function WorkflowSectionList({
       // Remove the section from the state
       setSections(sections.filter(section => section.id !== sectionId));
     } catch (err) {
-      console.error('Error deleting section:', err);
+      clientLogger.error('Error deleting section:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsDeleting(null);
@@ -187,7 +188,7 @@ export function WorkflowSectionList({
     
     return (
       <div className="text-sm text-gray-500 mt-1">
-        <span className="font-medium">{t('module.candidateWorkflow.dependsOn', 'Depends on')}:</span> {section.dependentOn.name}
+        <span className="font-medium">{t('module.candidateWorkflow.dependsOn')}:</span> {section.dependentOn.name}
       </div>
     );
   };
@@ -209,11 +210,11 @@ export function WorkflowSectionList({
     return (
       <AlertBox
         type="error"
-        title={t('common.error', 'Error')}
+        title={t('common.error')}
         message={error}
         action={
           <Button onClick={() => setRefreshKey(prev => prev + 1)}>
-            {t('common.retry', 'Retry')}
+            {t('common.retry')}
           </Button>
         }
       />
@@ -232,7 +233,7 @@ export function WorkflowSectionList({
             </svg>
           </div>
           <h3 className="text-lg font-medium mb-2">
-            {t('module.candidateWorkflow.noSections', 'No Sections Created')}
+            {t('module.candidateWorkflow.noSections')}
           </h3>
           <p className="text-gray-500 max-w-md mb-6">
             {t('module.candidateWorkflow.noSectionsDescription', 'This workflow doesn\'t have any sections yet. Sections help organize the candidate workflow into logical steps.')}
@@ -240,7 +241,7 @@ export function WorkflowSectionList({
           {canEdit && (
             <Button onClick={onAddSection}>
               <PlusCircle className="h-4 w-4 mr-2" />
-              {t('module.candidateWorkflow.createFirstSection', 'Create First Section')}
+              {t('module.candidateWorkflow.createFirstSection')}
             </Button>
           )}
         </div>
@@ -252,12 +253,12 @@ export function WorkflowSectionList({
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">
-          {t('module.candidateWorkflow.sections', 'Workflow Sections')}
+          {t('module.candidateWorkflow.sections')}
         </h2>
         {canEdit && (
           <Button onClick={onAddSection}>
             <PlusCircle className="h-4 w-4 mr-2" />
-            {t('module.candidateWorkflow.addSection', 'Add Section')}
+            {t('module.candidateWorkflow.addSection')}
           </Button>
         )}
       </div>
@@ -303,21 +304,21 @@ export function WorkflowSectionList({
                             <h3 className="font-medium text-gray-900">{section.name}</h3>
                             {/* Section Type Badge */}
                             <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
-                              {section.sectionType === 'form' ? t('module.candidateWorkflow.sectionTypes.form', 'Form/Notice') :
-                               section.sectionType === 'idInfo' ? t('module.candidateWorkflow.sectionTypes.idInfo', 'ID Information') :
-                               section.sectionType === 'personalInfo' ? t('module.candidateWorkflow.sectionTypes.personalInfo', 'Personal Information') :
-                               section.sectionType === 'employment' ? t('module.candidateWorkflow.sectionTypes.employment', 'Employment') :
-                               section.sectionType === 'education' ? t('module.candidateWorkflow.sectionTypes.education', 'Education') :
-                               section.sectionType === 'other' ? t('module.candidateWorkflow.sectionTypes.other', 'Other') :
-                               section.sectionType === 'documents' ? t('module.candidateWorkflow.sectionTypes.documents', 'Document Collection') :
-                               section.sectionType === 'summary' ? t('module.candidateWorkflow.sectionTypes.summary', 'Summary') :
-                               section.sectionType === 'consent' ? t('module.candidateWorkflow.sectionTypes.consent', 'Consent') :
+                              {section.sectionType === 'form' ? t('module.candidateWorkflow.sectionTypes.form') :
+                               section.sectionType === 'idInfo' ? t('module.candidateWorkflow.sectionTypes.idInfo') :
+                               section.sectionType === 'personalInfo' ? t('module.candidateWorkflow.sectionTypes.personalInfo') :
+                               section.sectionType === 'employment' ? t('module.candidateWorkflow.sectionTypes.employment') :
+                               section.sectionType === 'education' ? t('module.candidateWorkflow.sectionTypes.education') :
+                               section.sectionType === 'other' ? t('module.candidateWorkflow.sectionTypes.other') :
+                               section.sectionType === 'documents' ? t('module.candidateWorkflow.sectionTypes.documents') :
+                               section.sectionType === 'summary' ? t('module.candidateWorkflow.sectionTypes.summary') :
+                               section.sectionType === 'consent' ? t('module.candidateWorkflow.sectionTypes.consent') :
                                section.sectionType || 'Unknown'
                               }
                             </span>
                             {!section.isRequired && (
                               <span className="ml-2 bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">
-                                {t('common.optional', 'Optional')}
+                                {t('common.optional')}
                               </span>
                             )}
                           </div>
@@ -328,7 +329,7 @@ export function WorkflowSectionList({
                           {hasDependentSections(section.id) && (
                             <div className="mt-2 text-amber-600 text-sm flex items-center">
                               <AlertTriangle size={14} className="mr-1" />
-                              {t('module.candidateWorkflow.hasDependent', 'Other sections depend on this one')}
+                              {t('module.candidateWorkflow.hasDependent')}
                             </div>
                           )}
                         </div>
@@ -341,7 +342,7 @@ export function WorkflowSectionList({
                                 variant="ghost" 
                                 size="sm" 
                                 onClick={() => onEditSection(section)}
-                                title={t('common.edit', 'Edit')}
+                                title={t('common.edit')}
                               >
                                 <Edit size={16} />
                               </Button>
@@ -351,8 +352,8 @@ export function WorkflowSectionList({
                                 onClick={() => handleDeleteSection(section.id)}
                                 disabled={isDeleting === section.id || hasDependentSections(section.id)}
                                 title={hasDependentSections(section.id) 
-                                  ? t('module.candidateWorkflow.cannotDelete', 'Cannot delete - other sections depend on this one') 
-                                  : t('common.delete', 'Delete')}
+                                  ? t('module.candidateWorkflow.cannotDelete') 
+                                  : t('common.delete')}
                                 className={hasDependentSections(section.id) ? 'opacity-50 cursor-not-allowed' : ''}
                               >
                                 {isDeleting === section.id ? (
@@ -376,7 +377,7 @@ export function WorkflowSectionList({
                 <div className="flex justify-center items-center p-4 bg-blue-50 border-t border-blue-100">
                   <LoadingIndicator size="sm" className="mr-2" />
                   <span className="text-sm text-blue-600">
-                    {t('module.candidateWorkflow.savingOrder', 'Saving new order...')}
+                    {t('module.candidateWorkflow.savingOrder')}
                   </span>
                 </div>
               )}

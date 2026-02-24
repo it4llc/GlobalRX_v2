@@ -1,4 +1,5 @@
 'use client';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -34,7 +35,7 @@ export function CloseButton() {
           setCustomerId(data.customerId);
         }
       } catch (err) {
-        console.error('Error fetching workflow customer:', err);
+        clientLogger.error('Error fetching workflow customer:', err);
         setError('Could not determine customer for this workflow');
       }
     };
@@ -64,8 +65,8 @@ export function CloseButton() {
     <Button variant="outline" onClick={handleBack} className="mb-4">
       <ArrowLeft className="h-4 w-4 mr-2" />
       {customerId 
-        ? t('module.candidateWorkflow.backToCustomerWorkflows', 'Back to Customer Workflows') 
-        : t('common.back', 'Back')}
+        ? t('module.candidateWorkflow.backToCustomerWorkflows') 
+        : t('common.back')}
     </Button>
   );
 }

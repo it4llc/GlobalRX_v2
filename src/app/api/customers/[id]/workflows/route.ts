@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -51,7 +52,7 @@ export async function GET(
     });
 
     // Transform the data to match the expected format with updated structure
-    const transformedWorkflows = workflows.map(workflow => ({
+    const transformedWorkflows = workflows.map((workflow: any) => ({
       id: workflow.id,
       name: workflow.name,
       description: workflow.description,
@@ -78,8 +79,8 @@ export async function GET(
     }));
 
     return NextResponse.json(transformedWorkflows);
-  } catch (error) {
-    console.error('Error fetching customer workflows:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching customer workflows:', error);
     return NextResponse.json(
       { error: 'Error fetching customer workflows' },
       { status: 500 }

@@ -1,4 +1,5 @@
 // src/lib/location-filter.ts
+import logger from '@/lib/logger';
 
 /**
  * This utility helps filter out problematic location IDs before they reach the database
@@ -27,11 +28,11 @@ export async function getValidLocationIds(prisma: any): Promise<Set<string>> {
       select: { id: true }
     });
     
-    validLocationIdsCache = new Set(locations.map(loc => loc.id));
-    console.log(`Cached ${validLocationIdsCache.size} valid location IDs`);
+    validLocationIdsCache = new Set(locations.map((loc: any) => loc.id));
+    logger.info(`Cached ${validLocationIdsCache.size} valid location IDs`);
     return validLocationIdsCache;
-  } catch (error) {
-    console.error('Error fetching valid location IDs:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching valid location IDs:', error);
     return new Set();
   }
 }
@@ -89,12 +90,12 @@ export async function ensureAllLocationExists(prisma: any) {
           disabled: false
         }
       });
-      console.log('Created "all" location in database');
+      logger.info('Created "all" location in database');
     }
     
     return true;
-  } catch (error) {
-    console.error('Failed to ensure "all" location exists:', error);
+  } catch (error: unknown) {
+    logger.error('Failed to ensure "all" location exists:', error);
     return false;
   }
 }
@@ -166,8 +167,8 @@ export async function validateMappingDataAgainstDatabase(
     }
     
     return validatedMappings;
-  } catch (error) {
-    console.error('Error validating mapping data:', error);
+  } catch (error: unknown) {
+    logger.error('Error validating mapping data:', error);
     return mappingData; // Return original on error to not block operation
   }
 }

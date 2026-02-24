@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { hasPermission, normalizePermissions } from '@/lib/permission-utils';
+import clientLogger from '@/lib/client-logger';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -50,8 +51,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       return { success: true };
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Login attempt failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return { success: false, error: 'An unexpected error occurred during login' };
     }
   };
@@ -74,7 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const headers = new Headers(options.headers || {});
       
       if (!headers.has('Content-Type') && options.method !== 'GET' && options.body) {
-        headers.set('Content-Type', 'application/json');
+        headers.set('Content-Type');
       }
 
       // Add CSRF token if needed
@@ -105,8 +109,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       return response;
-    } catch (error) {
-      console.error('API request error:', error);
+    } catch (error: unknown) {
+      clientLogger.error('API request failed', {
+        url,
+        method: options.method || 'GET',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw error;
     }
   };

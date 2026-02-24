@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import logger from '@/lib/logger';
 
 // Interface for the request body
 interface AddLocaleRequest {
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     const availableLocalesMatch = configContent.match(availableLocalesRegex);
     
     if (availableLocalesMatch) {
-      const currentLocales = availableLocalesMatch[2].split(',').map(s => s.trim());
+      const currentLocales = availableLocalesMatch[2].split(',').map((s: any) => s.trim());
       const newLocalesStr = currentLocales.length > 0 
         ? `${availableLocalesMatch[2]}, '${localeCode}'` 
         : `'${localeCode}'`;
@@ -94,8 +95,8 @@ export async function POST(request: NextRequest) {
       message: `Successfully added locale ${localeCode} (${localeName})` 
     });
     
-  } catch (error) {
-    console.error('Error adding new locale:', error);
+  } catch (error: unknown) {
+    logger.error('Error adding new locale', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { error: 'Failed to add new locale', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }

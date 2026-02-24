@@ -1,5 +1,6 @@
 // src/lib/prisma.ts
 import { PrismaClient } from '@prisma/client';
+import logger from '@/lib/logger';
 
 // PrismaClient is attached to the `global` object in development to prevent
 // exhausting your database connection limit.
@@ -19,11 +20,14 @@ const connectWithTimeout = async (prismaClient: PrismaClient, timeoutMs = 5000) 
   const connectionPromise = prismaClient.$connect()
     .then(() => {
       isConnected = true;
-      console.log('Successfully connected to the database');
+      logger.info('Successfully connected to the database');
       return true;
     })
     .catch((error) => {
-      console.error('Failed to connect to the database:', error);
+      logger.error('Failed to connect to the database', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return false;
     });
 
@@ -31,7 +35,9 @@ const connectWithTimeout = async (prismaClient: PrismaClient, timeoutMs = 5000) 
   const timeoutPromise = new Promise<boolean>((resolve) => {
     setTimeout(() => {
       if (!isConnected) {
-        console.error(`Database connection timed out after ${timeoutMs}ms`);
+        logger.error('Database connection timed out', {
+          timeoutMs
+        });
         resolve(false);
       }
     }, timeoutMs);
@@ -58,7 +64,9 @@ if (process.env.NODE_ENV !== 'production') {
     connectWithTimeout(prisma)
       .then((connected) => {
         if (!connected) {
-          console.warn('⚠️ Database connection issues detected. Auth might not work properly.');
+          logger.warn('Database connection issues detected', {
+            message: 'Auth might not work properly'
+          });
         }
       });
   }

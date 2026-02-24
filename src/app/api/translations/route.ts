@@ -2,10 +2,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import logger from '@/lib/logger';
 
 // Handler for GET requests - retrieve translations for a specific locale
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     // Get the locale from the URL parameters
     const url = new URL(request.url);
     const locale = url.searchParams.get('locale');
@@ -35,8 +43,8 @@ export async function GET(request: NextRequest) {
     
     // Return the translations
     return NextResponse.json(translations);
-  } catch (error) {
-    console.error('Error retrieving translations:', error);
+  } catch (error: unknown) {
+    logger.error('Error retrieving translations', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'Failed to retrieve translations', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
@@ -47,6 +55,16 @@ export async function GET(request: NextRequest) {
 // Handler for POST requests - save translations for a specific locale
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication and admin permissions
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Only admins should be able to modify translations
+    if (!session.user?.permissions?.admin) {
+      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+    }
     // Parse the request body
     const body = await request.json();
     const { locale, translations } = body;
@@ -88,8 +106,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `Successfully saved translations for ${locale}` 
     });
-  } catch (error) {
-    console.error('Error saving translations:', error);
+  } catch (error: unknown) {
+    logger.error('Error saving translations', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'Failed to save translations', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }

@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import logger from '@/lib/logger';
+import { getErrorDetails } from '@/lib/utils';
 
 // Validation schema
 const deduplicateSchema = z.object({
@@ -22,16 +24,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Modified Authorization check - More permissive approach
-    // Check if the user has any customer-related permission
-    const hasCustomerPermission = 
-      session.user.permissions?.customers || // Check if customers object exists
-      (session.user.permissions?.customers && 
-       Object.values(session.user.permissions.customers).some(val => val === true)); // Any permission is true
-    
-    if (!hasCustomerPermission) {
+    // 2. Authorization check - Require specific edit permission for deduplication
+    // Deduplication is a destructive operation that modifies customer data
+    if (!session.user?.permissions?.customers?.edit) {
       return NextResponse.json(
-        { error: 'You need customer permission to deduplicate customers' },
+        { error: 'You need customers.edit permission to deduplicate customers' },
         { status: 403 }
       );
     }
@@ -75,7 +72,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (!deleteCustomer) {
-        console.warn(`Customer to delete not found: ${deleteCustomerId}`);
+        logger.warn('Customer to delete not found', { customerId: deleteCustomerId });
         continue;
       }
 
@@ -105,12 +102,12 @@ export async function POST(request: NextRequest) {
             where: { id: deleteCustomerId }
           });
         });
-      } catch (txError) {
-        console.error(`Transaction failed for customer ${deleteCustomerId}:`, txError);
+      } catch (txError: unknown) {
+        logger.error('Transaction failed for customer', { customerId: deleteCustomerId, error: getErrorDetails(txError).message, stack: getErrorDetails(txError).stack });
         return NextResponse.json(
           { 
             error: `Failed to deduplicate customer ${deleteCustomerId}. Database operation failed.`,
-            details: txError instanceof Error ? txError.message : 'Unknown error'
+            details: getErrorDetails(txError).message
           },
           { status: 500 }
         );
@@ -122,12 +119,12 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Customers deduplicated successfully'
     });
-  } catch (error) {
-    console.error('Error in deduplication process:', error);
+  } catch (error: unknown) {
+    logger.error('Error in deduplication process', { error: getErrorDetails(error).message, stack: getErrorDetails(error).stack });
     return NextResponse.json(
       { 
         error: 'An error occurred during deduplication',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: getErrorDetails(error).message
       },
       { status: 500 }
     );

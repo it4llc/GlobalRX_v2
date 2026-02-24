@@ -1,5 +1,6 @@
 // src/app/api/locations/[id]/toggle-status/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import logger from '@/lib/logger';
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -10,7 +11,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log(`API: PATCH /api/locations/${params.id}/toggle-status called`);
+    logger.info(`API: PATCH /api/locations/${params.id}/toggle-status called`);
     
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -36,7 +37,7 @@ export async function PATCH(
     const currentDisabled = currentLocation.disabled === true;
     const newDisabledValue = !currentDisabled;
 
-    console.log(`Toggling location status: Current disabled value: ${currentDisabled}, new value: ${newDisabledValue}`);
+    logger.info(`Toggling location status: Current disabled value: ${currentDisabled}, new value: ${newDisabledValue}`);
 
     // Update the location status
     const location = await prisma.country.update({
@@ -59,8 +60,8 @@ export async function PATCH(
       // Add status property for backward compatibility
       status: location.disabled !== true
     });
-  } catch (error) {
-    console.error("Error toggling location status:", error);
+  } catch (error: unknown) {
+    logger.error("Error toggling location status:", error);
     return NextResponse.json(
       { error: "Failed to toggle location status" },
       { status: 500 }

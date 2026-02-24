@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { ActionDropdown } from '@/components/ui/action-dropdown';
 import { LoadingIndicator } from '@/components/ui/loading-indicator';
 import { AlertBox } from '@/components/ui/alert-box';
+import { clientLogger, errorToLogMeta } from '@/lib/client-logger';
 import { PackageDialog } from './package-dialog';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Package } from 'lucide-react';
@@ -59,11 +60,11 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
   
   // Debug state changes
   useEffect(() => {
-    console.log("showDialog state changed to:", showDialog);
+    clientLogger.debug('showDialog state changed', { showDialog });
   }, [showDialog]);
   
   useEffect(() => {
-    console.log("editingPackageId state changed to:", editingPackageId);
+    clientLogger.debug('editingPackageId state changed', { editingPackageId });
   }, [editingPackageId]);
   
   // Permissions
@@ -83,18 +84,22 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
         setError(null);
         setDebugInfo(null);
         
-        console.log("Fetching customer data for ID:", customerId);
+        clientLogger.debug('Fetching customer data', { customerId });
         
         // Fetch customer details to get available services
         const customerResponse = await fetchWithAuth(`/api/customers/${customerId}`);
         
         if (!customerResponse.ok) {
-          console.error("Customer API response not OK:", customerResponse.status);
+          clientLogger.error('Customer API response not OK', {
+            status: customerResponse.status
+          });
           throw new Error(`Failed to fetch customer details: ${customerResponse.status}`);
         }
         
         const customerData = await customerResponse.json();
-        console.log("Customer data received:", customerData);
+        clientLogger.info('Customer data received', {
+          hasCustomerData: !!customerData
+        });
         
         // Extract services from the customer data
         const customerServices = customerData.services || [];
@@ -106,7 +111,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
           services: customerServices
         });
         
-        console.log("Successfully fetched customer data, now fetching packages");
+        clientLogger.debug("Successfully fetched customer data, now fetching packages");
         
         // Fetch packages for this customer
         const packagesResponse = await fetchWithAuth(`/api/customers/${customerId}/packages`);
@@ -121,7 +126,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
             errorDetail = "Could not parse error response";
           }
           
-          console.error("Packages API response not OK:", packagesResponse.status, errorDetail);
+          clientLogger.error("Packages API response not OK:", packagesResponse.status, errorDetail);
           setDebugInfo(`API Status: ${packagesResponse.status}, Error: ${errorDetail}`);
           throw new Error(`Failed to fetch packages: ${errorDetail || packagesResponse.status}`);
         }
@@ -129,23 +134,23 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
         let packagesData;
         try {
           packagesData = await packagesResponse.json();
-          console.log("Packages data:", packagesData);
+          clientLogger.debug("Packages data:", packagesData);
           
           // Ensure we have an array of packages
           if (!Array.isArray(packagesData)) {
-            console.error("Packages data is not an array:", packagesData);
+            clientLogger.error("Packages data is not an array:", packagesData);
             setDebugInfo(`Received non-array data: ${JSON.stringify(packagesData).substring(0, 100)}...`);
             throw new Error("Invalid packages data format received");
           }
           
           setPackages(packagesData);
         } catch (parseError) {
-          console.error("Error parsing packages response:", parseError);
+          clientLogger.error("Error parsing packages response:", parseError);
           setDebugInfo(`Parse error: ${parseError.message}, Response text: ${await packagesResponse.text()}`);
           throw new Error("Failed to parse packages data");
         }
       } catch (err) {
-        console.error('Error fetching data:', err);
+        clientLogger.error('Error fetching data:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);
@@ -157,51 +162,51 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
   
   // Handle dialog close
   const handleDialogClose = (refreshData: boolean) => {
-    console.log("handleDialogClose called with refreshData:", refreshData);
+    clientLogger.debug("handleDialogClose called with refreshData:", refreshData);
     setShowDialog(false);
     setEditingPackageId(null);
-    console.log("showDialog set to false, editingPackageId set to null");
+    clientLogger.debug("showDialog set to false, editingPackageId set to null");
     
     if (refreshData) {
-      console.log("Refreshing packages data...");
+      clientLogger.debug("Refreshing packages data...");
       // Refresh packages
       fetchWithAuth(`/api/customers/${customerId}/packages`)
         .then(response => {
-          console.log("Package refresh response status:", response.status);
+          clientLogger.debug("Package refresh response status:", response.status);
           if (response.ok) {
             return response.json();
           }
           throw new Error('Failed to refresh packages');
         })
         .then(data => {
-          console.log("Received refreshed packages data:", data);
+          clientLogger.debug("Received refreshed packages data:", data);
           if (Array.isArray(data)) {
             setPackages(data);
-            console.log("Packages state updated with", data.length, "packages");
+            clientLogger.debug("Packages state updated with", data.length, "packages");
           } else {
-            console.error("Received non-array data after refresh:", data);
+            clientLogger.error("Received non-array data after refresh:", data);
           }
         })
         .catch(err => {
-          console.error('Error refreshing packages:', err);
+          clientLogger.error('Error refreshing packages:', err);
         });
     }
   };
   
   // Handle package creation
   const handleAddPackage = () => {
-    console.log("Create Package button clicked");
+    clientLogger.debug("Create Package button clicked");
     setEditingPackageId(null);
     setShowDialog(true);
-    console.log("showDialog set to:", true);
+    clientLogger.debug("showDialog set to:", true);
   };
   
   // Handle package edit
   const handleEditPackage = (packageId: string) => {
-    console.log("Edit Package button clicked for packageId:", packageId);
+    clientLogger.debug("Edit Package button clicked for packageId:", packageId);
     setEditingPackageId(packageId);
     setShowDialog(true);
-    console.log("showDialog set to:", true, "editingPackageId set to:", packageId);
+    clientLogger.debug("showDialog set to:", true, "editingPackageId set to:", packageId);
   };
   
   // Handle package deletion
@@ -222,7 +227,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
       // Remove package from state
       setPackages(prevPackages => prevPackages.filter(pkg => pkg.id !== packageId));
     } catch (err) {
-      console.error('Error deleting package:', err);
+      clientLogger.error('Error deleting package:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
   };
@@ -231,7 +236,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
   const groupPackagesByFunctionalityType = () => {
     // Extract functionality types from services in packages
     const allFunctionalityTypes = packages.flatMap(pkg => 
-      (pkg.services || []).map(svc => svc.service?.functionalityType || 'other')
+      (pkg.services || []).map((svc: any) => svc.service?.functionalityType || 'other')
     );
     
     // Get unique functionality types
@@ -257,7 +262,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
       }
       
       // Get functionality types in this package
-      const typesInPackage = pkg.services.map(svc => svc.service?.functionalityType || 'other');
+      const typesInPackage = pkg.services.map((svc: any) => svc.service?.functionalityType || 'other');
       
       // Get unique types in this package
       const uniqueTypesInPackage = [...new Set(typesInPackage)];
@@ -433,7 +438,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
               <h3 className="text-lg font-semibold">{formatFunctionalityType(type)}</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pkgs.map(pkg => (
+                {pkgs.map((pkg: any) => (
                   <Card key={pkg.id} className="overflow-hidden">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
@@ -465,7 +470,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
                     <CardContent className="pb-4">
                       <p className="text-sm font-medium mb-2">Services:</p>
                       <div className="flex flex-wrap gap-2">
-                        {pkg.services && Array.isArray(pkg.services) && pkg.services.map(svc => (
+                        {pkg.services && Array.isArray(pkg.services) && pkg.services.map((svc: any) => (
                           <Badge 
                             key={svc.service?.id || `service-${Math.random()}`} 
                             variant="outline" 

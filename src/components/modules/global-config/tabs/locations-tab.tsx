@@ -1,5 +1,7 @@
-// src/components/modules/global-config/tabs/locations-tab.tsx
 "use client";
+
+// src/components/modules/global-config/tabs/locations-tab.tsx
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from "react";
 import { 
@@ -66,17 +68,17 @@ export function LocationsTab() {
     async function fetchLocations() {
       try {
         setIsLoading(true);
-        console.log("Fetching locations...");
+        clientLogger.info("Fetching locations...");
         
         const response = await fetchWithAuth("/api/locations");
         if (!response.ok) {
           throw new Error(`Failed to fetch locations: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
-        console.log(`Retrieved ${data.length} locations successfully`);
+        clientLogger.info(`Retrieved ${data.length} locations successfully`);
         setLocations(data);
-      } catch (error) {
-        console.error("Error fetching locations:", error);
+      } catch (error: unknown) {
+        clientLogger.error("Error fetching locations:", error);
       } finally {
         setIsLoading(false);
       }
@@ -125,8 +127,8 @@ export function LocationsTab() {
       reset();
       setIsEditing(false);
       setCurrentLocation(null);
-    } catch (error) {
-      console.error("Error saving location:", error);
+    } catch (error: unknown) {
+      clientLogger.error("Error saving location:", error);
     }
   };
 
@@ -159,8 +161,8 @@ export function LocationsTab() {
 
         // Remove the deleted location from state
         setLocations(locations.filter(location => location.id !== id));
-      } catch (error) {
-        console.error("Error deleting location:", error);
+      } catch (error: unknown) {
+        clientLogger.error("Error deleting location:", error);
       }
     }
   };

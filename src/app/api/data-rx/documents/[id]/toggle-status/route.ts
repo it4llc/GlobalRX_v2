@@ -1,6 +1,7 @@
 // src/app/api/data-rx/documents/[id]/toggle-status/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -47,7 +48,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     // Always allow access in development
     if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
+      logger.info("Development mode - bypassing permission check");
     }
     // Otherwise check permissions
     else if (!hasPermission(session.user.permissions, 'dsx')) {
@@ -93,17 +94,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         success: true, 
         isDisabled: !isDisabled
       });
-    } catch (dbError) {
-      console.error('Database error in PATCH /api/data-rx/documents/[id]/toggle-status:', dbError);
+    } catch (dbError: unknown) {
+      logger.error('Database error in PATCH /api/data-rx/documents/[id]/toggle-status:', dbError);
       return NextResponse.json(
-        { error: "Database error while toggling document status", details: dbError.message },
+        { error: "Database error while toggling document status", details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error('Error in PATCH /api/data-rx/documents/[id]/toggle-status:', error);
+  } catch (error: unknown) {
+    logger.error('Error in PATCH /api/data-rx/documents/[id]/toggle-status:', error);
     return NextResponse.json(
-      { error: "An error occurred while processing your request", details: error.message },
+      { error: "An error occurred while processing your request", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

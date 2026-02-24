@@ -85,7 +85,7 @@ export function LocationHierarchy({
               <span className="font-medium">{country.name}</span>
             </div>
           </td>
-          {fields.map(field => (
+          {fields.map((field: any) => (
             <td key={field.id} className="p-2 text-center">
               <Checkbox 
                 id={`${country.id}-${field.id}`} 
@@ -96,7 +96,7 @@ export function LocationHierarchy({
               />
             </td>
           ))}
-          {documents.map(doc => (
+          {documents.map((doc: any) => (
             <td key={doc.id} className="p-2 text-center">
               <Checkbox 
                 id={`${country.id}-${doc.id}`} 
@@ -107,7 +107,7 @@ export function LocationHierarchy({
               />
             </td>
           ))}
-          {forms.map(form => (
+          {forms.map((form: any) => (
             <td key={form.id} className="p-2 text-center">
               <Checkbox 
                 id={`${country.id}-${form.id}`} 
@@ -119,7 +119,7 @@ export function LocationHierarchy({
             </td>
           ))}
         </tr>
-        {isExpanded && country.subregions?.map(subregion => 
+        {isExpanded && country.subregions?.map((subregion: any) => 
           renderSubregionRows(subregion, 1)
         )}
       </>
@@ -157,7 +157,7 @@ export function LocationHierarchy({
               <span>{subregion.name}</span>
             </div>
           </td>
-          {fields.map(field => (
+          {fields.map((field: any) => (
             <td key={field.id} className="p-2 text-center">
               <Checkbox 
                 id={`${subregion.id}-${field.id}`} 
@@ -168,7 +168,7 @@ export function LocationHierarchy({
               />
             </td>
           ))}
-          {documents.map(doc => (
+          {documents.map((doc: any) => (
             <td key={doc.id} className="p-2 text-center">
               <Checkbox 
                 id={`${subregion.id}-${doc.id}`} 
@@ -179,7 +179,7 @@ export function LocationHierarchy({
               />
             </td>
           ))}
-          {forms.map(form => (
+          {forms.map((form: any) => (
             <td key={form.id} className="p-2 text-center">
               <Checkbox 
                 id={`${subregion.id}-${form.id}`} 
@@ -191,7 +191,7 @@ export function LocationHierarchy({
             </td>
           ))}
         </tr>
-        {isExpanded && subregion.subregions?.map(childSubregion =>
+        {isExpanded && subregion.subregions?.map((childSubregion: any) =>
           renderSubregionRows(childSubregion, level + 1)
         )}
       </>
@@ -230,17 +230,17 @@ export function LocationHierarchy({
         </tr>
         <tr>
           <th className="p-2 text-left bg-gray-50"></th>
-          {fields.map(field => (
+          {fields.map((field: any) => (
             <th key={field.id} className="p-2 text-center bg-gray-50">
               {field.name}
             </th>
           ))}
-          {documents.map(doc => (
+          {documents.map((doc: any) => (
             <th key={doc.id} className="p-2 text-center bg-gray-50">
               {doc.name}
             </th>
           ))}
-          {forms.map(form => (
+          {forms.map((form: any) => (
             <th key={form.id} className="p-2 text-center bg-gray-50">
               {form.name}
             </th>
@@ -248,7 +248,7 @@ export function LocationHierarchy({
         </tr>
       </thead>
       <tbody>
-        {countries.map(country => renderCountryRow(country))}
+        {countries.map((country: any) => renderCountryRow(country))}
       </tbody>
     </table>
   );

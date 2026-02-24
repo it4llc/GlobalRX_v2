@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/logger';
 
 // Force dynamic route
 export const dynamic = 'force-dynamic';
@@ -40,8 +41,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract unique service and location IDs
-    const serviceIds = [...new Set(items.map(item => item.serviceId))];
-    const locationIds = [...new Set(items.map(item => item.locationId))];
+    const serviceIds = [...new Set(items.map((item: any) => item.serviceId))];
+    const locationIds = [...new Set(items.map((item: any) => item.locationId))];
 
     // Get all service-level requirements, sorted by displayOrder
     const serviceRequirements = await prisma.serviceRequirement.findMany({
@@ -109,10 +110,10 @@ export async function POST(request: NextRequest) {
 
       if (requirement.type === 'field' && requirement.fieldData) {
         const fieldData = requirement.fieldData as any;
-        console.log(`Requirements API - Field ${requirement.name}:`, {
+        logger.debug('Requirements API - Field details', {
+          fieldName: requirement.name,
           dataType: fieldData.dataType,
-          hasAddressConfig: !!fieldData.addressConfig,
-          addressConfig: fieldData.addressConfig
+          hasAddressConfig: !!fieldData.addressConfig
         });
         const collectionTab = fieldData.collectionTab || 'subject';
 
@@ -264,7 +265,7 @@ export async function POST(request: NextRequest) {
       subjectFields: sortedSubjectFields,
       searchFields: sortedSearchFields,
       documents,
-      locations: locations.map(loc => {
+      locations: locations.map((loc: any) => {
         const subregionInfo = locationsWithSubregions.find(
           ls => ls.locationId === loc.id
         );
@@ -274,8 +275,8 @@ export async function POST(request: NextRequest) {
         };
       })
     });
-  } catch (error) {
-    console.error('Error fetching requirements:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching requirements', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'Failed to fetch requirements' },
       { status: 500 }

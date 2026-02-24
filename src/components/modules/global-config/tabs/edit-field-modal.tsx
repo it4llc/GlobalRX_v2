@@ -112,7 +112,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
         
         // Set options text
         if (field.options && field.options.length > 0) {
-          const optionsStr = field.options.map(option => option.label).join('\n');
+          const optionsStr = field.options.map((option: any) => option.label).join('\n');
           setOptionsText(optionsStr);
         }
 
@@ -125,8 +125,8 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
         if (field.versions && field.versions.length > 0) {
           setVersions(field.versions);
         }
-      } catch (error) {
-        console.error('Error fetching field data:', error);
+      } catch (error: unknown) {
+        clientLogger.error('Error fetching field data:', error);
         // Show error in the UI
       } finally {
         setIsLoading(false);
@@ -167,9 +167,9 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
     
     return text
       .split('\n')
-      .map(line => line.trim())
+      .map((line: any) => line.trim())
       .filter(line => line.length > 0)
-      .map(line => {
+      .map((line: any) => {
         // Use the same text for both value and label
         // Generate a slug/value by converting to lowercase and replacing spaces with underscores
         const value = line.toLowerCase().replace(/\s+/g, '_');
@@ -354,7 +354,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
                 options={dataTypeOptions}
                 value={dataType}
                 onChange={(value) => {
-                  console.log("Setting data type to:", value);
+                  clientLogger.info("Setting data type to:", value);
                   setDataType(value);
                 }}
                 placeholder="Select a data type"

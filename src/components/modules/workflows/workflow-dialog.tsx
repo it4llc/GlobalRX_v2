@@ -1,4 +1,5 @@
 'use client';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -127,7 +128,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
         const data = await response.json();
         setPackages(data);
       } catch (err) {
-        console.error('Error fetching packages:', err);
+        clientLogger.error('Error fetching packages:', err);
         setError('Failed to load packages');
       } finally {
         setLoadingPackages(false);
@@ -185,7 +186,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
       }
       
       // Log what we're sending
-      console.log('Sending workflow data:', JSON.stringify(data, null, 2));
+      clientLogger.info('Sending workflow data:', JSON.stringify(data, null, 2));
       
       // Add customerId to the data when creating a new workflow
       const requestData = {
@@ -491,7 +492,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
                   <FormItem>
                     <FormLabel>{t('module.candidateWorkflow.assignedPackage')}</FormLabel>
                     <div className="space-y-2">
-                      {packages.map(pkg => (
+                      {packages.map((pkg: any) => (
                         <div key={pkg.id} className="flex items-center space-x-2">
                           <input
                             type="radio"
@@ -500,7 +501,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
                             onChange={() => {
                               // Radio buttons should select just one package
                               field.onChange([pkg.id]);
-                              console.log(`Selected package: ${pkg.id}`);
+                              clientLogger.info(`Selected package: ${pkg.id}`);
                             }}
                             className="rounded-full border-gray-300"
                           />
@@ -511,7 +512,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
                       ))}
                     </div>
                     <FormDescription>
-                      {t('module.candidateWorkflow.packageSelectionDescription', 'A workflow can only be associated with one package.')}
+                      {t('module.candidateWorkflow.packageSelectionDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

@@ -1,4 +1,5 @@
 'use client';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
@@ -92,7 +93,7 @@ export default function OrdersPage() {
       setTotal(data.total);
       setError(null);
     } catch (err) {
-      console.error('Error fetching orders:', err);
+      clientLogger.error('Error fetching orders:', err);
       setError(err instanceof Error ? err.message : 'Failed to load orders');
     } finally {
       setLoading(false);

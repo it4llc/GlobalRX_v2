@@ -1,5 +1,6 @@
-// src/components/modules/global-config/locations/location-form.tsx
 'use client';
+// src/components/modules/global-config/locations/location-form.tsx
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -71,8 +72,8 @@ export function LocationForm({ onLocationAdded }) {
       }
       const data = await response.json();
       setCountries(data);
-    } catch (error) {
-      console.error('Error fetching countries:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error fetching countries:', error);
       setFormError('Failed to load countries. Please try refreshing the page.');
     } finally {
       setIsLoadingOptions(false);
@@ -109,8 +110,8 @@ export function LocationForm({ onLocationAdded }) {
       } else {
         setSubregions1(filteredData);
       }
-    } catch (error) {
-      console.error('Error fetching subregions1:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error fetching subregions1:', error);
       setFormError('Failed to load subregions. Please try refreshing the page.');
       // setDebug(`Error: ${error.message}`);
     } finally {
@@ -142,8 +143,8 @@ export function LocationForm({ onLocationAdded }) {
       
       // Update the subregions2 state
       setSubregions2(filteredData);
-    } catch (error) {
-      console.error('Error fetching subregions2:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error fetching subregions2:', error);
       setFormError('Failed to load subregions. Please try refreshing the page.');
       // setDebug(`Error: ${error.message}`);
     } finally {
@@ -152,7 +153,7 @@ export function LocationForm({ onLocationAdded }) {
   };
   
   // Handle form input changes
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: any) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -347,7 +348,7 @@ const handleSubmit = async (e) => {
       // Try to get more detailed error information
       try {
         const errorData = await response.json();
-        console.log('API Error Response:', errorData);
+        clientLogger.info('API Error Response:', errorData);
         // setDebug(`Error response: ${JSON.stringify(errorData)}`);
         throw new Error(errorData.error || `Failed to add location. Status: ${response.status}`);
       } catch (jsonError) {
@@ -382,7 +383,7 @@ const handleSubmit = async (e) => {
       setIsSuccess(false);
     }, 2000);
   } catch (err) {
-    console.error('Error adding location:', err);
+    clientLogger.error('Error adding location:', err);
     if (err.message !== "Session expired") {
       setFormError(err.message);
     }
@@ -431,7 +432,7 @@ const handleSubmit = async (e) => {
       setCsvFile(null);
       onLocationAdded();
     } catch (err) {
-      console.error('Error importing locations:', err);
+      clientLogger.error('Error importing locations:', err);
       if (err.message !== "Session expired") {
         setImportStatus({ loading: false, message: err.message, error: true });
       }
@@ -516,7 +517,7 @@ const handleSubmit = async (e) => {
                 required
               >
                 <option value="">-- Select a Country --</option>
-                {countries.map(country => (
+                {countries.map((country: any) => (
                   <option key={country.id} value={country.id}>
                     {country.name}
                   </option>
@@ -539,7 +540,7 @@ const handleSubmit = async (e) => {
                 >
                   <option value="">-- Select a State/Province --</option>
                   {subregions1.length > 0 ? (
-                    subregions1.map(subregion => (
+                    subregions1.map((subregion: any) => (
                       <option key={subregion.id} value={subregion.id}>
                         {/* Only show this option if it has subregion1 value or is a different name than country */}
                         {subregion.subregion1 || 
@@ -586,7 +587,7 @@ const handleSubmit = async (e) => {
                 >
                   <option value="">-- Select a County/District --</option>
                   {subregions2.length > 0 ? (
-                    subregions2.map(subregion => (
+                    subregions2.map((subregion: any) => (
                       <option key={subregion.id} value={subregion.id}>
                         {subregion.subregion2 || 
                           (subregion.name !== selectedSubregion1.name ? subregion.name : 'Unknown County/District')}

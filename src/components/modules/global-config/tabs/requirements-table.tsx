@@ -1,5 +1,6 @@
-// src/components/modules/global-config/tabs/requirements-table.tsx
 'use client';
+// src/components/modules/global-config/tabs/requirements-table.tsx
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -98,9 +99,9 @@ export function RequirementsTable({
     
     // Only initialize once per service to prevent overwriting local changes
     if (!isInitialized.current) {
-      console.log("Initializing local state for service:", serviceId);
-      console.log("Initial mappings:", initialMappings);
-      console.log("Initial availability:", initialAvailability);
+      clientLogger.info("Initializing local state for service:", serviceId);
+      clientLogger.info("Initial mappings:", initialMappings);
+      clientLogger.info("Initial availability:", initialAvailability);
       
       setLocalMappings({...initialMappings});
       setLocalAvailability({...initialAvailability});
@@ -121,7 +122,7 @@ export function RequirementsTable({
     setIsGeneratingHierarchy(true);
     
     try {
-      console.log('Processing locations, count:', locations.length);
+      clientLogger.info('Processing locations, count:', locations.length);
       
       // Create ALL location
       const allLocation: Location = {
@@ -214,7 +215,7 @@ export function RequirementsTable({
       }));
       
     } catch (err) {
-      console.error('Error processing locations:', err);
+      clientLogger.error('Error processing locations:', err);
       setError('Failed to process location data.');
     } finally {
       setIsGeneratingHierarchy(false);
@@ -275,7 +276,7 @@ export function RequirementsTable({
     if (disabled) return; // Skip if disabled
     
     try {
-      console.log(`Changing checkbox for ${locationId}-${requirementId} to ${checked}`);
+      clientLogger.info(`Changing checkbox for ${locationId}-${requirementId} to ${checked}`);
       
       // Create a new mappings object to track changes
       const newMappings = { ...localMappings };
@@ -322,8 +323,8 @@ export function RequirementsTable({
       // Update local state
       setLocalMappings(newMappings);
       setHasUnsavedChanges(true);
-    } catch (error) {
-      console.error('Error handling checkbox change:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error handling checkbox change:', error);
     }
   }, [localMappings, locationHierarchy, updateParentCheckboxes, disabled]);
 
@@ -331,7 +332,7 @@ export function RequirementsTable({
   const handleAvailabilityChange = useCallback((locationId: string, checked: boolean) => {
     if (disabled) return; // Skip if disabled
     
-    console.log(`Changing availability for ${locationId} to ${checked}`);
+    clientLogger.info(`Changing availability for ${locationId} to ${checked}`);
     
     // Create a new availability object
     let newAvailability = { ...localAvailability };
@@ -366,7 +367,7 @@ export function RequirementsTable({
 
   // Save changes
   const handleSaveChanges = useCallback(() => {
-    console.log("Saving changes to mappings and availability");
+    clientLogger.info("Saving changes to mappings and availability");
     
     // Only save if there are changes
     if (hasUnsavedChanges) {
@@ -389,8 +390,8 @@ export function RequirementsTable({
           }
         });
         
-        console.log("Saving filtered mappings:", filteredMappings);
-        console.log("Saving filtered availability:", filteredAvailability);
+        clientLogger.info("Saving filtered mappings:", filteredMappings);
+        clientLogger.info("Saving filtered availability:", filteredAvailability);
         
         // Send changes to parent component
         if (onMappingChange) {
@@ -403,8 +404,8 @@ export function RequirementsTable({
         
         // Mark changes as saved
         setHasUnsavedChanges(false);
-      } catch (error) {
-        console.error("Error saving changes:", error);
+      } catch (error: unknown) {
+        clientLogger.error("Error saving changes:", error);
         setError("Failed to save changes. Please try again.");
       }
     }
@@ -412,7 +413,7 @@ export function RequirementsTable({
 
   // Cancel changes and revert to original data
   const handleCancelChanges = useCallback(() => {
-    console.log("Cancelling changes and reverting to original data");
+    clientLogger.info("Cancelling changes and reverting to original data");
     setLocalMappings({...initialMappings});
     setLocalAvailability({...initialAvailability});
     setHasUnsavedChanges(false);
@@ -521,9 +522,9 @@ export function RequirementsTable({
             ),
             
             // Requirement checkboxes
-            ...fields.map(field => renderCheckbox(location.id, field.id, isAvailable)),
-            ...documents.map(doc => renderCheckbox(location.id, doc.id, isAvailable)),
-            ...forms.map(form => renderCheckbox(location.id, form.id, isAvailable))
+            ...fields.map((field: any) => renderCheckbox(location.id, field.id, isAvailable)),
+            ...documents.map((doc: any) => renderCheckbox(location.id, doc.id, isAvailable)),
+            ...forms.map((form: any) => renderCheckbox(location.id, form.id, isAvailable))
           ])
         );
         
@@ -648,9 +649,9 @@ export function RequirementsTable({
           ),
           
           // Requirement checkboxes
-          ...fields.map(field => renderCheckbox(location.id, field.id, isAvailable)),
-          ...documents.map(doc => renderCheckbox(location.id, doc.id, isAvailable)),
-          ...forms.map(form => renderCheckbox(location.id, form.id, isAvailable))
+          ...fields.map((field: any) => renderCheckbox(location.id, field.id, isAvailable)),
+          ...documents.map((doc: any) => renderCheckbox(location.id, doc.id, isAvailable)),
+          ...forms.map((form: any) => renderCheckbox(location.id, form.id, isAvailable))
         ])
       );
       
@@ -807,7 +808,7 @@ export function RequirementsTable({
               }, React.createElement('span', { key: "available-label" }, "Available")),
               
               // Field headers with tooltips
-              ...fields.map(field => 
+              ...fields.map((field: any) => 
                 React.createElement(TableHead, { 
                   key: `header-field-${field.id}`,
                   style: { width: '35px' }
@@ -829,7 +830,7 @@ export function RequirementsTable({
               ),
               
               // Document headers with tooltips
-              ...documents.map(doc => 
+              ...documents.map((doc: any) => 
                 React.createElement(TableHead, { 
                   key: `header-doc-${doc.id}`,
                   style: { width: '35px' }
@@ -851,7 +852,7 @@ export function RequirementsTable({
               ),
               
               // Form headers with tooltips
-              ...forms.map(form => 
+              ...forms.map((form: any) => 
                 React.createElement(TableHead, { 
                   key: `header-form-${form.id}`,
                   style: { width: '35px' }
