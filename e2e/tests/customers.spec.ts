@@ -94,7 +94,7 @@ test.describe('Customer Management', () => {
     const firstRow = page.locator('tbody tr').first();
 
     // Listen for dialog
-    page.on('dialog', async dialog => {
+    page.on('dialog', async (dialog) => {
       expect(dialog.type()).toBe('confirm');
       expect(dialog.message()).toContain('delete');
       await dialog.accept();

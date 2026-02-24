@@ -136,7 +136,7 @@ test.describe('Order Workflow', () => {
 
     if (await cancelButton.isVisible()) {
       // Handle confirmation dialog
-      page.on('dialog', async dialog => {
+      page.on('dialog', async (dialog) => {
         expect(dialog.message()).toContain('cancel');
         await dialog.accept();
       });

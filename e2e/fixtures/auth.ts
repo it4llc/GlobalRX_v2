@@ -1,14 +1,11 @@
-import { test as base } from '@playwright/test';
+import { test as base, Page } from '@playwright/test';
+
+type AuthFixtures = {
+  authenticatedPage: Page;
+};
 
 // Extend basic test by providing an authenticated page fixture
-export const test = base.extend({
-  // Override page fixture to automatically login
-  page: async ({ page }, use) => {
-    // Add login logic here if needed
-    // For now, we'll use it without authentication
-    await use(page);
-  },
-
+export const test = base.extend<AuthFixtures>({
   // Add authenticated page fixture
   authenticatedPage: async ({ page }, use) => {
     // Navigate to login page
