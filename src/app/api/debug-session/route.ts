@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth'; // Adjust the path as needed
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Session debug error:', error);
+    logger.error('Session debug error', { error: error instanceof Error ? error.message : 'Unknown error' });
     return NextResponse.json({ error: 'Error fetching session data' }, { status: 500 });
   }
 }

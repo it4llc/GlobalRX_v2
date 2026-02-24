@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger, { logAuthError, logPermissionDenied, logDatabaseError, logApiRequest } from '@/lib/logger';
 
 // Helper function to check permissions
 function hasPermission(permissions: any, module: string): boolean {
@@ -41,7 +42,7 @@ async function filterValidLocationIds(locationIds: string[]): Promise<string[]> 
   try {
     if (!locationIds || locationIds.length === 0) return [];
     
-    console.log(`Validating ${locationIds.length} location IDs...`);
+    logger.debug('Validating location IDs', { count: locationIds.length });
     
     // Find all valid locations that match the provided IDs
     const existingLocations = await prisma.country.findMany({
@@ -64,17 +65,23 @@ async function filterValidLocationIds(locationIds: string[]): Promise<string[]> 
     const rejectedIds = locationIds.filter(id => !validIds.includes(id));
     
     if (rejectedIds.length > 0) {
-      console.warn(`${rejectedIds.length} location IDs were rejected during validation:`);
-      rejectedIds.forEach(id => {
-        console.warn(`- Invalid location ID: ${id}`);
+      logger.warn('Location IDs rejected during validation', {
+        count: rejectedIds.length,
+        rejectedIds
       });
     }
     
-    console.log(`Validated ${validIds.length}/${locationIds.length} location IDs`);
+    logger.debug('Location validation complete', {
+      validCount: validIds.length,
+      totalCount: locationIds.length
+    });
     
     return validIds;
   } catch (error) {
-    console.error('Error filtering valid location IDs:', error);
+    logger.error('Error filtering valid location IDs', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return []; // Return empty array if error occurs
   }
 }
@@ -105,7 +112,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      console.log(`Fetching requirements for service: ${serviceId}`);
+      logger.debug('Fetching requirements', { serviceId });
       
       // Get requirements associated with this service through ServiceRequirement
       const serviceRequirements = await prisma.serviceRequirement.findMany({
@@ -129,18 +136,23 @@ export async function GET(request: NextRequest) {
           ...sr.requirement,
           displayOrder: sr.displayOrder
         };
-        console.log(`Requirement ${sr.requirement.name}: displayOrder = ${sr.displayOrder} (type: ${typeof sr.displayOrder})`);
+        logger.debug('Requirement display order', {
+          name: sr.requirement.name,
+          displayOrder: sr.displayOrder,
+          type: typeof sr.displayOrder
+        });
         return req;
       });
 
-      console.log(`Found ${requirements.length} requirements for service: ${serviceId}`);
-      if (requirements.length > 0) {
-        console.log('All requirements with displayOrder (sorted):', requirements.map(r => ({
+      logger.info('Requirements fetched', {
+        count: requirements.length,
+        serviceId,
+        requirements: requirements.length > 0 ? requirements.map(r => ({
           name: r.name,
           displayOrder: r.displayOrder,
           id: r.id
-        })));
-      }
+        })) : []
+      });
 
       // Fetch mappings for the service
       const mappings = await prisma.dSXMapping.findMany({
@@ -184,14 +196,17 @@ export async function GET(request: NextRequest) {
         availability: availabilityObject
       });
     } catch (dbError) {
-      console.error('Database error in GET /api/dsx:', dbError);
+      logDatabaseError('dsx_fetch', dbError as Error, session?.user?.id);
       return NextResponse.json(
         { error: "Database error while fetching DSX data", details: dbError.message },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error('Error in GET /api/dsx:', error);
+    logger.error('Error in GET /api/dsx', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return NextResponse.json(
       { error: "An error occurred while processing your request", details: error.message },
       { status: 500 }
@@ -238,14 +253,14 @@ export async function POST(request: NextRequest) {
         // Handle array of requirements
         if (type === 'requirements') {
           if (!Array.isArray(data)) {
-            console.error('Error: requirements data is not an array:', data);
+            logger.error('Invalid requirements data format', { data, type: typeof data });
             return NextResponse.json({ 
               error: "Invalid requirements data format", 
               details: "Requirements data must be an array" 
             }, { status: 400 });
           }
           
-          console.log('Processing requirements for service:', serviceId);
+          logger.debug('Processing requirements', { serviceId });
           
           // Use a transaction to ensure consistency
           const result = await prisma.$transaction(async (tx) => {
@@ -263,7 +278,7 @@ export async function POST(request: NextRequest) {
               try {
                 // Skip if no ID provided
                 if (!req.id) {
-                  console.warn('Missing requirement ID in request, skipping');
+                  logger.warn('Missing requirement ID in request');
                   continue;
                 }
                 
@@ -273,7 +288,7 @@ export async function POST(request: NextRequest) {
                 });
                 
                 if (!existingRequirement) {
-                  console.warn(`Requirement with ID ${req.id} not found, skipping`);
+                  logger.warn('Requirement not found', { requirementId: req.id });
                   continue;
                 }
                 
@@ -288,7 +303,11 @@ export async function POST(request: NextRequest) {
                 
                 createdRelationships.push(serviceRequirement.id);
               } catch (error) {
-                console.error(`Error creating service-requirement relationship:`, error);
+                logger.error('Error creating service-requirement relationship', {
+                  error: error instanceof Error ? error.message : String(error),
+                  requirementId: req.id,
+                  serviceId
+                });
               }
             }
             
@@ -386,7 +405,10 @@ export async function POST(request: NextRequest) {
           
           return NextResponse.json(result);
         } catch (error) {
-          console.error('Error in mappings transaction:', error);
+          logger.error('Error in mappings transaction', {
+            error: error instanceof Error ? error.message : String(error),
+            serviceId
+          });
           return NextResponse.json({ 
             error: "Failed to save mappings", 
             details: error.message 
@@ -395,23 +417,25 @@ export async function POST(request: NextRequest) {
       }
       else if (type === 'availability' && data) {
         try {
-          console.log('Processing availability data for service:', serviceId);
-          console.log('Received locations with availability changes:', Object.keys(data).length);
+          logger.debug('Processing availability data', {
+            serviceId,
+            locationCount: Object.keys(data).length
+          });
           
           const result = await prisma.$transaction(async (tx) => {
             // Delete existing availability records
             const deletedRecords = await tx.dSXAvailability.deleteMany({
               where: { serviceId }
             });
-            console.log(`Deleted ${deletedRecords.count} existing availability records`);
+            logger.debug('Deleted existing availability records', { count: deletedRecords.count });
             
             // Get all location IDs 
             const locationIds = Object.keys(data).filter(id => id !== 'all');
-            console.log(`Processing ${locationIds.length} location IDs (excluding 'all')`);
+            logger.debug('Processing location IDs', { count: locationIds.length });
             
             // Check for Afghanistan specifically
             if (locationIds.includes('32c804e1-e904-45b0-b150-cdc70be9679c')) {
-              console.log('Afghanistan is included in the location IDs');
+              logger.debug('Afghanistan included in location IDs');
             }
             
             // Filter location IDs that don't exist in database
@@ -444,17 +468,20 @@ export async function POST(request: NextRequest) {
             }
             
             if (skippedLocations.length > 0) {
-              console.warn(`Skipped ${skippedLocations.length} invalid location IDs during availability processing`);
+              logger.warn('Invalid location IDs skipped', {
+                count: skippedLocations.length,
+                skippedIds: skippedLocations
+              });
             }
             
             // Create new availability records
             if (availabilityToCreate.length > 0) {
-              console.log(`Creating ${availabilityToCreate.length} availability records`);
+              logger.debug('Creating availability records', { count: availabilityToCreate.length });
               const result = await tx.dSXAvailability.createMany({
                 data: availabilityToCreate,
                 skipDuplicates: true
               });
-              console.log(`Successfully created ${result.count} availability records`);
+              logger.info('Availability records created', { count: result.count });
               return { 
                 success: true, 
                 createdCount: result.count,
@@ -474,7 +501,10 @@ export async function POST(request: NextRequest) {
           
           return NextResponse.json(result);
         } catch (error) {
-          console.error('Error in availability transaction:', error);
+          logger.error('Error in availability transaction', {
+            error: error instanceof Error ? error.message : String(error),
+            serviceId
+          });
           return NextResponse.json({ 
             error: "Failed to save availability", 
             details: error.message,
@@ -489,14 +519,19 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
     } catch (error) {
-      console.error('Error in DSX operations:', error);
+      logger.error('Error in DSX operations', {
+        error: error instanceof Error ? error.message : String(error),
+        serviceId
+      });
       return NextResponse.json(
         { error: "Failed to save DSX data", details: error.message },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error('Error in POST /api/dsx:', error);
+    logger.error('Error in POST /api/dsx', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     return NextResponse.json(
       { error: "An error occurred while processing your request", details: error.message },
       { status: 500 }

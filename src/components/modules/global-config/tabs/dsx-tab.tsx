@@ -11,6 +11,7 @@ import { FieldOrderSection } from './FieldOrderSection';
 import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle } from 'lucide-react';
+import { clientLogger } from '@/lib/client-logger';
 
 // List of location IDs that cause problems - don't ignore Afghanistan (32c804e1)
 const IGNORED_LOCATION_IDS = new Set([]);
@@ -48,7 +49,7 @@ export function DSXTab() {
     const fetchLocations = async () => {
       try {
         setIsLoading(true);
-        console.log('Fetching locations for DSX tab...');
+        clientLogger.debug('Fetching locations for DSX tab');
         
         const response = await fetchWithAuth('/api/locations');
         
@@ -57,15 +58,16 @@ export function DSXTab() {
         }
         
         const data = await response.json();
-        console.log('Loaded locations data:', {
+        clientLogger.info('Loaded locations data', {
           locationsCount: data?.length,
-          firstLocation: data?.[0],
-          data: data
+          hasData: !!data
         });
         setLocations(data);
-        console.log('Successfully loaded locations in DSX tab');
+        clientLogger.info('Successfully loaded locations in DSX tab');
       } catch (err) {
-        console.error('Failed to load locations in DSX tab:', err);
+        clientLogger.error('Failed to load locations in DSX tab', {
+          error: err.message
+        });
         setError('Failed to load locations. Please refresh the page.');
       } finally {
         setIsLoading(false);
@@ -91,7 +93,9 @@ export function DSXTab() {
         const data = await response.json();
         setServices(data.services || []);
       } catch (err) {
-        console.error('Error fetching services:', err);
+        clientLogger.error('Error fetching services', {
+          error: err.message
+        });
         setError('Failed to load services. Please try again.');
       } finally {
         setIsLoading(false);
@@ -108,7 +112,7 @@ export function DSXTab() {
       
       try {
         // Make parallel requests to fetch data fields and documents
-        console.log('Fetching all available requirements...');
+        clientLogger.debug('Fetching all available requirements');
         const [fieldsResponse, documentsResponse] = await Promise.all([
           fetchWithAuth('/api/data-rx/fields?includeDisabled=false'),
           fetchWithAuth('/api/data-rx/documents?includeDisabled=false')
@@ -134,11 +138,15 @@ export function DSXTab() {
         
         // Combine all requirements
         const allRequirements = [...fields, ...documents];
-        console.log('All available requirements:', allRequirements.length);
+        clientLogger.info('All available requirements loaded', {
+          count: allRequirements.length
+        });
         
         setAvailableRequirements(allRequirements);
       } catch (err) {
-        console.error('Error fetching requirements:', err);
+        clientLogger.error('Error fetching requirements', {
+          error: err.message
+        });
         setError('Failed to load requirements. Please try again.');
       } finally {
         setIsLoadingRequirements(false);
@@ -156,7 +164,9 @@ export function DSXTab() {
     setError(null);
 
     try {
-      console.log(`Fetching DSX data for service: ${serviceId}`);
+      clientLogger.debug('Fetching DSX data for service', {
+        serviceId
+      });
 
       const response = await fetchWithAuth(`/api/dsx?serviceId=${serviceId}`);
 
@@ -165,17 +175,21 @@ export function DSXTab() {
       }
 
       const data = await response.json();
-      console.log("🔄 DSX Tab: Received fresh data from API");
-      console.log("📊 Requirements from API:", data.requirements?.map(r => ({
-        id: r.id,
-        name: r.name,
-        displayOrder: r.displayOrder,
-        orderType: typeof r.displayOrder
-      })));
-      console.log("Mappings received:", Object.keys(data.mappings || {}).length, "mappings");
+      clientLogger.info('DSX Tab: Received fresh data from API');
+      clientLogger.debug('Requirements received from API', {
+        count: data.requirements?.length,
+        hasRequirements: !!data.requirements
+      });
+      clientLogger.debug('Mappings received', {
+        mappingsCount: Object.keys(data.mappings || {}).length
+      });
       const sampleKeys = Object.keys(data.mappings || {}).slice(0, 5);
-      console.log("Sample mapping keys:", sampleKeys);
-      console.log("Sample mapping values from API:", sampleKeys.map(k => ({ key: k, value: data.mappings[k], type: typeof data.mappings[k] })));
+      clientLogger.debug('Sample mapping keys', {
+        sampleKeysCount: sampleKeys.length
+      });
+      clientLogger.debug('Sample mapping values received from API', {
+        sampleCount: sampleKeys.length
+      });
 
       // Set the requirements associated with this service
       setServiceRequirements(data.requirements || []);
@@ -189,10 +203,16 @@ export function DSXTab() {
           filteredMappings[key] = value === true;
         }
       });
-      console.log("Filtered mappings count:", Object.keys(filteredMappings).length);
-      console.log("Sample filtered mapping:", Object.entries(filteredMappings).slice(0, 3));
+      clientLogger.debug('Filtered mappings processed', {
+        filteredCount: Object.keys(filteredMappings).length
+      });
+      clientLogger.debug('Sample filtered mappings', {
+        sampleCount: Object.entries(filteredMappings).slice(0, 3).length
+      });
       setMappings(filteredMappings);
-      console.log("Mappings state will be updated to:", filteredMappings);
+      clientLogger.debug('Mappings state will be updated', {
+        mappingsCount: Object.keys(filteredMappings).length
+      });
       
       // Process availability
       const filteredAvailability: Record<string, boolean> = {};
@@ -208,7 +228,9 @@ export function DSXTab() {
       setSelectedRequirementIds(requirementIds);
 
     } catch (err) {
-      console.error('Error fetching DSX data:', err);
+      clientLogger.error('Error fetching DSX data', {
+        error: err.message
+      });
       setError('Failed to load DSX data. Please try again.');
     } finally {
       setIsLoading(false);
@@ -241,7 +263,9 @@ export function DSXTab() {
   useEffect(() => {
     if (selectedService) {
       // Always fetch fresh data when service changes
-      console.log('Service changed, fetching fresh data for:', selectedService);
+      clientLogger.debug('Service changed, fetching fresh data', {
+        selectedService
+      });
       fetchDSXData(selectedService);
     }
   }, [selectedService, fetchDSXData]);
@@ -260,7 +284,7 @@ export function DSXTab() {
   // Save selected requirements to the service
 const saveSelectedRequirements = async () => {
   if (!selectedService || isSavingRequirements) {
-    console.error("Cannot save: Service not selected or already saving");
+    clientLogger.warn('Cannot save: Service not selected or already saving');
     return;
   }
   
@@ -272,19 +296,25 @@ const saveSelectedRequirements = async () => {
   setError(null);
   
   try {
-    console.log('Saving selected requirement IDs:', selectedRequirementIds);
+    clientLogger.debug('Saving selected requirement IDs', {
+      count: selectedRequirementIds.length
+    });
     
     // Create an array of requirement objects from the available requirements
     const requirementsToSave = selectedRequirementIds.map(id => {
       const requirement = availableRequirements.find(req => req.id === id);
       if (!requirement) {
-        console.warn(`Requirement with ID ${id} not found in availableRequirements`);
+        clientLogger.warn('Requirement not found in availableRequirements', {
+          requirementId: id
+        });
         return null;
       }
       return requirement;
     }).filter(Boolean); // Remove any null values
     
-    console.log('Requirements to save:', requirementsToSave);
+    clientLogger.debug('Requirements to save', {
+      count: requirementsToSave.length
+    });
     
     // Call the CORRECT API endpoint - use associate-requirements instead of requirements
     const response = await fetchWithAuth('/api/dsx/associate-requirements', {
@@ -307,15 +337,19 @@ const saveSelectedRequirements = async () => {
     
     // Parse the response
     const responseData = await response.json();
-    console.log('Save response:', responseData);
+    clientLogger.debug('Save response received', {
+      hasResponse: !!responseData
+    });
 
     // Refresh DSX data to get the updated requirements
     await fetchDSXData(selectedService);
     
     // Success response
-    console.log('Requirements saved successfully');
+    clientLogger.info('Requirements saved successfully');
   } catch (err) {
-    console.error('Error saving requirements:', err);
+    clientLogger.error('Error saving requirements', {
+      error: err.message
+    });
     setError(`Failed to save requirements: ${err instanceof Error ? err.message : 'Unknown error'}`);
   } finally {
     setIsSavingRequirements(false);
@@ -325,11 +359,13 @@ const saveSelectedRequirements = async () => {
   // Handle mapping changes from the requirements table
   const handleMappingChange = async (updatedMappings: Record<string, boolean>) => {
     if (!selectedService || isSaving) {
-      console.error("Cannot save: Service not selected or already saving");
+      clientLogger.warn('Cannot save: Service not selected or already saving');
       return;
     }
     
-    console.log("Received mappings from table:", updatedMappings);
+    clientLogger.debug('Received mappings from table', {
+      mappingsCount: Object.keys(updatedMappings).length
+    });
     
     // Filter out problematic location IDs
     const filteredMappings: Record<string, boolean> = {};
@@ -369,7 +405,9 @@ const saveSelectedRequirements = async () => {
         requirementMappings[requirementId].push(locationId);
       });
       
-      console.log('Saving mappings to server:', requirementMappings);
+      clientLogger.debug('Saving mappings to server', {
+        mappingsCount: Object.keys(requirementMappings).length
+      });
       
       // Use the main /api/dsx endpoint instead of a non-existent endpoint
       const response = await fetchWithAuth('/api/dsx', {
@@ -396,14 +434,18 @@ const saveSelectedRequirements = async () => {
           errorMessage += `: ${errorData.details}`;
         }
         
-        console.error('Error response from server:', errorData);
+        clientLogger.error('Error response from server', {
+          error: errorData
+        });
         throw new Error(errorMessage);
       }
       
       // Success response
-      console.log('Mappings saved successfully');
+      clientLogger.info('Mappings saved successfully');
     } catch (err) {
-      console.error('Error saving mappings:', err);
+      clientLogger.error('Error saving mappings', {
+        error: err.message
+      });
       setError(`Failed to save mappings: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsSaving(false);
@@ -413,11 +455,13 @@ const saveSelectedRequirements = async () => {
   // Handle availability changes from the requirements table
   const handleAvailabilityChange = async (updatedAvailability: Record<string, boolean>) => {
     if (!selectedService || isSaving) {
-      console.error("Cannot save: Service not selected or already saving");
+      clientLogger.warn('Cannot save: Service not selected or already saving');
       return;
     }
     
-    console.log("Received availability from table:", updatedAvailability);
+    clientLogger.debug('Received availability from table', {
+      availabilityCount: Object.keys(updatedAvailability).length
+    });
     
     // Filter out problematic location IDs
     const filteredAvailability: Record<string, boolean> = {};
@@ -438,7 +482,9 @@ const saveSelectedRequirements = async () => {
     setError(null);
     
     try {    
-      console.log('Saving availability to server:', filteredAvailability);
+      clientLogger.debug('Saving availability to server', {
+        availabilityCount: Object.keys(filteredAvailability).length
+      });
       
       // Use the main /api/dsx endpoint instead of the non-existent /api/dsx/availability endpoint
       const response = await fetchWithAuth('/api/dsx', {
@@ -469,14 +515,18 @@ const saveSelectedRequirements = async () => {
           errorMessage += `: ${errorData.details}`;
         }
         
-        console.error('Error response from server:', errorData);
+        clientLogger.error('Error response from server', {
+          error: errorData
+        });
         throw new Error(errorMessage);
       }
       
       // Success response
-      console.log('Availability saved successfully');
+      clientLogger.info('Availability saved successfully');
     } catch (err) {
-      console.error('Error saving availability:', err);
+      clientLogger.error('Error saving availability', {
+        error: err.message
+      });
       setError(`Failed to save availability: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsSaving(false);
@@ -667,7 +717,7 @@ const saveSelectedRequirements = async () => {
           requirements={serviceRequirements}
           onOrderChanged={() => {
             // Field order has been saved successfully
-            console.log('Field order saved, refreshing data...');
+            clientLogger.info('Field order saved, refreshing data');
             // Refresh to get the updated display order from the database
             fetchDSXData(selectedService);
           }}
@@ -682,13 +732,6 @@ const saveSelectedRequirements = async () => {
               <p className="text-sm mt-1">Locations count: {locations.length}</p>
             </div>
           )}
-          {console.log('Passing to RequirementsDataTable:', {
-            mappingsCount: Object.keys(mappings).length,
-            sampleKeys: Object.keys(mappings).slice(0, 5),
-            sampleEntries: Object.entries(mappings).slice(0, 3),
-            mappingsType: typeof mappings,
-            isArray: Array.isArray(mappings)
-          })}
           <RequirementsDataTable
             serviceName={selectedServiceName}
             requirements={serviceRequirements}

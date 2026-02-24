@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import logger from '@/lib/logger';
 
 // Interface for the request body
 interface AddLocaleRequest {
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Error adding new locale:', error);
+    logger.error('Error adding new locale', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { error: 'Failed to add new locale', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }

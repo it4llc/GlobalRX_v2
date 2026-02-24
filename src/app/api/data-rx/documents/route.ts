@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger, { logDatabaseError } from '@/lib/logger';
 
 // Helper function to check permissions
 function hasPermission(permissions: any, module: string): boolean {
@@ -126,7 +127,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ documents: processedDocuments });
   } catch (error) {
-    console.error('Error in GET /api/data-rx/documents:', error);
+    logger.error('Error in GET data-rx documents route', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     return NextResponse.json(
       { error: "An error occurred while processing your request" },
       { status: 500 }
@@ -184,7 +187,7 @@ export async function POST(request: NextRequest) {
       retentionHandling: retentionHandling || "no_delete"
     };
 
-    console.log("Creating document with name:", documentNameToUse);
+    logger.info('Creating document', { documentName: documentNameToUse });
 
     try {
       let document;
@@ -201,7 +204,7 @@ export async function POST(request: NextRequest) {
           }
         });
         
-        console.log(`Updated document: ${document.id}`);
+        logger.info('Updated existing document', { documentId: document.id, documentName: documentNameToUse });
       } else {
         // Create new document
         document = await prisma.dSXRequirement.create({
@@ -212,8 +215,8 @@ export async function POST(request: NextRequest) {
             disabled
           }
         });
-        
-        console.log(`Created new document: ${document.id}`);
+
+        logger.info('Created new document', { documentId: document.id, documentName: documentNameToUse });
       }
 
       // Add documentName field for frontend compatibility
@@ -224,14 +227,16 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(response);
     } catch (dbError) {
-      console.error('Database error in POST /api/data-rx/documents:', dbError);
+      logDatabaseError('create_document', dbError as Error, session?.user?.id);
       return NextResponse.json(
         { error: "Database error while creating document" },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error('Error in POST /api/data-rx/documents:', error);
+    logger.error('Error in POST data-rx documents route', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     return NextResponse.json(
       { error: "An error occurred while processing your request" },
       { status: 500 }
@@ -268,18 +273,20 @@ export async function DELETE(request: NextRequest) {
         data: { disabled: true }
       });
       
-      console.log(`Disabled document: ${document.id}`);
+      logger.info('Disabled document', { documentId: document.id });
 
       return NextResponse.json({ success: true, message: "Document disabled successfully" });
     } catch (dbError) {
-      console.error('Database error in DELETE /api/data-rx/documents:', dbError);
+      logDatabaseError('disable_document', dbError as Error, session?.user?.id);
       return NextResponse.json(
         { error: "Database error while disabling document" },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error('Error in DELETE /api/data-rx/documents:', error);
+    logger.error('Error in DELETE data-rx documents route', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     return NextResponse.json(
       { error: "An error occurred while processing your request" },
       { status: 500 }

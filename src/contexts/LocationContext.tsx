@@ -4,6 +4,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import clientLogger from '@/lib/client-logger';
 
 // Define the Location interface based on your schema
 export interface Location {
@@ -141,7 +142,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
           if (sessionLoaded && !session) {
             // If session is confirmed not available, don't retry immediately
             // It will retry automatically when session becomes available
-            console.warn('Authentication required for locations');
+            clientLogger.warn('Authentication required for locations');
             isFetchingRef.current = false;
             return;
           }
@@ -174,10 +175,19 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       // Mark success
       setAllLocationsLoaded(true);
       fetchAttemptsRef.current = 0;
-      
-      console.log('Successfully loaded locations:', data.length);
+
+      clientLogger.info('Successfully loaded locations', {
+        locationCount: data.length,
+        retryCount,
+        attemptNumber: fetchAttemptsRef.current
+      });
     } catch (err) {
-      console.error('Error fetching locations:', err);
+      clientLogger.error('Failed to fetch locations', {
+        retryCount,
+        attemptNumber: fetchAttemptsRef.current,
+        error: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
       
       // Handle error and retry
       setError(`Failed to load locations data: ${err instanceof Error ? err.message : 'Unknown error'}`);

@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { defaultLocale, availableLocales } from '@/lib/i18n/config';
 import { getTranslations } from '@/lib/i18n/translations';
+import clientLogger from '@/lib/client-logger';
 
 // Types for our translations
 type TranslationRecord = Record<string, string>;
@@ -50,7 +51,11 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
       const translationsData = await getTranslations(localeToLoad);
       setTranslations(translationsData);
     } catch (error) {
-      console.error(`Error loading translations for ${localeToLoad}:`, error);
+      clientLogger.error('Failed to load translations', {
+        locale: localeToLoad,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
   };
   
@@ -77,7 +82,10 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         });
       }, 0);
     } else {
-      console.warn(`Locale ${newLocale} is not supported`);
+      clientLogger.warn('Unsupported locale requested', {
+        requestedLocale: newLocale,
+        availableLocales
+      });
     }
   };
   

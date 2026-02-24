@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger, { logDatabaseError } from '@/lib/logger';
 
 // Helper function to check permissions
 function hasPermission(permissions: any, module: string): boolean {
@@ -60,8 +61,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Updating field order for service ${serviceId}`);
-    console.log(`Received ${fieldOrders.length} field orders to update:`, fieldOrders);
+    logger.info('Updating field order for service', { serviceId, fieldOrderCount: fieldOrders.length });
 
     // Use a transaction to update all field orders atomically
     const result = await prisma.$transaction(async (tx) => {
@@ -83,20 +83,20 @@ export async function POST(request: NextRequest) {
       });
 
       const existingRequirementIds = new Set(existingRecords.map(r => r.requirementId));
-      console.log(`Found ${existingRecords.length} existing ServiceRequirement records`);
+      logger.debug('Found existing ServiceRequirement records', { existingRecordCount: existingRecords.length });
 
       for (const fieldOrder of fieldOrders) {
         const { requirementId, displayOrder } = fieldOrder;
 
         if (!requirementId || typeof displayOrder !== 'number') {
-          console.warn(`Invalid field order entry: ${JSON.stringify(fieldOrder)}`);
+          logger.warn('Invalid field order entry', { fieldOrder, reason: 'Invalid data' });
           failed.push({ requirementId, reason: 'Invalid data' });
           continue;
         }
 
         if (existingRequirementIds.has(requirementId)) {
           // Update existing record
-          console.log(`Updating displayOrder for requirement ${requirementId} to ${displayOrder}`);
+          logger.debug('Updating displayOrder for requirement', { requirementId, displayOrder });
           const updated = await tx.serviceRequirement.updateMany({
             where: {
               serviceId,
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
           }
         } else {
           // Record doesn't exist - this is a problem!
-          console.warn(`ServiceRequirement record not found for service ${serviceId} and requirement ${requirementId}`);
+          logger.warn('ServiceRequirement record not found', { serviceId, requirementId });
 
           // Try to create it with the display order
           try {
@@ -126,9 +126,12 @@ export async function POST(request: NextRequest) {
               }
             });
             created.push({ requirementId, displayOrder });
-            console.log(`Created missing ServiceRequirement record for ${requirementId} with displayOrder ${displayOrder}`);
+            logger.info('Created missing ServiceRequirement record', { requirementId, displayOrder });
           } catch (createError) {
-            console.error(`Failed to create ServiceRequirement record:`, createError);
+            logger.error('Failed to create ServiceRequirement record', {
+              requirementId,
+              error: createError instanceof Error ? createError.message : 'Unknown error'
+            });
             failed.push({ requirementId, reason: 'Create failed' });
           }
         }
@@ -145,19 +148,19 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    console.log('Field order update result:', {
+    logger.info('Field order update result', {
       updated: result.updatedCount,
       created: result.createdCount,
       failed: result.failedCount
     });
 
     if (result.failedCount > 0) {
-      console.error('Failed to update some field orders:', result.failed);
+      logger.error('Failed to update some field orders', { failed: result.failed });
     }
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error updating field order:', error);
+    logDatabaseError('update_field_order', error as Error, session?.user?.id);
     return NextResponse.json(
       { error: "Failed to update field order", details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

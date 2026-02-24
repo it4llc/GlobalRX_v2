@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger, { logDatabaseError } from '@/lib/logger';
 
 /**
  * API route to associate requirements with a service
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    console.log(`Associating ${requirements.length} requirements with service ${serviceId}`);
+    logger.info('Associating requirements with service', { requirementCount: requirements.length, serviceId });
 
     // First, get the list of existing requirements WITH their display order to preserve it
     const existingRequirements = await prisma.serviceRequirement.findMany({
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
     existingRequirements.forEach(req => {
       displayOrderMap.set(req.requirementId, req.displayOrder);
     });
-    console.log(`Preserving display orders for ${displayOrderMap.size} existing requirements`);
+    logger.debug('Preserving display orders for existing requirements', { preservedCount: displayOrderMap.size });
 
     const removedRequirementIds = existingRequirements
       .map(r => r.requirementId)
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Remove DSX mappings for requirements that are being removed
     if (removedRequirementIds.length > 0) {
-      console.log(`Removing DSX mappings for ${removedRequirementIds.length} requirements...`);
+      logger.info('Removing DSX mappings for requirements', { removedCount: removedRequirementIds.length });
       await prisma.dSXMapping.deleteMany({
         where: {
           serviceId,
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Now remove existing ServiceRequirement entries
-    console.log('Removing existing ServiceRequirement entries for this service...');
+    logger.debug('Removing existing ServiceRequirement entries for service', { serviceId });
     await prisma.serviceRequirement.deleteMany({
       where: { serviceId }
     });
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
     let nextDisplayOrder = maxDisplayOrder + 10;
 
     // Create new associations
-    console.log('Creating new requirement associations...');
+    logger.debug('Creating new requirement associations');
     const createdRequirements = [];
 
     for (let i = 0; i < requirements.length; i++) {
@@ -99,9 +100,9 @@ export async function POST(request: NextRequest) {
         if (displayOrder === undefined) {
           displayOrder = nextDisplayOrder;
           nextDisplayOrder += 10;
-          console.log(`Assigning new displayOrder ${displayOrder} to new requirement ${req.id}`);
+          logger.debug('Assigning new displayOrder to requirement', { displayOrder, requirementId: req.id });
         } else {
-          console.log(`Preserving displayOrder ${displayOrder} for existing requirement ${req.id}`);
+          logger.debug('Preserving displayOrder for existing requirement', { displayOrder, requirementId: req.id });
         }
 
         // Create the service requirement association with display order
@@ -115,11 +116,14 @@ export async function POST(request: NextRequest) {
 
         createdRequirements.push(serviceRequirement);
       } catch (error) {
-        console.error('Error creating requirement:', error);
+        logger.error('Error creating requirement', {
+          requirementId: req.id,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
     }
     
-    console.log(`Successfully associated ${createdRequirements.length} requirements with service ${serviceId}`);
+    logger.info('Successfully associated requirements with service', { associatedCount: createdRequirements.length, serviceId });
     
     return NextResponse.json({
       success: true,
@@ -127,7 +131,7 @@ export async function POST(request: NextRequest) {
       requirements: createdRequirements
     });
   } catch (error) {
-    console.error('Error associating requirements with service:', error);
+    logDatabaseError('associate_requirements', error as Error, session?.user?.id);
     return NextResponse.json(
       { error: 'Failed to associate requirements with service' },
       { status: 500 }

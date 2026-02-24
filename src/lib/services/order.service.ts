@@ -1,6 +1,7 @@
 // src/lib/services/order.service.ts
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import logger from '@/lib/logger';
 
 export class OrderService {
   /**
@@ -57,7 +58,16 @@ export class OrderService {
 
       return newEntry.id;
     } catch (error) {
-      console.error('Failed to create AddressEntry:', error);
+      logger.error('Failed to create AddressEntry', {
+        addressData: {
+          street1: addressData.street1,
+          city: addressData.city,
+          state: addressData.state
+        },
+        userId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return null;
     }
   }
@@ -230,7 +240,11 @@ export class OrderService {
               resolvedAddress.stateCode = state.code2;
             }
           } catch (error) {
-            console.warn(`Failed to resolve state ID ${addressObj.state}:`, error);
+            logger.warn('Failed to resolve state ID in address object', {
+              stateId: addressObj.state,
+              fieldName,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
           }
         }
 
@@ -245,7 +259,11 @@ export class OrderService {
               resolvedAddress.county = county.subregion2 || county.name;
             }
           } catch (error) {
-            console.warn(`Failed to resolve county ID ${addressObj.county}:`, error);
+            logger.warn('Failed to resolve county ID in address object', {
+              countyId: addressObj.county,
+              fieldName,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
           }
         }
 
@@ -301,7 +319,11 @@ export class OrderService {
               continue;
             }
           } catch (error) {
-            console.warn(`Failed to resolve address ID ${fieldValue}:`, error);
+            logger.warn('Failed to resolve address ID', {
+              addressId: fieldValue,
+              fieldName,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
           }
         }
 
@@ -329,7 +351,11 @@ export class OrderService {
               continue;
             }
           } catch (error) {
-            console.warn(`Failed to resolve location ID ${fieldValue}:`, error);
+            logger.warn('Failed to resolve location ID', {
+              locationId: fieldValue,
+              fieldName,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
           }
         }
 
@@ -353,7 +379,11 @@ export class OrderService {
               continue;
             }
           } catch (error) {
-            console.warn(`Failed to resolve state ID ${fieldValue}:`, error);
+            logger.warn('Failed to resolve state ID', {
+              stateId: fieldValue,
+              fieldName,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
           }
         }
 
@@ -373,7 +403,11 @@ export class OrderService {
               continue;
             }
           } catch (error) {
-            console.warn(`Failed to resolve county ID ${fieldValue}:`, error);
+            logger.warn('Failed to resolve county ID', {
+              countyId: fieldValue,
+              fieldName,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
           }
         }
       }
@@ -716,7 +750,11 @@ export class OrderService {
       // If validation fails and trying to submit, force to draft
       if (!validationResult.isValid) {
         finalStatus = 'draft';
-        console.log('Order validation failed, saving as draft. Missing requirements:', validationResult.missingRequirements);
+        logger.warn('Order validation failed, saving as draft', {
+          customerId: data.customerId,
+          serviceItemsCount: data.serviceItems.length,
+          missingRequirements: validationResult.missingRequirements
+        });
       } else {
         finalStatus = 'submitted';
       }

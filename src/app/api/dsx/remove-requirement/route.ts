@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger, { logDatabaseError } from '@/lib/logger';
 
 /**
  * DELETE /api/dsx/remove-requirement
@@ -30,7 +31,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    console.log(`Removing requirement ${requirementId} from service ${serviceId}`);
+    logger.info('Removing requirement from service', { requirementId, serviceId });
 
     // Use a transaction to ensure consistency
     const result = await prisma.$transaction(async (tx) => {
@@ -50,8 +51,10 @@ export async function DELETE(request: NextRequest) {
         }
       });
 
-      console.log(`Deleted ${deletedServiceRequirement.count} service requirement(s)`);
-      console.log(`Deleted ${deletedMappings.count} DSX mapping(s)`);
+      logger.info('Removed service requirements and mappings', {
+        serviceRequirements: deletedServiceRequirement.count,
+        dsxMappings: deletedMappings.count
+      });
 
       return {
         serviceRequirements: deletedServiceRequirement.count,
@@ -64,7 +67,7 @@ export async function DELETE(request: NextRequest) {
       deleted: result
     });
   } catch (error) {
-    console.error('Error removing requirement:', error);
+    logDatabaseError('remove_requirement', error as Error, session?.user?.id);
     return NextResponse.json(
       { error: 'Failed to remove requirement' },
       { status: 500 }
@@ -96,7 +99,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Removing ${requirementIds.length} requirements from service ${serviceId}`);
+    logger.info('Bulk removing requirements from service', { requirementCount: requirementIds.length, serviceId });
 
     // Use a transaction to ensure consistency
     const result = await prisma.$transaction(async (tx) => {
@@ -120,8 +123,10 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      console.log(`Deleted ${deletedServiceRequirements.count} service requirement(s)`);
-      console.log(`Deleted ${deletedMappings.count} DSX mapping(s)`);
+      logger.info('Bulk removed service requirements and mappings', {
+        serviceRequirements: deletedServiceRequirements.count,
+        dsxMappings: deletedMappings.count
+      });
 
       return {
         serviceRequirements: deletedServiceRequirements.count,
@@ -134,7 +139,7 @@ export async function POST(request: NextRequest) {
       deleted: result
     });
   } catch (error) {
-    console.error('Error removing requirements:', error);
+    logDatabaseError('bulk_remove_requirements', error as Error, session?.user?.id);
     return NextResponse.json(
       { error: 'Failed to remove requirements' },
       { status: 500 }

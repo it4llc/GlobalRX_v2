@@ -8,6 +8,7 @@ import * as z from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { DialogRef, ModalDialog, DialogFooter } from '@/components/ui/modal-dialog';
 import { FormTable, FormRow } from '@/components/ui/form';
+import { clientLogger } from '@/lib/client-logger';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -44,19 +45,23 @@ interface PackageDialogProps {
 }
 
 export function PackageDialog({ customerId, packageId, onClose, open }: PackageDialogProps) {
-  console.log("PackageDialog rendered with props:", { customerId, packageId, open });
+  clientLogger.debug('PackageDialog rendered', {
+    hasCustomerId: !!customerId,
+    hasPackageId: !!packageId,
+    open
+  });
   
   const dialogRef = useRef<DialogRef>(null);
   const { fetchWithAuth } = useAuth();
   
   // Use effect to open/close dialog when the open prop changes
   useEffect(() => {
-    console.log("open prop changed to:", open);
+    clientLogger.debug('open prop changed', { open });
     if (open && dialogRef.current) {
-      console.log("Calling showModal() on dialogRef");
+      clientLogger.debug('Calling showModal() on dialogRef');
       dialogRef.current.showModal();
     } else if (!open && dialogRef.current) {
-      console.log("Calling close() on dialogRef");
+      clientLogger.debug('Calling close() on dialogRef');
       dialogRef.current.close();
     }
   }, [open]);
@@ -89,38 +94,53 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("Beginning data fetch. CustomerId:", customerId, "PackageId:", packageId);
+        clientLogger.debug('Beginning data fetch', {
+          hasCustomerId: !!customerId,
+          hasPackageId: !!packageId
+        });
         setIsLoading(true);
         setError(null);
         
         // Fetch customer to get available services
-        console.log("Fetching customer details...");
+        clientLogger.debug('Fetching customer details');
         const customerResponse = await fetchWithAuth(`/api/customers/${customerId}`);
         
         if (!customerResponse.ok) {
-          console.error("Customer API response not OK:", customerResponse.status);
+          clientLogger.error('Customer API response not OK', {
+            status: customerResponse.status
+          });
           throw new Error('Failed to fetch customer details');
         }
         
         const customerData = await customerResponse.json();
-        console.log("Customer data received:", customerData);
+        clientLogger.info('Customer data received', {
+          hasCustomerData: !!customerData
+        });
         const services = customerData.services || [];
-        console.log("Available services:", services);
+        clientLogger.debug('Available services loaded', {
+          servicesCount: services?.length
+        });
         setAvailableServices(services);
         
         // If editing an existing package, fetch its details
         if (packageId) {
-          console.log("Fetching package details for ID:", packageId);
+          clientLogger.debug('Fetching package details', {
+            packageId
+          });
           const packageResponse = await fetchWithAuth(`/api/packages/${packageId}`);
           
-          console.log("Package API response status:", packageResponse.status);
+          clientLogger.debug('Package API response received', {
+            status: packageResponse.status
+          });
           
           if (!packageResponse.ok) {
             let errorText = "";
             try {
               const errorData = await packageResponse.json();
               errorText = errorData.error || "";
-              console.error("Package API error:", errorData);
+              clientLogger.error('Package API error', {
+                error: errorData
+              });
             } catch (e) {
               errorText = "Could not parse error response";
             }
@@ -128,15 +148,19 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
           }
           
           const packageData = await packageResponse.json();
-          console.log("Package data received:", packageData);
+          clientLogger.info('Package data received', {
+            hasPackageData: !!packageData
+          });
           
           // Verify package data structure
           if (!packageData || !packageData.services) {
-            console.error("Invalid package data format:", packageData);
+            clientLogger.error('Invalid package data format', {
+              hasPackageData: !!packageData
+            });
             throw new Error('Package data is missing required fields');
           }
           
-          console.log("Setting form values with package data...");
+          clientLogger.debug('Setting form values with package data');
           
           // Set form values
           reset({
@@ -150,7 +174,9 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
           
           // Set selected service IDs
           const serviceIds = packageData.services.map((svc: any) => svc.serviceId);
-          console.log("Selected service IDs:", serviceIds);
+          clientLogger.debug('Selected service IDs', {
+            serviceIdsCount: serviceIds?.length
+          });
           setSelectedServiceIds(serviceIds);
           
           // Set scopes
@@ -158,11 +184,15 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
           packageData.services.forEach((svc: any) => {
             scopeData[svc.serviceId] = svc.scope;
           });
-          console.log("Scope data:", scopeData);
+          clientLogger.debug('Scope data loaded', {
+            hasScopeData: !!scopeData
+          });
           setScopes(scopeData);
         }
       } catch (err) {
-        console.error('Error fetching data:', err);
+        clientLogger.error('Error fetching data', {
+          error: err.message
+        });
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);
@@ -209,7 +239,9 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
   // Handle form submission
   const onSubmit = async (data: PackageFormValues) => {
     try {
-      console.log("Form submitted with data:", data);
+      clientLogger.debug('Form submitted', {
+        hasData: !!data
+      });
       setIsSubmitting(true);
       setError(null);
       
@@ -245,7 +277,9 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
         }))
       };
       
-      console.log("Submitting data to API:", submitData);
+      clientLogger.debug('Submitting data to API', {
+        hasSubmitData: !!submitData
+      });
       
       // Prepare data for API
       const url = packageId 
@@ -254,7 +288,10 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
       
       const method = packageId ? 'PUT' : 'POST';
       
-      console.log(`Sending ${method} request to ${url}`);
+      clientLogger.debug('Sending API request', {
+        method,
+        hasUrl: !!url
+      });
       
       const response = await fetchWithAuth(url, {
         method,
@@ -266,13 +303,15 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
         throw new Error(errorData.error || 'Failed to save package');
       }
       
-      console.log("API request successful");
+      clientLogger.info('API request successful');
       
       // Close dialog and refresh data
-      console.log("Calling onClose(true) to close dialog and refresh data");
+      clientLogger.debug('Calling onClose to close dialog and refresh data');
       onClose(true);
     } catch (err) {
-      console.error('Error saving package:', err);
+      clientLogger.error('Error saving package', {
+        error: err.message
+      });
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsSubmitting(false);

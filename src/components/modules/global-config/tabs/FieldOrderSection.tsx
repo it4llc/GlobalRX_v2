@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { GripVertical } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { clientLogger } from '@/lib/client-logger';
 import {
   DndContext,
   closestCenter,
@@ -102,8 +103,8 @@ export function FieldOrderSection({
 
   // Initialize field order from requirements
   useEffect(() => {
-    console.log('🔄 FieldOrderSection: Initializing with requirements for service:', serviceId);
-    console.log('📊 Raw requirements received:', requirements.map(r => ({
+    clientLogger.debug('🔄 FieldOrderSection: Initializing with requirements for service:', serviceId);
+    clientLogger.debug('📊 Raw requirements received:', requirements.map(r => ({
       id: r.id,
       name: r.name,
       displayOrder: r.displayOrder,
@@ -111,7 +112,7 @@ export function FieldOrderSection({
     })));
 
     if (requirements.length === 0) {
-      console.log('⚠️ No requirements received, skipping initialization');
+      clientLogger.debug('⚠️ No requirements received, skipping initialization');
       return;
     }
 
@@ -134,7 +135,7 @@ export function FieldOrderSection({
         displayOrder: req.displayOrder || 999
       };
 
-      console.log(`📌 Mapping field: ${fieldOrder.name} -> displayOrder: ${fieldOrder.displayOrder} (tab: ${collectionTab})`);
+      clientLogger.debug(`📌 Mapping field: ${fieldOrder.name} -> displayOrder: ${fieldOrder.displayOrder} (tab: ${collectionTab})`);
 
       return fieldOrder;
     });
@@ -149,9 +150,9 @@ export function FieldOrderSection({
     searchFields.sort((a, b) => a.displayOrder - b.displayOrder);
     documentFieldsList.sort((a, b) => a.displayOrder - b.displayOrder);
 
-    console.log('🔢 Personal Info fields after sorting:', personalFields.map(f => `${f.name}(${f.displayOrder})`).join(', '));
-    console.log('🔢 Search Info fields after sorting:', searchFields.map(f => `${f.name}(${f.displayOrder})`).join(', '));
-    console.log('🔢 Document fields after sorting:', documentFieldsList.map(f => `${f.name}(${f.displayOrder})`).join(', '));
+    clientLogger.debug('🔢 Personal Info fields after sorting:', personalFields.map(f => `${f.name}(${f.displayOrder})`).join(', '));
+    clientLogger.debug('🔢 Search Info fields after sorting:', searchFields.map(f => `${f.name}(${f.displayOrder})`).join(', '));
+    clientLogger.debug('🔢 Document fields after sorting:', documentFieldsList.map(f => `${f.name}(${f.displayOrder})`).join(', '));
 
     setPersonalInfoFields(personalFields);
     setSearchInfoFields(searchFields);
@@ -245,11 +246,11 @@ export function FieldOrderSection({
         displayOrder
       }));
 
-      console.log('💾 Saving field orders for service:', serviceId);
-      console.log('💾 Personal Info order:', personalOrders.map(fo => `${fo.name}=${fo.displayOrder}`).join(', '));
-      console.log('💾 Search Info order:', searchOrders.map(fo => `${fo.name}=${fo.displayOrder}`).join(', '));
-      console.log('💾 Document order:', documentOrders.map(fo => `${fo.name}=${fo.displayOrder}`).join(', '));
-      console.log('💾 All field orders being sent:', [...personalOrders, ...searchOrders, ...documentOrders]);
+      clientLogger.debug('💾 Saving field orders for service:', serviceId);
+      clientLogger.debug('💾 Personal Info order:', personalOrders.map(fo => `${fo.name}=${fo.displayOrder}`).join(', '));
+      clientLogger.debug('💾 Search Info order:', searchOrders.map(fo => `${fo.name}=${fo.displayOrder}`).join(', '));
+      clientLogger.debug('💾 Document order:', documentOrders.map(fo => `${fo.name}=${fo.displayOrder}`).join(', '));
+      clientLogger.debug('💾 All field orders being sent:', [...personalOrders, ...searchOrders, ...documentOrders]);
 
       const response = await fetchWithAuth('/api/dsx/update-field-order', {
         method: 'POST',
@@ -264,27 +265,27 @@ export function FieldOrderSection({
 
       if (!response.ok) {
         const error = await response.text();
-        console.error('Failed to save field order:', error);
+        clientLogger.error('Failed to save field order:', error);
         throw new Error('Failed to save field order');
       }
 
       const result = await response.json();
-      console.log('💾 Save result:', result);
+      clientLogger.debug('💾 Save result:', result);
       if (result.createdCount > 0) {
-        console.warn('⚠️ Had to CREATE missing ServiceRequirement records:', result.created);
+        clientLogger.warn('⚠️ Had to CREATE missing ServiceRequirement records:', result.created);
       }
       if (result.failedCount > 0) {
-        console.error('❌ Failed to update some records:', result.failed);
+        clientLogger.error('❌ Failed to update some records:', result.failed);
       }
 
       setHasChanges(false);
 
       if (onOrderChanged) {
-        console.log('Calling onOrderChanged callback');
+        clientLogger.debug('Calling onOrderChanged callback');
         onOrderChanged();
       }
     } catch (error) {
-      console.error('Error saving field order:', error);
+      clientLogger.error('Error saving field order:', error);
       alert('Failed to save field order. Please try again.');
     } finally {
       setIsSaving(false);

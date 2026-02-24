@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger, { logDatabaseError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     const serviceId = searchParams.get('serviceId');
     
     // Fetch data fields
-    console.log('Fetching data fields from database...');
+    logger.debug('Fetching data fields from database');
     const dataFields = await prisma.dataField.findMany({
       select: {
         id: true,
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Fetch documents
-    console.log('Fetching documents from database...');
+    logger.debug('Fetching documents from database');
     const documents = await prisma.document.findMany({
       select: {
         id: true,
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     // If serviceId is provided, fetch already associated requirements
     let associatedRequirementIds: string[] = [];
     if (serviceId) {
-      console.log(`Fetching existing DSX requirements for service ${serviceId}...`);
+      logger.debug('Fetching existing DSX requirements for service', { serviceId });
       const existingRequirements = await prisma.dsxRequirement.findMany({
         where: { serviceId },
         select: { id: true, fieldId: true, documentId: true }
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
         req.documentId
       ]).filter(Boolean) as string[];
       
-      console.log('Already associated requirement IDs:', associatedRequirementIds);
+      logger.debug('Found already associated requirements', { associatedCount: associatedRequirementIds.length });
     }
     
     // Transform data fields to requirements format
@@ -100,7 +101,11 @@ export async function GET(request: NextRequest) {
     // Combine all requirements
     const allRequirements = [...dataFieldRequirements, ...documentRequirements];
     
-    console.log(`Found ${allRequirements.length} total requirements (${dataFieldRequirements.length} data fields, ${documentRequirements.length} documents)`);
+    logger.info('Retrieved available requirements', {
+      totalRequirements: allRequirements.length,
+      dataFields: dataFieldRequirements.length,
+      documents: documentRequirements.length
+    });
     
     // Return combined requirements
     return NextResponse.json({
@@ -108,7 +113,7 @@ export async function GET(request: NextRequest) {
       associatedCount: associatedRequirementIds.length
     });
   } catch (error) {
-    console.error('Error fetching available requirements:', error);
+    logDatabaseError('fetch_available_requirements', error as Error, session?.user?.id);
     return NextResponse.json(
       { error: 'Failed to fetch available requirements' },
       { status: 500 }
