@@ -202,20 +202,6 @@ export function RequirementsDataTable({
   disabled = false,
   isLoading = false,
 }: RequirementsDataTableProps) {
-  // Debug logging
-  clientLogger.info('RequirementsDataTable rendered with:', {
-    serviceName,
-    requirementsCount: requirements?.length,
-    locationsCount: locations?.length,
-    requirements: requirements?.map(r => ({
-      id: r.id,
-      name: r.name,
-      type: r.type,
-      displayOrder: r.displayOrder
-    })),
-    initialMappings: Object.keys(initialMappings).length,
-    initialAvailability: Object.keys(initialAvailability).length,
-  });
 
   // State
   const [localMappings, setLocalMappings] = useState(initialMappings);
@@ -233,11 +219,6 @@ export function RequirementsDataTable({
       const orderB = b.displayOrder ?? 999;
       return orderA - orderB;
     });
-    clientLogger.info('Fields for table columns (sorted by displayOrder):', sorted.map(f => ({
-      id: f.id,
-      name: f.name,
-      displayOrder: f.displayOrder
-    })));
     return sorted;
   }, [requirements]);
 
@@ -249,11 +230,6 @@ export function RequirementsDataTable({
       const orderB = b.displayOrder ?? 999;
       return orderA - orderB;
     });
-    clientLogger.info('Documents for table columns (sorted by displayOrder):', sorted.map(d => ({
-      id: d.id,
-      name: d.name,
-      displayOrder: d.displayOrder
-    })));
     return sorted;
   }, [requirements]);
 
@@ -265,24 +241,12 @@ export function RequirementsDataTable({
       const orderB = b.displayOrder ?? 999;
       return orderA - orderB;
     });
-    if (sorted.length > 0) {
-      clientLogger.info('Forms for table columns (sorted by displayOrder):', sorted.map(f => ({
-        id: f.id,
-        name: f.name,
-        displayOrder: f.displayOrder
-      })));
-    }
     return sorted;
   }, [requirements]);
 
   // Build hierarchical data
   const hierarchicalData = useMemo(() => {
     const data = buildLocationHierarchy(locations, localMappings, localAvailability);
-    clientLogger.info('Hierarchical data built:', {
-      dataLength: data?.length,
-      firstItem: data?.[0],
-      data: data
-    });
     return data;
   }, [locations, localMappings, localAvailability]);
 
@@ -615,13 +579,6 @@ export function RequirementsDataTable({
 
   // Virtualization for performance - use expanded row model
   const { rows } = table.getExpandedRowModel();
-  clientLogger.info('Table rows:', {
-    rowsCount: rows.length,
-    rows: rows,
-    firstRow: rows[0],
-    coreRows: table.getCoreRowModel().rows.length,
-    expandedState: expanded
-  });
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -638,15 +595,6 @@ export function RequirementsDataTable({
       ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0)
       : 0;
 
-  clientLogger.info('Virtual rows:', {
-    virtualRowsCount: virtualRows.length,
-    totalSize,
-    paddingTop,
-    paddingBottom,
-    virtualRows,
-    parentRef: parentRef.current,
-    scrollElement: parentRef.current?.scrollHeight
-  });
 
   return (
     <Card>
