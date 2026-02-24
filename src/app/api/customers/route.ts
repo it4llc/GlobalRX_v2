@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
       userId: session?.user?.id
     });
     return NextResponse.json(
-      { error: 'An error occurred while processing your request', details: error.message },
+      { error: 'An error occurred while processing your request', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

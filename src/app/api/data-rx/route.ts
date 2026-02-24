@@ -151,14 +151,14 @@ export async function GET(request: NextRequest) {
     } catch (dbError: unknown) {
       logger.error('Database error in GET /api/data-rx', { error: dbError.message, stack: dbError.stack });
       return NextResponse.json(
-        { error: "Database error while fetching Data Rx data", details: dbError.message },
+        { error: "Database error while fetching Data Rx data", details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
   } catch (error: unknown) {
     logger.error('Error in GET /api/data-rx', { error: error.message, stack: error.stack });
     return NextResponse.json(
-      { error: "An error occurred while processing your request", details: error.message },
+      { error: "An error occurred while processing your request", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

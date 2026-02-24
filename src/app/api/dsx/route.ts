@@ -198,7 +198,7 @@ export async function GET(request: NextRequest) {
     } catch (dbError: unknown) {
       logDatabaseError('dsx_fetch', dbError as Error, session?.user?.id);
       return NextResponse.json(
-        { error: "Database error while fetching DSX data", details: dbError.message },
+        { error: "Database error while fetching DSX data", details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
       stack: error instanceof Error ? error.stack : undefined
     });
     return NextResponse.json(
-      { error: "An error occurred while processing your request", details: error.message },
+      { error: "An error occurred while processing your request", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -411,7 +411,7 @@ export async function POST(request: NextRequest) {
           });
           return NextResponse.json({ 
             error: "Failed to save mappings", 
-            details: error.message 
+            details: error instanceof Error ? error.message : String(error) 
           }, { status: 500 });
         }
       }
@@ -507,7 +507,7 @@ export async function POST(request: NextRequest) {
           });
           return NextResponse.json({ 
             error: "Failed to save availability", 
-            details: error.message,
+            details: error instanceof Error ? error.message : String(error),
             locationCount: Object.keys(data).filter(id => id !== 'all').length
           }, { status: 500 });
         }
@@ -524,7 +524,7 @@ export async function POST(request: NextRequest) {
         serviceId
       });
       return NextResponse.json(
-        { error: "Failed to save DSX data", details: error.message },
+        { error: "Failed to save DSX data", details: error instanceof Error ? error.message : String(error) },
         { status: 500 }
       );
     }
@@ -533,7 +533,7 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : String(error)
     });
     return NextResponse.json(
-      { error: "An error occurred while processing your request", details: error.message },
+      { error: "An error occurred while processing your request", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

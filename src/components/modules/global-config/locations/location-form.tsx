@@ -153,7 +153,7 @@ export function LocationForm({ onLocationAdded }) {
   };
   
   // Handle form input changes
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: any) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,

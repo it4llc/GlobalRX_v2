@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     logger.error('Error fetching workflows', { error: error.message, stack: error.stack });
     return NextResponse.json(
-      { error: "Error fetching workflows", details: error.message },
+      { error: "Error fetching workflows", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     logger.error('Error creating workflow', { error: error.message, stack: error.stack });
     return NextResponse.json(
-      { error: "Error creating workflow", details: error.message },
+      { error: "Error creating workflow", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

@@ -132,7 +132,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     } catch (dbError: unknown) {
       logDatabaseError('get_data_field', dbError as Error, session?.user?.id);
       return NextResponse.json(
-        { error: "Database error while fetching field", details: dbError.message },
+        { error: "Database error while fetching field", details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       fieldId: params?.id
     });
     return NextResponse.json(
-      { error: "An error occurred while processing your request", details: error.message },
+      { error: "An error occurred while processing your request", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -327,7 +327,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     } catch (dbError: unknown) {
       logDatabaseError('update_data_field', dbError as Error, session?.user?.id);
       return NextResponse.json(
-        { error: "Database error while updating field", details: dbError.message },
+        { error: "Database error while updating field", details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
@@ -337,7 +337,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       fieldId: params?.id
     });
     return NextResponse.json(
-      { error: "An error occurred while processing your request", details: error.message },
+      { error: "An error occurred while processing your request", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

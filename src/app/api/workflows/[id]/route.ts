@@ -219,7 +219,7 @@ export async function PUT(
   } catch (error: unknown) {
     logger.error("Error updating workflow:", error);
     return NextResponse.json(
-      { error: "Error updating workflow", details: error.message },
+      { error: "Error updating workflow", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
