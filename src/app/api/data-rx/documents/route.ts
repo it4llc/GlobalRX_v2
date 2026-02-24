@@ -90,10 +90,10 @@ export async function GET(request: NextRequest) {
       
       // Process data for frontend if including services
       const processedDocuments = includeServices 
-        ? documents.map(doc => ({
+        ? documents.map((doc: any) => ({
             ...doc,
             documentName: doc.name, // Add alias for frontend compatibility
-            services: doc.serviceRequirements.map(sr => ({
+            services: doc.serviceRequirements.map((sr: any) => ({
               id: sr.service.id,
               name: sr.service.name
             }))
@@ -112,21 +112,21 @@ export async function GET(request: NextRequest) {
 
     // Process data for frontend if including services
     const processedDocuments = includeServices 
-      ? documents.map(doc => ({
+      ? documents.map((doc: any) => ({
           ...doc,
           documentName: doc.name, // Add alias for frontend compatibility
-          services: doc.serviceRequirements.map(sr => ({
+          services: doc.serviceRequirements.map((sr: any) => ({
             id: sr.service.id,
             name: sr.service.name
           }))
         }))
-      : documents.map(doc => ({
+      : documents.map((doc: any) => ({
           ...doc,
           documentName: doc.name, // Always add the alias for consistency
         }));
 
     return NextResponse.json({ documents: processedDocuments });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in GET data-rx documents route', {
       error: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -226,14 +226,14 @@ export async function POST(request: NextRequest) {
       };
 
       return NextResponse.json(response);
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       logDatabaseError('create_document', dbError as Error, session?.user?.id);
       return NextResponse.json(
         { error: "Database error while creating document" },
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in POST data-rx documents route', {
       error: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -276,14 +276,14 @@ export async function DELETE(request: NextRequest) {
       logger.info('Disabled document', { documentId: document.id });
 
       return NextResponse.json({ success: true, message: "Document disabled successfully" });
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       logDatabaseError('disable_document', dbError as Error, session?.user?.id);
       return NextResponse.json(
         { error: "Database error while disabling document" },
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in DELETE data-rx documents route', {
       error: error instanceof Error ? error.message : 'Unknown error'
     });

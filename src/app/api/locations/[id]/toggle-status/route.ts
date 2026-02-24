@@ -60,7 +60,7 @@ export async function PATCH(
       // Add status property for backward compatibility
       status: location.disabled !== true
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error toggling location status:", error);
     return NextResponse.json(
       { error: "Failed to toggle location status" },

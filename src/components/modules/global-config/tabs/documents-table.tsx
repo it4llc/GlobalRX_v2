@@ -200,7 +200,7 @@ export function DocumentsTable({ documents, isLoading, onToggleStatus, onRefresh
       // Refresh data
       onRefresh();
       
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error updating document:', error);
       setError('Failed to update document. Please try again.');
     } finally {

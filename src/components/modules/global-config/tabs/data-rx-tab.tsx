@@ -581,7 +581,7 @@ export function DataRxTab() {
                                 cursor: 'pointer',
                                 position: 'relative',
                               }}
-                              title={`Options: ${field.options.map(o => o.label).join(', ')}`}
+                              title={`Options: ${field.options.map((o: any) => o.label).join(', ')}`}
                               onClick={(e) => handleShowOptions(field, e)}
                             >
                               <span style={{

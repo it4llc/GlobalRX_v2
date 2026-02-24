@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
         });
 
         imported++;
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Error importing row:", error, row);
         skipped++;
       }
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       skipped,
       message: `Successfully imported ${imported} locations. ${skipped} skipped.`
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error importing locations:", error);
     return NextResponse.json(
       { error: "Failed to import locations" },

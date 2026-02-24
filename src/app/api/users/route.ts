@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(users);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching users', { error: error.message, stack: error.stack });
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     logger.info('User created successfully', { userId: newUser.id });
     return NextResponse.json(newUser, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating user', { error: error.message, stack: error.stack });
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }

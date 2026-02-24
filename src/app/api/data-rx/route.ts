@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       // Transform the requirements to a more usable format
       const fields = requirements
         .filter(req => req.type === 'field')
-        .map(req => {
+        .map((req: any) => {
           const fieldData = req.fieldData as any || {};
           
           return {
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
         
       const documents = requirements
         .filter(req => req.type === 'document')
-        .map(req => {
+        .map((req: any) => {
           const documentData = req.documentData as any || {};
           
           return {
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
         
       const forms = requirements
         .filter(req => req.type === 'form')
-        .map(req => {
+        .map((req: any) => {
           const formData = req.formData as any || {};
           
           return {
@@ -148,14 +148,14 @@ export async function GET(request: NextRequest) {
       } else {
         return NextResponse.json({ fields, documents, forms });
       }
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       logger.error('Database error in GET /api/data-rx', { error: dbError.message, stack: dbError.stack });
       return NextResponse.json(
         { error: "Database error while fetching Data Rx data", details: dbError.message },
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in GET /api/data-rx', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while processing your request", details: error.message },

@@ -1,6 +1,6 @@
 'use client';
 // src/components/modules/customer/customer-api-test.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';

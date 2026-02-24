@@ -35,7 +35,7 @@ export function ServiceFilterBar({
   // Format categories for dropdown
   const categoryOptions = [
     { id: 'all-categories', value: 'all-categories', label: 'All Categories' },
-    ...categories.map(category => ({
+    ...categories.map((category: any) => ({
       id: category,
       value: category,
       label: category
@@ -45,7 +45,7 @@ export function ServiceFilterBar({
   // Format functionality types for dropdown
   const functionalityTypeOptions = [
     { id: 'all-types', value: 'all-types', label: 'All Types' },
-    ...functionalityTypes.map(type => ({
+    ...functionalityTypes.map((type: any) => ({
       id: type,
       value: type,
       label: type.charAt(0).toUpperCase() + type.slice(1)

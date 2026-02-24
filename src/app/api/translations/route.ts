@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     
     // Return the translations
     return NextResponse.json(translations);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error retrieving translations', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'Failed to retrieve translations', details: error instanceof Error ? error.message : String(error) },
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `Successfully saved translations for ${locale}` 
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error saving translations', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'Failed to save translations', details: error instanceof Error ? error.message : String(error) },

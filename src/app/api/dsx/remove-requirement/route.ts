@@ -66,7 +66,7 @@ export async function DELETE(request: NextRequest) {
       success: true,
       deleted: result
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logDatabaseError('remove_requirement', error as Error, session?.user?.id);
     return NextResponse.json(
       { error: 'Failed to remove requirement' },
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       success: true,
       deleted: result
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logDatabaseError('bulk_remove_requirements', error as Error, session?.user?.id);
     return NextResponse.json(
       { error: 'Failed to remove requirements' },

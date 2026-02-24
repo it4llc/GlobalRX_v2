@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     // Add a placeholder usage count for each service
     // This will be replaced with actual package counts in the future
-    const servicesWithUsage = services.map(service => {
+    const servicesWithUsage = services.map((service: any) => {
       return {
         ...service,
         usage: 0 // Placeholder value
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       categories: categories.map((c) => c.category),
       functionalityTypes: VALID_FUNCTIONALITY_TYPES, // Include valid functionality types in the response
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching services', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "Error fetching services" },
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(newService, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating service', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "Error creating service" },

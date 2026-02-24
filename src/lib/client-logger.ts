@@ -52,6 +52,31 @@ function filterSensitiveData(data: any): any {
   return data;
 }
 
+// Helper function to convert unknown errors to LogMeta format
+export function errorToLogMeta(error: unknown): LogMeta | undefined {
+  if (error === null || error === undefined) {
+    return undefined;
+  }
+
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    };
+  }
+
+  if (typeof error === 'string') {
+    return { message: error };
+  }
+
+  if (typeof error === 'object') {
+    return { error: filterSensitiveData(error) };
+  }
+
+  return { error: String(error) };
+}
+
 // Safe logging interface that mimics Winston but works on client-side
 export const clientLogger = {
   debug: (message: string, meta?: LogMeta) => {

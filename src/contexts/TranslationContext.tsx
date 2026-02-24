@@ -50,7 +50,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     try {
       const translationsData = await getTranslations(localeToLoad);
       setTranslations(translationsData);
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Failed to load translations', {
         locale: localeToLoad,
         error: error instanceof Error ? error.message : 'Unknown error',

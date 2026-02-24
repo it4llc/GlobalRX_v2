@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import logger from '@/lib/logger';
 
 // Validation schema
 const packageUpdateSchema = z.object({
@@ -66,14 +67,14 @@ export async function GET(
       createdAt: pkg.createdAt,
       updatedAt: pkg.updatedAt,
       // Transform services to match the expected format in the form
-      services: pkg.services.map(ps => ({
+      services: pkg.services.map((ps: any) => ({
         serviceId: ps.serviceId,
         scope: ps.scope
       }))
     };
 
     return NextResponse.json(formattedPackage);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(`Error in GET /api/packages/${params.id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
@@ -141,8 +142,8 @@ export async function PUT(
 
     // If services are provided, verify they are available to the customer
     if (data.services && data.services.length > 0) {
-      const availableServiceIds = existingPackage.customer.services.map(cs => cs.service.id);
-      const requestedServiceIds = data.services.map(s => s.serviceId);
+      const availableServiceIds = existingPackage.customer.services.map((cs: any) => cs.service.id);
+      const requestedServiceIds = data.services.map((s: any) => s.serviceId);
       
       const unavailableServices = requestedServiceIds.filter(
         id => !availableServiceIds.includes(id)
@@ -199,7 +200,7 @@ export async function PUT(
 
         // Create new relationships
         await Promise.all(
-          data.services.map(serviceItem =>
+          data.services.map((serviceItem: any) =>
             tx.packageService.create({
               data: {
                 packageId: params.id,
@@ -227,7 +228,7 @@ export async function PUT(
     });
 
     return NextResponse.json(packageWithServices);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(`Error in PUT /api/packages/${params.id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
@@ -275,7 +276,7 @@ export async function DELETE(
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(`Error in DELETE /api/packages/${params.id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },

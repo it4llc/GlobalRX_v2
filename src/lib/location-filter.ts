@@ -28,10 +28,10 @@ export async function getValidLocationIds(prisma: any): Promise<Set<string>> {
       select: { id: true }
     });
     
-    validLocationIdsCache = new Set(locations.map(loc => loc.id));
+    validLocationIdsCache = new Set(locations.map((loc: any) => loc.id));
     logger.info(`Cached ${validLocationIdsCache.size} valid location IDs`);
     return validLocationIdsCache;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching valid location IDs:', error);
     return new Set();
   }
@@ -94,7 +94,7 @@ export async function ensureAllLocationExists(prisma: any) {
     }
     
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to ensure "all" location exists:', error);
     return false;
   }
@@ -167,7 +167,7 @@ export async function validateMappingDataAgainstDatabase(
     }
     
     return validatedMappings;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error validating mapping data:', error);
     return mappingData; // Return original on error to not block operation
   }

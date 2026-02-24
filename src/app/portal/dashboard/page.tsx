@@ -1,5 +1,5 @@
 'use client';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
@@ -90,7 +90,7 @@ export default function CustomerDashboard() {
         setOrders(ordersData.orders);
         setFilteredOrders(ordersData.orders); // Initially show all orders
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error fetching dashboard data:', error);
       // Set default values on error
       setStats({

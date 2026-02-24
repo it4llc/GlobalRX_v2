@@ -1,5 +1,5 @@
 'use client';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -285,7 +285,7 @@ export default function CustomerPackages({ customerId, customerName: initialCust
       
       // Update the package in the state
       setPackages(prevPackages => 
-        prevPackages.map(pkg => 
+        prevPackages.map((pkg: any) => 
           pkg.id === packageId 
             ? { ...pkg, disabled: !pkg.disabled } 
             : pkg
@@ -319,7 +319,7 @@ export default function CustomerPackages({ customerId, customerName: initialCust
         body: JSON.stringify({
           services: packages
             .find(p => p.id === scopeDialog.packageId)
-            ?.services.map(s => ({
+            ?.services.map((s: any) => ({
               serviceId: s.service.id,
               scope: s.service.id === scopeDialog.serviceId ? savedScope : s.scope
             }))

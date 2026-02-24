@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       logger.info('Customers query completed', { count: customers.length, total });
 
       // Format the response with additional customer details
-      const formattedCustomers = customers.map(customer => ({
+      const formattedCustomers = customers.map((customer: any) => ({
         id: customer.id,
         name: customer.name,
         contactName: customer.contactName,
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
         packagesCount: customer._count.packages,
         disabled: customer.disabled,
         // Format services for easier consumption
-        services: customer.services.map(cs => ({
+        services: customer.services.map((cs: any) => ({
           id: cs.service.id,
           name: cs.service.name,
           category: cs.service.category
@@ -179,14 +179,14 @@ export async function GET(request: NextRequest) {
           totalPages: Math.ceil(total / pageSize),
         },
       });
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       logDatabaseError('customers_query', dbError as Error, session.user?.id);
       return NextResponse.json(
-        { error: 'Database error', details: dbError.message },
+        { error: 'Database error', details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Unexpected error in GET /api/customers', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
       // Create service relationships if provided
       if (serviceIds && serviceIds.length > 0) {
         await Promise.all(
-          serviceIds.map(serviceId =>
+          serviceIds.map((serviceId: any) =>
             tx.customerService.create({
               data: {
                 customerId: newCustomer.id,
@@ -295,7 +295,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(createdCustomerWithRelations, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in POST /api/customers', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,

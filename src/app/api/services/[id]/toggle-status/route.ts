@@ -40,7 +40,7 @@ export async function PATCH(
     });
 
     return NextResponse.json(updatedService);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error toggling service status:", error);
     return NextResponse.json(
       { error: "Error toggling service status" },

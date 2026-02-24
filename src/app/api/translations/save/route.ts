@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `Successfully saved translations for ${locale}` 
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error saving translations:', error);
     return NextResponse.json(
       { error: 'Failed to save translations', details: error instanceof Error ? error.message : String(error) },

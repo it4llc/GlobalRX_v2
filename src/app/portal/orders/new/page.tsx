@@ -175,7 +175,7 @@ export default function NewOrderPage() {
         if (serviceItems.length > 0) {
           await fetchRequirementsForEditMode(serviceItems);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         clientLogger.error('Error loading order for edit', {
           error: error.message
         });
@@ -192,7 +192,7 @@ export default function NewOrderPage() {
   const fetchRequirementsForEditMode = async (serviceItems: ServiceItem[]) => {
     try {
       const requestBody = {
-        items: serviceItems.map(item => ({
+        items: serviceItems.map((item: any) => ({
           serviceId: item.serviceId,
           locationId: item.locationId,
         })),
@@ -264,7 +264,7 @@ export default function NewOrderPage() {
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error fetching requirements', {
         error: error.message
       });
@@ -291,7 +291,7 @@ export default function NewOrderPage() {
         clientLogger.error('Failed to fetch services');
         setErrors({ submit: 'Failed to load available services' });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error fetching services', {
         error: error.message
       });
@@ -326,7 +326,7 @@ export default function NewOrderPage() {
         clientLogger.error('Failed to fetch locations');
         return [];
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error fetching locations', {
         error: error.message
       });
@@ -408,7 +408,7 @@ export default function NewOrderPage() {
 
     try {
       const requestBody = {
-        items: formData.serviceItems.map(item => ({
+        items: formData.serviceItems.map((item: any) => ({
           serviceId: item.serviceId,
           locationId: item.locationId,
         })),
@@ -443,7 +443,7 @@ export default function NewOrderPage() {
           errorData
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error fetching requirements', {
         error: error.message
       });
@@ -756,7 +756,7 @@ export default function NewOrderPage() {
       } else {
         router.push(`/portal/orders?created=${orderId}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error creating order', {
         error: error.message
       });
@@ -822,7 +822,7 @@ export default function NewOrderPage() {
 
       const order = await response.json();
       router.push('/portal/orders?draft=saved');
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error saving draft', {
         error: error.message
       });

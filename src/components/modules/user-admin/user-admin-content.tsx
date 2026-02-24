@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 import { Button } from '@/components/ui/button';
 import { 
   Card, 
@@ -83,7 +83,7 @@ export function UserAdminContent() {
   };
 
   const handleUserUpdated = (updatedUser: User) => {
-    setUsers((prev) => prev.map(user => user.id === updatedUser.id ? updatedUser : user));
+    setUsers((prev) => prev.map((user: any) => user.id === updatedUser.id ? updatedUser : user));
     setIsEditUserOpen(false);
     setSelectedUser(null);
   };

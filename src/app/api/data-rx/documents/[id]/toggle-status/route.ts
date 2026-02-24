@@ -94,14 +94,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         success: true, 
         isDisabled: !isDisabled
       });
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       logger.error('Database error in PATCH /api/data-rx/documents/[id]/toggle-status:', dbError);
       return NextResponse.json(
         { error: "Database error while toggling document status", details: dbError.message },
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in PATCH /api/data-rx/documents/[id]/toggle-status:', error);
     return NextResponse.json(
       { error: "An error occurred while processing your request", details: error.message },

@@ -1,5 +1,5 @@
 'use client';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';

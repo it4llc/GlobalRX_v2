@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     logger.debug('Preserving display orders for existing requirements', { preservedCount: displayOrderMap.size });
 
     const removedRequirementIds = existingRequirements
-      .map(r => r.requirementId)
+      .map((r: any) => r.requirementId)
       .filter(id => !requirements.some(req => req.id === id));
 
     // Remove DSX mappings for requirements that are being removed
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         });
 
         createdRequirements.push(serviceRequirement);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error creating requirement', {
           requirementId: req.id,
           error: error instanceof Error ? error.message : 'Unknown error'
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
       count: createdRequirements.length,
       requirements: createdRequirements
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logDatabaseError('associate_requirements', error as Error, session?.user?.id);
     return NextResponse.json(
       { error: 'Failed to associate requirements with service' },

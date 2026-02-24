@@ -1,6 +1,6 @@
 'use client';
 // src/components/modules/global-config/locations/locations-tab.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { LocationForm } from './location-form';

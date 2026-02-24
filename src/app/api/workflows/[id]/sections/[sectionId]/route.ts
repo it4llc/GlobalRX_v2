@@ -59,7 +59,7 @@ export async function GET(
     }
 
     return NextResponse.json(section);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error fetching workflow section:", error);
     return NextResponse.json(
       { error: "Error fetching workflow section" },
@@ -181,7 +181,7 @@ export async function PUT(
     });
 
     return NextResponse.json(completeSection);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error updating workflow section:", error);
     return NextResponse.json(
       { error: "Error updating workflow section" },
@@ -241,7 +241,7 @@ export async function DELETE(
       return NextResponse.json(
         { 
           error: "Cannot delete this section because other sections depend on it",
-          dependentSections: dependentSections.map(s => ({ id: s.id, name: s.name })),
+          dependentSections: dependentSections.map((s: any) => ({ id: s.id, name: s.name })),
         },
         { status: 400 }
       );
@@ -273,7 +273,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ message: "Section deleted successfully" });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error deleting workflow section:", error);
     return NextResponse.json(
       { error: "Error deleting workflow section" },

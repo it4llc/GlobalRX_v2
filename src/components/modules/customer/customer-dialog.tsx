@@ -1,6 +1,6 @@
 'use client';
 // src/components/modules/customer/customer-dialog.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';

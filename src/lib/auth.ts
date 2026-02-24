@@ -88,7 +88,7 @@ export const authOptions: NextAuthOptions = {
             customerName: user.customer?.name,
             rememberMe: credentials.rememberMe === 'true',
           };
-        } catch (error) {
+        } catch (error: unknown) {
           logDatabaseError('authentication', error as Error);
           return null;
         }

@@ -1,6 +1,6 @@
 'use client';
 // src/components/modules/global-config/locations/locations-table.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -240,7 +240,7 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
 
   // Recursive function to render location rows with hierarchy
   const renderLocationRows = (locationList, level = 0) => {
-    return locationList.map(location => {
+    return locationList.map((location: any) => {
       const isExpanded = expandedRows[location.id];
       const hasChildLocations = hasChildren(location);
       

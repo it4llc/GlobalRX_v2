@@ -8,7 +8,7 @@ import { LoadingIndicator } from '@/components/ui/loading-indicator';
 import { AlertBox } from '@/components/ui/alert-box';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { clientLogger } from '@/lib/client-logger';
+import { clientLogger, errorToLogMeta } from '@/lib/client-logger';
 import { Radio } from '@/components/ui/radio';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -128,7 +128,7 @@ export default function CustomerDetailsPage() {
             sessionStorage.getItem(`customer_${id}_logoUrl`) : null;
           
           if (storedLogoUrl) {
-            clientLogger.debug('Retrieved logo URL from session storage:', storedLogoUrl);
+            clientLogger.debug('Retrieved logo URL from session storage:', { storedLogoUrl });
             logoUrl = storedLogoUrl;
             
             // Update the customer object with the stored logo URL
@@ -138,7 +138,7 @@ export default function CustomerDetailsPage() {
             sessionStorage.removeItem(`customer_${id}_logoUrl`);
           }
         } catch (storageErr) {
-          clientLogger.warn('Error accessing session storage:', storageErr);
+          clientLogger.warn('Error accessing session storage:', errorToLogMeta(storageErr));
         }
         
         setCustomer(data);
@@ -167,7 +167,7 @@ export default function CustomerDetailsPage() {
           dataRetentionDays: data.dataRetentionDays || 0
         });
       } catch (err) {
-        clientLogger.error('Error fetching customer info:', err);
+        clientLogger.error('Error fetching customer info:', errorToLogMeta(err));
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);
@@ -197,16 +197,16 @@ export default function CustomerDetailsPage() {
   
   // Upload logo file
   const uploadLogo = async (customerId: string, file: File) => {
-    clientLogger.debug('Uploading logo:', file.name, file.type, file.size);
+    clientLogger.debug('Uploading logo:', { fileName: file.name, fileType: file.type, fileSize: file.size });
     
     // Create FormData object and append file with explicit filename
     const formData = new FormData();
     formData.append('logo', file, file.name);
     
-    clientLogger.debug('FormData created with file:', file.name);
+    clientLogger.debug('FormData created with file:', { fileName: file.name });
 
     try {
-      clientLogger.debug(`Sending logo upload to /api/customers/${customerId}/upload-logo`);
+      clientLogger.debug('Sending logo upload request', { endpoint: `/api/customers/${customerId}/upload-logo` });
       
       // Use a direct fetch with credentials to avoid Content-Type header issues
       // that can occur with custom fetch wrappers
@@ -219,31 +219,31 @@ export default function CustomerDetailsPage() {
 
       // Get response as text first for debugging
       const responseText = await response.text();
-      clientLogger.debug('Raw response:', responseText);
+      clientLogger.debug('Raw response received', { responseText: responseText.substring(0, 200) });
       
       // Parse the JSON response
       let result;
       try {
         result = JSON.parse(responseText);
       } catch (parseError) {
-        clientLogger.error('Error parsing response:', parseError);
+        clientLogger.error('Error parsing response:', errorToLogMeta(parseError));
         throw new Error(`Failed to parse server response: ${responseText.substring(0, 100)}...`);
       }
       
       if (!response.ok) {
-        clientLogger.error('Logo upload failed:', result);
+        clientLogger.error('Logo upload failed', { result });
         throw new Error(`Failed to upload logo: ${result.error || response.statusText}`);
       }
 
-      clientLogger.debug('Logo upload successful:', result);
+      clientLogger.debug('Logo upload successful', { result });
       
       if (result.warning) {
-        clientLogger.warn('Upload warning:', result.warning);
+        clientLogger.warn('Upload warning received', { warning: result.warning });
       }
       
       return result;
     } catch (err) {
-      clientLogger.error('Error in logo upload:', err);
+      clientLogger.error('Error in logo upload:', errorToLogMeta(err));
       throw err;
     }
   };
@@ -297,7 +297,7 @@ export default function CustomerDetailsPage() {
         try {
           clientLogger.debug('Logo file selected, attempting upload...');
           const uploadResult = await uploadLogo(id as string, logoFile);
-          clientLogger.debug('Upload result:', uploadResult);
+          clientLogger.debug('Upload result received', { uploadResult });
           
           // Update the customer data with the new logo URL immediately
           if (uploadResult && uploadResult.logoUrl) {
@@ -310,13 +310,13 @@ export default function CustomerDetailsPage() {
             // Store the updated logo URL in sessionStorage to persist through page reload
             try {
               sessionStorage.setItem(`customer_${id}_logoUrl`, uploadResult.logoUrl);
-              clientLogger.debug('Saved logo URL to session storage for retrieval after reload');
+              clientLogger.debug('Saved logo URL to session storage for retrieval after reload', { logoUrl: uploadResult.logoUrl });
             } catch (storageErr) {
-              clientLogger.warn('Failed to store logo URL in session storage:', storageErr);
+              clientLogger.warn('Failed to store logo URL in session storage:', errorToLogMeta(storageErr));
             }
           }
         } catch (logoErr) {
-          clientLogger.error('Error uploading logo:', logoErr);
+          clientLogger.error('Error uploading logo:', errorToLogMeta(logoErr));
           // Show error but don't prevent saving other fields
           setError(`Customer saved, but logo upload failed: ${logoErr instanceof Error ? logoErr.message : 'Unknown error'}`);
         }
@@ -328,7 +328,7 @@ export default function CustomerDetailsPage() {
       // Refresh the page to ensure all changes (including logo) are displayed
       window.location.reload();
     } catch (err) {
-      clientLogger.error('Error updating customer:', err);
+      clientLogger.error('Error updating customer:', errorToLogMeta(err));
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsSubmitting(false);
@@ -772,7 +772,7 @@ export default function CustomerDetailsPage() {
                                 height: 'auto',
                                 objectFit: 'contain'
                               }}
-                              onError={(e) => clientLogger.error('Error loading image:', e)}
+                              onError={(e) => clientLogger.error('Error loading image', errorToLogMeta(e))}
                             />
                           </div>
                         </div>
@@ -793,7 +793,7 @@ export default function CustomerDetailsPage() {
                               height: 'auto',
                               objectFit: 'contain'
                             }}
-                            onError={(e) => clientLogger.error('Error loading image:', e)}
+                            onError={(e) => clientLogger.error('Error loading image', errorToLogMeta(e))}
                           />
                         </div>
                       </div>

@@ -1,5 +1,5 @@
 'use client';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -492,7 +492,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
                   <FormItem>
                     <FormLabel>{t('module.candidateWorkflow.assignedPackage')}</FormLabel>
                     <div className="space-y-2">
-                      {packages.map(pkg => (
+                      {packages.map((pkg: any) => (
                         <div key={pkg.id} className="flex items-center space-x-2">
                           <input
                             type="radio"
@@ -512,7 +512,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
                       ))}
                     </div>
                     <FormDescription>
-                      {t('module.candidateWorkflow.packageSelectionDescription', 'A workflow can only be associated with one package.')}
+                      {t('module.candidateWorkflow.packageSelectionDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

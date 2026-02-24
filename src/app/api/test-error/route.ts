@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       default:
         throw new Error(`Unknown error type: ${type}`);
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // Log error with Winston
     logger.error("Test error endpoint triggered", {
       type,

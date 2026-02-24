@@ -14,7 +14,7 @@ export default function TestMonitoringPage() {
     try {
       addResult("Triggering client-side error...");
       throw new Error("Test client-side error for Sentry");
-    } catch (error) {
+    } catch (error: unknown) {
       Sentry.captureException(error);
       addResult("✅ Client error sent to Sentry");
     }
@@ -42,7 +42,7 @@ export default function TestMonitoringPage() {
       if (!response.ok) {
         addResult("✅ API returned error status: " + response.status);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       addResult("✅ API error occurred: " + (error as Error).message);
     }
   };
@@ -53,7 +53,7 @@ export default function TestMonitoringPage() {
       const response = await fetch("/api/health");
       const data = await response.json();
       addResult(`✅ Health status: ${data.status}, Database: ${data.checks.database.status}`);
-    } catch (error) {
+    } catch (error: unknown) {
       addResult("❌ Health check failed: " + (error as Error).message);
     }
   };
@@ -64,7 +64,7 @@ export default function TestMonitoringPage() {
       const response = await fetch("/api/ready");
       const data = await response.json();
       addResult(`✅ Ready: ${data.ready}, Database: ${data.checks.database}, Migrations: ${data.checks.migrations}`);
-    } catch (error) {
+    } catch (error: unknown) {
       addResult("❌ Ready check failed: " + (error as Error).message);
     }
   };
@@ -79,7 +79,7 @@ export default function TestMonitoringPage() {
       }
       const data = await response.json();
       addResult(`✅ Status: ${data.status}, Uptime: ${data.uptime.formatted}`);
-    } catch (error) {
+    } catch (error: unknown) {
       addResult("❌ Status check failed: " + (error as Error).message);
     }
   };

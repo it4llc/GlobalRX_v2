@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
       message: 'Translations imported successfully',
       locales: Object.values(localeColumns)
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error importing translations:', error);
     return NextResponse.json(
       { error: 'Failed to import translations', details: error instanceof Error ? error.message : String(error) },

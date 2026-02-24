@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         hasCustomersAll: Boolean(session.user?.permissions?.customers?.all)
       }
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Session debug error', { error: error instanceof Error ? error.message : 'Unknown error' });
     return NextResponse.json({ error: 'Error fetching session data' }, { status: 500 });
   }

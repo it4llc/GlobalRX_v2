@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract unique service and location IDs
-    const serviceIds = [...new Set(items.map(item => item.serviceId))];
-    const locationIds = [...new Set(items.map(item => item.locationId))];
+    const serviceIds = [...new Set(items.map((item: any) => item.serviceId))];
+    const locationIds = [...new Set(items.map((item: any) => item.locationId))];
 
     // Get all service-level requirements, sorted by displayOrder
     const serviceRequirements = await prisma.serviceRequirement.findMany({
@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
       subjectFields: sortedSubjectFields,
       searchFields: sortedSearchFields,
       documents,
-      locations: locations.map(loc => {
+      locations: locations.map((loc: any) => {
         const subregionInfo = locationsWithSubregions.find(
           ls => ls.locationId === loc.id
         );
@@ -275,7 +275,7 @@ export async function POST(request: NextRequest) {
         };
       })
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching requirements', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: 'Failed to fetch requirements' },

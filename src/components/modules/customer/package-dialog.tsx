@@ -8,7 +8,7 @@ import * as z from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { DialogRef, ModalDialog, DialogFooter } from '@/components/ui/modal-dialog';
 import { FormTable, FormRow } from '@/components/ui/form';
-import { clientLogger } from '@/lib/client-logger';
+import { clientLogger, errorToLogMeta } from '@/lib/client-logger';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -228,7 +228,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
   // Update form value when selected services change
   useEffect(() => {
     // Map selected services to form format
-    const servicesFormValue = selectedServiceIds.map(serviceId => ({
+    const servicesFormValue = selectedServiceIds.map((serviceId: any) => ({
       serviceId,
       scope: scopes[serviceId] || null
     }));
@@ -259,7 +259,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
       });
       
       if (missingScopes.length > 0) {
-        const missingServices = missingScopes.map(svc => {
+        const missingServices = missingScopes.map((svc: any) => {
           const service = availableServices.find(s => s.id === svc.serviceId);
           return service?.name || 'Unknown service';
         });
@@ -271,7 +271,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
       const submitData = {
         name: data.name,
         description: data.description,
-        services: data.services.map(svc => ({
+        services: data.services.map((svc: any) => ({
           serviceId: svc.serviceId,
           scope: svc.scope
         }))
@@ -413,7 +413,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
                           <CardContent className="p-4">
                             <h4 className="font-medium mb-3">{category}</h4>
                             <div className="space-y-4">
-                              {services.map(service => (
+                              {services.map((service: any) => (
                                 <div key={service.id} className="space-y-2">
                                   <div className="flex items-start space-x-2">
                                     <Checkbox

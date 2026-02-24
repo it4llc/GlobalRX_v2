@@ -1,5 +1,5 @@
 'use client';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -109,7 +109,7 @@ export default function CustomerUsersPage() {
   };
 
   const handleUserUpdated = (updatedUser: User) => {
-    setUsers((prev) => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    setUsers((prev) => prev.map((u: any) => u.id === updatedUser.id ? updatedUser : u));
     setIsEditUserOpen(false);
     setSelectedUser(null);
   };
@@ -218,7 +218,7 @@ export default function CustomerUsersPage() {
             </tr>
           </thead>
           <tbody>
-            {users.map(user => {
+            {users.map((user: any) => {
               const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A';
               const accessLevel = getAccessLevel(user);
 

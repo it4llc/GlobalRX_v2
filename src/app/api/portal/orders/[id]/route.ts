@@ -61,7 +61,7 @@ export async function GET(
     }
 
     return NextResponse.json(order);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching order:', error);
     return NextResponse.json(
       { error: 'Failed to fetch order' },
@@ -117,7 +117,7 @@ export async function PUT(
           await tx.orderData.deleteMany({
             where: {
               orderItemId: {
-                in: orderItems.map(item => item.id)
+                in: orderItems.map((item: any) => item.id)
               }
             }
           });
@@ -158,7 +158,7 @@ export async function PUT(
 
       return NextResponse.json(order);
     }
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.errors },
@@ -202,7 +202,7 @@ export async function DELETE(
     await OrderService.deleteOrder(params.id, customerId);
 
     return NextResponse.json({ message: 'Order deleted successfully' });
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof Error && error.message === 'Order not found or cannot be deleted') {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }

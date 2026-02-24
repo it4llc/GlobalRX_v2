@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       .slice(0, 5);
 
     return NextResponse.json(suggestions);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching city suggestions:', error);
     return NextResponse.json(
       { error: 'Failed to fetch city suggestions' },

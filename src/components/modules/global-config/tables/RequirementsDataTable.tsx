@@ -533,9 +533,9 @@ export function RequirementsDataTable({
     handleAvailabilityChange,
     disabled,
     // Add a key based on the requirement IDs and their order to force column re-render when order changes
-    fields.map(f => f.id).join(','),
-    documents.map(d => d.id).join(','),
-    forms.map(f => f.id).join(',')
+    fields.map((f: any) => f.id).join(','),
+    documents.map((d: any) => d.id).join(','),
+    forms.map((f: any) => f.id).join(',')
   ]);
 
   // Create table instance
@@ -651,7 +651,7 @@ export function RequirementsDataTable({
             >
               <table className="w-full table-fixed">
                 <thead className="sticky top-0 z-20 bg-gray-50">
-                  {table.getHeaderGroups().map(headerGroup => (
+                  {table.getHeaderGroups().map((headerGroup: any) => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map((header, index) => {
                         const isSticky = index <= 5; // First 6 columns are sticky
@@ -689,7 +689,7 @@ export function RequirementsDataTable({
                       <td style={{ height: `${paddingTop}px` }} />
                     </tr>
                   )}
-                  {virtualRows.map(virtualRow => {
+                  {virtualRows.map((virtualRow: any) => {
                     const row = rows[virtualRow.index];
                     return (
                       <tr key={row.id} className="hover:bg-gray-50">

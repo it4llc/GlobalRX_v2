@@ -1,6 +1,6 @@
 'use client';
 // Enterprise-grade Locations Table using TanStack Table
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useMemo, useCallback } from 'react';
 import {
@@ -459,7 +459,7 @@ export function LocationsDataTable({
             >
               <table className="w-full table-fixed">
                 <thead className="sticky top-0 z-20 bg-gray-50">
-                  {table.getHeaderGroups().map(headerGroup => (
+                  {table.getHeaderGroups().map((headerGroup: any) => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map((header, index) => {
                         const isSticky = index <= 1; // Expander and Country columns
@@ -496,7 +496,7 @@ export function LocationsDataTable({
                       <td style={{ height: `${paddingTop}px` }} />
                     </tr>
                   )}
-                  {virtualRows.map(virtualRow => {
+                  {virtualRows.map((virtualRow: any) => {
                     const row = rows[virtualRow.index];
                     return (
                       <tr key={row.id} className="hover:bg-gray-50">

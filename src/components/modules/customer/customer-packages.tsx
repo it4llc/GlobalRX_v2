@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { ActionDropdown } from '@/components/ui/action-dropdown';
 import { LoadingIndicator } from '@/components/ui/loading-indicator';
 import { AlertBox } from '@/components/ui/alert-box';
-import { clientLogger } from '@/lib/client-logger';
+import { clientLogger, errorToLogMeta } from '@/lib/client-logger';
 import { PackageDialog } from './package-dialog';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Package } from 'lucide-react';
@@ -236,7 +236,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
   const groupPackagesByFunctionalityType = () => {
     // Extract functionality types from services in packages
     const allFunctionalityTypes = packages.flatMap(pkg => 
-      (pkg.services || []).map(svc => svc.service?.functionalityType || 'other')
+      (pkg.services || []).map((svc: any) => svc.service?.functionalityType || 'other')
     );
     
     // Get unique functionality types
@@ -262,7 +262,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
       }
       
       // Get functionality types in this package
-      const typesInPackage = pkg.services.map(svc => svc.service?.functionalityType || 'other');
+      const typesInPackage = pkg.services.map((svc: any) => svc.service?.functionalityType || 'other');
       
       // Get unique types in this package
       const uniqueTypesInPackage = [...new Set(typesInPackage)];
@@ -438,7 +438,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
               <h3 className="text-lg font-semibold">{formatFunctionalityType(type)}</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pkgs.map(pkg => (
+                {pkgs.map((pkg: any) => (
                   <Card key={pkg.id} className="overflow-hidden">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
@@ -470,7 +470,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
                     <CardContent className="pb-4">
                       <p className="text-sm font-medium mb-2">Services:</p>
                       <div className="flex flex-wrap gap-2">
-                        {pkg.services && Array.isArray(pkg.services) && pkg.services.map(svc => (
+                        {pkg.services && Array.isArray(pkg.services) && pkg.services.map((svc: any) => (
                           <Badge 
                             key={svc.service?.id || `service-${Math.random()}`} 
                             variant="outline" 

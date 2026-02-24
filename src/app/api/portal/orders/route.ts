@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       limit,
       offset,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching orders:', error);
     return NextResponse.json(
       { error: 'Failed to fetch orders' },
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ order }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.errors },

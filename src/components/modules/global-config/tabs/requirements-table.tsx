@@ -1,6 +1,6 @@
 'use client';
 // src/components/modules/global-config/tabs/requirements-table.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -323,7 +323,7 @@ export function RequirementsTable({
       // Update local state
       setLocalMappings(newMappings);
       setHasUnsavedChanges(true);
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error handling checkbox change:', error);
     }
   }, [localMappings, locationHierarchy, updateParentCheckboxes, disabled]);
@@ -404,7 +404,7 @@ export function RequirementsTable({
         
         // Mark changes as saved
         setHasUnsavedChanges(false);
-      } catch (error) {
+      } catch (error: unknown) {
         clientLogger.error("Error saving changes:", error);
         setError("Failed to save changes. Please try again.");
       }
@@ -522,9 +522,9 @@ export function RequirementsTable({
             ),
             
             // Requirement checkboxes
-            ...fields.map(field => renderCheckbox(location.id, field.id, isAvailable)),
-            ...documents.map(doc => renderCheckbox(location.id, doc.id, isAvailable)),
-            ...forms.map(form => renderCheckbox(location.id, form.id, isAvailable))
+            ...fields.map((field: any) => renderCheckbox(location.id, field.id, isAvailable)),
+            ...documents.map((doc: any) => renderCheckbox(location.id, doc.id, isAvailable)),
+            ...forms.map((form: any) => renderCheckbox(location.id, form.id, isAvailable))
           ])
         );
         
@@ -649,9 +649,9 @@ export function RequirementsTable({
           ),
           
           // Requirement checkboxes
-          ...fields.map(field => renderCheckbox(location.id, field.id, isAvailable)),
-          ...documents.map(doc => renderCheckbox(location.id, doc.id, isAvailable)),
-          ...forms.map(form => renderCheckbox(location.id, form.id, isAvailable))
+          ...fields.map((field: any) => renderCheckbox(location.id, field.id, isAvailable)),
+          ...documents.map((doc: any) => renderCheckbox(location.id, doc.id, isAvailable)),
+          ...forms.map((form: any) => renderCheckbox(location.id, form.id, isAvailable))
         ])
       );
       
@@ -808,7 +808,7 @@ export function RequirementsTable({
               }, React.createElement('span', { key: "available-label" }, "Available")),
               
               // Field headers with tooltips
-              ...fields.map(field => 
+              ...fields.map((field: any) => 
                 React.createElement(TableHead, { 
                   key: `header-field-${field.id}`,
                   style: { width: '35px' }
@@ -830,7 +830,7 @@ export function RequirementsTable({
               ),
               
               // Document headers with tooltips
-              ...documents.map(doc => 
+              ...documents.map((doc: any) => 
                 React.createElement(TableHead, { 
                   key: `header-doc-${doc.id}`,
                   style: { width: '35px' }
@@ -852,7 +852,7 @@ export function RequirementsTable({
               ),
               
               // Form headers with tooltips
-              ...forms.map(form => 
+              ...forms.map((form: any) => 
                 React.createElement(TableHead, { 
                   key: `header-form-${form.id}`,
                   style: { width: '35px' }

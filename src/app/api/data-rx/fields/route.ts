@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Transform fields to expected format with standardized property names
-    const transformedFields = fields.map(field => {
+    const transformedFields = fields.map((field: any) => {
       // Standardize the field data to ensure consistent property names
       const standardizedData = standardizeFieldData(field.fieldData as any || {});
       
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
         options: standardizedData.options || [],
         disabled: field.disabled,
         // Map services from the join table
-        services: field.serviceRequirements.map(sr => ({
+        services: field.serviceRequirements.map((sr: any) => ({
           id: sr.service.id,
           name: sr.service.name
         }))
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     }
     
     return NextResponse.json({ fields: transformedFields });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching data fields', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while fetching data fields" },
@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
         services: []
       }
     }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating data field', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while creating the data field" },
@@ -324,13 +324,13 @@ export async function PATCH(request: NextRequest) {
         retentionHandling: field.fieldData.retentionHandling,
         requiresVerification: field.fieldData.requiresVerification || false,
         disabled: field.disabled,
-        services: field.serviceRequirements.map(sr => ({
+        services: field.serviceRequirements.map((sr: any) => ({
           id: sr.service.id,
           name: sr.service.name
         }))
       }
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error updating data field', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while updating the data field" },
@@ -399,7 +399,7 @@ export async function DELETE(request: NextRequest) {
     });
     
     return NextResponse.json({ message: `Field "${existingField.name}" has been deleted` });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error deleting data field', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while deleting the data field" },

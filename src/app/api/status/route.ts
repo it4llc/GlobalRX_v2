@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
           totalPackages: packageCount,
         };
       }
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       result.status = "down";
       result.services.database = {
         status: "down",
@@ -197,7 +197,7 @@ export async function GET(request: NextRequest) {
         "X-Status": result.status,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Status check failure", {
       error: error instanceof Error ? error.message : "Unknown error",
     });

@@ -39,7 +39,7 @@ export async function POST(
       message: 'Order submitted successfully',
       order: updatedOrder,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof Error && error.message === 'Order not found or already submitted') {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }

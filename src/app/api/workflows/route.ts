@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     logger.info('Workflows API: Found workflows', { count: workflows.length, totalCount });
 
     // Transform the data to match the expected format
-    const transformedWorkflows = workflows.map(workflow => ({
+    const transformedWorkflows = workflows.map((workflow: any) => ({
       id: workflow.id,
       name: workflow.name,
       description: workflow.description,
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
       page,
       workflows: transformedWorkflows
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching workflows', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "Error fetching workflows", details: error.message },
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(completeWorkflow, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating workflow', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "Error creating workflow", details: error.message },

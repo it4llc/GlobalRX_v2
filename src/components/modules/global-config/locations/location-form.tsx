@@ -1,6 +1,6 @@
 'use client';
 // src/components/modules/global-config/locations/location-form.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,7 +72,7 @@ export function LocationForm({ onLocationAdded }) {
       }
       const data = await response.json();
       setCountries(data);
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error fetching countries:', error);
       setFormError('Failed to load countries. Please try refreshing the page.');
     } finally {
@@ -110,7 +110,7 @@ export function LocationForm({ onLocationAdded }) {
       } else {
         setSubregions1(filteredData);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error fetching subregions1:', error);
       setFormError('Failed to load subregions. Please try refreshing the page.');
       // setDebug(`Error: ${error.message}`);
@@ -143,7 +143,7 @@ export function LocationForm({ onLocationAdded }) {
       
       // Update the subregions2 state
       setSubregions2(filteredData);
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error fetching subregions2:', error);
       setFormError('Failed to load subregions. Please try refreshing the page.');
       // setDebug(`Error: ${error.message}`);
@@ -517,7 +517,7 @@ const handleSubmit = async (e) => {
                 required
               >
                 <option value="">-- Select a Country --</option>
-                {countries.map(country => (
+                {countries.map((country: any) => (
                   <option key={country.id} value={country.id}>
                     {country.name}
                   </option>
@@ -540,7 +540,7 @@ const handleSubmit = async (e) => {
                 >
                   <option value="">-- Select a State/Province --</option>
                   {subregions1.length > 0 ? (
-                    subregions1.map(subregion => (
+                    subregions1.map((subregion: any) => (
                       <option key={subregion.id} value={subregion.id}>
                         {/* Only show this option if it has subregion1 value or is a different name than country */}
                         {subregion.subregion1 || 
@@ -587,7 +587,7 @@ const handleSubmit = async (e) => {
                 >
                   <option value="">-- Select a County/District --</option>
                   {subregions2.length > 0 ? (
-                    subregions2.map(subregion => (
+                    subregions2.map((subregion: any) => (
                       <option key={subregion.id} value={subregion.id}>
                         {subregion.subregion2 || 
                           (subregion.name !== selectedSubregion1.name ? subregion.name : 'Unknown County/District')}

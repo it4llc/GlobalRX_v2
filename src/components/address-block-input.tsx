@@ -80,7 +80,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         clientLogger.info(`Fetched states for country ${countryId}:`, data);
         setStateOptions(data);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Failed to fetch states:', error);
     } finally {
       setLoading(false);
@@ -95,7 +95,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         const data = await response.json();
         setCountyOptions(data);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Failed to fetch counties:', error);
     } finally {
       setLoading(false);
@@ -115,7 +115,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         setCityAutocomplete(suggestions);
         setShowCityDropdown(suggestions.length > 0);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Failed to fetch city suggestions:', error);
     }
   };
@@ -184,7 +184,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
             <option value="">
               {!countryId ? 'Select country first' : `Select ${componentConfig.label}`}
             </option>
-            {stateOptions.map(state => (
+            {stateOptions.map((state: any) => (
               <option key={state.id} value={state.id}>
                 {state.name} {state.code ? `(${state.code})` : ''}
               </option>
@@ -211,7 +211,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
             <option value="">
               {!addressData.stateId ? 'Select state first' : `Select ${componentConfig.label}`}
             </option>
-            {countyOptions.map(county => (
+            {countyOptions.map((county: any) => (
               <option key={county.id} value={county.id}>
                 {county.name}
               </option>

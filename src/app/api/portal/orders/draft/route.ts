@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(order);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error saving draft order:', error);
     return NextResponse.json(
       { error: 'Failed to save draft order' },

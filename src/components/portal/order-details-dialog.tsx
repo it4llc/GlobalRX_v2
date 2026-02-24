@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 import {
   Dialog,
   DialogContent,

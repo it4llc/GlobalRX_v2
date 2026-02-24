@@ -53,7 +53,7 @@ export async function GET() {
         status: "healthy",
         responseTime: Math.round(dbResponseTime),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       result.status = "unhealthy";
       result.checks.database = {
         status: "unhealthy",
@@ -82,7 +82,7 @@ export async function GET() {
             result.status = "degraded";
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         result.checks.sentry = {
           status: "unhealthy",
           error: error instanceof Error ? error.message : "Sentry check failed",
@@ -117,7 +117,7 @@ export async function GET() {
         "X-Health-Status": result.status,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     // Catastrophic failure
     logger.error("Health check catastrophic failure", {
       error: error instanceof Error ? error.message : "Unknown error",

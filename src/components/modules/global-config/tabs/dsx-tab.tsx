@@ -11,7 +11,7 @@ import { FieldOrderSection } from './FieldOrderSection';
 import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle } from 'lucide-react';
-import { clientLogger } from '@/lib/client-logger';
+import { clientLogger, errorToLogMeta } from '@/lib/client-logger';
 
 // List of location IDs that cause problems - don't ignore Afghanistan (32c804e1)
 const IGNORED_LOCATION_IDS = new Set([]);
@@ -126,12 +126,12 @@ export function DSXTab() {
         const documentsData = await documentsResponse.json();
         
         // Normalize data for consistent handling
-        const fields = (fieldsData.fields || []).map(field => ({
+        const fields = (fieldsData.fields || []).map((field: any) => ({
           ...field,
           type: 'field'
         }));
         
-        const documents = (documentsData.documents || []).map(doc => ({
+        const documents = (documentsData.documents || []).map((doc: any) => ({
           ...doc,
           type: 'document'
         }));
@@ -301,7 +301,7 @@ const saveSelectedRequirements = async () => {
     });
     
     // Create an array of requirement objects from the available requirements
-    const requirementsToSave = selectedRequirementIds.map(id => {
+    const requirementsToSave = selectedRequirementIds.map((id: any) => {
       const requirement = availableRequirements.find(req => req.id === id);
       if (!requirement) {
         clientLogger.warn('Requirement not found in availableRequirements', {
@@ -534,7 +534,7 @@ const saveSelectedRequirements = async () => {
   };
 
   // Convert services to dropdown options
-  const serviceOptions = services.map(service => ({
+  const serviceOptions = services.map((service: any) => ({
     id: service.id,
     value: service.id,
     label: service.name

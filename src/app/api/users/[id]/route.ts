@@ -42,7 +42,7 @@ export async function GET(
     }
 
     return NextResponse.json(user);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching user:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
@@ -123,7 +123,7 @@ export async function PUT(
     });
 
     return NextResponse.json(updatedUser);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error updating user:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
@@ -164,7 +164,7 @@ export async function DELETE(
     });
 
     return new NextResponse(null, { status: 204 });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error deleting user:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }

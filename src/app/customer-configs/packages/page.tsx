@@ -1,5 +1,5 @@
 'use client';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -146,12 +146,12 @@ export default function CustomerPackagesPage() {
       </div>
       
       <div className="space-y-8">
-        {letterGroups.map(letter => (
+        {letterGroups.map((letter: any) => (
           <div key={letter} className="space-y-4">
             <h3 className="text-lg font-semibold border-b border-gray-200 pb-2">{letter}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {groupedCustomers[letter].map(customer => (
+              {groupedCustomers[letter].map((customer: any) => (
                 <Link href={`/customer-configs/${customer.id}/packages`} key={customer.id}>
                   <Card className="cursor-pointer hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">

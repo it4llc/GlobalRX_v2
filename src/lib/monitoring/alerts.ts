@@ -41,7 +41,7 @@ export class AlertManager {
 
       // Send to external services if configured
       await this.sendToExternalServices(alert);
-    } catch (error) {
+    } catch (error: unknown) {
       // Last resort logging if alert system fails
       logger.error("Failed to send alert", { error: error.message, alert: alert });
     }
@@ -227,7 +227,7 @@ export class AlertManager {
           statusText: response.statusText,
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error sending Slack alert", {
         error: error instanceof Error ? error.message : "Unknown error",
       });
@@ -280,7 +280,7 @@ export class AlertManager {
           statusText: response.statusText,
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error sending PagerDuty alert", {
         error: error instanceof Error ? error.message : "Unknown error",
       });

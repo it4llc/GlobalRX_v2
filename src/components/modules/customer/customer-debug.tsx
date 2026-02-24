@@ -1,6 +1,6 @@
 'use client';
 // src/components/modules/customer/customer-debug.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -96,7 +96,7 @@ export function CustomerDebug({ customerId }: CustomerDebugProps) {
               <div className="font-medium">Type</div>
               
               {/* Basic fields */}
-              {['id', 'name', 'address', 'contactName', 'contactEmail', 'contactPhone'].map(field => (
+              {['id', 'name', 'address', 'contactName', 'contactEmail', 'contactPhone'].map((field: any) => (
                 <React.Fragment key={field}>
                   <div>{field}</div>
                   <div>{displayValue(customerData, field)}</div>
@@ -105,7 +105,7 @@ export function CustomerDebug({ customerId }: CustomerDebugProps) {
               ))}
               
               {/* Relationship fields */}
-              {['masterAccountId', 'billingAccountId', 'invoiceTerms', 'invoiceContact', 'invoiceMethod'].map(field => (
+              {['masterAccountId', 'billingAccountId', 'invoiceTerms', 'invoiceContact', 'invoiceMethod'].map((field: any) => (
                 <React.Fragment key={field}>
                   <div>{field}</div>
                   <div>{displayValue(customerData, field)}</div>

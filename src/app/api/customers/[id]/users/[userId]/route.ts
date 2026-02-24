@@ -160,7 +160,7 @@ export async function PUT(
     });
 
     return NextResponse.json(updatedUser);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(`Error in PUT /api/customers/${params.id}/users/${params.userId}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while updating the user' },
@@ -234,7 +234,7 @@ export async function DELETE(
     });
 
     return NextResponse.json({ message: 'User deleted successfully' });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(`Error in DELETE /api/customers/${params.id}/users/${params.userId}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while deleting the user' },

@@ -78,7 +78,7 @@ export async function monitoringMiddleware(
     await checkErrorRates(path);
 
     return response;
-  } catch (error) {
+  } catch (error: unknown) {
     // Record error metrics
     metrics.error = error instanceof Error ? error : new Error("Unknown error");
     metrics.duration = Date.now() - startTime;
@@ -175,7 +175,7 @@ export async function monitorDatabaseHealth(
         }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     await alertManager.criticalAlert(
       "Database Health Check Failed",
       "Error while checking database health",
@@ -223,7 +223,7 @@ export async function monitorCriticalOperation<T>(
     });
 
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     const duration = Date.now() - startTime;
 
     // Send critical alert for failed operations
@@ -269,7 +269,7 @@ export function setupPeriodicHealthChecks(): void {
           }
         );
       }
-    } catch (error) {
+    } catch (error: unknown) {
       await alertManager.criticalAlert(
         "Health Check Error",
         "Unable to perform health check",

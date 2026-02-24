@@ -81,7 +81,7 @@ export async function GET() {
           error: migrationError instanceof Error ? migrationError.message : "Unknown error",
         });
       }
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       result.ready = false;
       result.checks.database = false;
 
@@ -109,7 +109,7 @@ export async function GET() {
         "X-Ready-Status": result.ready ? "ready" : "not-ready",
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     // Catastrophic failure
     logger.error("Readiness check catastrophic failure", {
       error: error instanceof Error ? error.message : "Unknown error",

@@ -112,7 +112,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
         
         // Set options text
         if (field.options && field.options.length > 0) {
-          const optionsStr = field.options.map(option => option.label).join('\n');
+          const optionsStr = field.options.map((option: any) => option.label).join('\n');
           setOptionsText(optionsStr);
         }
 
@@ -125,7 +125,7 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
         if (field.versions && field.versions.length > 0) {
           setVersions(field.versions);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         clientLogger.error('Error fetching field data:', error);
         // Show error in the UI
       } finally {
@@ -167,9 +167,9 @@ export function EditFieldModal({ fieldId, onEditField, onCancel }: EditFieldModa
     
     return text
       .split('\n')
-      .map(line => line.trim())
+      .map((line: any) => line.trim())
       .filter(line => line.length > 0)
-      .map(line => {
+      .map((line: any) => {
         // Use the same text for both value and label
         // Generate a slug/value by converting to lowercase and replacing spaces with underscores
         const value = line.toLowerCase().replace(/\s+/g, '_');

@@ -1,5 +1,5 @@
 'use client';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
@@ -227,7 +227,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
     setIsDirty(true);
     
     // Update form directly
-    const formServices = newServiceIds.map(id => ({
+    const formServices = newServiceIds.map((id: any) => ({
       serviceId: id,
       scope: newScopes[id] || null
     }));
@@ -247,7 +247,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
     setIsDirty(true);
     
     // Update form directly
-    const formServices = selectedServiceIds.map(id => ({
+    const formServices = selectedServiceIds.map((id: any) => ({
       serviceId: id,
       scope: newScopes[id] || null
     }));
@@ -266,7 +266,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
       const completeData = {
         name: data.name || originalName.current,
         description: data.description,
-        services: data.services || selectedServiceIds.map(id => ({
+        services: data.services || selectedServiceIds.map((id: any) => ({
           serviceId: id,
           scope: scopes[id] || null
         }))
@@ -498,7 +498,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
                           <CardContent className="p-4">
                             <h4 className="font-medium mb-3">{category}</h4>
                             <div className="space-y-4">
-                              {services.map(service => (
+                              {services.map((service: any) => (
                                 <div key={service.id} className="space-y-2">
                                   <div className="flex items-start space-x-2">
                                     <Checkbox

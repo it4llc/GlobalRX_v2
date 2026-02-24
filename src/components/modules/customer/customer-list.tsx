@@ -1,6 +1,6 @@
 'use client';
 // src/components/modules/customer/customer-list.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -115,7 +115,7 @@ export default function CustomerList() {
       setCustomers(sortedCustomers);
       setTotalPages(data.meta.totalPages);
     } catch (err) {
-      clientLogger.error('Error fetching customers:', err);
+      clientLogger.error('Error fetching customers:', errorToLogMeta(err));
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);
@@ -200,14 +200,14 @@ export default function CustomerList() {
       
       // Update customer in the list
       setCustomers(prev => 
-        prev.map(customer => 
+        prev.map((customer: any) => 
           customer.id === customerId 
             ? { ...customer, disabled: !customer.disabled } 
             : customer
         )
       );
     } catch (err) {
-      clientLogger.error('Error toggling customer status:', err);
+      clientLogger.error('Error toggling customer status:', errorToLogMeta(err));
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
   };
@@ -279,7 +279,7 @@ export default function CustomerList() {
         // Get customers to delete (all except the one to keep)
         const deleteCustomerIds = group.customers
           .filter(customer => customer.id !== keepCustomerId)
-          .map(customer => customer.id);
+          .map((customer: any) => customer.id);
         
         if (deleteCustomerIds.length === 0) continue;
         
@@ -302,7 +302,7 @@ export default function CustomerList() {
       setIsDuplicateRemovalMode(false);
       fetchCustomers();
     } catch (err) {
-      clientLogger.error('Error deduplicating customers:', err);
+      clientLogger.error('Error deduplicating customers:', errorToLogMeta(err));
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsDuplicateProcessing(false);
@@ -559,11 +559,11 @@ export default function CustomerList() {
               </div>
             ) : (
               <div className="space-y-4">
-                {duplicateGroups.map(group => (
+                {duplicateGroups.map((group: any) => (
                   <div key={group.name} className="border border-gray-200 rounded-md p-4 bg-white">
                     <h4 className="font-medium mb-3">Duplicates: {group.name}</h4>
                     <div className="space-y-3">
-                      {group.customers.map(customer => (
+                      {group.customers.map((customer: any) => (
                         <div key={customer.id} className="flex items-center space-x-2 border-b pb-2 last:border-b-0 last:pb-0">
                           <input 
                             type="radio" 

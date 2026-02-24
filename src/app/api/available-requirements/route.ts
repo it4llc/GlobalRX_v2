@@ -12,9 +12,10 @@ export const dynamic = 'force-dynamic';
  * This bridges the gap between Data Rx tab and DSX tab
  */
 export async function GET(request: NextRequest) {
+  // Always check authentication
+  const session = await getServerSession(authOptions);
+
   try {
-    // Always check authentication
-    const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -59,22 +60,19 @@ export async function GET(request: NextRequest) {
     let associatedRequirementIds: string[] = [];
     if (serviceId) {
       logger.debug('Fetching existing DSX requirements for service', { serviceId });
-      const existingRequirements = await prisma.dsxRequirement.findMany({
+      const existingRequirements = await prisma.serviceRequirement.findMany({
         where: { serviceId },
-        select: { id: true, fieldId: true, documentId: true }
+        select: { requirementId: true }
       });
-      
-      // Extract field and document IDs
-      associatedRequirementIds = existingRequirements.flatMap(req => [
-        req.fieldId, 
-        req.documentId
-      ]).filter(Boolean) as string[];
+
+      // Extract requirement IDs
+      associatedRequirementIds = existingRequirements.map((req: any) => req.requirementId);
       
       logger.debug('Found already associated requirements', { associatedCount: associatedRequirementIds.length });
     }
     
     // Transform data fields to requirements format
-    const dataFieldRequirements = dataFields.map(field => ({
+    const dataFieldRequirements = dataFields.map((field: any) => ({
       id: field.id,
       name: field.fieldLabel,
       shortName: field.shortName,
@@ -87,7 +85,7 @@ export async function GET(request: NextRequest) {
     }));
     
     // Transform documents to requirements format
-    const documentRequirements = documents.map(doc => ({
+    const documentRequirements = documents.map((doc: any) => ({
       id: doc.id,
       name: doc.name,
       type: 'document',
@@ -112,7 +110,7 @@ export async function GET(request: NextRequest) {
       requirements: allRequirements,
       associatedCount: associatedRequirementIds.length
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logDatabaseError('fetch_available_requirements', error as Error, session?.user?.id);
     return NextResponse.json(
       { error: 'Failed to fetch available requirements' },

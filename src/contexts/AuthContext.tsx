@@ -51,7 +51,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Login attempt failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const headers = new Headers(options.headers || {});
       
       if (!headers.has('Content-Type') && options.method !== 'GET' && options.body) {
-        headers.set('Content-Type', 'application/json');
+        headers.set('Content-Type');
       }
 
       // Add CSRF token if needed
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       return response;
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('API request failed', {
         url,
         method: options.method || 'GET',

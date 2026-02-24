@@ -1,5 +1,5 @@
 'use client';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 // src/components/modules/global-config/tabs/services-tab.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -295,7 +295,7 @@ export function ServicesTab() {
       ) : (
         <div className="mt-14">
           {/* Display services grouped by functionality type - maintaining the order */}
-          {functionalityTypes.map(type => {
+          {functionalityTypes.map((type: any) => {
             const servicesInGroup = groupedServices[type] || [];
             if (servicesInGroup.length === 0) return null;
             

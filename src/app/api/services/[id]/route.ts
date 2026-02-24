@@ -58,7 +58,7 @@ export async function GET(
     };
 
     return NextResponse.json(serviceWithUsage);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error fetching service:", error);
     return NextResponse.json(
       { error: "Error fetching service" },
@@ -115,7 +115,7 @@ export async function PUT(
     });
 
     return NextResponse.json(updatedService);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error updating service:", error);
     return NextResponse.json(
       { error: "Error updating service" },
@@ -179,7 +179,7 @@ export async function PATCH(
     });
 
     return NextResponse.json(updatedService);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error updating service:", error);
     return NextResponse.json(
       { error: "Error updating service" },

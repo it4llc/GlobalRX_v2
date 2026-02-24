@@ -46,14 +46,14 @@ export async function GET(
       `;
 
       workflow.packages = packagesResult || [];
-      workflow.packageIds = packagesResult.map(p => p.id);
+      workflow.packageIds = packagesResult.map((p: any) => p.id);
 
       return NextResponse.json(workflow);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error fetching workflow with raw SQL:", error);
       throw error;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error fetching workflow:", error);
     return NextResponse.json(
       { error: "Error fetching workflow" },
@@ -157,10 +157,10 @@ export async function PUT(
     `;
 
     updatedWorkflow.packages = packagesResult || [];
-    updatedWorkflow.packageIds = packagesResult.map(p => p.id);
+    updatedWorkflow.packageIds = packagesResult.map((p: any) => p.id);
 
     return NextResponse.json(updatedWorkflow);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error updating workflow:", error);
     return NextResponse.json(
       { error: "Error updating workflow" },
@@ -219,7 +219,7 @@ export async function DELETE(
     `;
 
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error deleting workflow:", error);
     return NextResponse.json(
       { error: "Error deleting workflow" },

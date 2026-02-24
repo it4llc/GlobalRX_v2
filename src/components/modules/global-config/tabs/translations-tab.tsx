@@ -1,7 +1,7 @@
 "use client";
 
 // src/components/modules/global-config/tabs/translations-tab.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { TranslationManager } from '@/components/modules/translations/TranslationManager';
@@ -48,7 +48,7 @@ export function TranslationsTab() {
         }
         
         setAllTranslations(translations);
-      } catch (error) {
+      } catch (error: unknown) {
         clientLogger.error('Error loading translations:', error);
       } finally {
         setIsLoading(false);
@@ -98,7 +98,7 @@ export function TranslationsTab() {
       document.body.removeChild(link);
       
       setIsLoading(false);
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error exporting translations:', error);
       alert('Error exporting translations');
       setIsLoading(false);
@@ -187,7 +187,7 @@ export function TranslationsTab() {
           
           // Reload the page to see changes
           window.location.reload();
-        } catch (error) {
+        } catch (error: unknown) {
           clientLogger.error('Error importing translations:', error);
           setImportError('Error importing translations: ' + (error instanceof Error ? error.message : String(error)));
         } finally {
@@ -202,7 +202,7 @@ export function TranslationsTab() {
       
       fileReader.readAsText(importFile);
       
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error importing translations:', error);
       setImportError('Error importing translations: ' + (error instanceof Error ? error.message : String(error)));
       setIsLoading(false);
@@ -251,7 +251,7 @@ export function TranslationsTab() {
       
       // Reload the page to see changes
       window.location.reload();
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error adding new language:', error);
       setNewLocaleError('Error adding new language: ' + (error instanceof Error ? error.message : String(error)));
     } finally {

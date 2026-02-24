@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         where: {
           serviceId,
           requirementId: {
-            in: fieldOrders.map(fo => fo.requirementId)
+            in: fieldOrders.map((fo: any) => fo.requirementId)
           }
         },
         select: {
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      const existingRequirementIds = new Set(existingRecords.map(r => r.requirementId));
+      const existingRequirementIds = new Set(existingRecords.map((r: any) => r.requirementId));
       logger.debug('Found existing ServiceRequirement records', { existingRecordCount: existingRecords.length });
 
       for (const fieldOrder of fieldOrders) {
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     logDatabaseError('update_field_order', error as Error, session?.user?.id);
     return NextResponse.json(
       { error: "Failed to update field order", details: error instanceof Error ? error.message : 'Unknown error' },

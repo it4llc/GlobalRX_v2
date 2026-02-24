@@ -1,5 +1,5 @@
 'use client';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 // src/components/modules/workflows/workflow-list.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -502,11 +502,11 @@ export function WorkflowList() {
                     </TableCell>
                     <TableCell 
                       className="truncate" 
-                      title={workflow.workflowPackages.map(wp => `${wp.package.customer.name} - ${wp.package.name}`).join(', ')}
+                      title={workflow.workflowPackages.map((wp: any) => `${wp.package.customer.name} - ${wp.package.name}`).join(', ')}
                       style={{ width: columnWidths.packages }}
                     >
                       {workflow.packageCount > 0 
-                        ? workflow.workflowPackages.slice(0, 2).map(wp => wp.package.name).join(', ') + (workflow.packageCount > 2 ? ` + ${workflow.packageCount - 2} more` : '')
+                        ? workflow.workflowPackages.slice(0, 2).map((wp: any) => wp.package.name).join(', ') + (workflow.packageCount > 2 ? ` + ${workflow.packageCount - 2} more` : '')
                         : '-'
                       }
                     </TableCell>

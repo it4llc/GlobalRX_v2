@@ -1,7 +1,7 @@
 'use client';
 
 // src/app/customer-configs/scope/[id]/page.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';

@@ -26,7 +26,7 @@ export function useAuth() {
       }
       
       return response;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('API request error:', error);
       throw error;
     }

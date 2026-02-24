@@ -51,7 +51,7 @@ export async function PATCH(
       id: updatedCustomer.id,
       disabled: updatedCustomer.disabled
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(`Error in PATCH /api/customers/${params.id}/toggle-status:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },

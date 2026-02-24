@@ -53,7 +53,7 @@ export async function GET(
     });
 
     return NextResponse.json(sections);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error fetching workflow sections:", error);
     return NextResponse.json(
       { error: "Error fetching workflow sections" },
@@ -120,7 +120,7 @@ export async function POST(
     });
 
     return NextResponse.json(completeSection, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error creating workflow section:", error);
     return NextResponse.json(
       { error: "Error creating workflow section" },
@@ -189,7 +189,7 @@ export async function PATCH(
     });
 
     return NextResponse.json(allSections);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error updating workflow section order:", error);
     return NextResponse.json(
       { error: "Error updating workflow section order" },

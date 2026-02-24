@@ -67,7 +67,7 @@ export async function addNewLocale(localeCode: string, localeName: string): Prom
 
     // Return success
     return Promise.resolve();
-  } catch (error) {
+  } catch (error: unknown) {
     // Use dynamic import to avoid Winston on client side
     if (typeof window === 'undefined') {
       const logger = require('@/lib/logger').default;

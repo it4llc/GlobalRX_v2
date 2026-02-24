@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Check if the document exists
-    const document = await prisma.dSXDocument.findUnique({
+    const document = await prisma.document.findUnique({
       where: { id: params.id },
     });
 
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     await writeFile(filePath, Buffer.from(fileBuffer));
     
     // Update the document record with file information
-    await prisma.dSXDocument.update({
+    await prisma.document.update({
       where: { id: params.id },
       data: {
         pdfPath: filePath,
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
 
     // Create a version record
-    await prisma.dSXDocumentVersion.create({
+    await prisma.documentVersion.create({
       data: {
         documentId: params.id,
         changes: {
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error uploading PDF file:', error);
     return NextResponse.json(
       { error: 'Failed to upload PDF file' },

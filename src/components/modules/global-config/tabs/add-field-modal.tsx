@@ -103,9 +103,9 @@ export function AddFieldModal({ onAddField, onCancel }: AddFieldModalProps) {
     
     return text
       .split('\n')
-      .map(line => line.trim())
+      .map((line: any) => line.trim())
       .filter(line => line.length > 0)
-      .map(line => {
+      .map((line: any) => {
         // Use the same text for both value and label
         // Generate a slug/value by converting to lowercase and replacing spaces with underscores
         const value = line.toLowerCase().replace(/\s+/g, '_');

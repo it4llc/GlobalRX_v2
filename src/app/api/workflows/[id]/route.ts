@@ -101,7 +101,7 @@ export async function GET(
     };
 
     return NextResponse.json(transformedWorkflow);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error fetching workflow:", error);
     return NextResponse.json(
       { error: "Error fetching workflow" },
@@ -216,7 +216,7 @@ export async function PUT(
     };
 
     return NextResponse.json(transformedWorkflow);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error updating workflow:", error);
     return NextResponse.json(
       { error: "Error updating workflow", details: error.message },
@@ -268,7 +268,7 @@ export async function DELETE(
     });
 
     return NextResponse.json({ message: "Workflow deleted successfully" });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error deleting workflow:", error);
     return NextResponse.json(
       { error: "Error deleting workflow" },

@@ -27,7 +27,7 @@ export async function withAuth(
 
     // Call the handler with the session
     return handler(req, session);
-  } catch (error) {
+  } catch (error: unknown) {
     logDatabaseError('auth_middleware', error as Error);
     return NextResponse.json(
       { error: 'Internal server error', code: 'INTERNAL_ERROR' },

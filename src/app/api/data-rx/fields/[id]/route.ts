@@ -121,7 +121,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         requiresVerification: standardizedFieldData.requiresVerification || false, // Add verification flag
         options: standardizedFieldData.options || [],
         disabled: requirement.disabled === true,
-        services: requirement.serviceRequirements.map(sr => ({
+        services: requirement.serviceRequirements.map((sr: any) => ({
           id: sr.service.id,
           name: sr.service.name
         })),
@@ -129,14 +129,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       };
 
       return NextResponse.json({ field });
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       logDatabaseError('get_data_field', dbError as Error, session?.user?.id);
       return NextResponse.json(
         { error: "Database error while fetching field", details: dbError.message },
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in GET data field route', {
       error: error instanceof Error ? error.message : 'Unknown error',
       fieldId: params?.id
@@ -311,7 +311,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         requiresVerification: updatedFieldData.requiresVerification || false, // Add verification flag
         options: updatedFieldData.options || [],
         disabled: updatedRequirement.disabled === true,
-        services: updatedRequirement.serviceRequirements.map(sr => ({
+        services: updatedRequirement.serviceRequirements.map((sr: any) => ({
           id: sr.service.id,
           name: sr.service.name
         })),
@@ -324,14 +324,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         success: true, 
         field: responseField
       });
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       logDatabaseError('update_data_field', dbError as Error, session?.user?.id);
       return NextResponse.json(
         { error: "Database error while updating field", details: dbError.message },
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in PUT data field route', {
       error: error instanceof Error ? error.message : 'Unknown error',
       fieldId: params?.id

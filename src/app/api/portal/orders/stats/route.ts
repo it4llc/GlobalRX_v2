@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const stats = await OrderService.getCustomerOrderStats(customerId);
 
     return NextResponse.json(stats);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching order stats:', error);
     return NextResponse.json(
       { error: 'Failed to fetch order statistics' },

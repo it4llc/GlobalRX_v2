@@ -1,6 +1,6 @@
 'use client';
 // src/components/modules/global-config/tabs/fields-table.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState } from 'react';
 import {
@@ -103,7 +103,7 @@ export function FieldsTable({ fields, isLoading, onToggleStatus, onRefresh }: Fi
       }
       
       onRefresh();
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Error updating field:', error);
       setError('Failed to update field. Please try again.');
     } finally {

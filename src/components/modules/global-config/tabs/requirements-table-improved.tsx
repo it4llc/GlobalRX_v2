@@ -376,7 +376,7 @@ export function RequirementsTable({
             />
           </div>
         </td>
-        {fields.map(field => (
+        {fields.map((field: any) => (
           <td key={`${location.id}-${field.id}`} className={styles.checkboxCell}>
             <div className={styles.checkboxWrapper}>
               <Checkbox
@@ -389,7 +389,7 @@ export function RequirementsTable({
             </div>
           </td>
         ))}
-        {documents.map(doc => (
+        {documents.map((doc: any) => (
           <td key={`${location.id}-${doc.id}`} className={styles.checkboxCell}>
             <div className={styles.checkboxWrapper}>
               <Checkbox
@@ -402,7 +402,7 @@ export function RequirementsTable({
             </div>
           </td>
         ))}
-        {forms.map(form => (
+        {forms.map((form: any) => (
           <td key={`${location.id}-${form.id}`} className={styles.checkboxCell}>
             <div className={styles.checkboxWrapper}>
               <Checkbox
@@ -502,7 +502,7 @@ export function RequirementsTable({
                     <th className={`${styles.stickyColumn} ${styles.availableColumn}`}>
                       Avail
                     </th>
-                    {fields.map(field => (
+                    {fields.map((field: any) => (
                       <th key={field.id} className={`${styles.requirementColumn} ${styles.header}`}>
                         {field.description ? (
                           <Tooltip
@@ -521,7 +521,7 @@ export function RequirementsTable({
                         )}
                       </th>
                     ))}
-                    {documents.map(doc => (
+                    {documents.map((doc: any) => (
                       <th key={doc.id} className={`${styles.requirementColumn} ${styles.header}`}>
                         {doc.description ? (
                           <Tooltip
@@ -540,7 +540,7 @@ export function RequirementsTable({
                         )}
                       </th>
                     ))}
-                    {forms.map(form => (
+                    {forms.map((form: any) => (
                       <th key={form.id} className={`${styles.requirementColumn} ${styles.header}`}>
                         {form.description ? (
                           <Tooltip
@@ -562,7 +562,7 @@ export function RequirementsTable({
                   </tr>
                 </thead>
                 <tbody>
-                  {hierarchicalLocations.map(location => renderLocationRow(location))}
+                  {hierarchicalLocations.map((location: any) => renderLocationRow(location))}
                 </tbody>
               </table>
             </div>

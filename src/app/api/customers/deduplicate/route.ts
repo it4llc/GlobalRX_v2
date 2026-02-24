@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import logger from '@/lib/logger';
+import { getErrorDetails } from '@/lib/utils';
 
 // Validation schema
 const deduplicateSchema = z.object({
@@ -101,12 +102,12 @@ export async function POST(request: NextRequest) {
             where: { id: deleteCustomerId }
           });
         });
-      } catch (txError) {
-        logger.error('Transaction failed for customer', { customerId: deleteCustomerId, error: txError.message, stack: txError.stack });
+      } catch (txError: unknown) {
+        logger.error('Transaction failed for customer', { customerId: deleteCustomerId, error: getErrorDetails(txError).message, stack: getErrorDetails(txError).stack });
         return NextResponse.json(
           { 
             error: `Failed to deduplicate customer ${deleteCustomerId}. Database operation failed.`,
-            details: txError instanceof Error ? txError.message : 'Unknown error'
+            details: getErrorDetails(txError).message
           },
           { status: 500 }
         );
@@ -118,12 +119,12 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Customers deduplicated successfully'
     });
-  } catch (error) {
-    logger.error('Error in deduplication process', { error: error.message, stack: error.stack });
+  } catch (error: unknown) {
+    logger.error('Error in deduplication process', { error: getErrorDetails(error).message, stack: getErrorDetails(error).stack });
     return NextResponse.json(
       { 
         error: 'An error occurred during deduplication',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: getErrorDetails(error).message
       },
       { status: 500 }
     );

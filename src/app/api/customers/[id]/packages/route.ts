@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import logger from '@/lib/logger';
+import { getErrorDetails } from '@/lib/utils';
 
 // Validation schema for package
 const packageSchema = z.object({
@@ -25,6 +26,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -49,7 +52,6 @@ export async function GET(
       permissions: session.user.permissions
     });
 
-    const { id } = await params;
 
     // Check if customer exists
     const customer = await prisma.customer.findUnique({
@@ -77,14 +79,14 @@ export async function GET(
     });
 
     // Format the response to match what the frontend expects
-    const formattedPackages = packages.map(pkg => ({
+    const formattedPackages = packages.map((pkg: any) => ({
       id: pkg.id,
       name: pkg.name,
       description: pkg.description,
       createdAt: pkg.createdAt,
       updatedAt: pkg.updatedAt,
       // Transform packageServices into the services format expected by the frontend
-      services: pkg.packageServices.map(ps => ({
+      services: pkg.packageServices.map((ps: any) => ({
         service: ps.service,
         scope: ps.scope
       }))
@@ -92,8 +94,9 @@ export async function GET(
 
     logger.info('API: Successfully fetched packages', { customerId: id, packageCount: formattedPackages.length });
     return NextResponse.json(formattedPackages);
-  } catch (error) {
-    logger.error('Error in GET /api/customers/[id]/packages', { customerId: id, error: error.message, stack: error.stack });
+  } catch (error: unknown) {
+    const { message, stack } = getErrorDetails(error);
+    logger.error('Error in GET /api/customers/[id]/packages', { customerId: id, error: message, stack });
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -126,7 +129,6 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
 
     // Check if customer exists
     const customer = await prisma.customer.findUnique({
@@ -161,8 +163,8 @@ export async function POST(
     const data = validationResult.data;
 
     // Verify that all services are available to the customer
-    const availableServiceIds = customer.services.map(cs => cs.service.id);
-    const requestedServiceIds = data.services.map(s => s.serviceId);
+    const availableServiceIds = customer.services.map((cs: any) => cs.service.id);
+    const requestedServiceIds = data.services.map((s: any) => s.serviceId);
     
     const unavailableServices = requestedServiceIds.filter(
       id => !availableServiceIds.includes(id)
@@ -212,7 +214,7 @@ export async function POST(
 
       // Create packageService relationships
       await Promise.all(
-        data.services.map(serviceItem =>
+        data.services.map((serviceItem: any) =>
           tx.packageService.create({
             data: {
               packageId: pkg.id,
@@ -241,7 +243,7 @@ export async function POST(
     // Format response to match expected structure
     const formattedPackage = {
       ...createdPackage,
-      services: createdPackage?.packageServices.map(ps => ({
+      services: createdPackage?.packageServices.map((ps: any) => ({
         service: ps.service,
         scope: ps.scope
       })) || []
@@ -253,8 +255,9 @@ export async function POST(
     }
 
     return NextResponse.json(formattedPackage, { status: 201 });
-  } catch (error) {
-    logger.error('Error in POST /api/customers/[id]/packages', { customerId: id, error: error.message, stack: error.stack });
+  } catch (error: unknown) {
+    const { message, stack } = getErrorDetails(error);
+    logger.error('Error in POST /api/customers/[id]/packages', { customerId: id, error: message, stack });
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

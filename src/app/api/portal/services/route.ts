@@ -45,14 +45,14 @@ export async function GET(request: NextRequest) {
     // Filter out disabled services and map to the format we need
     const availableServices = customerServices
       .filter(cs => !cs.service.disabled)
-      .map(cs => ({
+      .map((cs: any) => ({
         id: cs.service.id,
         name: cs.service.name,
         category: cs.service.category,
       }));
 
     return NextResponse.json(availableServices);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching customer services:', error);
     return NextResponse.json(
       { error: 'Failed to fetch services' },

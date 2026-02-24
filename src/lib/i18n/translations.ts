@@ -19,7 +19,7 @@ export const getTranslations = async (locale: string): Promise<Record<string, st
       // Try to load the specific locale (e.g., 'en-US')
       translations = await import(`@/translations/${locale}.json`)
         .then(module => module.default);
-    } catch (error) {
+    } catch (error: unknown) {
       // If that fails, try the fallbacks
       if (typeof window === 'undefined') {
         const logger = require('@/lib/logger').default;
@@ -87,7 +87,7 @@ export const getTranslations = async (locale: string): Promise<Record<string, st
     
     translationCache[locale] = translations;
     return translations;
-  } catch (error) {
+  } catch (error: unknown) {
     if (typeof window === 'undefined') {
       const logger = require('@/lib/logger').default;
       logger.error('Error loading translations:', error);
@@ -126,7 +126,7 @@ export const saveTranslations = async (
     }
     
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     if (typeof window === 'undefined') {
       const logger = require('@/lib/logger').default;
       logger.error('Error saving translations:', error);
@@ -166,7 +166,7 @@ export const addNewLanguage = async (
     });
     
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     if (typeof window === 'undefined') {
       const logger = require('@/lib/logger').default;
       logger.error('Error adding new language:', error);
@@ -204,7 +204,7 @@ export const importTranslationsFromCSV = async (
     });
     
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     if (typeof window === 'undefined') {
       const logger = require('@/lib/logger').default;
       logger.error('Error importing translations:', error);

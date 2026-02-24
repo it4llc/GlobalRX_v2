@@ -59,7 +59,7 @@ async function filterValidLocationIds(locationIds: string[]): Promise<string[]> 
     });
     
     // Extract just the IDs
-    const validIds = existingLocations.map(loc => loc.id);
+    const validIds = existingLocations.map((loc: any) => loc.id);
     
     // Find any rejected IDs for debugging
     const rejectedIds = locationIds.filter(id => !validIds.includes(id));
@@ -77,7 +77,7 @@ async function filterValidLocationIds(locationIds: string[]): Promise<string[]> 
     });
     
     return validIds;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error filtering valid location IDs', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
       });
 
       // Extract requirements with display order
-      const requirements = serviceRequirements.map(sr => {
+      const requirements = serviceRequirements.map((sr: any) => {
         const req = {
           ...sr.requirement,
           displayOrder: sr.displayOrder
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
       logger.info('Requirements fetched', {
         count: requirements.length,
         serviceId,
-        requirements: requirements.length > 0 ? requirements.map(r => ({
+        requirements: requirements.length > 0 ? requirements.map((r: any) => ({
           name: r.name,
           displayOrder: r.displayOrder,
           id: r.id
@@ -195,14 +195,14 @@ export async function GET(request: NextRequest) {
         mappings: mappingsObject,
         availability: availabilityObject
       });
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       logDatabaseError('dsx_fetch', dbError as Error, session?.user?.id);
       return NextResponse.json(
         { error: "Database error while fetching DSX data", details: dbError.message },
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in GET /api/dsx', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
     let rawBody;
     try {
       rawBody = await request.json();
-    } catch (error) {
+    } catch (error: unknown) {
       return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
     }
     
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
                 });
                 
                 createdRelationships.push(serviceRequirement.id);
-              } catch (error) {
+              } catch (error: unknown) {
                 logger.error('Error creating service-requirement relationship', {
                   error: error instanceof Error ? error.message : String(error),
                   requirementId: req.id,
@@ -404,7 +404,7 @@ export async function POST(request: NextRequest) {
           });
           
           return NextResponse.json(result);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Error in mappings transaction', {
             error: error instanceof Error ? error.message : String(error),
             serviceId
@@ -500,7 +500,7 @@ export async function POST(request: NextRequest) {
           });
           
           return NextResponse.json(result);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Error in availability transaction', {
             error: error instanceof Error ? error.message : String(error),
             serviceId
@@ -518,7 +518,7 @@ export async function POST(request: NextRequest) {
           details: "Request must have a valid type (requirement, mappings, or availability) and corresponding data" 
         }, { status: 400 });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error in DSX operations', {
         error: error instanceof Error ? error.message : String(error),
         serviceId
@@ -528,7 +528,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in POST /api/dsx', {
       error: error instanceof Error ? error.message : String(error)
     });

@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       
       // Return the raw data
       return NextResponse.json(locations);
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       logger.error("Database error while fetching locations", {
         error: dbError.message,
         stack: dbError.stack,
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("API error in locations GET endpoint", {
       error: error.message,
       stack: error.stack,
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
         operation: 'create'
       });
       return NextResponse.json(location, { status: 201 });
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       logger.error("Database error creating location", {
         error: dbError.message,
         operation: 'create',
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("API error in locations POST endpoint", {
       error: error.message,
       stack: error.stack,

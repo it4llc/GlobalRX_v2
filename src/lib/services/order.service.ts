@@ -57,7 +57,7 @@ export class OrderService {
       });
 
       return newEntry.id;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to create AddressEntry', {
         addressData: {
           street1: addressData.street1,
@@ -239,7 +239,7 @@ export class OrderService {
               resolvedAddress.state = state.subregion1 || state.name;
               resolvedAddress.stateCode = state.code2;
             }
-          } catch (error) {
+          } catch (error: unknown) {
             logger.warn('Failed to resolve state ID in address object', {
               stateId: addressObj.state,
               fieldName,
@@ -258,7 +258,7 @@ export class OrderService {
             if (county) {
               resolvedAddress.county = county.subregion2 || county.name;
             }
-          } catch (error) {
+          } catch (error: unknown) {
             logger.warn('Failed to resolve county ID in address object', {
               countyId: addressObj.county,
               fieldName,
@@ -318,7 +318,7 @@ export class OrderService {
               resolved[fieldName] = addressParts.join(', ');
               continue;
             }
-          } catch (error) {
+          } catch (error: unknown) {
             logger.warn('Failed to resolve address ID', {
               addressId: fieldValue,
               fieldName,
@@ -350,7 +350,7 @@ export class OrderService {
                 displayName;
               continue;
             }
-          } catch (error) {
+          } catch (error: unknown) {
             logger.warn('Failed to resolve location ID', {
               locationId: fieldValue,
               fieldName,
@@ -378,7 +378,7 @@ export class OrderService {
                 displayName;
               continue;
             }
-          } catch (error) {
+          } catch (error: unknown) {
             logger.warn('Failed to resolve state ID', {
               stateId: fieldValue,
               fieldName,
@@ -402,7 +402,7 @@ export class OrderService {
               resolved[fieldName] = county.subregion2 || county.name;
               continue;
             }
-          } catch (error) {
+          } catch (error: unknown) {
             logger.warn('Failed to resolve county ID', {
               countyId: fieldValue,
               fieldName,
@@ -516,8 +516,8 @@ export class OrderService {
     };
 
     // Extract unique service and location IDs
-    const serviceIds = [...new Set(data.serviceItems.map(item => item.serviceId))];
-    const locationIds = [...new Set(data.serviceItems.map(item => item.locationId))];
+    const serviceIds = [...new Set(data.serviceItems.map((item: any) => item.serviceId))];
+    const locationIds = [...new Set(data.serviceItems.map((item: any) => item.locationId))];
 
     // Get all service-level requirements
     const serviceRequirements = await prisma.serviceRequirement.findMany({

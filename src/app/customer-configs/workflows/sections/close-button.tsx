@@ -1,5 +1,5 @@
 'use client';
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -65,8 +65,8 @@ export function CloseButton() {
     <Button variant="outline" onClick={handleBack} className="mb-4">
       <ArrowLeft className="h-4 w-4 mr-2" />
       {customerId 
-        ? t('module.candidateWorkflow.backToCustomerWorkflows', 'Back to Customer Workflows') 
-        : t('common.back', 'Back')}
+        ? t('module.candidateWorkflow.backToCustomerWorkflows') 
+        : t('common.back')}
     </Button>
   );
 }

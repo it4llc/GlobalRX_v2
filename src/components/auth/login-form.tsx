@@ -1,6 +1,6 @@
 'use client';
 // src/components/auth/login-form.tsx
-import clientLogger from '@/lib/client-logger';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -51,7 +51,7 @@ export function LoginForm() {
       } else {
         router.push('/');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       clientLogger.error('Login error:', error);
       setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
