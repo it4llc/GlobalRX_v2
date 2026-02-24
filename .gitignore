@@ -62,3 +62,7 @@ Thumbs.db
 # Prisma migrations (keep these but ignore backup files)
 prisma/migrations/**/*.sql.backup_archive/globalrx-backup-20250523-202104/
 _archive/
+
+# Playwright test results
+test-results/
+playwright-report/
