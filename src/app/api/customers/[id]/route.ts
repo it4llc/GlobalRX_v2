@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import logger from '@/lib/logger';
+import { getErrorDetails } from '@/lib/utils';
 
 // Validation schema for updating a customer
 const customerUpdateSchema = z.object({
@@ -59,9 +61,10 @@ export async function GET(
   request: NextRequest,
   context: { params: { id: string } }
 ) {
+  // Get params safely
+  const params = await context.params;
+
   try {
-    // Get params safely
-    const params = await context.params;
     
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -126,8 +129,8 @@ export async function GET(
     // Format services for easier consumption
     const formattedCustomer = {
       ...customer,
-      serviceIds: customer.services.map(cs => cs.service.id),
-      services: customer.services.map(cs => ({
+      serviceIds: customer.services.map((cs: any) => cs.service.id),
+      services: customer.services.map((cs: any) => ({
         id: cs.service.id,
         name: cs.service.name,
         category: cs.service.category,
@@ -137,8 +140,9 @@ export async function GET(
     };
 
     return NextResponse.json(formattedCustomer);
-  } catch (error) {
-    console.error(`Error in GET /api/customers/${params.id}:`, error);
+  } catch (error: unknown) {
+    const { message, stack } = getErrorDetails(error);
+    logger.error('Error in GET /api/customers/[id]', { customerId: params.id, error: message, stack });
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -155,9 +159,10 @@ export async function PUT(
   request: NextRequest,
   context: { params: { id: string } }
 ) {
+  // Get params safely
+  const params = await context.params;
+
   try {
-    // Get params safely
-    const params = await context.params;
     
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -201,7 +206,7 @@ export async function PUT(
     const { serviceIds, ...customerData } = data;
     
     // Debug the customer data being sent to the database
-    console.log("Customer update data:", JSON.stringify(customerData, null, 2));
+    logger.debug('Customer update data', { customerData });
 
     // Validation checks
     if (data.masterAccountId) {
@@ -277,11 +282,9 @@ export async function PUT(
       };
       
       // Log the cleaned data
-      console.log("Cleaned data for Prisma update:", {
+      logger.debug('Cleaned data for Prisma update', {
         validUpdateData,
-        relationFields: { masterAccountId, billingAccountId },
-        // Skip other fields that don't exist in the schema
-        ignoredFields: "primaryColor, secondaryColor, accentColor, dataRetentionDays, etc."
+        relationFields: { masterAccountId, billingAccountId }
       });
       
       // Prepare the update data with correct nested structure for relations
@@ -318,7 +321,7 @@ export async function PUT(
           // Create new relationships
           if (serviceIds.length > 0) {
             await Promise.all(
-              serviceIds.map(serviceId =>
+              serviceIds.map((serviceId: any) =>
                 tx.customerService.create({
                   data: {
                     customerId: id,
@@ -368,8 +371,8 @@ export async function PUT(
       // Format the response
       const formattedCustomer = {
         ...completeCustomer,
-        serviceIds: completeCustomer.services.map(cs => cs.service.id),
-        services: completeCustomer.services.map(cs => ({
+        serviceIds: completeCustomer.services.map((cs: any) => cs.service.id),
+        services: completeCustomer.services.map((cs: any) => ({
           id: cs.service.id,
           name: cs.service.name,
           category: cs.service.category,
@@ -379,15 +382,17 @@ export async function PUT(
       };
       
       return NextResponse.json(formattedCustomer);
-    } catch (txError) {
-      console.error("Transaction error:", txError);
+    } catch (txError: unknown) {
+      const { message, stack } = getErrorDetails(txError);
+      logger.error('Transaction error', { error: message, stack });
       return NextResponse.json(
-        { error: txError.message || 'Error updating customer data' },
+        { error: message || 'Error updating customer data' },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error(`Error in PUT /api/customers/${params.id}:`, error);
+  } catch (error: unknown) {
+    const { message, stack } = getErrorDetails(error);
+    logger.error('Error in PUT /api/customers/[id]', { customerId: params.id, error: message, stack });
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -404,9 +409,10 @@ export async function DELETE(
   request: NextRequest,
   context: { params: { id: string } }
 ) {
+  // Get params safely
+  const params = await context.params;
+
   try {
-    // Get params safely
-    const params = await context.params;
     
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -462,8 +468,9 @@ export async function DELETE(
     });
 
     return NextResponse.json({ message: 'Customer deleted successfully' });
-  } catch (error) {
-    console.error(`Error in DELETE /api/customers/${params.id}:`, error);
+  } catch (error: unknown) {
+    const { message, stack } = getErrorDetails(error);
+    logger.error('Error in DELETE /api/customers/[id]', { customerId: params.id, error: message, stack });
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

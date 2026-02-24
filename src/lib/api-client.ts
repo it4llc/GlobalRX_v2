@@ -22,7 +22,7 @@ async function apiFetch<T>(
   // Set default headers
   const headers = new Headers(fetchOptions.headers);
   if (!headers.has('Content-Type') && fetchOptions.method !== 'GET' && fetchOptions.body) {
-    headers.set('Content-Type', 'application/json');
+    headers.set('Content-Type');
   }
 
   // Make the request

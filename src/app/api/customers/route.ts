@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import logger, { logAuthEvent, logAuthError, logPermissionDenied, logDatabaseError, logApiRequest } from '@/lib/logger';
 
 // Validation schema
 const customerSchema = z.object({
@@ -43,24 +44,25 @@ function hasPermission(permissions: any, resource: string, action: string): bool
  */
 export async function GET(request: NextRequest) {
   try {
-    console.log("GET /api/customers - Starting request processing");
+    logApiRequest('GET', '/api/customers', request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'), request.headers.get('user-agent') || undefined);
     
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session) {
-      console.log("GET /api/customers - No session found");
+      logAuthError('No session found', { endpoint: '/api/customers' });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    console.log("GET /api/customers - Session found, user:", session.user?.email);
-    console.log("GET /api/customers - Permissions:", JSON.stringify(session.user?.permissions));
+    logAuthEvent('session_validated', {
+      endpoint: '/api/customers',
+      userId: session.user?.id || 'unknown'
+    });
 
     // Check permissions - UPDATED to work with array structure
     const hasViewPermission = hasPermission(session.user.permissions, 'customers', 'view');
-    console.log("GET /api/customers - Has view permission:", hasViewPermission);
-    
+
     if (!hasViewPermission) {
-      console.log("GET /api/customers - Permission denied");
+      logPermissionDenied(session.user?.id || 'unknown', 'customers', 'view', '/api/customers');
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
     const masterOnly = searchParams.get('masterOnly') === 'true';
     const includeDisabled = searchParams.get('includeDisabled') === 'true';
     
-    console.log("GET /api/customers - Query params:", { page, pageSize, search, masterOnly, includeDisabled });
+    logger.debug('Query parameters', { page, pageSize, search, masterOnly, includeDisabled });
 
     // Build the query
     const where: any = {};
@@ -94,10 +96,10 @@ export async function GET(request: NextRequest) {
       ];
     }
     
-    console.log("GET /api/customers - Where clause:", JSON.stringify(where));
+    logger.debug('Database query where clause', { where });
 
     try {
-      console.log("GET /api/customers - Executing database queries");
+      logger.debug('Executing database queries for customers');
       
       // Execute the query with enhanced relations
       const [customers, total] = await Promise.all([
@@ -128,10 +130,10 @@ export async function GET(request: NextRequest) {
         prisma.customer.count({ where }),
       ]);
       
-      console.log(`GET /api/customers - Found ${customers.length} customers out of ${total} total`);
+      logger.info('Customers query completed', { count: customers.length, total });
 
       // Format the response with additional customer details
-      const formattedCustomers = customers.map(customer => ({
+      const formattedCustomers = customers.map((customer: any) => ({
         id: customer.id,
         name: customer.name,
         contactName: customer.contactName,
@@ -157,7 +159,7 @@ export async function GET(request: NextRequest) {
         packagesCount: customer._count.packages,
         disabled: customer.disabled,
         // Format services for easier consumption
-        services: customer.services.map(cs => ({
+        services: customer.services.map((cs: any) => ({
           id: cs.service.id,
           name: cs.service.name,
           category: cs.service.category
@@ -166,7 +168,7 @@ export async function GET(request: NextRequest) {
         updatedAt: customer.updatedAt
       }));
 
-      console.log("GET /api/customers - Successfully formatted response");
+      logger.debug('Response formatted successfully');
       
       return NextResponse.json({
         data: formattedCustomers,
@@ -177,17 +179,21 @@ export async function GET(request: NextRequest) {
           totalPages: Math.ceil(total / pageSize),
         },
       });
-    } catch (dbError) {
-      console.error("GET /api/customers - Database error:", dbError);
+    } catch (dbError: unknown) {
+      logDatabaseError('customers_query', dbError as Error, session.user?.id);
       return NextResponse.json(
-        { error: 'Database error', details: dbError.message },
+        { error: 'Database error', details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error('Error in GET /api/customers:', error);
+  } catch (error: unknown) {
+    logger.error('Unexpected error in GET /api/customers', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: session?.user?.id
+    });
     return NextResponse.json(
-      { error: 'An error occurred while processing your request', details: error.message },
+      { error: 'An error occurred while processing your request', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -262,7 +268,7 @@ export async function POST(request: NextRequest) {
       // Create service relationships if provided
       if (serviceIds && serviceIds.length > 0) {
         await Promise.all(
-          serviceIds.map(serviceId =>
+          serviceIds.map((serviceId: any) =>
             tx.customerService.create({
               data: {
                 customerId: newCustomer.id,
@@ -289,8 +295,12 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(createdCustomerWithRelations, { status: 201 });
-  } catch (error) {
-    console.error('Error in POST /api/customers:', error);
+  } catch (error: unknown) {
+    logger.error('Error in POST /api/customers', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: session?.user?.id
+    });
     return NextResponse.json(
       { error: 'An error occurred while processing your request', details: error?.message || String(error) },
       { status: 500 }

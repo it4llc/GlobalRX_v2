@@ -1,5 +1,6 @@
-// src/components/modules/customer/customer-dialog.tsx
 'use client';
+// src/components/modules/customer/customer-dialog.tsx
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
@@ -104,7 +105,7 @@ export function CustomerDialog({ customerId, onClose }: CustomerDialogProps) {
     trigger();
     
     // Debug validation state without including in dependencies
-    console.log("Form validation state:", {
+    clientLogger.info("Form validation state:", {
       isValid,
       errors,
       formValues: formInputs
@@ -157,7 +158,7 @@ export function CustomerDialog({ customerId, onClose }: CustomerDialogProps) {
           setFormInputs(updatedInputs);
           
         } catch (err) {
-          console.error('Error fetching customer:', err);
+          clientLogger.error('Error fetching customer:', err);
           setError(err instanceof Error ? err.message : 'An unknown error occurred');
         } finally {
           setIsLoading(false);
@@ -219,7 +220,7 @@ export function CustomerDialog({ customerId, onClose }: CustomerDialogProps) {
       // Close the dialog and refresh data
       handleCloseDialog(true);
     } catch (err) {
-      console.error(`Error ${customerId ? 'updating' : 'creating'} customer:`, err);
+      clientLogger.error(`Error ${customerId ? 'updating' : 'creating'} customer:`, err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsSubmitting(false);

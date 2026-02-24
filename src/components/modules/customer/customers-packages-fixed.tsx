@@ -1,4 +1,5 @@
 'use client';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -86,7 +87,7 @@ export default function CustomerPackages({ customerId, customerName: initialCust
   
   // Handle toggle for disabled packages
   const handleToggleDisabled = useCallback((checked: boolean) => {
-    console.log("Toggle disabled packages to:", checked);
+    clientLogger.info("Toggle disabled packages to:", checked);
     setShowDisabled(checked);
     setRefreshKey(prev => prev + 1);
   }, []);
@@ -104,7 +105,7 @@ export default function CustomerPackages({ customerId, customerName: initialCust
         return;
       }
       
-      console.log("Fetching with showDisabled:", showDisabled, "refreshKey:", refreshKey);
+      clientLogger.info("Fetching with showDisabled:", showDisabled, "refreshKey:", refreshKey);
       
       try {
         if (isMounted) {
@@ -153,7 +154,7 @@ export default function CustomerPackages({ customerId, customerName: initialCust
           : `?t=${timestamp}`;
         const fullUrl = packagesUrl + queryParams;
         
-        console.log("Fetching packages with URL:", fullUrl);
+        clientLogger.info("Fetching packages with URL:", fullUrl);
         
         // Check if component is still mounted before continuing
         if (!isMounted) return;
@@ -195,7 +196,7 @@ export default function CustomerPackages({ customerId, customerName: initialCust
             throw new Error("Invalid packages data format received");
           }
           
-          console.log(`Loaded ${packagesData.length} packages. ShowDisabled: ${showDisabled}`);
+          clientLogger.info(`Loaded ${packagesData.length} packages. ShowDisabled: ${showDisabled}`);
           if (isMounted) {
             setPackages(packagesData);
           }
@@ -207,10 +208,10 @@ export default function CustomerPackages({ customerId, customerName: initialCust
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') {
-          console.log('Fetch aborted');
+          clientLogger.info('Fetch aborted');
           return;
         }
-        console.error('Error fetching data:', err);
+        clientLogger.error('Error fetching data:', err);
         if (isMounted) {
           setError(err instanceof Error ? err.message : 'An unknown error occurred');
         }
@@ -231,7 +232,7 @@ export default function CustomerPackages({ customerId, customerName: initialCust
         // We've removed the use of the AbortController entirely 
         // to avoid the error with abort() being called on cleanup
       } catch (err) {
-        console.log('Cleanup error (ignored):', err);
+        clientLogger.info('Cleanup error (ignored):', err);
       }
     };
   }, [customerId, fetchWithAuth, showDisabled, refreshKey, customerName]);
@@ -244,7 +245,7 @@ export default function CustomerPackages({ customerId, customerName: initialCust
     
     // If refresh is requested, increment refreshKey to trigger the useEffect
     if (refreshData) {
-      console.log("Refreshing packages after dialog close");
+      clientLogger.info("Refreshing packages after dialog close");
       setRefreshKey(prev => prev + 1);
     }
   };
@@ -284,21 +285,21 @@ export default function CustomerPackages({ customerId, customerName: initialCust
       
       // Update the package in the state
       setPackages(prevPackages => 
-        prevPackages.map(pkg => 
+        prevPackages.map((pkg: any) => 
           pkg.id === packageId 
             ? { ...pkg, disabled: !pkg.disabled } 
             : pkg
         )
       );
     } catch (err) {
-      console.error(`Error ${action}ing package:`, err);
+      clientLogger.error(`Error ${action}ing package:`, err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
   };
   
   // Handle scope dialog close - simplified
   const handleScopeDialogClose = (savedScope?: any) => {
-    console.log("Scope dialog closed with saved scope:", savedScope);
+    clientLogger.info("Scope dialog closed with saved scope:", savedScope);
     
     // Start by closing the dialog to avoid state updates while processing
     setScopeDialog({
@@ -318,7 +319,7 @@ export default function CustomerPackages({ customerId, customerName: initialCust
         body: JSON.stringify({
           services: packages
             .find(p => p.id === scopeDialog.packageId)
-            ?.services.map(s => ({
+            ?.services.map((s: any) => ({
               serviceId: s.service.id,
               scope: s.service.id === scopeDialog.serviceId ? savedScope : s.scope
             }))
@@ -326,15 +327,15 @@ export default function CustomerPackages({ customerId, customerName: initialCust
       })
       .then(response => {
         if (!response.ok) {
-          console.error("Failed to update scope:", response.status);
+          clientLogger.error("Failed to update scope:", response.status);
         } else {
-          console.log("Scope updated successfully");
+          clientLogger.info("Scope updated successfully");
           // Refresh data by incrementing refreshKey
           setRefreshKey(prev => prev + 1);
         }
       })
       .catch(err => {
-        console.error("Error updating scope:", err);
+        clientLogger.error("Error updating scope:", err);
       });
     }
   };
@@ -622,7 +623,7 @@ export default function CustomerPackages({ customerId, customerName: initialCust
                                 scope: svc.scope || {}
                               };
                               
-                              console.log("Edit scope clicked for:", scopeData);
+                              clientLogger.info("Edit scope clicked for:", scopeData);
                               
                               // Safely open the scope dialog with validated data
                               setScopeDialog({

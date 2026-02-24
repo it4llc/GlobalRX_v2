@@ -8,8 +8,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "test:unit": "vitest run --dir src/__tests__",
+    "test:integration": "vitest run --dir src/app/api/__tests__"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -30,6 +36,7 @@
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.0.4",
+    "@sentry/nextjs": "^10.39.0",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.18",
     "bcryptjs": "2.4.3",
@@ -46,23 +53,34 @@
     "react-hook-form": "^7.50.1",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "winston": "^3.19.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.3.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.11.20",
     "@types/papaparse": "^5.3.15",
     "@types/react": "^18.2.57",
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-dom": "^18.2.19",
+    "@types/winston": "^2.4.4",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/ui": "^4.0.18",
     "autoprefixer": "^10.4.17",
     "eslint": "^8.56.0",
     "eslint-config-next": "14.1.0",
     "eslint-config-prettier": "^9.1.0",
+    "happy-dom": "^20.7.0",
+    "msw": "^2.12.10",
     "postcss": "^8.4.35",
     "prettier": "^3.2.5",
     "prisma": "^5.10.2",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.18"
   }
 }

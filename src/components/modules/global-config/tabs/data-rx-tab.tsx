@@ -97,7 +97,7 @@ export function DataRxTab() {
       const documentsData = await documentsResponse.json();
       setDocuments(documentsData.documents || []);
     } catch (err) {
-      console.error('Error fetching data:', err);
+      clientLogger.error('Error fetching data:', err);
       setError('Failed to load data. Please try again.');
     } finally {
       setIsLoading(false);
@@ -214,7 +214,7 @@ export function DataRxTab() {
   
   // Handle adding a new data field
   const handleAddField = async (fieldData: FieldData) => {
-    console.log('DataRxTab - Received field data:', fieldData);
+    clientLogger.info('DataRxTab - Received field data:', fieldData);
     try {
       setIsLoading(true);
 
@@ -230,7 +230,7 @@ export function DataRxTab() {
         requiresVerification: fieldData.requiresVerification || false
       };
 
-      console.log('DataRxTab - Sending to API:', fieldObject);
+      clientLogger.info('DataRxTab - Sending to API:', fieldObject);
 
       // Add options property for dropdown fields
       if (fieldData.dataType === 'select' && fieldData.options && fieldData.options.length > 0) {
@@ -254,7 +254,7 @@ export function DataRxTab() {
       setShowAddFieldModal(false);
       fetchData();
     } catch (err) {
-      console.error('Error adding field:', err);
+      clientLogger.error('Error adding field:', err);
       setError('Failed to add field: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setIsLoading(false);
@@ -297,7 +297,7 @@ export function DataRxTab() {
       setSelectedFieldId(null);
       fetchData();
     } catch (err) {
-      console.error('Error updating field:', err);
+      clientLogger.error('Error updating field:', err);
       setError('Failed to update field: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setIsLoading(false);
@@ -339,7 +339,7 @@ export function DataRxTab() {
       setShowAddDocumentModal(false);
       fetchData();
     } catch (err) {
-      console.error('Error adding document:', err);
+      clientLogger.error('Error adding document:', err);
       setError('Failed to add document: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setIsLoading(false);
@@ -362,7 +362,7 @@ export function DataRxTab() {
       // Refresh data
       fetchData();
     } catch (err) {
-      console.error('Error toggling document status:', err);
+      clientLogger.error('Error toggling document status:', err);
       setError('Failed to toggle document status. Please try again.');
     } finally {
       setIsLoading(false);
@@ -385,7 +385,7 @@ export function DataRxTab() {
       // Refresh data
       fetchData();
     } catch (err) {
-      console.error('Error toggling field status:', err);
+      clientLogger.error('Error toggling field status:', err);
       setError('Failed to toggle field status. Please try again.');
     } finally {
       setIsLoading(false);
@@ -581,7 +581,7 @@ export function DataRxTab() {
                                 cursor: 'pointer',
                                 position: 'relative',
                               }}
-                              title={`Options: ${field.options.map(o => o.label).join(', ')}`}
+                              title={`Options: ${field.options.map((o: any) => o.label).join(', ')}`}
                               onClick={(e) => handleShowOptions(field, e)}
                             >
                               <span style={{

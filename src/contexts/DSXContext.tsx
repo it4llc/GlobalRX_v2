@@ -4,6 +4,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocations } from '@/contexts/LocationContext';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 // Define the types based on the schema
 export interface Requirement {
@@ -200,15 +201,19 @@ export function DSXProvider({ children }: { children: React.ReactNode }) {
       setDataLoaded(true);
       setHasUnsavedChanges(false);
     } catch (err) {
-      console.error('Error loading DSX data:', err);
-      
+      clientLogger.error('Failed to load DSX data', {
+        serviceId,
+        error: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
+
       // Handle empty table cases - initialize with empty objects
       setRequirements([]);
       setMappings({});
       setLocalMappings({});
       setAvailability({});
       setLocalAvailability({});
-      
+
       // Show error but still mark as loaded to prevent repeated attempts
       setError(`Failed to load data: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setLastLoadedService(serviceId);
@@ -293,7 +298,12 @@ export function DSXProvider({ children }: { children: React.ReactNode }) {
       
       return true;
     } catch (err) {
-      console.error('Error adding field:', err);
+      clientLogger.error('Failed to add DSX field requirement', {
+        serviceId: selectedService,
+        fieldLabel: data.fieldLabel,
+        error: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
       setError(`Failed to add field: ${err instanceof Error ? err.message : 'Unknown error'}`);
       return false;
     } finally {
@@ -354,7 +364,12 @@ export function DSXProvider({ children }: { children: React.ReactNode }) {
       
       return true;
     } catch (err) {
-      console.error('Error adding document:', err);
+      clientLogger.error('Failed to add DSX document requirement', {
+        serviceId: selectedService,
+        documentName: data.documentName,
+        error: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
       setError(`Failed to add document: ${err instanceof Error ? err.message : 'Unknown error'}`);
       return false;
     } finally {
@@ -490,7 +505,13 @@ export function DSXProvider({ children }: { children: React.ReactNode }) {
       
       return true;
     } catch (err) {
-      console.error('Error saving changes:', err);
+      clientLogger.error('Failed to save DSX changes', {
+        serviceId: selectedService,
+        mappingsCount: Object.keys(localMappings).length,
+        availabilityCount: Object.keys(localAvailability).length,
+        error: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
       setError(`Failed to save changes: ${err instanceof Error ? err.message : 'Unknown error'}`);
       return false;
     } finally {

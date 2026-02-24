@@ -5,28 +5,29 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { workflowCreateSchema } from "@/types/workflow";
 import { hasPermission } from "@/lib/permission-utils";
+import logger from '@/lib/logger';
 
 // GET: Fetch workflows with filtering and pagination
 export async function GET(request: NextRequest) {
   try {
-    console.log("Workflows API: Starting request");
+    logger.info('Workflows API: Starting request');
     
     const session = await getServerSession(authOptions);
     if (!session) {
-      console.log("Workflows API: No session found");
+      logger.warn('Workflows API: No session found');
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    console.log("Workflows API: User authenticated", { 
-      user: session.user.email, 
-      permissions: session.user.permissions 
+    logger.info('Workflows API: User authenticated', {
+      userId: session.user.id,
+      permissions: session.user.permissions
     });
 
     // Check if user has permission to access workflows (either directly or via customers permission)
     if (!hasPermission(session.user, "workflows", "view") && 
         !hasPermission(session.user, "customers", "view") && 
         !hasPermission(session.user, "admin")) {
-      console.log("Workflows API: User lacks permission");
+      logger.warn('Workflows API: User lacks permission', { userId: session.user.id });
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -72,10 +73,10 @@ export async function GET(request: NextRequest) {
       prisma.workflow.count({ where: filter })
     ]);
 
-    console.log(`Workflows API: Found ${workflows.length} workflows`);
+    logger.info('Workflows API: Found workflows', { count: workflows.length, totalCount });
 
     // Transform the data to match the expected format
-    const transformedWorkflows = workflows.map(workflow => ({
+    const transformedWorkflows = workflows.map((workflow: any) => ({
       id: workflow.id,
       name: workflow.name,
       description: workflow.description,
@@ -105,10 +106,10 @@ export async function GET(request: NextRequest) {
       page,
       workflows: transformedWorkflows
     });
-  } catch (error) {
-    console.error("Error fetching workflows:", error);
+  } catch (error: unknown) {
+    logger.error('Error fetching workflows', { error: error.message, stack: error.stack });
     return NextResponse.json(
-      { error: "Error fetching workflows", details: error.message },
+      { error: "Error fetching workflows", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -178,10 +179,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(completeWorkflow, { status: 201 });
-  } catch (error) {
-    console.error("Error creating workflow:", error);
+  } catch (error: unknown) {
+    logger.error('Error creating workflow', { error: error.message, stack: error.stack });
     return NextResponse.json(
-      { error: "Error creating workflow", details: error.message },
+      { error: "Error creating workflow", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

@@ -1,5 +1,6 @@
-// src/components/auth/auth-interceptor.tsx
 'use client';
+// src/components/auth/auth-interceptor.tsx
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
@@ -101,8 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       return response;
-    } catch (error) {
-      console.error('Error in fetchWithAuth:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error in fetchWithAuth:', error);
       throw error;
     }
   }, []);

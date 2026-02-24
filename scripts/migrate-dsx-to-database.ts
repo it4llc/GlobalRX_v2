@@ -9,6 +9,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
+import { getErrorDetails } from '../src/lib/utils';
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -43,7 +44,7 @@ async function migrateData() {
     try {
       data = loadJsonData('localstorage-dump.json');
     } catch (error) {
-      console.error('Error:', error.message);
+      console.error('Error:', getErrorDetails(error).message);
       console.log('\nYou need to:');
       console.log('1. Export your localStorage data from the browser DevTools');
       console.log('2. Save it to scripts/localstorage-dump.json');

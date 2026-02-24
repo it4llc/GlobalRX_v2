@@ -17,21 +17,21 @@ export function SiteFooter() {
 
           {/* Legal */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">{t('footer.legal', 'Legal')}</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('footer.legal')}</h3>
             <ul className="space-y-2">
               <li>
                 <Link href="#" className="text-gray-300 hover:text-white transition-colors">
-                  {t('footer.terms', 'Terms of Service')}
+                  {t('footer.terms')}
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-gray-300 hover:text-white transition-colors">
-                  {t('footer.privacy', 'Privacy Policy')}
+                  {t('footer.privacy')}
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-gray-300 hover:text-white transition-colors">
-                  {t('footer.cookies', 'Cookie Policy')}
+                  {t('footer.cookies')}
                 </Link>
               </li>
             </ul>
@@ -40,10 +40,10 @@ export function SiteFooter() {
 
         <div className="border-t border-gray-700 mt-8 pt-6 text-center">
           <p className="text-gray-400">
-            &copy; {currentYear} REALi Data Solutions. {t('footer.allRights', 'All rights reserved.')}
+            &copy; {currentYear} REALi Data Solutions. {t('footer.allRights')}
           </p>
           <p className="text-gray-500 text-sm mt-2">
-            {t('footer.version', 'Version')} 1.0.0
+            {t('footer.version')} 1.0.0
           </p>
         </div>
       </div>

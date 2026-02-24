@@ -1,5 +1,6 @@
 // src/app/api/locations/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import logger from '@/lib/logger';
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -42,8 +43,8 @@ export async function PUT(
     });
 
     return NextResponse.json(location);
-  } catch (error) {
-    console.error("Error updating location:", error);
+  } catch (error: unknown) {
+    logger.error("Error updating location:", error);
     return NextResponse.json(
       { error: "Failed to update location" },
       { status: 500 }

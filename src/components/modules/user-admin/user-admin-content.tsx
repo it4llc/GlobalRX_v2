@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 import { Button } from '@/components/ui/button';
 import { 
   Card, 
@@ -70,7 +71,7 @@ export function UserAdminContent() {
       setUsers(data);
     } catch (err) {
       setError('An error occurred while fetching users');
-      console.error(err);
+      clientLogger.error(err);
     } finally {
       setLoading(false);
     }
@@ -82,7 +83,7 @@ export function UserAdminContent() {
   };
 
   const handleUserUpdated = (updatedUser: User) => {
-    setUsers((prev) => prev.map(user => user.id === updatedUser.id ? updatedUser : user));
+    setUsers((prev) => prev.map((user: any) => user.id === updatedUser.id ? updatedUser : user));
     setIsEditUserOpen(false);
     setSelectedUser(null);
   };
@@ -180,7 +181,7 @@ export function UserAdminContent() {
                   <TableHead>Name</TableHead>
                   <TableHead>Countries</TableHead>
                   <TableHead>Services</TableHead>
-                  <TableHead>DSX</TableHead>
+                  <TableHead>Data Rx/DSX</TableHead>
                   <TableHead>Customers</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>

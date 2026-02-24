@@ -1,4 +1,5 @@
 "use client";
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from "react";
 import { useTranslation } from "@/contexts/TranslationContext";
@@ -41,7 +42,7 @@ export default function WorkflowsPage() {
   const canEditWorkflows = checkPermission("workflows") || checkPermission("admin");
   
   // Debug permission checks
-  console.log("Workflow Permission Check:", {
+  clientLogger.info("Workflow Permission Check:", {
     hasWorkflowsPermission: checkPermission("workflows"),
     hasAdminPermission: checkPermission("admin"),
     canManageWorkflows,
@@ -83,7 +84,7 @@ export default function WorkflowsPage() {
       // Refresh the list
       fetchWorkflows();
     } catch (err) {
-      console.error('Error deleting workflow:', err);
+      clientLogger.error('Error deleting workflow:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete workflow');
     }
   };
@@ -92,14 +93,14 @@ export default function WorkflowsPage() {
   const fetchWorkflows = async () => {
     try {
       setLoading(true);
-      console.log("Fetching workflows...");
+      clientLogger.info("Fetching workflows...");
       
       const response = await fetch("/api/workflows");
-      console.log("API response status:", response.status);
+      clientLogger.info("API response status:", response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("API error response:", errorText);
+        clientLogger.error("API error response:", errorText);
         try {
           // Try to parse error as JSON
           const errorJson = JSON.parse(errorText);
@@ -111,24 +112,24 @@ export default function WorkflowsPage() {
       }
       
       const data = await response.json();
-      console.log("API response data:", data);
+      clientLogger.info("API response data:", data);
       
       // We've simplified the API to just return an array
       if (Array.isArray(data)) {
-        console.log(`Setting ${data.length} workflows from response`);
+        clientLogger.info(`Setting ${data.length} workflows from response`);
         setWorkflows(data);
       } else if (data.workflows && Array.isArray(data.workflows)) {
         // Handle the old response format too, just in case
-        console.log(`Setting ${data.workflows.length} workflows from data.workflows`);
+        clientLogger.info(`Setting ${data.workflows.length} workflows from data.workflows`);
         setWorkflows(data.workflows);
       } else {
-        console.log("No valid workflow data in response - using empty array");
+        clientLogger.info("No valid workflow data in response - using empty array");
         setWorkflows([]);
       }
       
       setError(null);
     } catch (err) {
-      console.error("Error fetching workflows:", err);
+      clientLogger.error("Error fetching workflows:", err);
       setError(err instanceof Error ? err.message : "Failed to load workflows");
     } finally {
       setLoading(false);
@@ -236,7 +237,7 @@ export default function WorkflowsPage() {
                       },
                       {
                         label: t("common.view"),
-                        onClick: () => console.log("View workflow", workflow.id),
+                        onClick: () => clientLogger.info("View workflow", workflow.id),
                       },
                       {
                         label: t("common.delete"),

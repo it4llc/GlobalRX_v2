@@ -1,4 +1,5 @@
 'use client';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -74,7 +75,7 @@ export default function CustomerUsersPage() {
       const data = await response.json();
       setUsers(data);
     } catch (err) {
-      console.error('Error fetching users:', err);
+      clientLogger.error('Error fetching users:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);
@@ -108,7 +109,7 @@ export default function CustomerUsersPage() {
   };
 
   const handleUserUpdated = (updatedUser: User) => {
-    setUsers((prev) => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    setUsers((prev) => prev.map((u: any) => u.id === updatedUser.id ? updatedUser : u));
     setIsEditUserOpen(false);
     setSelectedUser(null);
   };
@@ -151,7 +152,7 @@ export default function CustomerUsersPage() {
       setIsDeleteUserOpen(false);
       setSelectedUser(null);
     } catch (err) {
-      console.error('Error deleting user:', err);
+      clientLogger.error('Error deleting user:', err);
       alert(err instanceof Error ? err.message : 'Failed to delete user');
     }
   };
@@ -217,7 +218,7 @@ export default function CustomerUsersPage() {
             </tr>
           </thead>
           <tbody>
-            {users.map(user => {
+            {users.map((user: any) => {
               const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A';
               const accessLevel = getAccessLevel(user);
 

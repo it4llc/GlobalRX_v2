@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger, { logDatabaseError } from '@/lib/logger';
 
 // Helper function to check permissions
 function hasPermission(permissions: any, module: string): boolean {
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     // Always allow access in development
     if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
+      logger.debug('Development mode - bypassing permission check');
     }
     // Otherwise check permissions
     else if (!hasPermission(session.user.permissions, 'dsx')) {
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         requiresVerification: standardizedFieldData.requiresVerification || false, // Add verification flag
         options: standardizedFieldData.options || [],
         disabled: requirement.disabled === true,
-        services: requirement.serviceRequirements.map(sr => ({
+        services: requirement.serviceRequirements.map((sr: any) => ({
           id: sr.service.id,
           name: sr.service.name
         })),
@@ -128,17 +129,20 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       };
 
       return NextResponse.json({ field });
-    } catch (dbError) {
-      console.error('Database error in GET /api/data-rx/fields/[id]:', dbError);
+    } catch (dbError: unknown) {
+      logDatabaseError('get_data_field', dbError as Error, session?.user?.id);
       return NextResponse.json(
-        { error: "Database error while fetching field", details: dbError.message },
+        { error: "Database error while fetching field", details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error('Error in GET /api/data-rx/fields/[id]:', error);
+  } catch (error: unknown) {
+    logger.error('Error in GET data field route', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      fieldId: params?.id
+    });
     return NextResponse.json(
-      { error: "An error occurred while processing your request", details: error.message },
+      { error: "An error occurred while processing your request", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -155,7 +159,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     // Always allow access in development
     if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
+      logger.debug('Development mode - bypassing permission check');
     }
     // Otherwise check permissions
     else if (!hasPermission(session.user.permissions, 'dsx')) {
@@ -167,12 +171,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Field ID is required" }, { status: 400 });
     }
 
-    console.log("Received PUT request for field ID:", id);
+    logger.info('Received PUT request for field', { fieldId: id });
     
     // Parse request body
     const body = await request.json();
     
-    console.log("Request body:", JSON.stringify(body, null, 2));
+    logger.debug('Field update request body received');
     
     const { fieldLabel, shortName, dataType, instructions, retentionHandling, collectionTab, addressConfig, requiresVerification, options } = body;
 
@@ -272,10 +276,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         versions: versionEntry ? [...(standardizedFieldData.versions || []), versionEntry] : standardizedFieldData.versions
       };
       
-      console.log("Updating field with data:", JSON.stringify({
-        name: fieldLabel,
-        fieldData: updatedFieldData
-      }, null, 2));
+      logger.info('Updating field with new data', { fieldId: id, fieldLabel });
       
       // Update the field
       const updatedRequirement = await prisma.dSXRequirement.update({
@@ -310,30 +311,33 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         requiresVerification: updatedFieldData.requiresVerification || false, // Add verification flag
         options: updatedFieldData.options || [],
         disabled: updatedRequirement.disabled === true,
-        services: updatedRequirement.serviceRequirements.map(sr => ({
+        services: updatedRequirement.serviceRequirements.map((sr: any) => ({
           id: sr.service.id,
           name: sr.service.name
         })),
         versions: updatedFieldData.versions || []
       };
 
-      console.log("Returning updated field:", JSON.stringify(responseField, null, 2));
+      logger.info('Successfully updated field', { fieldId: id, fieldLabel });
 
       return NextResponse.json({ 
         success: true, 
         field: responseField
       });
-    } catch (dbError) {
-      console.error('Database error in PUT /api/data-rx/fields/[id]:', dbError);
+    } catch (dbError: unknown) {
+      logDatabaseError('update_data_field', dbError as Error, session?.user?.id);
       return NextResponse.json(
-        { error: "Database error while updating field", details: dbError.message },
+        { error: "Database error while updating field", details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error('Error in PUT /api/data-rx/fields/[id]:', error);
+  } catch (error: unknown) {
+    logger.error('Error in PUT data field route', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      fieldId: params?.id
+    });
     return NextResponse.json(
-      { error: "An error occurred while processing your request", details: error.message },
+      { error: "An error occurred while processing your request", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

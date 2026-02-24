@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import logger from '@/lib/logger';
 
 // Helper function for permission checks
 function hasPermission(permissions: any, module: string): boolean {
@@ -56,12 +57,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // In development mode, bypass permission check
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Always check permissions
+    if (!hasPermission(session.user.permissions, 'dsx')) {
       return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
     }
     
@@ -94,7 +91,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Transform fields to expected format with standardized property names
-    const transformedFields = fields.map(field => {
+    const transformedFields = fields.map((field: any) => {
       // Standardize the field data to ensure consistent property names
       const standardizedData = standardizeFieldData(field.fieldData as any || {});
       
@@ -111,7 +108,7 @@ export async function GET(request: NextRequest) {
         options: standardizedData.options || [],
         disabled: field.disabled,
         // Map services from the join table
-        services: field.serviceRequirements.map(sr => ({
+        services: field.serviceRequirements.map((sr: any) => ({
           id: sr.service.id,
           name: sr.service.name
         }))
@@ -120,12 +117,12 @@ export async function GET(request: NextRequest) {
     
     // Log the first field for debugging
     if (transformedFields.length > 0) {
-      console.log("First field retention:", transformedFields[0].retentionHandling);
+      logger.debug('First field retention', { retention: transformedFields[0].retentionHandling });
     }
     
     return NextResponse.json({ fields: transformedFields });
-  } catch (error) {
-    console.error('Error fetching data fields:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching data fields', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while fetching data fields" },
       { status: 500 }
@@ -141,18 +138,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // In development mode, bypass permission check
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Always check permissions
+    if (!hasPermission(session.user.permissions, 'dsx')) {
       return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
     }
     
     // Parse request body
     const data = await request.json();
-    console.log('API POST /data-rx/fields - Received data:', JSON.stringify(data, null, 2));
+    logger.debug('API POST /data-rx/fields - Received data', { data });
 
     // Validate required fields
     if (!data.fieldLabel || !data.dataType) {
@@ -190,7 +183,7 @@ export async function POST(request: NextRequest) {
       requiresVerification: data.requiresVerification || false // Add verification flag
     };
 
-    console.log('API POST /data-rx/fields - Saving fieldData:', JSON.stringify(fieldDataToSave, null, 2));
+    logger.debug('API POST /data-rx/fields - Saving fieldData', { fieldData: fieldDataToSave });
 
     const field = await prisma.dSXRequirement.create({
       data: {
@@ -215,8 +208,8 @@ export async function POST(request: NextRequest) {
         services: []
       }
     }, { status: 201 });
-  } catch (error) {
-    console.error('Error creating data field:', error);
+  } catch (error: unknown) {
+    logger.error('Error creating data field', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while creating the data field" },
       { status: 500 }
@@ -232,12 +225,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // In development mode, bypass permission check
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Always check permissions
+    if (!hasPermission(session.user.permissions, 'dsx')) {
       return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
     }
     
@@ -335,14 +324,14 @@ export async function PATCH(request: NextRequest) {
         retentionHandling: field.fieldData.retentionHandling,
         requiresVerification: field.fieldData.requiresVerification || false,
         disabled: field.disabled,
-        services: field.serviceRequirements.map(sr => ({
+        services: field.serviceRequirements.map((sr: any) => ({
           id: sr.service.id,
           name: sr.service.name
         }))
       }
     });
-  } catch (error) {
-    console.error('Error updating data field:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating data field', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while updating the data field" },
       { status: 500 }
@@ -358,12 +347,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // In development mode, bypass permission check
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Always check permissions
+    if (!hasPermission(session.user.permissions, 'dsx')) {
       return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
     }
     
@@ -414,8 +399,8 @@ export async function DELETE(request: NextRequest) {
     });
     
     return NextResponse.json({ message: `Field "${existingField.name}" has been deleted` });
-  } catch (error) {
-    console.error('Error deleting data field:', error);
+  } catch (error: unknown) {
+    logger.error('Error deleting data field', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "An error occurred while deleting the data field" },
       { status: 500 }

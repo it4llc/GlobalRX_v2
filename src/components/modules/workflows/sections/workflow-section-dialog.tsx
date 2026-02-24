@@ -1,4 +1,5 @@
 'use client';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
@@ -175,7 +176,7 @@ export function WorkflowSectionDialog({
     setError(null);
     setSuccessMessage(null);
     
-    console.log('Permission check before submitting:', {
+    clientLogger.info('Permission check before submitting:', {
       canEdit,
       'workflows.edit': checkPermission('workflows', 'edit'),
       'customers.edit': checkPermission('customers', 'edit'),
@@ -197,7 +198,7 @@ export function WorkflowSectionDialog({
       const method = section ? 'PUT' : 'POST';
       
       // Log the form data being submitted
-      console.log('Submitting form data:', {
+      clientLogger.info('Submitting form data:', {
         ...data,
         // Convert dependency values for optional fields
         dependsOnSection: data.dependsOnSection || null,
@@ -234,7 +235,7 @@ export function WorkflowSectionDialog({
           
           // For validation errors, add more details
           if (response.status === 400 && errorData.details) {
-            console.log('Validation error details:', errorData.details);
+            clientLogger.info('Validation error details:', errorData.details);
             
             // Format validation errors for display
             if (errorData.details.issues && Array.isArray(errorData.details.issues)) {
@@ -246,14 +247,14 @@ export function WorkflowSectionDialog({
             }
           }
           
-          console.log('API Error Response:', errorData);
+          clientLogger.info('API Error Response:', errorData);
         } catch (e) {
           // Ignore parsing error
-          console.log('Error parsing API response:', e);
+          clientLogger.info('Error parsing API response:', e);
         }
         
-        console.log('API Error Status:', response.status, 'URL:', url);
-        console.log('Form data submitted:', data);
+        clientLogger.info('API Error Status:', response.status, 'URL:', url);
+        clientLogger.info('Form data submitted:', data);
         
         // For forbidden errors, provide more detailed message
         if (response.status === 403) {
@@ -273,7 +274,7 @@ export function WorkflowSectionDialog({
         onOpenChange(false);
       }, 1500);
     } catch (err) {
-      console.error('Error saving section:', err);
+      clientLogger.error('Error saving section:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsSubmitting(false);
@@ -286,21 +287,21 @@ export function WorkflowSectionDialog({
         <DialogHeader>
           <DialogTitle>
             {section 
-              ? t('module.candidateWorkflow.editSection', 'Edit Section')
-              : t('module.candidateWorkflow.createSection', 'Create Section')
+              ? t('module.candidateWorkflow.editSection')
+              : t('module.candidateWorkflow.createSection')
             }
           </DialogTitle>
           <DialogDescription>
-            {t('module.candidateWorkflow.sectionDescription', 'Sections organize the workflow into logical steps for candidates to complete.')}
+            {t('module.candidateWorkflow.sectionDescription')}
           </DialogDescription>
         </DialogHeader>
         
         {error && (
-          <AlertBox type="error" title={t('common.error', 'Error')} message={error} />
+          <AlertBox type="error" title={t('common.error')} message={error} />
         )}
         
         {successMessage && (
-          <AlertBox type="success" title={t('common.success', 'Success')} message={successMessage} />
+          <AlertBox type="success" title={t('common.success')} message={successMessage} />
         )}
         
         <Form {...form}>
@@ -311,12 +312,12 @@ export function WorkflowSectionDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('common.name', 'Name')}</FormLabel>
+                  <FormLabel>{t('common.name')}</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder={t('module.candidateWorkflow.sectionNamePlaceholder', 'Enter section name')} />
+                    <Input {...field} placeholder={t('module.candidateWorkflow.sectionNamePlaceholder')} />
                   </FormControl>
                   <FormDescription>
-                    {t('module.candidateWorkflow.sectionNameDescription', 'The name of this section as it will appear to candidates')}
+                    {t('module.candidateWorkflow.sectionNameDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -330,7 +331,7 @@ export function WorkflowSectionDialog({
               name="sectionType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('module.candidateWorkflow.sectionType', 'Section Type')}</FormLabel>
+                  <FormLabel>{t('module.candidateWorkflow.sectionType')}</FormLabel>
                   <FormControl>
                     <Select
                       onValueChange={field.onChange}
@@ -338,41 +339,41 @@ export function WorkflowSectionDialog({
                       disabled={!!section} // Disable for existing sections
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={t('module.candidateWorkflow.selectSectionType', 'Select a section type')} />
+                        <SelectValue placeholder={t('module.candidateWorkflow.selectSectionType')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="form">
-                          {t('module.candidateWorkflow.sectionTypes.form', 'Form/Notice')}
+                          {t('module.candidateWorkflow.sectionTypes.form')}
                         </SelectItem>
                         <SelectItem value="idInfo">
-                          {t('module.candidateWorkflow.sectionTypes.idInfo', 'ID Information')}
+                          {t('module.candidateWorkflow.sectionTypes.idInfo')}
                         </SelectItem>
                         <SelectItem value="personalInfo">
-                          {t('module.candidateWorkflow.sectionTypes.personalInfo', 'Personal Information')}
+                          {t('module.candidateWorkflow.sectionTypes.personalInfo')}
                         </SelectItem>
                         <SelectItem value="employment">
-                          {t('module.candidateWorkflow.sectionTypes.employment', 'Employment')}
+                          {t('module.candidateWorkflow.sectionTypes.employment')}
                         </SelectItem>
                         <SelectItem value="education">
-                          {t('module.candidateWorkflow.sectionTypes.education', 'Education')}
+                          {t('module.candidateWorkflow.sectionTypes.education')}
                         </SelectItem>
                         <SelectItem value="other">
-                          {t('module.candidateWorkflow.sectionTypes.other', 'Other')}
+                          {t('module.candidateWorkflow.sectionTypes.other')}
                         </SelectItem>
                         <SelectItem value="documents">
-                          {t('module.candidateWorkflow.sectionTypes.documents', 'Document Collection')}
+                          {t('module.candidateWorkflow.sectionTypes.documents')}
                         </SelectItem>
                         <SelectItem value="summary">
-                          {t('module.candidateWorkflow.sectionTypes.summary', 'Summary of Information')}
+                          {t('module.candidateWorkflow.sectionTypes.summary')}
                         </SelectItem>
                         <SelectItem value="consent">
-                          {t('module.candidateWorkflow.sectionTypes.consent', 'Review/Consent')}
+                          {t('module.candidateWorkflow.sectionTypes.consent')}
                         </SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
                   <FormDescription>
-                    {t('module.candidateWorkflow.sectionTypeDescription', 'The type of content and functionality this section will provide')}
+                    {t('module.candidateWorkflow.sectionTypeDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -384,7 +385,7 @@ export function WorkflowSectionDialog({
               name="displayOrder"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('module.candidateWorkflow.displayOrder', 'Display Order')}</FormLabel>
+                  <FormLabel>{t('module.candidateWorkflow.displayOrder')}</FormLabel>
                   <FormControl>
                     <Input 
                       type="number" 
@@ -394,7 +395,7 @@ export function WorkflowSectionDialog({
                     />
                   </FormControl>
                   <FormDescription>
-                    {t('module.candidateWorkflow.displayOrderDescription', 'The order in which this section appears in the workflow (0 is first)')}
+                    {t('module.candidateWorkflow.displayOrderDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -408,9 +409,9 @@ export function WorkflowSectionDialog({
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                   <div className="space-y-0.5">
-                    <FormLabel>{t('module.candidateWorkflow.required', 'Required Section')}</FormLabel>
+                    <FormLabel>{t('module.candidateWorkflow.required')}</FormLabel>
                     <FormDescription>
-                      {t('module.candidateWorkflow.requiredDescription', 'If enabled, candidates must complete this section')}
+                      {t('module.candidateWorkflow.requiredDescription')}
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -432,16 +433,16 @@ export function WorkflowSectionDialog({
                   name="configuration.textContent"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('module.candidateWorkflow.textContent', 'Form Content')}</FormLabel>
+                      <FormLabel>{t('module.candidateWorkflow.textContent')}</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field} 
-                          placeholder={t('module.candidateWorkflow.textContentPlaceholder', 'Enter the text content for this form or notice')}
+                          placeholder={t('module.candidateWorkflow.textContentPlaceholder')}
                           rows={5}
                         />
                       </FormControl>
                       <FormDescription>
-                        {t('module.candidateWorkflow.textContentDescription', 'The text content to display in this form or notice section')}
+                        {t('module.candidateWorkflow.textContentDescription')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -455,9 +456,9 @@ export function WorkflowSectionDialog({
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                         <div className="space-y-0.5">
-                          <FormLabel>{t('module.candidateWorkflow.requireSignature', 'Require Signature')}</FormLabel>
+                          <FormLabel>{t('module.candidateWorkflow.requireSignature')}</FormLabel>
                           <FormDescription>
-                            {t('module.candidateWorkflow.requireSignatureDescription', 'If enabled, the user must provide a signature')}
+                            {t('module.candidateWorkflow.requireSignatureDescription')}
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -477,9 +478,9 @@ export function WorkflowSectionDialog({
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                         <div className="space-y-0.5">
-                          <FormLabel>{t('module.candidateWorkflow.requireCheckbox', 'Require Checkbox')}</FormLabel>
+                          <FormLabel>{t('module.candidateWorkflow.requireCheckbox')}</FormLabel>
                           <FormDescription>
-                            {t('module.candidateWorkflow.requireCheckboxDescription', 'If enabled, the user must check a box to acknowledge')}
+                            {t('module.candidateWorkflow.requireCheckboxDescription')}
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -500,7 +501,7 @@ export function WorkflowSectionDialog({
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                       <div className="space-y-0.5">
-                        <FormLabel>{t('module.candidateWorkflow.showIpAddress', 'Show IP Address')}</FormLabel>
+                        <FormLabel>{t('module.candidateWorkflow.showIpAddress')}</FormLabel>
                         <FormDescription>
                           {t('module.candidateWorkflow.showIpAddressDescription', 'If enabled, display and capture the user\'s IP address')}
                         </FormDescription>
@@ -525,19 +526,19 @@ export function WorkflowSectionDialog({
                 name="dependsOnSection"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('module.candidateWorkflow.dependsOn', 'Depends On')}</FormLabel>
+                    <FormLabel>{t('module.candidateWorkflow.dependsOn')}</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(value === "none" ? null : value)}
                       value={field.value || "none"}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={t('module.candidateWorkflow.noDependency', 'No dependency')} />
+                          <SelectValue placeholder={t('module.candidateWorkflow.noDependency')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="none">
-                          {t('module.candidateWorkflow.noDependency', 'No dependency')}
+                          {t('module.candidateWorkflow.noDependency')}
                         </SelectItem>
                         {dependencyOptions.map((section) => (
                           <SelectItem key={section.id} value={section.id}>
@@ -547,7 +548,7 @@ export function WorkflowSectionDialog({
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      {t('module.candidateWorkflow.dependencyDescription', 'Optionally choose a section that must be completed before this one')}
+                      {t('module.candidateWorkflow.dependencyDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -562,30 +563,30 @@ export function WorkflowSectionDialog({
                 name="dependencyLogic"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('module.candidateWorkflow.dependencyLogic', 'Dependency Logic')}</FormLabel>
+                    <FormLabel>{t('module.candidateWorkflow.dependencyLogic')}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value || "completed"}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={t('module.candidateWorkflow.completed', 'Completed')} />
+                          <SelectValue placeholder={t('module.candidateWorkflow.completed')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="completed">
-                          {t('module.candidateWorkflow.completed', 'Completed')}
+                          {t('module.candidateWorkflow.completed')}
                         </SelectItem>
                         <SelectItem value="skipped">
-                          {t('module.candidateWorkflow.skipped', 'Skipped')}
+                          {t('module.candidateWorkflow.skipped')}
                         </SelectItem>
                         <SelectItem value="either">
-                          {t('module.candidateWorkflow.either', 'Either Completed or Skipped')}
+                          {t('module.candidateWorkflow.either')}
                         </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      {t('module.candidateWorkflow.dependencyLogicDescription', 'Specify when this section becomes available based on the dependency')}
+                      {t('module.candidateWorkflow.dependencyLogicDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -600,7 +601,7 @@ export function WorkflowSectionDialog({
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
               >
-                {t('common.cancel', 'Cancel')}
+                {t('common.cancel')}
               </Button>
               {error && (
                 <Button
@@ -610,10 +611,10 @@ export function WorkflowSectionDialog({
                     try {
                       const response = await fetchWithAuth('/api/debug-workflow-permissions');
                       const data = await response.json();
-                      console.log('Debug permissions:', data);
+                      clientLogger.info('Debug permissions:', data);
                       setError(`Permissions debug info has been logged to console.`);
                     } catch (err) {
-                      console.error('Error fetching permissions debug:', err);
+                      clientLogger.error('Error fetching permissions debug:', err);
                     }
                   }}
                 >
@@ -624,17 +625,17 @@ export function WorkflowSectionDialog({
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" className="mr-2" />
-                    {t('common.saving', 'Saving...')}
+                    {t('common.saving')}
                   </>
                 ) : successMessage ? (
                   <>
                     <svg className="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    {t('common.saved', 'Saved!')}
+                    {t('common.saved')}
                   </>
                 ) : (
-                  section ? t('common.save', 'Save') : t('common.create', 'Create')
+                  section ? t('common.save') : t('common.create')
                 )}
               </Button>
             </DialogFooter>

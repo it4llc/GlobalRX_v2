@@ -1,5 +1,6 @@
 // src/app/api/portal/locations/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
       const states = await prisma.country.findMany({
         where: {
           parentId: {
-            in: countries.map(c => c.id)
+            in: countries.map((c: any) => c.id)
           },
           disabled: { not: true }
         },
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      return NextResponse.json(states.map(state => ({
+      return NextResponse.json(states.map((state: any) => ({
         id: state.id,
         name: state.subregion1 || state.name,
         code: state.code2,
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      return NextResponse.json(counties.map(county => ({
+      return NextResponse.json(counties.map((county: any) => ({
         id: county.id,
         name: county.subregion2 || county.name,
       })));
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest) {
 
       // For now, assume no countries have sublocations to avoid performance issues
       // We can check this when a specific country is selected
-      const locationsWithAvailability = countries.map(country => {
+      const locationsWithAvailability = countries.map((country: any) => {
         let available = country.disabled !== true; // null or false means available in general
 
         // If serviceId is provided, also check DSX availability
@@ -177,7 +178,7 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      const sublocationsWithAvailability = subregions.map(region => ({
+      const sublocationsWithAvailability = subregions.map((region: any) => ({
         ...region,
         available: !region.disabled,
         hasSublocations: false, // Could check for further sub-levels
@@ -186,8 +187,8 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(sublocationsWithAvailability);
     }
-  } catch (error) {
-    console.error('Error fetching locations:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching locations:', error);
     return NextResponse.json(
       { error: 'Failed to fetch locations' },
       { status: 500 }

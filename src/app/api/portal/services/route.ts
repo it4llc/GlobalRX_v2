@@ -1,5 +1,6 @@
 // src/app/api/portal/services/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -44,15 +45,15 @@ export async function GET(request: NextRequest) {
     // Filter out disabled services and map to the format we need
     const availableServices = customerServices
       .filter(cs => !cs.service.disabled)
-      .map(cs => ({
+      .map((cs: any) => ({
         id: cs.service.id,
         name: cs.service.name,
         category: cs.service.category,
       }));
 
     return NextResponse.json(availableServices);
-  } catch (error) {
-    console.error('Error fetching customer services:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching customer services:', error);
     return NextResponse.json(
       { error: 'Failed to fetch services' },
       { status: 500 }

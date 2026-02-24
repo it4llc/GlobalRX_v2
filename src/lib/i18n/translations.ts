@@ -19,9 +19,15 @@ export const getTranslations = async (locale: string): Promise<Record<string, st
       // Try to load the specific locale (e.g., 'en-US')
       translations = await import(`@/translations/${locale}.json`)
         .then(module => module.default);
-    } catch (error) {
+    } catch (error: unknown) {
       // If that fails, try the fallbacks
-      console.warn(`Translations for locale ${locale} not found, trying fallbacks`);
+      if (typeof window === 'undefined') {
+        const logger = require('@/lib/logger').default;
+        logger.warn(`Translations for locale ${locale} not found, trying fallbacks`);
+      } else {
+        const clientLogger = require('@/lib/client-logger').default;
+        clientLogger.warn(`Translations for locale ${locale} not found, trying fallbacks`);
+      }
       
       let loaded = false;
       const fallbacks = fallbackChain[locale] || [];
@@ -32,10 +38,22 @@ export const getTranslations = async (locale: string): Promise<Record<string, st
           translations = await import(`@/translations/${fallbackLocale}.json`)
             .then(module => module.default);
           loaded = true;
-          console.log(`Using fallback translations from ${fallbackLocale}`);
+          if (typeof window === 'undefined') {
+            const logger = require('@/lib/logger').default;
+            logger.info(`Using fallback translations from ${fallbackLocale}`);
+          } else {
+            const clientLogger = require('@/lib/client-logger').default;
+            clientLogger.info(`Using fallback translations from ${fallbackLocale}`);
+          }
           break;
         } catch (fallbackError) {
-          console.warn(`Fallback translations for ${fallbackLocale} not found`);
+          if (typeof window === 'undefined') {
+            const logger = require('@/lib/logger').default;
+            logger.warn(`Fallback translations for ${fallbackLocale} not found`);
+          } else {
+            const clientLogger = require('@/lib/client-logger').default;
+            clientLogger.warn(`Fallback translations for ${fallbackLocale} not found`);
+          }
         }
       }
       
@@ -45,10 +63,22 @@ export const getTranslations = async (locale: string): Promise<Record<string, st
         try {
           translations = await import(`@/translations/${baseLanguage}.json`)
             .then(module => module.default);
-          console.log(`Using base language translations from ${baseLanguage}`);
+          if (typeof window === 'undefined') {
+            const logger = require('@/lib/logger').default;
+            logger.info(`Using base language translations from ${baseLanguage}`);
+          } else {
+            const clientLogger = require('@/lib/client-logger').default;
+            clientLogger.info(`Using base language translations from ${baseLanguage}`);
+          }
         } catch (baseError) {
           // Last resort: use default locale
-          console.warn(`Base language translations for ${baseLanguage} not found, using default locale`);
+          if (typeof window === 'undefined') {
+            const logger = require('@/lib/logger').default;
+            logger.warn(`Base language translations for ${baseLanguage} not found, using default locale`);
+          } else {
+            const clientLogger = require('@/lib/client-logger').default;
+            clientLogger.warn(`Base language translations for ${baseLanguage} not found, using default locale`);
+          }
           translations = await import(`@/translations/${defaultLocale}.json`)
             .then(module => module.default);
         }
@@ -57,8 +87,14 @@ export const getTranslations = async (locale: string): Promise<Record<string, st
     
     translationCache[locale] = translations;
     return translations;
-  } catch (error) {
-    console.error('Error loading translations:', error);
+  } catch (error: unknown) {
+    if (typeof window === 'undefined') {
+      const logger = require('@/lib/logger').default;
+      logger.error('Error loading translations:', error);
+    } else {
+      const clientLogger = require('@/lib/client-logger').default;
+      clientLogger.error('Error loading translations:', error);
+    }
     return {};
   }
 };
@@ -90,8 +126,14 @@ export const saveTranslations = async (
     }
     
     return true;
-  } catch (error) {
-    console.error('Error saving translations:', error);
+  } catch (error: unknown) {
+    if (typeof window === 'undefined') {
+      const logger = require('@/lib/logger').default;
+      logger.error('Error saving translations:', error);
+    } else {
+      const clientLogger = require('@/lib/client-logger').default;
+      clientLogger.error('Error saving translations:', error);
+    }
     return false;
   }
 };
@@ -124,8 +166,14 @@ export const addNewLanguage = async (
     });
     
     return true;
-  } catch (error) {
-    console.error('Error adding new language:', error);
+  } catch (error: unknown) {
+    if (typeof window === 'undefined') {
+      const logger = require('@/lib/logger').default;
+      logger.error('Error adding new language:', error);
+    } else {
+      const clientLogger = require('@/lib/client-logger').default;
+      clientLogger.error('Error adding new language:', error);
+    }
     return false;
   }
 };
@@ -156,8 +204,14 @@ export const importTranslationsFromCSV = async (
     });
     
     return true;
-  } catch (error) {
-    console.error('Error importing translations:', error);
+  } catch (error: unknown) {
+    if (typeof window === 'undefined') {
+      const logger = require('@/lib/logger').default;
+      logger.error('Error importing translations:', error);
+    } else {
+      const clientLogger = require('@/lib/client-logger').default;
+      clientLogger.error('Error importing translations:', error);
+    }
     return false;
   }
 };

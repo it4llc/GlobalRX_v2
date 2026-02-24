@@ -9,8 +9,13 @@ export function hasPermission(user: any, resource: string, action?: string): boo
   
   // Case 1: Star permission array like {"customers": ["*"]}
   if (Array.isArray(user.permissions[resource])) {
-    return user.permissions[resource].includes('*') || 
-           (action && user.permissions[resource].includes(action));
+    // If no action specified, return true if array has any permissions
+    if (!action) {
+      return user.permissions[resource].length > 0;
+    }
+    // Check for wildcard or specific action
+    return user.permissions[resource].includes('*') ||
+           user.permissions[resource].includes(action);
   }
   
   // Case 2: Object with boolean flags like {"customers": {"view": true}}
@@ -77,13 +82,25 @@ export function normalizePermissions(permissions: any): Record<string, Record<st
   // Add admin shortcut if it exists
   if (permissions.admin === true) {
     normalized.admin = { view: true, create: true, edit: true, delete: true };
-    
-    // Admin has access to everything
-    normalized.customers = { view: true, create: true, edit: true, delete: true };
-    normalized.services = { view: true, create: true, edit: true, delete: true };
-    normalized.packages = { view: true, create: true, edit: true, delete: true };
-    normalized.locations = { view: true, create: true, edit: true, delete: true };
-    normalized.users = { view: true, create: true, edit: true, delete: true };
+
+    // Admin has access to everything, but don't override explicit denies
+    const adminDefaults = { view: true, create: true, edit: true, delete: true };
+    const resources = ['customers', 'services', 'packages', 'locations', 'users'];
+
+    resources.forEach(resource => {
+      if (!normalized[resource]) {
+        // Resource doesn't exist yet, give full admin access
+        normalized[resource] = { ...adminDefaults };
+      } else {
+        // Resource exists, only add missing permissions, don't override false values
+        Object.keys(adminDefaults).forEach(action => {
+          if (normalized[resource][action] === undefined) {
+            normalized[resource][action] = true;
+          }
+          // Keep existing false values - explicit denies should be respected
+        });
+      }
+    });
   }
   
   return normalized;

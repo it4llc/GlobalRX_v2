@@ -3,41 +3,64 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
+import logger from "@/lib/logger";
 
 // GET all locations - ultra minimal version for debugging
 export async function GET(request: NextRequest) {
-  console.log("API: GET /api/locations called - DEBUGGING VERSION");
+  logger.info("API locations GET request initiated", {
+    method: 'GET',
+    endpoint: '/api/locations',
+    timestamp: Date.now()
+  });
   
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session) {
-      console.log("API: Unauthorized access attempt");
+      logger.warn("Unauthorized access attempt to locations API", {
+        endpoint: '/api/locations',
+        method: 'GET',
+        timestamp: Date.now()
+      });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Just try to fetch all records with no filtering
     try {
-      console.log("API: Attempting to fetch ALL countries with no filtering");
-      
+      logger.debug("Fetching all countries from database", {
+        operation: 'findMany',
+        table: 'country'
+      });
+
       // The simplest possible query
       const locations = await prisma.country.findMany();
-      
-      console.log(`API: Successfully found ${locations.length} locations`);
+
+      logger.info("Successfully retrieved locations", {
+        count: locations.length,
+        operation: 'findMany'
+      });
       
       // Return the raw data
       return NextResponse.json(locations);
-    } catch (dbError) {
-      console.error("Database error:", dbError);
-      console.error("Error stack:", dbError.stack);
+    } catch (dbError: unknown) {
+      logger.error("Database error while fetching locations", {
+        error: dbError.message,
+        stack: dbError.stack,
+        operation: 'findMany',
+        table: 'country'
+      });
       return NextResponse.json(
         { error: `Database error: ${dbError.message}` },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error("API Error in GET locations:", error);
-    console.error("Error stack:", error.stack);
+  } catch (error: unknown) {
+    logger.error("API error in locations GET endpoint", {
+      error: error.message,
+      stack: error.stack,
+      endpoint: '/api/locations',
+      method: 'GET'
+    });
     return NextResponse.json(
       { error: `GET Error: ${error.message}` },
       { status: 500 }
@@ -47,7 +70,11 @@ export async function GET(request: NextRequest) {
 
 // POST a new location (keeping this minimal too)
 export async function POST(request: NextRequest) {
-  console.log("API: POST /api/locations called");
+  logger.info("API locations POST request initiated", {
+    method: 'POST',
+    endpoint: '/api/locations',
+    timestamp: Date.now()
+  });
   
   try {
     // Check authentication
@@ -58,7 +85,12 @@ export async function POST(request: NextRequest) {
 
     try {
       const data = await request.json();
-      console.log("API: Location data received:", data);
+      logger.debug("Location data received", {
+        hasCountryName: !!data.countryName,
+        hasTwoLetter: !!data.twoLetter,
+        hasThreeLetter: !!data.threeLetter,
+        hasParentId: !!data.parentId
+      });
 
       // Validate required fields
       if (!data.countryName || !data.twoLetter || !data.threeLetter) {
@@ -112,24 +144,42 @@ export async function POST(request: NextRequest) {
         locationData['code3'] = data.threeLetter.toUpperCase();
       }
 
-      console.log("Creating location with data:", locationData);
+      logger.debug("Creating location", {
+        hasName: !!locationData.name,
+        hasCode2: !!locationData['code2'],
+        hasCode3: !!locationData['code3'],
+        hasParentId: !!locationData.parentId
+      });
       
       // Create the location
       const location = await prisma.country.create({
         data: locationData,
       });
       
-      console.log("API: Location created successfully:", location);
+      logger.info("Location created successfully", {
+        locationId: location.id,
+        name: location.name,
+        operation: 'create'
+      });
       return NextResponse.json(location, { status: 201 });
-    } catch (dbError) {
-      console.error("Database error creating location:", dbError);
+    } catch (dbError: unknown) {
+      logger.error("Database error creating location", {
+        error: dbError.message,
+        operation: 'create',
+        table: 'country'
+      });
       return NextResponse.json(
         { error: `Database create error: ${dbError.message}` },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error("API Error in POST location:", error);
+  } catch (error: unknown) {
+    logger.error("API error in locations POST endpoint", {
+      error: error.message,
+      stack: error.stack,
+      endpoint: '/api/locations',
+      method: 'POST'
+    });
     return NextResponse.json(
       { error: `POST Error: ${error.message}` },
       { status: 500 }

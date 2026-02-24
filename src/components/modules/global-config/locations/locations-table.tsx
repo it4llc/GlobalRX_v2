@@ -1,5 +1,6 @@
-// src/components/modules/global-config/locations/locations-table.tsx
 'use client';
+// src/components/modules/global-config/locations/locations-table.tsx
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -115,7 +116,7 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
       // Refresh the location list
       onRefresh();
     } catch (err) {
-      console.error('Error updating location:', err);
+      clientLogger.error('Error updating location:', err);
       // Don't set the error if it's a session error (already handled by AuthInterceptor)
       if (err.message !== "Session expired") {
         setActionError(err.message);
@@ -131,7 +132,7 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
     setOpenActionMenu(null);
     
     try {
-      console.log("Toggling status for location:", location);
+      clientLogger.info("Toggling status for location:", location);
       // Use fetchWithAuth instead of regular fetch
       const response = await fetchWithAuth(`/api/locations/${location.id}/toggle-status`, {
         method: 'PATCH',
@@ -148,7 +149,7 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
       // Refresh the location list
       onRefresh();
     } catch (err) {
-      console.error('Error updating location status:', err);
+      clientLogger.error('Error updating location status:', err);
       // Don't set the error if it's a session error (already handled by AuthInterceptor)
       if (err.message !== "Session expired") {
         setActionError(err.message);
@@ -239,7 +240,7 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
 
   // Recursive function to render location rows with hierarchy
   const renderLocationRows = (locationList, level = 0) => {
-    return locationList.map(location => {
+    return locationList.map((location: any) => {
       const isExpanded = expandedRows[location.id];
       const hasChildLocations = hasChildren(location);
       

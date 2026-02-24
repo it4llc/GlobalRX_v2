@@ -202,20 +202,6 @@ export function RequirementsDataTable({
   disabled = false,
   isLoading = false,
 }: RequirementsDataTableProps) {
-  // Debug logging
-  console.log('RequirementsDataTable rendered with:', {
-    serviceName,
-    requirementsCount: requirements?.length,
-    locationsCount: locations?.length,
-    requirements: requirements?.map(r => ({
-      id: r.id,
-      name: r.name,
-      type: r.type,
-      displayOrder: r.displayOrder
-    })),
-    initialMappings: Object.keys(initialMappings).length,
-    initialAvailability: Object.keys(initialAvailability).length,
-  });
 
   // State
   const [localMappings, setLocalMappings] = useState(initialMappings);
@@ -233,11 +219,6 @@ export function RequirementsDataTable({
       const orderB = b.displayOrder ?? 999;
       return orderA - orderB;
     });
-    console.log('Fields for table columns (sorted by displayOrder):', sorted.map(f => ({
-      id: f.id,
-      name: f.name,
-      displayOrder: f.displayOrder
-    })));
     return sorted;
   }, [requirements]);
 
@@ -249,11 +230,6 @@ export function RequirementsDataTable({
       const orderB = b.displayOrder ?? 999;
       return orderA - orderB;
     });
-    console.log('Documents for table columns (sorted by displayOrder):', sorted.map(d => ({
-      id: d.id,
-      name: d.name,
-      displayOrder: d.displayOrder
-    })));
     return sorted;
   }, [requirements]);
 
@@ -265,24 +241,12 @@ export function RequirementsDataTable({
       const orderB = b.displayOrder ?? 999;
       return orderA - orderB;
     });
-    if (sorted.length > 0) {
-      console.log('Forms for table columns (sorted by displayOrder):', sorted.map(f => ({
-        id: f.id,
-        name: f.name,
-        displayOrder: f.displayOrder
-      })));
-    }
     return sorted;
   }, [requirements]);
 
   // Build hierarchical data
   const hierarchicalData = useMemo(() => {
     const data = buildLocationHierarchy(locations, localMappings, localAvailability);
-    console.log('Hierarchical data built:', {
-      dataLength: data?.length,
-      firstItem: data?.[0],
-      data: data
-    });
     return data;
   }, [locations, localMappings, localAvailability]);
 
@@ -569,9 +533,9 @@ export function RequirementsDataTable({
     handleAvailabilityChange,
     disabled,
     // Add a key based on the requirement IDs and their order to force column re-render when order changes
-    fields.map(f => f.id).join(','),
-    documents.map(d => d.id).join(','),
-    forms.map(f => f.id).join(',')
+    fields.map((f: any) => f.id).join(','),
+    documents.map((d: any) => d.id).join(','),
+    forms.map((f: any) => f.id).join(',')
   ]);
 
   // Create table instance
@@ -615,13 +579,6 @@ export function RequirementsDataTable({
 
   // Virtualization for performance - use expanded row model
   const { rows } = table.getExpandedRowModel();
-  console.log('Table rows:', {
-    rowsCount: rows.length,
-    rows: rows,
-    firstRow: rows[0],
-    coreRows: table.getCoreRowModel().rows.length,
-    expandedState: expanded
-  });
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -638,15 +595,6 @@ export function RequirementsDataTable({
       ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0)
       : 0;
 
-  console.log('Virtual rows:', {
-    virtualRowsCount: virtualRows.length,
-    totalSize,
-    paddingTop,
-    paddingBottom,
-    virtualRows,
-    parentRef: parentRef.current,
-    scrollElement: parentRef.current?.scrollHeight
-  });
 
   return (
     <Card>
@@ -703,7 +651,7 @@ export function RequirementsDataTable({
             >
               <table className="w-full table-fixed">
                 <thead className="sticky top-0 z-20 bg-gray-50">
-                  {table.getHeaderGroups().map(headerGroup => (
+                  {table.getHeaderGroups().map((headerGroup: any) => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map((header, index) => {
                         const isSticky = index <= 5; // First 6 columns are sticky
@@ -741,7 +689,7 @@ export function RequirementsDataTable({
                       <td style={{ height: `${paddingTop}px` }} />
                     </tr>
                   )}
-                  {virtualRows.map(virtualRow => {
+                  {virtualRows.map((virtualRow: any) => {
                     const row = rows[virtualRow.index];
                     return (
                       <tr key={row.id} className="hover:bg-gray-50">

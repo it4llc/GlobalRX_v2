@@ -1,4 +1,5 @@
 'use client';
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
@@ -112,7 +113,7 @@ function WorkflowSectionsContent() {
         const sectionsData = await sectionsResponse.json();
         setSections(sectionsData);
       } catch (err) {
-        console.error('Error fetching workflow data:', err);
+        clientLogger.error('Error fetching workflow data:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);
@@ -158,11 +159,11 @@ function WorkflowSectionsContent() {
       return (
         <AlertBox
           type="error"
-          title={t('common.error', 'Error')}
+          title={t('common.error')}
           message={error}
           action={
             <Button onClick={() => router.push(`/customer-configs/${customerId}/workflows`)}>
-              {t('common.backToWorkflows', 'Back to Workflows')}
+              {t('common.backToWorkflows')}
             </Button>
           }
         />
@@ -175,11 +176,11 @@ function WorkflowSectionsContent() {
     return (
       <AlertBox
         type="warning"
-        title={t('common.missingParameter', 'Missing Parameter')}
-        message={t('module.candidateWorkflow.noWorkflowSelected', 'No workflow selected. Please select a workflow.')}
+        title={t('common.missingParameter')}
+        message={t('module.candidateWorkflow.noWorkflowSelected')}
         action={
           <Button onClick={() => router.push(`/customer-configs/${customerId}/workflows`)}>
-            {t('common.backToWorkflows', 'Back to Workflows')}
+            {t('common.backToWorkflows')}
           </Button>
         }
       />
@@ -193,10 +194,10 @@ function WorkflowSectionsContent() {
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="sm" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            {t('common.back', 'Back')}
+            {t('common.back')}
           </Button>
           <h1 className="text-2xl font-bold">
-            {workflow?.name ? `${t('module.candidateWorkflow.sections', 'Sections')}: ${workflow.name}` : t('module.candidateWorkflow.workflowSections', 'Workflow Sections')}
+            {workflow?.name ? `${t('module.candidateWorkflow.sections')}: ${workflow.name}` : t('module.candidateWorkflow.workflowSections')}
           </h1>
           <Button
             variant="outline"
@@ -205,10 +206,10 @@ function WorkflowSectionsContent() {
               try {
                 const response = await fetchWithAuth('/api/debug-workflow-permissions');
                 const data = await response.json();
-                console.log('Debug permissions:', data);
+                clientLogger.info('Debug permissions:', data);
                 alert('Permissions debug info logged to console');
               } catch (err) {
-                console.error('Error fetching permissions debug:', err);
+                clientLogger.error('Error fetching permissions debug:', err);
                 alert('Error checking permissions: ' + (err instanceof Error ? err.message : String(err)));
               }
             }}
@@ -219,7 +220,7 @@ function WorkflowSectionsContent() {
         
         {workflow?.status === 'archived' && (
           <Badge variant="secondary" className="bg-gray-200">
-            {t('module.candidateWorkflow.status.archived', 'Archived')}
+            {t('module.candidateWorkflow.status.archived')}
           </Badge>
         )}
       </div>

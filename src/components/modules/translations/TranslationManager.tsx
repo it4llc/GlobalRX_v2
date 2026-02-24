@@ -1,5 +1,7 @@
-// src/components/modules/translations/TranslationManager.tsx
 "use client";
+
+// src/components/modules/translations/TranslationManager.tsx
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { availableLocales, localeNames, defaultLocale } from '@/lib/i18n/config';
@@ -66,8 +68,8 @@ export function TranslationManager() {
         
         setTranslations(allTranslations);
         setUnsavedChanges({});
-      } catch (error) {
-        console.error('Error loading translations:', error);
+      } catch (error: unknown) {
+        clientLogger.error('Error loading translations:', error);
         setErrorMessage(`Error loading translations: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setIsLoading(false);
@@ -141,8 +143,8 @@ export function TranslationManager() {
       setUnsavedChanges({});
       
       alert(`All changes saved successfully!`);
-    } catch (error) {
-      console.error('Error saving translations:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error saving translations:', error);
       setErrorMessage(`Error saving translations: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsSaving(false);
@@ -178,8 +180,8 @@ export function TranslationManager() {
       }));
       
       alert(`Translations for ${localeNames[locale]} saved successfully!`);
-    } catch (error) {
-      console.error('Error saving translations:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error saving translations:', error);
       setErrorMessage(`Error saving translations for ${localeNames[locale]}: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
@@ -246,7 +248,7 @@ export function TranslationManager() {
     // Check if any required translations are missing
     const missingTranslations = availableLocales.filter(locale => !newTranslations[locale]);
     if (missingTranslations.length > 0) {
-      setErrorMessage(`Translations are required for all languages: ${missingTranslations.map(locale => localeNames[locale]).join(', ')}`);
+      setErrorMessage(`Translations are required for all languages: ${missingTranslations.map((locale: any) => localeNames[locale]).join(', ')}`);
       return;
     }
     
@@ -308,8 +310,8 @@ export function TranslationManager() {
       addKeyDialogRef.current?.close();
       
       alert('New translation key added successfully!');
-    } catch (error) {
-      console.error('Error adding translation key:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error adding translation key:', error);
       setErrorMessage(`Error adding translation key: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
@@ -352,8 +354,8 @@ export function TranslationManager() {
       // Reload page to refresh available locales
       window.location.reload();
       
-    } catch (error) {
-      console.error('Error adding language:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error adding language:', error);
       setErrorMessage(`Error adding language: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
@@ -394,8 +396,8 @@ export function TranslationManager() {
       link.click();
       document.body.removeChild(link);
       
-    } catch (error) {
-      console.error('Error exporting translations:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error exporting translations:', error);
       setErrorMessage(`Error exporting translations: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
@@ -595,7 +597,7 @@ export function TranslationManager() {
             </div>
             
             {/* Translation inputs for all locales */}
-            {availableLocales.map(locale => (
+            {availableLocales.map((locale: any) => (
               <div key={locale} className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor={`translation-${locale}`} className="text-right">
                   {localeNames[locale]}

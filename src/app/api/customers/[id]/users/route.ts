@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth.server';
 import { z } from 'zod';
+import logger from '@/lib/logger';
 
 // Validation schema for creating a customer user
 const customerUserCreateSchema = z.object({
@@ -142,13 +143,13 @@ export async function GET(
 
     // Combine the results with userType indication
     const allUsers = [
-      ...users.map(user => ({ ...user, userType: 'customer' })),
+      ...users.map((user: any) => ({ ...user, userType: 'customer' })),
       ...adminUsersWithAccess,
     ];
 
     return NextResponse.json(allUsers);
-  } catch (error) {
-    console.error(`Error in GET /api/customers/${params.id}/users:`, error);
+  } catch (error: unknown) {
+    logger.error(`Error in GET /api/customers/${params.id}/users:`, error);
     return NextResponse.json(
       { error: 'An error occurred while fetching users' },
       { status: 500 }
@@ -255,8 +256,8 @@ export async function POST(
     });
 
     return NextResponse.json(newUser, { status: 201 });
-  } catch (error) {
-    console.error(`Error in POST /api/customers/${params.id}/users:`, error);
+  } catch (error: unknown) {
+    logger.error(`Error in POST /api/customers/${params.id}/users:`, error);
     return NextResponse.json(
       { error: 'An error occurred while creating the user' },
       { status: 500 }

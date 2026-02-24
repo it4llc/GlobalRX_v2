@@ -1,5 +1,6 @@
-// src/components/modules/customer/customer-list.tsx
 'use client';
+// src/components/modules/customer/customer-list.tsx
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -89,7 +90,7 @@ export default function CustomerList() {
         params.append('search', searchTerm);
       }
 
-      console.log('Fetching customers with params:', {
+      clientLogger.info('Fetching customers with params:', {
         page,
         pageSize,
         masterOnly: showMasterOnly,
@@ -98,7 +99,7 @@ export default function CustomerList() {
       });
 
       const apiUrl = `/api/customers?${params.toString()}`;
-      console.log('API URL:', apiUrl);
+      clientLogger.info('API URL:', apiUrl);
 
       const response = await fetchWithAuth(apiUrl);
 
@@ -107,14 +108,14 @@ export default function CustomerList() {
       }
 
       const data = await response.json();
-      console.log('Received customers:', data.data.length, 'total:', data.meta.total);
+      clientLogger.info('Received customers:', data.data.length, 'total:', data.meta.total);
 
       // Sort customers to show master accounts first, then their subaccounts
       const sortedCustomers = sortCustomersByHierarchy(data.data);
       setCustomers(sortedCustomers);
       setTotalPages(data.meta.totalPages);
     } catch (err) {
-      console.error('Error fetching customers:', err);
+      clientLogger.error('Error fetching customers:', errorToLogMeta(err));
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);
@@ -164,21 +165,21 @@ export default function CustomerList() {
   
   // Handle customer edit
   const handleEdit = (customerId: string) => {
-    console.log("Edit button clicked for customer ID:", customerId);
+    clientLogger.info("Edit button clicked for customer ID:", customerId);
     setEditingCustomer(customerId);
     setShowDialog(true);
   };
   
   // Handle customer creation
   const handleAddNew = () => {
-    console.log("Add new customer button clicked");
+    clientLogger.info("Add new customer button clicked");
     setEditingCustomer(null);
     setShowDialog(true);
   };
   
   // Handle dialog close
   const handleDialogClose = (shouldRefresh: boolean) => {
-    console.log("Dialog closed, refresh data:", shouldRefresh);
+    clientLogger.info("Dialog closed, refresh data:", shouldRefresh);
     setShowDialog(false);
     setEditingCustomer(null);
     if (shouldRefresh) {
@@ -199,14 +200,14 @@ export default function CustomerList() {
       
       // Update customer in the list
       setCustomers(prev => 
-        prev.map(customer => 
+        prev.map((customer: any) => 
           customer.id === customerId 
             ? { ...customer, disabled: !customer.disabled } 
             : customer
         )
       );
     } catch (err) {
-      console.error('Error toggling customer status:', err);
+      clientLogger.error('Error toggling customer status:', errorToLogMeta(err));
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
   };
@@ -271,14 +272,14 @@ export default function CustomerList() {
         const keepCustomerId = selectedDuplicates[group.name];
         
         if (!keepCustomerId) {
-          console.warn(`No customer selected to keep for ${group.name}`);
+          clientLogger.warn(`No customer selected to keep for ${group.name}`);
           continue;
         }
         
         // Get customers to delete (all except the one to keep)
         const deleteCustomerIds = group.customers
           .filter(customer => customer.id !== keepCustomerId)
-          .map(customer => customer.id);
+          .map((customer: any) => customer.id);
         
         if (deleteCustomerIds.length === 0) continue;
         
@@ -301,7 +302,7 @@ export default function CustomerList() {
       setIsDuplicateRemovalMode(false);
       fetchCustomers();
     } catch (err) {
-      console.error('Error deduplicating customers:', err);
+      clientLogger.error('Error deduplicating customers:', errorToLogMeta(err));
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsDuplicateProcessing(false);
@@ -558,11 +559,11 @@ export default function CustomerList() {
               </div>
             ) : (
               <div className="space-y-4">
-                {duplicateGroups.map(group => (
+                {duplicateGroups.map((group: any) => (
                   <div key={group.name} className="border border-gray-200 rounded-md p-4 bg-white">
                     <h4 className="font-medium mb-3">Duplicates: {group.name}</h4>
                     <div className="space-y-3">
-                      {group.customers.map(customer => (
+                      {group.customers.map((customer: any) => (
                         <div key={customer.id} className="flex items-center space-x-2 border-b pb-2 last:border-b-0 last:pb-0">
                           <input 
                             type="radio" 

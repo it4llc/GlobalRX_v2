@@ -1,5 +1,6 @@
-// src/components/modules/customer/customer-select.tsx
 'use client';
+// src/components/modules/customer/customer-select.tsx
+import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -84,8 +85,8 @@ export function CustomerSelect({
         }));
         
         setOptions(customerOptions);
-      } catch (error) {
-        console.error('Error fetching customers:', error);
+      } catch (error: unknown) {
+        clientLogger.error('Error fetching customers:', error);
       } finally {
         setIsLoading(false);
       }
@@ -113,8 +114,8 @@ export function CustomerSelect({
               }
             ]);
           }
-        } catch (error) {
-          console.error('Error fetching selected customer:', error);
+        } catch (error: unknown) {
+          clientLogger.error('Error fetching selected customer:', error);
         } finally {
           setIsLoading(false);
         }

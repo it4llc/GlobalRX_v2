@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DynamicFieldInput } from '@/components/dynamic-field-input';
 import { MissingRequirementsDialog } from '@/components/portal/MissingRequirementsDialog';
+import { clientLogger } from '@/lib/client-logger';
 
 interface SubjectInfo {
   firstName: string;
@@ -174,8 +175,10 @@ export default function NewOrderPage() {
         if (serviceItems.length > 0) {
           await fetchRequirementsForEditMode(serviceItems);
         }
-      } catch (error) {
-        console.error('Error loading order for edit:', error);
+      } catch (error: unknown) {
+        clientLogger.error('Error loading order for edit', {
+          error: error.message
+        });
         setErrors({ submit: 'Failed to load order for editing' });
       } finally {
         setIsLoadingOrder(false);
@@ -189,7 +192,7 @@ export default function NewOrderPage() {
   const fetchRequirementsForEditMode = async (serviceItems: ServiceItem[]) => {
     try {
       const requestBody = {
-        items: serviceItems.map(item => ({
+        items: serviceItems.map((item: any) => ({
           serviceId: item.serviceId,
           locationId: item.locationId,
         })),
@@ -261,8 +264,10 @@ export default function NewOrderPage() {
           }
         }
       }
-    } catch (error) {
-      console.error('Error fetching requirements:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error fetching requirements', {
+        error: error.message
+      });
     }
   };
 
@@ -283,11 +288,13 @@ export default function NewOrderPage() {
         const services = await response.json();
         setAvailableServices(services);
       } else {
-        console.error('Failed to fetch services');
+        clientLogger.error('Failed to fetch services');
         setErrors({ submit: 'Failed to load available services' });
       }
-    } catch (error) {
-      console.error('Error fetching services:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error fetching services', {
+        error: error.message
+      });
       setErrors({ submit: 'Failed to load available services' });
     } finally {
       setLoadingServices(false);
@@ -316,11 +323,13 @@ export default function NewOrderPage() {
 
         return locations;
       } else {
-        console.error('Failed to fetch locations');
+        clientLogger.error('Failed to fetch locations');
         return [];
       }
-    } catch (error) {
-      console.error('Error fetching locations:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error fetching locations', {
+        error: error.message
+      });
       return [];
     } finally {
       setLoadingLocations(false);
@@ -389,21 +398,25 @@ export default function NewOrderPage() {
   // Fetch requirements based on selected service+location pairs
   const fetchRequirements = async () => {
     if (formData.serviceItems.length === 0) {
-      console.log('No service items to fetch requirements for');
+      clientLogger.info('No service items to fetch requirements for');
       return;
     }
 
-    console.log('Fetching requirements for service items:', formData.serviceItems);
+    clientLogger.debug('Fetching requirements for service items', {
+      serviceItemsCount: formData.serviceItems.length
+    });
 
     try {
       const requestBody = {
-        items: formData.serviceItems.map(item => ({
+        items: formData.serviceItems.map((item: any) => ({
           serviceId: item.serviceId,
           locationId: item.locationId,
         })),
       };
 
-      console.log('Requirements request body:', requestBody);
+      clientLogger.debug('Requirements request body prepared', {
+        hasRequestBody: !!requestBody
+      });
 
       const response = await fetch('/api/portal/orders/requirements', {
         method: 'POST',
@@ -413,35 +426,48 @@ export default function NewOrderPage() {
         body: JSON.stringify(requestBody),
       });
 
-      console.log('Requirements response status:', response.status);
+      clientLogger.debug('Requirements response received', {
+        status: response.status
+      });
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Requirements data received:', data);
+        clientLogger.info('Requirements data received', {
+          hasData: !!data
+        });
         setRequirements(data);
       } else {
         const errorData = await response.text();
-        console.error('Failed to fetch requirements. Status:', response.status, 'Response:', errorData);
+        clientLogger.error('Failed to fetch requirements', {
+          status: response.status,
+          errorData
+        });
       }
-    } catch (error) {
-      console.error('Error fetching requirements:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error fetching requirements', {
+        error: error.message
+      });
     }
   };
 
 
   // Validate step 1 (service and location selection)
   const validateStep1 = (): boolean => {
-    console.log('validateStep1 called, service items count:', formData.serviceItems.length);
+    clientLogger.debug('validateStep1 called', {
+      serviceItemsCount: formData.serviceItems.length
+    });
     const newErrors: Record<string, string> = {};
 
     if (formData.serviceItems.length === 0) {
       newErrors.services = 'Please add at least one service to your order';
-      console.log('Validation error: No services added to cart');
+      clientLogger.warn('Validation error: No services added to cart');
     }
 
     setErrors(newErrors);
     const isValid = Object.keys(newErrors).length === 0;
-    console.log('Step 1 validation result:', isValid);
+    clientLogger.debug('Step 1 validation result', {
+      isValid
+    });
     return isValid;
   };
 
@@ -511,16 +537,20 @@ export default function NewOrderPage() {
 
   // Handle next button
   const handleNext = async () => {
-    console.log('handleNext called, current step:', step);
-    console.log('formData.serviceItems:', formData.serviceItems);
+    clientLogger.debug('handleNext called', {
+      currentStep: step
+    });
+    clientLogger.debug('formData serviceItems', {
+      serviceItemsCount: formData.serviceItems.length
+    });
 
     if (step === 1) {
       if (!validateStep1()) {
-        console.log('Step 1 validation failed');
+        clientLogger.warn('Step 1 validation failed');
         return;
       }
       // Fetch requirements when moving from step 1 to 2
-      console.log('Fetching requirements...');
+      clientLogger.debug('Fetching requirements');
       await fetchRequirements();
       setStep(2);
       return;
@@ -528,7 +558,7 @@ export default function NewOrderPage() {
 
     if (step === 2) {
       if (!validateStep2()) {
-        console.log('Step 2 (subject info) validation failed');
+        clientLogger.warn('Step 2 (subject info) validation failed');
         return;
       }
       setStep(3);
@@ -537,7 +567,7 @@ export default function NewOrderPage() {
 
     if (step === 3) {
       if (!validateStep3()) {
-        console.log('Step 3 (search details) validation failed');
+        clientLogger.warn('Step 3 (search details) validation failed');
         return;
       }
       setStep(4);
@@ -726,8 +756,10 @@ export default function NewOrderPage() {
       } else {
         router.push(`/portal/orders?created=${orderId}`);
       }
-    } catch (error) {
-      console.error('Error creating order:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error creating order', {
+        error: error.message
+      });
       setErrors({
         submit: error instanceof Error ? error.message : 'Failed to create order',
       });
@@ -790,8 +822,10 @@ export default function NewOrderPage() {
 
       const order = await response.json();
       router.push('/portal/orders?draft=saved');
-    } catch (error) {
-      console.error('Error saving draft:', error);
+    } catch (error: unknown) {
+      clientLogger.error('Error saving draft', {
+        error: error.message
+      });
       setErrors({
         submit: error instanceof Error ? error.message : 'Failed to save draft',
       });
@@ -1426,7 +1460,7 @@ export default function NewOrderPage() {
           <button
             type="button"
             onClick={() => {
-              console.log('Next button clicked!');
+              clientLogger.debug('Next button clicked');
               handleNext();
             }}
             className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
