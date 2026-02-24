@@ -40,7 +40,9 @@ export default defineConfig({
       '.next',
       'dist',
       'coverage',
-      'prisma'
+      'prisma',
+      'e2e/**',  // Exclude Playwright E2E tests
+      '**/e2e/**'
     ]
   },
   resolve: {
