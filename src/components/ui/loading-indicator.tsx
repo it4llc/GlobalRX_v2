@@ -14,7 +14,7 @@ export function LoadingIndicator({ size = 'md', className = '' }: LoadingIndicat
   };
   
   return (
-    <div className={`flex items-center justify-center ${className}`}>
+    <div className={`flex items-center justify-center ${className}`} role="status" aria-label="Loading">
       <svg
         className={`animate-spin text-primary ${sizeClasses[size]}`}
         xmlns="http://www.w3.org/2000/svg"
