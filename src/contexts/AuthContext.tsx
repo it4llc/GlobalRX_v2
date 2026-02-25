@@ -78,7 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const headers = new Headers(options.headers || {});
       
       if (!headers.has('Content-Type') && options.method !== 'GET' && options.body) {
-        headers.set('Content-Type');
+        headers.set('Content-Type', 'application/json');
       }
 
       // Add CSRF token if needed
