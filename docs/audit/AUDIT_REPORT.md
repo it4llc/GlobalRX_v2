@@ -25,7 +25,7 @@ GlobalRx is a well-architected background screening platform built on modern tec
 |-----------------------------|--------------|-------|
 | Testing Coverage            | ✅ Enterprise Ready | 9/10 |
 | Security & Data Safety      | ✅ Good | 8/10 |
-| Code Structure              | ✅ Good | 8/10 |
+| Code Structure              | ⚠️ Needs Improvement | 7/10 |
 | Error Handling              | ⚠️ Needs Improvement | 6/10 |
 | Performance & Scalability   | ✅ Enterprise Ready | 9/10 |
 | Dependencies & Maintenance  | ⚠️ Needs Improvement | 6/10 |
@@ -34,7 +34,7 @@ GlobalRx is a well-architected background screening platform built on modern tec
 | Data Management & Backup    | ⚠️ Needs Improvement | 5/10 |
 | TDD Readiness               | ✅ Good | 8/10 |
 
-**Overall Enterprise Readiness Score: 8.3/10** ⬆️ (Up from 8.1 → Complete TDD Implementation + Three Major Refactors)
+**Overall Enterprise Readiness Score: 8.2/10** ⬆️ (Up from 8.1 → Major TDD Progress + Partial Business Logic Extraction)
 
 Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Critical Gap (1-4)
 
@@ -253,9 +253,9 @@ Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Cri
 - ✅ **Fixed:** Admin permissions no longer override explicit deny permissions (critical security fix)
 - ✅ **Impact:** Prevents unauthorized access and respects explicit security boundaries
 
-### Section 3: Code Structure and Organization - Score 8/10 ✅ IMPROVED (Feb 24, 2026)
+### Section 3: Code Structure and Organization - Score 7/10 ⚠️ PARTIALLY IMPROVED (Feb 24, 2026)
 
-**Current State:** Well-organized with consistent patterns
+**Current State:** Well-organized with consistent patterns, but significant business logic extraction remaining
 
 **Module Organization:**
 - ✅ Consistent patterns across User Admin, Global Config, Customer Config modules
@@ -269,21 +269,37 @@ Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Cri
   - Refactored `src/app/portal/orders/new/page.tsx` from 1,470 to 401 lines
   - Refactored `src/lib/services/order.service.ts` from 1,055 to 6 focused services
   - Refactored `src/app/customer-configs/[id]/page.tsx` from 1,015 to 520 lines with 6 components
+- ⚠️ **REMAINING:** 7 files over 800 lines with mixed business/UI concerns
+  - `requirements-table.tsx` (883 lines), `data-rx-tab.tsx` (872 lines), `location-form.tsx` (850 lines)
+  - `dsx-tab.tsx` (788 lines), `RequirementsDataTable.tsx` (737 lines), `TranslationManager.tsx` (732 lines)
+  - `customers-packages-fixed.tsx` (679 lines)
 - ✅ Consistent file naming conventions (PascalCase components, camelCase utilities)
 
 **Refactoring Achievements (Feb 24, 2026):**
 - ✅ **Order Form Component:** Broken into 9 focused components using TDD
-  - 4 custom hooks for business logic
+  - 4 custom hooks for business logic extraction (useOrderFormState, useServiceCart, useOrderRequirements, useOrderValidation)
   - 4 step components for UI separation
   - Maintained 100% backward compatibility
 - ✅ **Order Service:** Split into 6 focused services using TDD
   - Domain-driven architecture with facade pattern
   - 28 comprehensive tests ensuring business logic integrity
   - Zero breaking changes through careful API design
-- ✅ **Customer Configs Component:** Broken into 6 focused components using TDD
+- ⚠️ **Customer Configs Component:** Broken into 6 focused UI components using TDD
   - BasicInformationSection, AccountRelationshipsSection, BrandingSection, ServicesSection
   - 16 comprehensive tests with 100% pass rate
-  - Enhanced form validation and error handling
+  - **BUT**: Business logic still embedded in main component (validation, API calls, upload logic)
+  - **NEEDS**: Extraction to useCustomerConfigState, useCustomerValidation, useLogoUpload hooks
+
+**Remaining Business Logic Extraction Work:**
+- ❌ **7 large components** (800+ lines) still have business logic mixed with UI
+- ❌ **Complex state management** embedded in table and form components
+- ❌ **API integration logic** mixed with rendering logic
+- ❌ **Validation and data processing** functions embedded in UI components
+
+**Progress Assessment:**
+- ✅ **2/3 major refactors** have complete business logic separation
+- ⚠️ **1/3 major refactors** has UI separation but logic still embedded
+- ❌ **Multiple medium-large components** await business logic extraction
 
 **API Consistency:**
 - ✅ Standard response format across most routes
@@ -608,10 +624,11 @@ Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Cri
    - ✅ `src/app/portal/orders/new/page.tsx` (1,470→401 lines) - TDD refactor
    - ✅ `src/lib/services/order.service.ts` (1,055→6 focused services) - TDD refactor
    - ✅ `src/app/customer-configs/[id]/page.tsx` (1,015→520 lines) - TDD refactor
-2. **Extract business logic** from UI components - ✅ **COMPLETE**
-   - Order processing logic extracted to 6 focused services
-   - Component logic separated into reusable blocks
-   - Customer configuration logic modularized into focused sections
+2. **Extract business logic** from UI components - ⚠️ **PARTIALLY COMPLETE**
+   - ✅ Order processing logic extracted to 6 focused services
+   - ✅ Order form logic extracted to 4 custom hooks (useOrderFormState, useServiceCart, useOrderRequirements, useOrderValidation)
+   - ❌ Customer configuration logic still embedded in main component (validation, API calls, upload logic)
+   - ❌ Multiple large components (800+ lines) still have mixed business/UI concerns
 3. **Add error boundaries** for React components - ⏳ **PENDING**
 
 **TDD Refactoring Summary:**
@@ -620,6 +637,45 @@ Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Cri
 - ✅ **90 comprehensive tests** covering all refactored components and services
 - ✅ **100% backward compatibility** maintained through careful API design
 - ✅ **Enhanced business logic** with improved validation and error handling
+
+**⚠️ REMAINING BUSINESS LOGIC EXTRACTION WORK:**
+
+**Customer Config Component Logic (Still Embedded):**
+- `validateEmail()` function - Should be extracted to `useCustomerValidation.ts`
+- `validateForm()` function - Business validation logic mixed with UI
+- `uploadLogo()` function - File upload logic should be in `useLogoUpload.ts`
+- `handleSubmit()` function - API integration should be in `customerConfigService.ts`
+- `fetchCustomerInfo()` logic - Data fetching should be in custom hook
+
+**Large Components Needing Business Logic Extraction (800+ lines):**
+- `src/components/modules/global-config/tabs/requirements-table.tsx` (883 lines)
+  - Complex state management, data processing, and location hierarchy logic embedded
+- `src/components/modules/global-config/tabs/data-rx-tab.tsx` (872 lines)
+  - Configuration management logic mixed with UI rendering
+- `src/components/modules/global-config/locations/location-form.tsx` (850 lines)
+  - Form validation and location processing logic embedded
+- `src/components/modules/global-config/tabs/dsx-tab.tsx` (788 lines)
+  - DSX configuration logic mixed with UI components
+- `src/components/modules/global-config/tables/RequirementsDataTable.tsx` (737 lines)
+  - Data table logic and filtering embedded in component
+- `src/components/modules/translations/TranslationManager.tsx` (732 lines)
+  - Translation management business logic mixed with UI
+- `src/components/modules/customer/customers-packages-fixed.tsx` (679 lines)
+  - Package management logic embedded in component
+
+**Recommended Extraction Strategy:**
+1. **Phase 1**: Extract customer config business logic to hooks/services
+2. **Phase 2**: Focus on largest components first (requirements-table, data-rx-tab, location-form)
+3. **Phase 3**: Create reusable business logic services for common patterns
+4. **Phase 4**: Implement custom hooks for complex state management
+
+**Priority Order for Business Logic Extraction:**
+1. Customer config component (current refactor - finish the job)
+2. Requirements table (883 lines - high complexity)
+3. Data RX tab (872 lines - configuration management)
+4. Location form (850 lines - form validation patterns)
+5. DSX tab (788 lines - similar patterns to Data RX)
+6. Remaining components by size and complexity
 
 ### Phase 3: Production Readiness (Month 3)
 
