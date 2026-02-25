@@ -9,6 +9,7 @@ import { DialogRef, ModalDialog, DialogFooter } from '@/components/ui/modal-dial
 import { FormTable } from '@/components/ui/form-table';
 import { FormRow } from '@/components/ui/form-row';
 import { AddressBlockConfigurator, AddressBlockConfig } from './address-block-configurator';
+import clientLogger from '@/lib/client-logger';
 
 // Field data type options
 const dataTypeOptions = [

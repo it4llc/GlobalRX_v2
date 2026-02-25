@@ -13,6 +13,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { ActionDropdown } from '@/components/ui/action-dropdown';
 import { DialogRef, ModalDialog } from '@/components/ui/modal-dialog';
 import { Shield, ShieldCheck } from 'lucide-react';
+import clientLogger from '@/lib/client-logger';
 
 interface DataField {
   id: string;
