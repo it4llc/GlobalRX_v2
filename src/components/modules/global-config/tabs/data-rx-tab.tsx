@@ -1,119 +1,60 @@
 // src/components/modules/global-config/tabs/data-rx-tab.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FieldData, AddFieldModal } from './add-field-modal';
-import { DocumentData, AddDocumentModal } from './add-document-modal';
+import { AddFieldModal } from './add-field-modal';
+import { AddDocumentModal } from './add-document-modal';
 import { EditFieldModal } from './edit-field-modal';
 import { DocumentsTable } from './documents-table';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDataRxTab } from '@/hooks/useDataRxTab';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { ActionDropdown } from '@/components/ui/action-dropdown';
 import { DialogRef, ModalDialog } from '@/components/ui/modal-dialog';
 import { Shield, ShieldCheck } from 'lucide-react';
 
-interface DataField {
-  id: string;
-  fieldLabel: string;
-  shortName: string;
-  dataType: string;
-  instructions: string;
-  retentionHandling: string;
-  requiresVerification?: boolean;
-  options?: Array<{ value: string; label: string }>;
-  disabled?: boolean;
-  services?: Array<{ id: string, name: string }>;
-  collectionTab?: string;
-  addressConfig?: any;
-}
-
-interface Document {
-  id: string;
-  documentName: string;
-  instructions: string;
-  scope: string;
-  retentionHandling?: string;
-  disabled?: boolean;
-  services?: Array<{ id: string, name: string }>;
-  filePath?: string;
-  documentData?: any; // This can be a string or an object
-}
-
-enum TabType {
-  Fields = 'fields',
-  Documents = 'documents'
-}
-
 export function DataRxTab() {
-  // State for active inner tab (fields or documents)
-  const [activeTab, setActiveTab] = useState<TabType>(TabType.Fields);
+  // Use the extracted business logic
+  const {
+    activeTab,
+    dataFields,
+    documents,
+    isLoading,
+    error,
+    showAddFieldModal,
+    showAddDocumentModal,
+    showEditFieldModal,
+    selectedFieldId,
+    setActiveTab,
+    setShowAddFieldModal,
+    setShowAddDocumentModal,
+    handleAddField,
+    handleEditField,
+    handleOpenEditModal,
+    handleAddDocument,
+    handleToggleDocumentStatus,
+    handleToggleFieldStatus,
+    fetchData,
+    getDataTypeLabel,
+    getRetentionLabelForField,
+    dataTypeOptions,
+    retentionOptions,
+  } = useDataRxTab();
 
-  // State for data fields and documents
-  const [dataFields, setDataFields] = useState<DataField[]>([]);
-  const [documents, setDocuments] = useState<Document[]>([]);
-
-  
-  // State for modals
-  const [showAddFieldModal, setShowAddFieldModal] = useState(false);
-  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
-  const [showEditFieldModal, setShowEditFieldModal] = useState(false);
-  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
-  
   // Reference for the options dialog
   const optionsDialogRef = useRef<DialogRef>(null);
   const [selectedOptions, setSelectedOptions] = useState<{ label: string, options: Array<{value: string, label: string}> } | null>(null);
-  
+
   // Reference for the services dialog
   const servicesDialogRef = useRef<DialogRef>(null);
   const [selectedServices, setSelectedServices] = useState<{ name: string, services: Array<{ id: string, name: string }> } | null>(null);
   
-  // State for loading and errors
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const { fetchWithAuth } = useAuth();
-  
-  // Fetch data fields and documents
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // Fetch data fields
-      const fieldsResponse = await fetchWithAuth('/api/data-rx/fields?includeServices=true');
-      if (!fieldsResponse.ok) {
-        throw new Error('Failed to fetch data fields');
-      }
-      const fieldsData = await fieldsResponse.json();
-      setDataFields(fieldsData.fields || []);
-      
-      // Fetch documents
-      const documentsResponse = await fetchWithAuth('/api/data-rx/documents?includeServices=true');
-      if (!documentsResponse.ok) {
-        throw new Error('Failed to fetch documents');
-      }
-      const documentsData = await documentsResponse.json();
-      setDocuments(documentsData.documents || []);
-    } catch (err) {
-      clientLogger.error('Error fetching data:', err);
-      setError('Failed to load data. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchWithAuth]);
-  
-  // Load data when component mounts
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-  
   // Track mouse position for positioning the dialog
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  
+
   // Handle opening the options dialog
-  const handleShowOptions = (field: DataField, event?: React.MouseEvent) => {
+  const handleShowOptions = (field: any, event?: React.MouseEvent) => {
     if (field.options && field.options.length > 0) {
       // Set options to display
       setSelectedOptions({
@@ -137,7 +78,7 @@ export function DataRxTab() {
   };
   
   // Handle opening the services dialog
-  const handleShowServices = (item: DataField | Document, event?: React.MouseEvent) => {
+  const handleShowServices = (item: any, event?: React.MouseEvent) => {
     if (item.services && item.services.length > 0) {
       // Set services to display
       setSelectedServices({
@@ -162,7 +103,7 @@ export function DataRxTab() {
   
   // Effect to position the dialog after it opens
   useEffect(() => {
-    const positionDialog = (dialog: HTMLElement | null, isOptions: boolean) => {
+    const positionDialog = (dialog: HTMLElement | null) => {
       if (!dialog) return;
       
       // Position relative to saved mouse position
@@ -202,245 +143,15 @@ export function DataRxTab() {
     // Position options dialog if open
     if (selectedOptions) {
       const optionsDialog = document.querySelector('dialog.options-modal') as HTMLElement;
-      positionDialog(optionsDialog, true);
+      positionDialog(optionsDialog);
     }
-    
+
     // Position services dialog if open
     if (selectedServices) {
       const servicesDialog = document.querySelector('dialog.services-modal') as HTMLElement;
-      positionDialog(servicesDialog, false);
+      positionDialog(servicesDialog);
     }
   }, [selectedOptions, selectedServices, mousePosition]);
-  
-  // Handle adding a new data field
-  const handleAddField = async (fieldData: FieldData) => {
-    clientLogger.info('DataRxTab - Received field data:', fieldData);
-    try {
-      setIsLoading(true);
-
-      // Create the field object
-      const fieldObject = {
-        fieldLabel: fieldData.fieldLabel,
-        shortName: fieldData.shortName,
-        dataType: fieldData.dataType,
-        instructions: fieldData.instructions || "",
-        retentionHandling: fieldData.retentionHandling || "no_delete",
-        collectionTab: fieldData.collectionTab || "subject",
-        addressConfig: fieldData.addressConfig || null,
-        requiresVerification: fieldData.requiresVerification || false
-      };
-
-      clientLogger.info('DataRxTab - Sending to API:', fieldObject);
-
-      // Add options property for dropdown fields
-      if (fieldData.dataType === 'select' && fieldData.options && fieldData.options.length > 0) {
-        fieldObject.options = fieldData.options;
-      }
-      
-      const response = await fetchWithAuth('/api/data-rx/fields', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(fieldObject),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.details || 'Failed to save field');
-      }
-      
-      // Close modal and refresh data
-      setShowAddFieldModal(false);
-      fetchData();
-    } catch (err) {
-      clientLogger.error('Error adding field:', err);
-      setError('Failed to add field: ' + (err instanceof Error ? err.message : 'Unknown error'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle editing a data field
-  const handleEditField = async (fieldData: FieldData) => {
-    try {
-      setIsLoading(true);
-      
-      // Create the field object
-      const fieldObject = {
-        fieldLabel: fieldData.fieldLabel,
-        shortName: fieldData.shortName,
-        dataType: fieldData.dataType,
-        instructions: fieldData.instructions || "",
-        retentionHandling: fieldData.retentionHandling || "no_delete",
-        collectionTab: fieldData.collectionTab || "subject",
-        addressConfig: fieldData.addressConfig || null,
-        requiresVerification: fieldData.requiresVerification || false,
-        options: fieldData.options || []
-      };
-      
-      const response = await fetchWithAuth(`/api/data-rx/fields/${fieldData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(fieldObject),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.details || 'Failed to update field');
-      }
-      
-      // Close modal and refresh data
-      setShowEditFieldModal(false);
-      setSelectedFieldId(null);
-      fetchData();
-    } catch (err) {
-      clientLogger.error('Error updating field:', err);
-      setError('Failed to update field: ' + (err instanceof Error ? err.message : 'Unknown error'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Open edit field modal
-  const handleOpenEditModal = (fieldId: string) => {
-    setSelectedFieldId(fieldId);
-    setShowEditFieldModal(true);
-  };
-  
-  // Handle adding a new document
-  const handleAddDocument = async (documentData: DocumentData) => {
-    try {
-      setIsLoading(true);
-      
-      const documentObject = {
-        documentName: documentData.documentName,
-        instructions: documentData.instructions,
-        scope: documentData.scope,
-        retentionHandling: documentData.retentionHandling
-      };
-      
-      const response = await fetchWithAuth('/api/data-rx/documents', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(documentObject),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.details || 'Failed to save document');
-      }
-      
-      // Close modal and refresh data
-      setShowAddDocumentModal(false);
-      fetchData();
-    } catch (err) {
-      clientLogger.error('Error adding document:', err);
-      setError('Failed to add document: ' + (err instanceof Error ? err.message : 'Unknown error'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle document status toggling
-  const handleToggleDocumentStatus = async (documentId: string, currentStatus: boolean) => {
-    try {
-      setIsLoading(true);
-      
-      const response = await fetchWithAuth(`/api/data-rx/documents/${documentId}/toggle-status`, {
-        method: 'PATCH',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to toggle document status');
-      }
-      
-      // Refresh data
-      fetchData();
-    } catch (err) {
-      clientLogger.error('Error toggling document status:', err);
-      setError('Failed to toggle document status. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle field status toggle
-  const handleToggleFieldStatus = async (fieldId: string) => {
-    try {
-      setIsLoading(true);
-      
-      const response = await fetchWithAuth(`/api/data-rx/fields/${fieldId}/toggle-status`, {
-        method: 'PATCH',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to toggle field status');
-      }
-      
-      // Refresh data
-      fetchData();
-    } catch (err) {
-      clientLogger.error('Error toggling field status:', err);
-      setError('Failed to toggle field status. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Map data type to readable label
-  const getDataTypeLabel = (dataType: string): string => {
-    const typeMap: Record<string, string> = {
-      'text': 'Text',
-      'number': 'Number',
-      'date': 'Date',
-      'email': 'Email',
-      'phone': 'Phone',
-      'select': 'Dropdown',
-      'checkbox': 'Checkbox',
-      'radio': 'Radio Buttons',
-      'address_block': 'Address Block'
-    };
-
-    return typeMap[dataType] || dataType;
-  };
-
-  // Data type options for dropdown
-  const dataTypeOptions = [
-    { id: 'text', value: 'text', label: 'Text' },
-    { id: 'number', value: 'number', label: 'Number' },
-    { id: 'date', value: 'date', label: 'Date' },
-    { id: 'email', value: 'email', label: 'Email' },
-    { id: 'phone', value: 'phone', label: 'Phone' },
-    { id: 'select', value: 'select', label: 'Dropdown' },
-    { id: 'checkbox', value: 'checkbox', label: 'Checkbox' },
-    { id: 'radio', value: 'radio', label: 'Radio Buttons' },
-    { id: 'address_block', value: 'address_block', label: 'Address Block' },
-  ];
-
-  // Retention handling options
-  const retentionOptions = [
-    { id: 'no_delete', value: 'no_delete', label: "Don't delete" },
-    { id: 'customer_rule', value: 'customer_rule', label: 'Customer rule' },
-    { id: 'global_rule', value: 'global_rule', label: 'Global rule' },
-    { id: 'none', value: 'none', label: 'None' },
-  ];
-  
-  // For the DataField type
-  const getRetentionLabelForField = (field: DataField): string => {
-    const retentionMap: Record<string, string> = {
-      'no_delete': 'Don\'t delete',
-      'customer_rule': 'Customer rule',
-      'global_rule': 'Global rule',
-      'none': 'None'
-    };
-
-    return retentionMap[field.retentionHandling] || 'None';
-  };
 
   
   return (
@@ -475,9 +186,9 @@ export function DataRxTab() {
             <div className="border-b border-gray-200">
               <nav className="-mb-px flex">
                 <button
-                  onClick={() => setActiveTab(TabType.Fields)}
+                  onClick={() => setActiveTab('fields')}
                   className={`py-2 px-4 text-center border-b-2 font-medium text-sm ${
-                      activeTab === TabType.Fields
+                      activeTab === 'fields'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
@@ -485,9 +196,9 @@ export function DataRxTab() {
                   Data Fields
                 </button>
                 <button
-                  onClick={() => setActiveTab(TabType.Documents)}
+                  onClick={() => setActiveTab('documents')}
                   className={`py-2 px-4 text-center border-b-2 font-medium text-sm ${
-                      activeTab === TabType.Documents
+                      activeTab === 'documents'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
@@ -501,7 +212,7 @@ export function DataRxTab() {
       </Card>
       
       {/* Fields Tab Content */}
-      {activeTab === TabType.Fields && (
+      {activeTab === 'fields' && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Data Fields</CardTitle>
@@ -653,7 +364,7 @@ export function DataRxTab() {
       )}
       
       {/* Documents Tab Content */}
-      {activeTab === TabType.Documents && (
+      {activeTab === 'documents' && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Documents</CardTitle>
@@ -698,7 +409,6 @@ export function DataRxTab() {
           onEditField={handleEditField}
           onCancel={() => {
             setShowEditFieldModal(false);
-            setSelectedFieldId(null);
           }}
         />
       )}

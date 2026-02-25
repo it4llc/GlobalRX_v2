@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import logger, { logDatabaseError } from '@/lib/logger';
+import { hasPermission } from '@/lib/permission-utils';
 
 /**
  * API route to associate requirements with a service
@@ -17,8 +18,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Always check permissions
-    if (!session.user.permissions.dsx.manage) {
+    // Always check permissions - use hasPermission utility
+    if (!hasPermission(session.user, 'dsx', 'manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
