@@ -1,4 +1,36 @@
 // src/hooks/useDataRxTab.ts
+/**
+ * Data Rx Tab Business Logic Hook
+ *
+ * Manages all business logic for the Data Rx configuration tab, which handles
+ * data fields and documents used to gather information from candidates during
+ * background screening processes.
+ *
+ * BUSINESS RULES:
+ * - Data fields define what information is collected from candidates
+ * - Documents define what files candidates must upload
+ * - Both fields and documents can be enabled/disabled without deletion
+ * - Retention handling determines data lifecycle (no_delete, customer_rule, global_rule, none)
+ * - Verification requirements can be set for sensitive fields
+ * - Service associations are managed in DSX tab (not here)
+ *
+ * FIELD TYPES SUPPORTED:
+ * - text: Plain text input
+ * - number: Numeric input with validation
+ * - date: Date picker
+ * - email: Email validation
+ * - phone: Phone number formatting
+ * - select: Dropdown with options
+ * - checkbox: Boolean selection
+ * - radio: Single selection from options
+ * - address_block: Complete address collection
+ *
+ * RETENTION POLICIES:
+ * - no_delete: Data preserved indefinitely
+ * - customer_rule: Follow customer-specific retention rules
+ * - global_rule: Follow system-wide retention rules
+ * - none: No retention policy specified
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -110,13 +142,27 @@ export function useDataRxTab() {
     fetchData();
   }, [fetchData]);
 
-  // Handle adding a new data field
+  /**
+   * BUSINESS LOGIC: Add New Data Field
+   *
+   * Creates a new data collection field with proper validation and defaults.
+   *
+   * BUSINESS RULES:
+   * - fieldLabel: Human-readable name (required)
+   * - shortName: System identifier (required, unique)
+   * - dataType: Must be valid field type (see supported types above)
+   * - retentionHandling: Defaults to 'no_delete' if not specified
+   * - collectionTab: Defaults to 'subject' (where field appears in UI)
+   * - requiresVerification: Defaults to false
+   * - options: Required for select/checkbox/radio types, ignored for others
+   * - addressConfig: Only used for address_block type
+   */
   const handleAddField = async (fieldData: FieldData) => {
     clientLogger.info('DataRxTab - Received field data:', fieldData);
     try {
       setIsLoading(true);
 
-      // Create the field object
+      // Create the field object with business defaults
       const fieldObject: any = {
         fieldLabel: fieldData.fieldLabel,
         shortName: fieldData.shortName,
@@ -159,7 +205,16 @@ export function useDataRxTab() {
     }
   };
 
-  // Handle editing a data field
+  /**
+   * BUSINESS LOGIC: Edit Existing Data Field
+   *
+   * Updates an existing field while preserving business integrity.
+   *
+   * BUSINESS RULES:
+   * - Cannot change field type if field is in use (enforced by API)
+   * - Changing options for select/checkbox/radio requires validation
+   * - All changes trigger data refresh to show updates immediately
+   */
   const handleEditField = async (fieldData: FieldData) => {
     try {
       setIsLoading(true);
@@ -208,7 +263,17 @@ export function useDataRxTab() {
     setShowEditFieldModal(true);
   };
 
-  // Handle adding a new document
+  /**
+   * BUSINESS LOGIC: Add New Document Requirement
+   *
+   * Creates a new document requirement for candidate file uploads.
+   *
+   * BUSINESS RULES:
+   * - documentName: Human-readable document name (required)
+   * - scope: Defines when document is required ('global', 'conditional', etc.)
+   * - instructions: Guidelines for candidates on what to upload
+   * - retentionHandling: Data lifecycle policy (required)
+   */
   const handleAddDocument = async (documentData: DocumentData) => {
     try {
       setIsLoading(true);
