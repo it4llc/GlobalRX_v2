@@ -1,448 +1,65 @@
 'use client';
-// src/components/modules/global-config/locations/location-form.tsx
-import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
+/**
+ * Location Form Component
+ *
+ * This component handles the UI for adding locations to the system.
+ * All business logic has been extracted to the useLocationForm hook.
+ *
+ * Component responsibilities:
+ * - Render the form UI
+ * - Display form states (loading, success, errors)
+ * - Handle user interactions
+ *
+ * Business logic handled by useLocationForm:
+ * - Location type hierarchy validation
+ * - Cascading dropdown data fetching
+ * - Form data preparation and submission
+ * - Error handling and success states
+ * - CSV import processing
+ */
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useLocationForm } from '@/hooks/useLocationForm';
 
-export function LocationForm({ onLocationAdded }) {
-  // Location type selection
-  const [locationType, setLocationType] = useState('country');
-  
-  // Selected parent locations
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  const [selectedSubregion1, setSelectedSubregion1] = useState(null);
-  const [selectedSubregion2, setSelectedSubregion2] = useState(null);
-  
-  // Lists for dropdowns
-  const [countries, setCountries] = useState([]);
-  const [subregions1, setSubregions1] = useState([]);
-  const [subregions2, setSubregions2] = useState([]);
-  
-  // New location data
-  const [formData, setFormData] = useState({
-    countryName: '',
-    twoLetter: '',
-    threeLetter: '',
-    numeric: '',
-    subregion1: '',
-    subregion2: '',
-    subregion3: '',
-  });
-  
-  // Form state
-  const [formError, setFormError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  
-  // CSV import state
-  const [csvFile, setCsvFile] = useState(null);
-  const [importStatus, setImportStatus] = useState({ loading: false, message: '', error: false });
-  
-  // Use the auth context
-  const { fetchWithAuth } = useAuth();
-  
+interface LocationFormProps {
+  onLocationAdded: () => void;
+}
 
-  // Load countries on component mount
-  useEffect(() => {
-    fetchCountries();
-  }, []);
-  
-  // Load subregions when parent is selected
-  useEffect(() => {
-    if (selectedCountry && (locationType === 'subregion1' || locationType === 'subregion2' || locationType === 'subregion3')) {
-      fetchSubregions1(selectedCountry.id);
-    }
-  }, [selectedCountry, locationType]);
-  
-  useEffect(() => {
-    if (selectedSubregion1 && (locationType === 'subregion2' || locationType === 'subregion3')) {
-      fetchSubregions2(selectedSubregion1.id);
-    }
-  }, [selectedSubregion1, locationType]);
-  
-  // Fetch all countries (top-level locations)
-  const fetchCountries = async () => {
-    try {
-      setIsLoadingOptions(true);
-      const response = await fetchWithAuth('/api/locations?type=countries');
-      if (!response.ok) {
-        throw new Error('Failed to fetch countries');
-      }
-      const data = await response.json();
-      setCountries(data);
-    } catch (error: unknown) {
-      clientLogger.error('Error fetching countries:', error);
-      setFormError('Failed to load countries. Please try refreshing the page.');
-    } finally {
-      setIsLoadingOptions(false);
-    }
-  };
-  
-  // Fetch subregions1 for a specific country
-  const fetchSubregions1 = async (countryId) => {
-    try {
-      setIsLoadingOptions(true);
-      // setDebug(`Fetching subregions1 for country ID: ${countryId}`);
-      
-      const response = await fetchWithAuth(`/api/locations?type=subregions1&parentId=${countryId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch subregions');
-      }
-      
-      const data = await response.json();
-      // setDebug(`Received ${data.length} subregions1: ${JSON.stringify(data.slice(0, 2))}`);
-      
-      // Filter out any records that don't have parentId matching the selected country
-      // This is to handle the API returning all countries instead of subregions
-      const filteredData = data.filter(item => 
-        item.parentId === countryId || 
-        // Include items that have a subregion1 value set (they're actual subregions)
-        (item.parentId === null && item.subregion1)
-      );
-      
-      // setDebug(`Filtered to ${filteredData.length} valid subregions1`);
-      
-      // If we have no valid subregions after filtering, we need to show a message
-      if (filteredData.length === 0) {
-        setSubregions1([]);
-      } else {
-        setSubregions1(filteredData);
-      }
-    } catch (error: unknown) {
-      clientLogger.error('Error fetching subregions1:', error);
-      setFormError('Failed to load subregions. Please try refreshing the page.');
-      // setDebug(`Error: ${error.message}`);
-    } finally {
-      setIsLoadingOptions(false);
-    }
-  };
-  
-  // Fetch subregions2 for a specific subregion1
-  const fetchSubregions2 = async (subregion1Id) => {
-    try {
-      setIsLoadingOptions(true);
-      // setDebug(`Fetching subregions2 for subregion1 ID: ${subregion1Id}`);
-      
-      const response = await fetchWithAuth(`/api/locations?type=subregions2&parentId=${subregion1Id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch subregions');
-      }
-      
-      const data = await response.json();
-      // setDebug(`Received ${data.length} subregions2: ${JSON.stringify(data.slice(0, 2))}`);
-      
-      // Filter for only valid subregions
-      const filteredData = data.filter(item => 
-        item.parentId === subregion1Id || 
-        (item.parentId === null && item.subregion2)
-      );
-      
-      // setDebug(`Filtered to ${filteredData.length} valid subregions2`);
-      
-      // Update the subregions2 state
-      setSubregions2(filteredData);
-    } catch (error: unknown) {
-      clientLogger.error('Error fetching subregions2:', error);
-      setFormError('Failed to load subregions. Please try refreshing the page.');
-      // setDebug(`Error: ${error.message}`);
-    } finally {
-      setIsLoadingOptions(false);
-    }
-  };
-  
-  // Handle form input changes
-  const handleInputChange = (e: any) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-  
-  // Handle location type change
-  const handleLocationTypeChange = (e) => {
-    setLocationType(e.target.value);
-    // Reset selected values when changing type
-    if (e.target.value === 'country') {
-      setSelectedCountry(null);
-      setSelectedSubregion1(null);
-      setSelectedSubregion2(null);
-    } else if (e.target.value === 'subregion1') {
-      setSelectedSubregion1(null);
-      setSelectedSubregion2(null);
-    } else if (e.target.value === 'subregion2') {
-      setSelectedSubregion2(null);
-    }
-  };
-  
-  // Handle country selection
-  const handleCountryChange = (e) => {
-    const countryId = e.target.value;
-    const country = countries.find(c => c.id === countryId);
-    
-    // setDebug(`Selected country: ${JSON.stringify(country)}`);
-    setSelectedCountry(country);
-    
-    // Auto-fill country fields if adding a subregion
-    if (locationType !== 'country' && country) {
-      setFormData({
-        ...formData,
-        countryName: country.name || '',
-        twoLetter: country.code2 || '',
-        threeLetter: country.code3 || '',
-        numeric: country.numeric || '',
-        subregion1: '',
-        subregion2: '',
-        subregion3: '',
-      });
-    }
-  };
-  
-  // Handle subregion1 selection
-  const handleSubregion1Change = (e) => {
-    const subregion1Id = e.target.value;
-    const subregion1 = subregions1.find(s => s.id === subregion1Id);
-    
-    // setDebug(`Selected subregion1: ${JSON.stringify(subregion1)}`);
-    setSelectedSubregion1(subregion1);
-    
-    // Update form data with selected values
-    if (locationType !== 'subregion1' && subregion1) {
-      setFormData({
-        ...formData,
-        subregion1: subregion1.subregion1 || subregion1.name || '',
-      });
-    }
-  };
-  
-  // Handle subregion2 selection
-  const handleSubregion2Change = (e) => {
-    const subregion2Id = e.target.value;
-    const subregion2 = subregions2.find(s => s.id === subregion2Id);
-    
-    // setDebug(`Selected subregion2: ${JSON.stringify(subregion2)}`);
-    setSelectedSubregion2(subregion2);
-    
-    // Update form data with selected values
-    if (locationType === 'subregion3' && subregion2) {
-      setFormData({
-        ...formData,
-        subregion2: subregion2.subregion2 || subregion2.name || '',
-      });
-    }
-  };
-  
-// Prepare data for submission based on location type
-const prepareFormData = () => {
-  let data = { ...formData };
-  
-  // Create the base submission data with field names that match the API expectations
-  let submitData = {
-    countryName: "",      // API expects this name
-    twoLetter: "",        // API expects this name 
-    threeLetter: "",      // API expects this name
-    numeric: "",
-    subregion1: null,
-    subregion2: null,
-    subregion3: null,
-    parentId: null
-  };
+export function LocationForm({ onLocationAdded }: LocationFormProps) {
+  const {
+    // State
+    locationType,
+    selectedCountry,
+    selectedSubregion1,
+    selectedSubregion2,
+    countries,
+    subregions1,
+    subregions2,
+    formData,
+    formError,
+    isSubmitting,
+    isLoadingOptions,
+    isSuccess,
+    csvFile,
+    importStatus,
 
-  // Add specific fields based on location type
-  if (locationType === 'country') {
-    // For country, all country fields are required
-    submitData = {
-      ...submitData,
-      countryName: data.countryName,
-      twoLetter: data.twoLetter,
-      threeLetter: data.threeLetter,
-      numeric: data.numeric,
-      subregion1: data.subregion1 || null,
-      subregion2: data.subregion2 || null,
-      subregion3: data.subregion3 || null,
-      parentId: null
-    };
-  } else if (locationType === 'subregion1') {
-    // For subregion1, provide placeholder codes to pass API validation (API will generate real codes)
-    submitData = {
-      ...submitData,
-      name: data.subregion1,  // Use 'name' field instead of 'countryName'
-      countryName: data.subregion1, // Also keep this for backward compatibility
-      twoLetter: "XX",  // Placeholder - API will generate actual code like "CA_BRI"
-      threeLetter: "XXX",
-      numeric: "",
-      subregion1: data.subregion1,
-      subregion2: null,  // Explicitly set unused subregions
-      subregion3: null,
-      parentId: selectedCountry.id
-    };
-  } else if (locationType === 'subregion2') {
-    // For subregion2, provide placeholder codes to pass API validation (API will generate real codes)
-    submitData = {
-      ...submitData,
-      countryName: data.subregion2,  // Use subregion2 name as the countryName field
-      twoLetter: "XX",  // Placeholder - API will generate actual code
-      threeLetter: "XXX",
-      numeric: "",
-      subregion1: selectedSubregion1.subregion1 || selectedSubregion1.name || "",
-      subregion2: data.subregion2,
-      subregion3: null,  // Explicitly set unused subregion
-      parentId: selectedSubregion1.id
-    };
-  } else if (locationType === 'subregion3') {
-    // For subregion3, provide placeholder codes to pass API validation (API will generate real codes)
-    submitData = {
-      ...submitData,
-      countryName: data.subregion3,  // Use subregion3 name as the countryName field
-      twoLetter: "XX",  // Placeholder - API will generate actual code
-      threeLetter: "XXX",
-      numeric: "",
-      subregion1: selectedSubregion1.subregion1 || selectedSubregion1.name || "",
-      subregion2: selectedSubregion2.subregion2 || selectedSubregion2.name || "",
-      subregion3: data.subregion3,
-      parentId: selectedSubregion2.id
-    };
-  }
+    // Handlers
+    handleInputChange,
+    handleLocationTypeChange,
+    handleCountryChange,
+    handleSubregion1Change,
+    handleSubregion2Change,
+    handleSubmit,
+    handleFileChange,
+    handleImportCsv,
 
-  // setDebug(`Submitting data: ${JSON.stringify(submitData)}`);
-  return submitData;
-};
+    // Setters
+    setLocationType,
+  } = useLocationForm(onLocationAdded);
 
-  
-  // Form submission
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setFormError(null);
-  setIsSuccess(false);
-  setIsSubmitting(true);
-  
-  try {
-    // Prepare data based on location type
-    const submitData = prepareFormData();
-    
-    // Try sending with different field naming to match schema.prisma
-    const apiData = {
-      ...submitData,
-      // Ensure name field is always set
-      name: submitData.name || submitData.countryName,
-      // Add any fields that might be missing
-      disabled: false,
-      // If we're adding a subregion, ensure we have this structure
-      ...(locationType !== 'country' && {
-        parentId: submitData.parentId
-      })
-    };
-    
-
-    const response = await fetchWithAuth('/api/locations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(apiData),
-    });
-
-    if (!response.ok) {
-      // Try to get more detailed error information
-      try {
-        const errorData = await response.json();
-        clientLogger.info('API Error Response:', errorData);
-        // setDebug(`Error response: ${JSON.stringify(errorData)}`);
-        throw new Error(errorData.error || `Failed to add location. Status: ${response.status}`);
-      } catch (jsonError) {
-        // If we can't parse the error as JSON, use the status text
-        throw new Error(`Failed to add location: ${response.statusText}`);
-      }
-    }
-    
-    // Reset form
-    setFormData({
-      countryName: '',
-      twoLetter: '',
-      threeLetter: '',
-      numeric: '',
-      subregion1: '',
-      subregion2: '',
-      subregion3: '',
-    });
-    
-    setSelectedCountry(null);
-    setSelectedSubregion1(null);
-    setSelectedSubregion2(null);
-    
-    // Set success state
-    setIsSuccess(true);
-
-    // Notify parent component that a location was added
-    onLocationAdded();
-
-    // Reset success state after 2 seconds
-    setTimeout(() => {
-      setIsSuccess(false);
-    }, 2000);
-  } catch (err) {
-    clientLogger.error('Error adding location:', err);
-    if (err.message !== "Session expired") {
-      setFormError(err.message);
-    }
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-
-  // CSV file handling
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setCsvFile(e.target.files[0]);
-    }
-  };
-  
-  // CSV import submission
-  const handleImportCsv = async (e) => {
-    e.preventDefault();
-    if (!csvFile) {
-      setImportStatus({ loading: false, message: 'Please select a CSV file to import', error: true });
-      return;
-    }
-
-    setImportStatus({ loading: true, message: 'Importing locations...', error: false });
-
-    const formData = new FormData();
-    formData.append('csvFile', csvFile);
-
-    try {
-      const response = await fetchWithAuth('/api/locations/import', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to import locations');
-      }
-
-      setImportStatus({ 
-        loading: false, 
-        message: `Successfully imported ${result.imported} locations. ${result.skipped || 0} duplicates skipped.`, 
-        error: false 
-      });
-      setCsvFile(null);
-      onLocationAdded();
-    } catch (err) {
-      clientLogger.error('Error importing locations:', err);
-      if (err.message !== "Session expired") {
-        setImportStatus({ loading: false, message: err.message, error: true });
-      }
-    }
-  };
-  
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
       <h3 className="text-lg font-medium mb-4">Add Location</h3>
-      
+
       {formError && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           {formError}
@@ -501,7 +118,7 @@ const handleSubmit = async (e) => {
             </label>
           </div>
         </div>
-        
+
         {/* Cascading Dropdowns */}
         {locationType !== 'country' && (
           <div className="mb-6 space-y-4">
@@ -524,7 +141,7 @@ const handleSubmit = async (e) => {
                 ))}
               </select>
             </div>
-            
+
             {/* Subregion1 Dropdown (for Subregion2 and Subregion3) */}
             {(locationType === 'subregion2' || locationType === 'subregion3') && selectedCountry && (
               <div>
@@ -542,8 +159,7 @@ const handleSubmit = async (e) => {
                   {subregions1.length > 0 ? (
                     subregions1.map((subregion: any) => (
                       <option key={subregion.id} value={subregion.id}>
-                        {/* Only show this option if it has subregion1 value or is a different name than country */}
-                        {subregion.subregion1 || 
+                        {subregion.subregion1 ||
                           (subregion.name !== selectedCountry.name ? subregion.name : 'Unknown State/Province')}
                       </option>
                     ))
@@ -560,8 +176,6 @@ const handleSubmit = async (e) => {
                       type="button"
                       onClick={() => {
                         setLocationType('subregion1');
-                        setSelectedSubregion1(null);
-                        setSelectedSubregion2(null);
                       }}
                       className="text-blue-600 underline text-sm"
                     >
@@ -571,7 +185,7 @@ const handleSubmit = async (e) => {
                 )}
               </div>
             )}
-            
+
             {/* Subregion2 Dropdown (for Subregion3) */}
             {locationType === 'subregion3' && selectedSubregion1 && (
               <div>
@@ -589,7 +203,7 @@ const handleSubmit = async (e) => {
                   {subregions2.length > 0 ? (
                     subregions2.map((subregion: any) => (
                       <option key={subregion.id} value={subregion.id}>
-                        {subregion.subregion2 || 
+                        {subregion.subregion2 ||
                           (subregion.name !== selectedSubregion1.name ? subregion.name : 'Unknown County/District')}
                       </option>
                     ))
@@ -606,7 +220,6 @@ const handleSubmit = async (e) => {
                       type="button"
                       onClick={() => {
                         setLocationType('subregion2');
-                        setSelectedSubregion2(null);
                       }}
                       className="text-blue-600 underline text-sm"
                     >
@@ -618,11 +231,11 @@ const handleSubmit = async (e) => {
             )}
           </div>
         )}
-        
+
         {/* Location Details Form */}
         <div className="border-t border-gray-200 pt-4 mb-6">
           <h4 className="text-md font-medium mb-4">Location Details</h4>
-          
+
           <table className="w-full border-collapse">
             <tbody>
               {/* Country Name */}
@@ -647,7 +260,7 @@ const handleSubmit = async (e) => {
                   <span className="text-xs text-gray-500">Required</span>
                 </td>
               </tr>
-              
+
               {/* Two Letter Code */}
               <tr>
                 <td className="w-36 pr-2 py-2">
@@ -671,7 +284,7 @@ const handleSubmit = async (e) => {
                   <span className="text-xs text-gray-500">Required</span>
                 </td>
               </tr>
-              
+
               {/* Three Letter Code */}
               <tr>
                 <td className="w-36 pr-2 py-2">
@@ -695,7 +308,7 @@ const handleSubmit = async (e) => {
                   <span className="text-xs text-gray-500">Required</span>
                 </td>
               </tr>
-              
+
               {/* Numeric Code */}
               <tr>
                 <td className="w-36 pr-2 py-2">
@@ -718,7 +331,7 @@ const handleSubmit = async (e) => {
                   <span className="text-xs text-gray-500">Required</span>
                 </td>
               </tr>
-              
+
               {/* Subregion1 */}
               <tr>
                 <td className="w-36 pr-2 py-2">
@@ -741,7 +354,7 @@ const handleSubmit = async (e) => {
                   {locationType === 'subregion1' && <span className="text-xs text-gray-500">Required</span>}
                 </td>
               </tr>
-              
+
               {/* Subregion2 */}
               <tr>
                 <td className="w-36 pr-2 py-2">
@@ -764,7 +377,7 @@ const handleSubmit = async (e) => {
                   {locationType === 'subregion2' && <span className="text-xs text-gray-500">Required</span>}
                 </td>
               </tr>
-              
+
               {/* Subregion3 */}
               <tr>
                 <td className="w-36 pr-2 py-2">
@@ -790,7 +403,7 @@ const handleSubmit = async (e) => {
             </tbody>
           </table>
         </div>
-        
+
         <div className="mt-6">
           <button
             type="submit"
@@ -808,13 +421,13 @@ const handleSubmit = async (e) => {
 
       <div className="mt-8 pt-6 border-t border-gray-200">
         <h3 className="text-lg font-medium mb-4">Import Locations from CSV</h3>
-        
+
         {importStatus.message && (
           <div className={`${importStatus.error ? 'bg-red-100 border-red-400 text-red-700' : 'bg-green-100 border-green-400 text-green-700'} px-4 py-3 rounded mb-4 border`}>
             {importStatus.message}
           </div>
         )}
-        
+
         <form onSubmit={handleImportCsv} className="flex flex-col md:flex-row items-start md:items-end gap-4">
           <div className="flex-grow">
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -832,7 +445,7 @@ const handleSubmit = async (e) => {
                 hover:file:bg-blue-100"
             />
             <p className="text-xs text-gray-500 mt-1">
- CSV should have headers: name, code2, code3, numeric, subregion1, subregion2, subregion3, parentId
+              CSV should have headers: name, code2, code3, numeric, subregion1, subregion2, subregion3, parentId
             </p>
           </div>
           <div>
