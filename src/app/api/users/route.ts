@@ -14,10 +14,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions - require admin permission for user management
+    // Check permissions - require admin, users.manage permission, or all wildcard permissions for user management
     // This is a critical security check per our audit report
-    if (!session.user?.permissions?.admin) {
-      return NextResponse.json({ message: 'Forbidden: Admin permission required for user management' }, { status: 403 });
+    const hasAdminPermission = session.user?.permissions?.admin === true;
+    const hasUserManagePermission = session.user?.permissions?.users?.manage === true;
+
+    // Check if user has all wildcard permissions (super admin)
+    const hasAllWildcards = session.user?.permissions?.countries?.includes('*') &&
+                            session.user?.permissions?.services?.includes('*') &&
+                            session.user?.permissions?.dsx?.includes('*') &&
+                            session.user?.permissions?.customers?.includes('*');
+
+    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards) {
+      return NextResponse.json({ message: 'Forbidden: Admin or users.manage permission required for user management' }, { status: 403 });
     }
 
     // Fetch only admin users (not customer users)
@@ -56,10 +65,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions
-    const userPermissions = session.user.permissions;
-    if (!userPermissions || Object.keys(userPermissions).length === 0) {
-      return NextResponse.json({ message: 'Forbidden: Insufficient permissions' }, { status: 403 });
+    // Check permissions - require admin, users.manage permission, or all wildcard permissions for user management
+    const hasAdminPermission = session.user?.permissions?.admin === true;
+    const hasUserManagePermission = session.user?.permissions?.users?.manage === true;
+
+    // Check if user has all wildcard permissions (super admin)
+    const hasAllWildcards = session.user?.permissions?.countries?.includes('*') &&
+                            session.user?.permissions?.services?.includes('*') &&
+                            session.user?.permissions?.dsx?.includes('*') &&
+                            session.user?.permissions?.customers?.includes('*');
+
+    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards) {
+      return NextResponse.json({ message: 'Forbidden: Admin or users.manage permission required for user management' }, { status: 403 });
     }
 
     const body = await request.json();
