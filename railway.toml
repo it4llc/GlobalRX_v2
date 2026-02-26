@@ -1,0 +1,10 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npx prisma generate && pnpm run build"
+
+[deploy]
+startCommand = "npx prisma migrate deploy && pnpm run start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 60
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

@@ -24,6 +24,24 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+// Helper function to format data type labels
+function getDataTypeLabel(dataType: string): string {
+  const typeLabels: Record<string, string> = {
+    'text': 'Text',
+    'number': 'Number',
+    'date': 'Date',
+    'select': 'Select',
+    'checkbox': 'Checkbox',
+    'radio': 'Radio',
+    'textarea': 'Text Area',
+    'email': 'Email',
+    'phone': 'Phone',
+    'url': 'URL',
+    'file': 'File Upload'
+  };
+  return typeLabels[dataType] || dataType;
+}
+
 interface FieldOrderItem {
   requirementId: string;
   name: string;
@@ -74,7 +92,7 @@ function SortableField({ field }: { field: FieldOrderItem }) {
       <td className="p-2 font-medium">{field.name}</td>
       <td className="p-2 text-sm text-gray-600">
         {field.type === 'field'
-          ? field.dataType || 'Text'
+          ? getDataTypeLabel(field.dataType || 'text')
           : 'Document'}
       </td>
     </tr>
