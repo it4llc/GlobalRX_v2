@@ -1,3 +1,32 @@
+/**
+ * DSX Tab Component - Data & Document Requirement Selection
+ *
+ * This component provides the UI for configuring which data fields and documents
+ * are required for each service in each location. It implements a matrix-based
+ * approach where users can see all locations and requirements at a glance.
+ *
+ * COMPONENT ARCHITECTURE:
+ * - Pure UI component using useDsxTab hook for all business logic
+ * - Service selection drives the entire workflow (must select service first)
+ * - Requirements association section for adding/removing requirements from service
+ * - Field order management section for configuring display order
+ * - Requirements matrix table showing location × requirement grid
+ *
+ * WORKFLOW:
+ * 1. User selects a service from dropdown
+ * 2. User can associate new requirements with the service
+ * 3. User can reorder how requirements appear in the matrix
+ * 4. User configures which locations offer the service (availability)
+ * 5. User specifies which requirements are needed in each location
+ * 6. Configuration is saved to persist across sessions
+ *
+ * BUSINESS RULES:
+ * - Requirements can be selected for unavailable locations (preserved when re-enabled)
+ * - Service availability per location is independent of requirement selection
+ * - Field order affects display across the entire application
+ * - All changes require explicit save action
+ */
+
 // src/components/modules/global-config/tabs/dsx-tab.tsx
 'use client';
 
