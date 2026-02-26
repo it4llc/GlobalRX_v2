@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { 
   Card, 
@@ -48,6 +49,7 @@ type User = {
 
 export function UserAdminContent() {
   const [users, setUsers] = useState<User[]>([]);
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -65,12 +67,16 @@ export function UserAdminContent() {
       setLoading(true);
       const response = await fetch('/api/users');
       if (!response.ok) {
-        throw new Error('Failed to fetch users');
+        const errorData = await response.json();
+        // Add permission debugging info to the error
+        const permissionInfo = user?.permissions ? JSON.stringify(user.permissions) : 'No permissions found';
+        const errorMessage = `${errorData.message || 'Failed to fetch users'}. Current user permissions: ${permissionInfo}`;
+        throw new Error(errorMessage);
       }
       const data = await response.json();
       setUsers(data);
-    } catch (err) {
-      setError('An error occurred while fetching users');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while fetching users');
       clientLogger.error(err);
     } finally {
       setLoading(false);
