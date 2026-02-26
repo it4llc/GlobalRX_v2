@@ -20,7 +20,12 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:chromium": "playwright test --project=chromium",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "deploy": "./scripts/deploy.sh",
+    "deploy:staging": "NODE_ENV=production ./scripts/deploy.sh",
+    "deploy:production": "NODE_ENV=production ./scripts/deploy.sh",
+    "railway:staging": "railway link --project globalrx-staging && railway up",
+    "railway:production": "railway link --project globalrx-production && railway up"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
