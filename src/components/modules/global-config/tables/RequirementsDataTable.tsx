@@ -1,24 +1,23 @@
 // Enterprise-grade Requirements Table using TanStack Table
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
   getExpandedRowModel,
   ColumnDef,
   flexRender,
-  ExpandedState,
   Row,
-  Cell,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Requirement } from '@/types';
 import { cn } from '@/lib/utils';
+import { useRequirementsDataTable } from '@/hooks/useRequirementsDataTable';
 
 // Types
 interface Location {
@@ -50,144 +49,25 @@ interface RequirementsDataTableProps {
   isLoading?: boolean;
 }
 
-// Transform flat locations into hierarchical structure with computed fields
-function buildLocationHierarchy(
-  locations: Location[],
-  mappings: Record<string, boolean>,
-  availability: Record<string, boolean>
-): Location[] {
-  const locationMap = new Map<string, Location>();
-  const rootLocations: Location[] = [];
-
-  // Create ALL location
-  const allLocation: Location = {
-    id: 'all',
-    name: 'ALL',
-    level: 0,
-    children: [],
-    available: true, // Will be computed later
-    requirements: {}
-  };
-
-  locationMap.set('all', allLocation);
-  rootLocations.push(allLocation);
-
-  // First pass: create location objects
-  locations.forEach(loc => {
-    const location: Location = {
-      ...loc,
-      name: loc.name || loc.countryName || '',
-      children: [],
-      level: 0,
-      available: availability[loc.id] !== false,
-      requirements: {}
-    };
-    locationMap.set(loc.id, location);
-  });
-
-  // Second pass: build hierarchy
-  locations.forEach(loc => {
-    const location = locationMap.get(loc.id);
-    if (!location) return;
-
-    if (loc.parentId && locationMap.has(loc.parentId)) {
-      const parent = locationMap.get(loc.parentId);
-      if (parent) {
-        parent.children!.push(location);
-        location.level = (parent.level || 0) + 1;
-      }
-    } else {
-      allLocation.children!.push(location);
-      location.level = 1;
-    }
-  });
-
-  // Add requirement mappings
-  Object.entries(mappings).forEach(([key, value]) => {
-    const [locationId, requirementId] = key.split('___');
-    const location = locationMap.get(locationId);
-    if (location && location.requirements) {
-      location.requirements[requirementId] = value;
-    }
-  });
-
-  // Compute ALL checkbox state for each requirement based on whether all children are checked
-  const computeAllState = (parentLocation: Location, requirementId: string): boolean => {
-    if (!parentLocation.children || parentLocation.children.length === 0) {
-      return false;
-    }
-
-    // Check if all children have this requirement checked
-    return parentLocation.children.every(child => {
-      const childKey = `${child.id}___${requirementId}`;
-      // If the child has its own children, recursively check them
-      if (child.children && child.children.length > 0) {
-        return mappings[childKey] === true || computeAllState(child, requirementId);
-      }
-      // For leaf nodes, check the mapping directly
-      return mappings[childKey] === true;
-    });
-  };
-
-  // Update the ALL location's requirements based on children states
-  if (allLocation.requirements) {
-    // Get all unique requirement IDs from mappings
-    const requirementIds = new Set<string>();
-    Object.keys(mappings).forEach(key => {
-      const [, requirementId] = key.split('___');
-      if (requirementId) {
-        requirementIds.add(requirementId);
-      }
-    });
-
-    // For each requirement, check if ALL should be checked
-    requirementIds.forEach(requirementId => {
-      const allChecked = computeAllState(allLocation, requirementId);
-      allLocation.requirements[requirementId] = allChecked;
-    });
-  }
-
-  // Compute ALL availability state based on whether all children are available
-  if (allLocation.children && allLocation.children.length > 0) {
-    allLocation.available = allLocation.children.every(child => {
-      // If the child has its own children, check them recursively
-      const checkAvailability = (loc: Location): boolean => {
-        if (loc.children && loc.children.length > 0) {
-          return availability[loc.id] !== false || loc.children.every(checkAvailability);
-        }
-        return availability[loc.id] !== false;
-      };
-      return checkAvailability(child);
-    });
-  }
-
-  // Sort countries alphabetically
-  allLocation.children?.sort((a, b) =>
-    (a.name || '').localeCompare(b.name || '')
-  );
-
-  return rootLocations;
-}
-
-// Flatten hierarchical structure for table display
-function flattenLocations(locations: Location[], expanded: Set<string>): Location[] {
-  const result: Location[] = [];
-
-  function traverse(location: Location, parentExpanded: boolean = true) {
-    if (parentExpanded) {
-      result.push(location);
-    }
-
-    const isExpanded = expanded.has(location.id);
-    if (location.children && parentExpanded && isExpanded) {
-      location.children.forEach(child => traverse(child, true));
-    }
-  }
-
-  locations.forEach(loc => traverse(loc));
-  return result;
-}
-
+/**
+ * RequirementsDataTable Component
+ *
+ * This is a pure UI component that renders the requirements matrix table.
+ * All business logic is handled by the useRequirementsDataTable hook.
+ *
+ * The component is responsible for:
+ * - Rendering the table UI with TanStack Table
+ * - Implementing virtual scrolling for performance
+ * - Displaying requirement columns with checkboxes
+ * - Showing save/cancel buttons when changes are made
+ * - Handling the visual aspects (sticky columns, striping, etc.)
+ *
+ * Business logic handled by the hook:
+ * - Location hierarchy building
+ * - Checkbox propagation logic
+ * - Availability management
+ * - State tracking and save/cancel
+ */
 export function RequirementsDataTable({
   serviceName,
   requirements,
@@ -203,149 +83,35 @@ export function RequirementsDataTable({
   isLoading = false,
 }: RequirementsDataTableProps) {
 
-  // State
-  const [localMappings, setLocalMappings] = useState(initialMappings);
-  const [localAvailability, setLocalAvailability] = useState(initialAvailability);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [expanded, setExpanded] = useState<ExpandedState>({ 'all': true }); // Expand ALL by default using row ID
+  // Use the business logic hook
+  const {
+    hierarchicalData,
+    flattenedLocations,
+    sortedFields,
+    sortedDocuments,
+    sortedForms,
+    localMappings,
+    localAvailability,
+    hasChanges,
+    expandedState,
+    handleRequirementChange,
+    handleAvailabilityChange,
+    handleSave,
+    handleCancel,
+    setExpandedState,
+  } = useRequirementsDataTable({
+    locations,
+    requirements,
+    initialMappings,
+    initialAvailability,
+    onMappingChange,
+    onAvailabilityChange,
+    disabled,
+  });
+
   const parentRef = React.useRef<HTMLDivElement>(null);
 
-  // Separate requirements by type and sort by displayOrder to match the field order section
-  const fields = useMemo(() => {
-    const fieldReqs = requirements.filter(r => r.type === 'field');
-    // Sort by displayOrder to match the order shown in the Field Display Order section
-    const sorted = fieldReqs.sort((a, b) => {
-      const orderA = a.displayOrder ?? 999;
-      const orderB = b.displayOrder ?? 999;
-      return orderA - orderB;
-    });
-    return sorted;
-  }, [requirements]);
-
-  const documents = useMemo(() => {
-    const docReqs = requirements.filter(r => r.type === 'document');
-    // Sort by displayOrder to maintain consistent ordering
-    const sorted = docReqs.sort((a, b) => {
-      const orderA = a.displayOrder ?? 999;
-      const orderB = b.displayOrder ?? 999;
-      return orderA - orderB;
-    });
-    return sorted;
-  }, [requirements]);
-
-  const forms = useMemo(() => {
-    const formReqs = requirements.filter(r => r.type === 'form');
-    // Sort by displayOrder to maintain consistent ordering
-    const sorted = formReqs.sort((a, b) => {
-      const orderA = a.displayOrder ?? 999;
-      const orderB = b.displayOrder ?? 999;
-      return orderA - orderB;
-    });
-    return sorted;
-  }, [requirements]);
-
-  // Build hierarchical data
-  const hierarchicalData = useMemo(() => {
-    const data = buildLocationHierarchy(locations, localMappings, localAvailability);
-    return data;
-  }, [locations, localMappings, localAvailability]);
-
-  // Handle checkbox changes
-  const handleRequirementChange = useCallback((locationId: string, requirementId: string, checked: boolean) => {
-    if (disabled) return;
-
-    const newMappings = { ...localMappings };
-
-    // Build a location map for easy parent lookup
-    const locationMap = new Map<string, Location>();
-    const buildLocationMap = (locs: Location[]) => {
-      locs.forEach(loc => {
-        locationMap.set(loc.id, loc);
-        if (loc.children) buildLocationMap(loc.children);
-      });
-    };
-    buildLocationMap(hierarchicalData);
-
-    // Update this location and all children
-    const updateChildren = (locId: string, value: boolean) => {
-      newMappings[`${locId}___${requirementId}`] = value;
-      const location = locationMap.get(locId);
-      if (location?.children) {
-        location.children.forEach(child => updateChildren(child.id, value));
-      }
-    };
-
-    // If unchecking, also uncheck all parents up the chain
-    const updateParents = (locId: string) => {
-      const location = locationMap.get(locId);
-      if (location?.parentId) {
-        newMappings[`${location.parentId}___${requirementId}`] = false;
-        updateParents(location.parentId);
-      }
-      // Also check if this is under "all"
-      if (locId !== 'all' && !location?.parentId) {
-        newMappings[`all___${requirementId}`] = false;
-      }
-    };
-
-    // Apply the updates
-    updateChildren(locationId, checked);
-    if (!checked) {
-      updateParents(locationId);
-    }
-
-    setLocalMappings(newMappings);
-    setHasChanges(true);
-  }, [disabled, localMappings, hierarchicalData]);
-
-  const handleAvailabilityChange = useCallback((locationId: string, checked: boolean) => {
-    if (disabled) return;
-
-    const newAvailability = { ...localAvailability };
-
-    // Build a location map for easy parent lookup
-    const locationMap = new Map<string, Location>();
-    const buildLocationMap = (locs: Location[]) => {
-      locs.forEach(loc => {
-        locationMap.set(loc.id, loc);
-        if (loc.children) buildLocationMap(loc.children);
-      });
-    };
-    buildLocationMap(hierarchicalData);
-
-    // Update this location and all children
-    const updateChildren = (locId: string, value: boolean) => {
-      newAvailability[locId] = value;
-      const location = locationMap.get(locId);
-      if (location?.children) {
-        location.children.forEach(child => updateChildren(child.id, value));
-      }
-    };
-
-    // If unchecking, also uncheck all parents up the chain
-    const updateParents = (locId: string) => {
-      const location = locationMap.get(locId);
-      if (location?.parentId) {
-        newAvailability[location.parentId] = false;
-        updateParents(location.parentId);
-      }
-      // Also check if this is under "all"
-      if (locId !== 'all' && !location?.parentId) {
-        newAvailability['all'] = false;
-      }
-    };
-
-    // Apply the updates
-    updateChildren(locationId, checked);
-    if (!checked) {
-      updateParents(locationId);
-    }
-
-    setLocalAvailability(newAvailability);
-    setHasChanges(true);
-  }, [disabled, localAvailability, hierarchicalData]);
-
-  // Define columns
+  // Define columns for the table
   const columns = useMemo<ColumnDef<Location>[]>(() => {
     const baseColumns: ColumnDef<Location>[] = [
       {
@@ -433,7 +199,7 @@ export function RequirementsDataTable({
 
     // Add requirement columns
     const requirementColumns: ColumnDef<Location>[] = [
-      ...fields.map((field): ColumnDef<Location> => ({
+      ...sortedFields.map((field): ColumnDef<Location> => ({
         id: `field-${field.id}`,
         header: () => (
           <div className="text-xs text-center break-words leading-tight" title={field.description || field.name}>
@@ -462,7 +228,7 @@ export function RequirementsDataTable({
           );
         },
       })),
-      ...documents.map((doc): ColumnDef<Location> => ({
+      ...sortedDocuments.map((doc): ColumnDef<Location> => ({
         id: `doc-${doc.id}`,
         header: () => (
           <div className="text-xs text-center break-words leading-tight" title={doc.description || doc.name}>
@@ -491,7 +257,7 @@ export function RequirementsDataTable({
           );
         },
       })),
-      ...forms.map((form): ColumnDef<Location> => ({
+      ...sortedForms.map((form): ColumnDef<Location> => ({
         id: `form-${form.id}`,
         header: () => (
           <div className="text-xs text-center break-words leading-tight" title={form.description || form.name}>
@@ -524,18 +290,18 @@ export function RequirementsDataTable({
 
     return [...baseColumns, ...requirementColumns];
   }, [
-    fields,
-    documents,
-    forms,
+    sortedFields,
+    sortedDocuments,
+    sortedForms,
     localMappings,
     localAvailability,
     handleRequirementChange,
     handleAvailabilityChange,
     disabled,
     // Add a key based on the requirement IDs and their order to force column re-render when order changes
-    fields.map((f: any) => f.id).join(','),
-    documents.map((d: any) => d.id).join(','),
-    forms.map((f: any) => f.id).join(',')
+    sortedFields.map((f: any) => f.id).join(','),
+    sortedDocuments.map((d: any) => d.id).join(','),
+    sortedForms.map((f: any) => f.id).join(',')
   ]);
 
   // Create table instance
@@ -545,37 +311,12 @@ export function RequirementsDataTable({
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     getSubRows: (row) => row.children,
-    getRowId: (row) => row.id, // Use location ID as row ID
-    onExpandedChange: setExpanded,
+    getRowId: (row) => row.id,
+    onExpandedChange: setExpandedState as any,
     state: {
-      expanded,
+      expanded: expandedState,
     },
   });
-
-  // Handle save/cancel
-  const handleSave = () => {
-    if (onMappingChange) {
-      // Filter out 'all' location mappings
-      const filtered = Object.fromEntries(
-        Object.entries(localMappings).filter(([key]) => !key.startsWith('all___'))
-      );
-      onMappingChange(filtered);
-    }
-    if (onAvailabilityChange) {
-      // Filter out 'all' location
-      const filtered = Object.fromEntries(
-        Object.entries(localAvailability).filter(([key]) => key !== 'all')
-      );
-      onAvailabilityChange(filtered);
-    }
-    setHasChanges(false);
-  };
-
-  const handleCancel = () => {
-    setLocalMappings(initialMappings);
-    setLocalAvailability(initialAvailability);
-    setHasChanges(false);
-  };
 
   // Virtualization for performance - use expanded row model
   const { rows } = table.getExpandedRowModel();
@@ -594,7 +335,6 @@ export function RequirementsDataTable({
     virtualRows.length > 0
       ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0)
       : 0;
-
 
   return (
     <Card>
@@ -653,12 +393,12 @@ export function RequirementsDataTable({
                 <thead className="sticky top-0 z-20 bg-gray-50">
                   {table.getHeaderGroups().map((headerGroup: any) => (
                     <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header, index) => {
+                      {headerGroup.headers.map((header: any, index: number) => {
                         const isSticky = index <= 5; // First 6 columns are sticky
                         const stickyLeft = isSticky
                           ? headerGroup.headers
                               .slice(0, index)
-                              .reduce((sum, h) => sum + h.column.getSize(), 0)
+                              .reduce((sum: number, h: any) => sum + h.column.getSize(), 0)
                           : undefined;
 
                         return (
@@ -690,15 +430,15 @@ export function RequirementsDataTable({
                     </tr>
                   )}
                   {virtualRows.map((virtualRow: any) => {
-                    const row = rows[virtualRow.index];
+                    const row = rows[virtualRow.index] as Row<Location>;
                     return (
                       <tr key={row.id} className="hover:bg-gray-50">
-                        {row.getVisibleCells().map((cell, index) => {
+                        {row.getVisibleCells().map((cell: any, index: number) => {
                           const isSticky = index <= 5;
                           const stickyLeft = isSticky
                             ? row.getVisibleCells()
                                 .slice(0, index)
-                                .reduce((sum, c) => sum + c.column.getSize(), 0)
+                                .reduce((sum: number, c: any) => sum + c.column.getSize(), 0)
                             : undefined;
 
                           return (
