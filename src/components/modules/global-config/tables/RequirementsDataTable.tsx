@@ -1,7 +1,7 @@
 // Enterprise-grade Requirements Table using TanStack Table
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -13,11 +13,10 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Requirement } from '@/types';
 import { cn } from '@/lib/utils';
-import { useRequirementsDataTable } from '@/hooks/useRequirementsDataTable';
+import { useRequirementsDataTable, buildLocationHierarchy } from '@/hooks/useRequirementsDataTable';
+import { useRequirementsColumns } from './RequirementsTableColumns';
 
 // Types
 interface Location {
@@ -34,7 +33,27 @@ interface Location {
   requirements?: Record<string, boolean>;
 }
 
-interface RequirementsDataTableProps {
+// Controlled mode props - when parent manages all state
+interface ControlledModeProps {
+  controlled: true;
+  serviceName: string;
+  requirements: Requirement[];
+  locations: Location[];
+  locationRequirements: Record<string, string[]>; // DSX format: locationId -> requirementIds[]
+  locationAvailability: Record<string, boolean>; // DSX format: locationId -> boolean
+  onRequirementToggle: (locationId: string, requirementId: string) => void;
+  onAvailabilityToggle: (locationId: string) => void;
+  onSave: () => void;
+  isSaving: boolean;
+  onAddField?: () => void;
+  onAddDocument?: () => void;
+  onAddForm?: () => void;
+  isLoading?: boolean;
+}
+
+// Standalone mode props - when component manages own state (current behavior)
+interface StandaloneModeProps {
+  controlled?: false;
   serviceName: string;
   requirements: Requirement[];
   locations: Location[];
@@ -49,26 +68,130 @@ interface RequirementsDataTableProps {
   isLoading?: boolean;
 }
 
+type RequirementsDataTableProps = ControlledModeProps | StandaloneModeProps;
+
 /**
  * RequirementsDataTable Component
  *
- * This is a pure UI component that renders the requirements matrix table.
- * All business logic is handled by the useRequirementsDataTable hook.
+ * Enterprise-grade requirements matrix table with two operating modes:
  *
- * The component is responsible for:
- * - Rendering the table UI with TanStack Table
- * - Implementing virtual scrolling for performance
- * - Displaying requirement columns with checkboxes
- * - Showing save/cancel buttons when changes are made
- * - Handling the visual aspects (sticky columns, striping, etc.)
+ * CONTROLLED MODE (controlled: true):
+ * - Parent component manages all state (recommended for complex integrations)
+ * - Direct integration with DSX tab state management
+ * - No internal state management or save logic
+ * - Optimal performance and maintainability
  *
- * Business logic handled by the hook:
- * - Location hierarchy building
- * - Checkbox propagation logic
- * - Availability management
- * - State tracking and save/cancel
+ * STANDALONE MODE (controlled: false/undefined):
+ * - Component manages own state using useRequirementsDataTable hook
+ * - Self-contained save/cancel functionality
+ * - Backward compatible with existing usage
+ *
+ * Features:
+ * - TanStack Table with virtual scrolling for performance
+ * - Hierarchical location display with expand/collapse
+ * - Requirement columns with checkbox propagation
+ * - Sticky columns and visual enhancements
  */
-export function RequirementsDataTable({
+export function RequirementsDataTable(props: RequirementsDataTableProps) {
+  const isControlled = 'controlled' in props && props.controlled === true;
+
+  if (isControlled) {
+    return <ControlledRequirementsTable {...props} />;
+  } else {
+    return <StandaloneRequirementsTable {...props as StandaloneModeProps} />;
+  }
+}
+
+// Controlled mode implementation - uses parent state directly
+function ControlledRequirementsTable({
+  serviceName,
+  requirements,
+  locations,
+  locationRequirements,
+  locationAvailability,
+  onRequirementToggle,
+  onAvailabilityToggle,
+  onSave,
+  isSaving,
+  onAddField,
+  onAddDocument,
+  onAddForm,
+  isLoading = false,
+}: ControlledModeProps) {
+
+  // Convert DSX format to hierarchical display format
+  const hierarchicalData = useMemo(() => {
+    // Convert locationRequirements (Record<string, string[]>) to flat mappings for hierarchy builder
+    const flatMappings: Record<string, boolean> = {};
+    Object.entries(locationRequirements).forEach(([locationId, reqIds]) => {
+      reqIds.forEach(reqId => {
+        flatMappings[`${locationId}___${reqId}`] = true;
+      });
+    });
+
+    return buildLocationHierarchy(locations, flatMappings, locationAvailability);
+  }, [locations, locationRequirements, locationAvailability]);
+
+  // Sort requirements by type and displayOrder
+  const sortedFields = useMemo(() =>
+    requirements.filter(r => r.type === 'field').sort((a, b) => (a.displayOrder ?? 999) - (b.displayOrder ?? 999))
+  , [requirements]);
+
+  const sortedDocuments = useMemo(() =>
+    requirements.filter(r => r.type === 'document').sort((a, b) => (a.displayOrder ?? 999) - (b.displayOrder ?? 999))
+  , [requirements]);
+
+  const sortedForms = useMemo(() =>
+    requirements.filter(r => r.type === 'form').sort((a, b) => (a.displayOrder ?? 999) - (b.displayOrder ?? 999))
+  , [requirements]);
+
+  const [expandedState, setExpandedState] = useState<Record<string, boolean>>({ 'all': true });
+
+  return (
+    <RequirementsTableUI
+      serviceName={serviceName}
+      hierarchicalData={hierarchicalData}
+      sortedFields={sortedFields}
+      sortedDocuments={sortedDocuments}
+      sortedForms={sortedForms}
+      expandedState={expandedState}
+      setExpandedState={setExpandedState}
+      onRequirementToggle={onRequirementToggle}
+      onAvailabilityToggle={onAvailabilityToggle}
+      onSave={onSave}
+      hasChanges={false} // Parent manages when save button shows
+      isSaving={isSaving}
+      isLoading={isLoading}
+      onAddField={onAddField}
+      onAddDocument={onAddDocument}
+      onAddForm={onAddForm}
+      // For controlled mode, we check DSX state directly
+      isRequirementSelected={(locationId: string, requirementId: string) => {
+        if (locationId === 'all') {
+          // For ALL location, check if all children have this requirement
+          const all = hierarchicalData[0];
+          if (!all?.children?.length) return false;
+          return all.children.every(child => {
+            const childReqs = locationRequirements[child.id] || [];
+            return childReqs.includes(requirementId);
+          });
+        }
+        const reqs = locationRequirements[locationId] || [];
+        return reqs.includes(requirementId);
+      }}
+      isLocationAvailable={(locationId: string) => {
+        if (locationId === 'all') {
+          // For ALL location, show available if any child is available
+          return Object.values(locationAvailability).some(Boolean);
+        }
+        return locationAvailability[locationId] !== false;
+      }}
+    />
+  );
+}
+
+// Standalone mode implementation - uses internal hook
+function StandaloneRequirementsTable({
   serviceName,
   requirements,
   locations,
@@ -81,12 +204,11 @@ export function RequirementsDataTable({
   onAddForm,
   disabled = false,
   isLoading = false,
-}: RequirementsDataTableProps) {
+}: StandaloneModeProps) {
 
   // Use the business logic hook
   const {
     hierarchicalData,
-    flattenedLocations,
     sortedFields,
     sortedDocuments,
     sortedForms,
@@ -109,200 +231,105 @@ export function RequirementsDataTable({
     disabled,
   });
 
+  return (
+    <RequirementsTableUI
+      serviceName={serviceName}
+      hierarchicalData={hierarchicalData}
+      sortedFields={sortedFields}
+      sortedDocuments={sortedDocuments}
+      sortedForms={sortedForms}
+      expandedState={expandedState}
+      setExpandedState={setExpandedState}
+      onRequirementToggle={handleRequirementChange}
+      onAvailabilityToggle={handleAvailabilityChange}
+      onSave={handleSave}
+      onCancel={handleCancel}
+      hasChanges={hasChanges}
+      isSaving={false}
+      isLoading={isLoading}
+      disabled={disabled}
+      onAddField={onAddField}
+      onAddDocument={onAddDocument}
+      onAddForm={onAddForm}
+      isRequirementSelected={(locationId: string, requirementId: string) => {
+        if (locationId === 'all') {
+          const all = hierarchicalData[0];
+          return all.requirements?.[requirementId] === true;
+        }
+        return localMappings[`${locationId}___${requirementId}`] === true;
+      }}
+      isLocationAvailable={(locationId: string) => {
+        if (locationId === 'all') {
+          const all = hierarchicalData[0];
+          return all.available === true;
+        }
+        return localAvailability[locationId] !== false;
+      }}
+    />
+  );
+}
+
+// Shared UI component props
+interface RequirementsTableUIProps {
+  serviceName: string;
+  hierarchicalData: Location[];
+  sortedFields: Requirement[];
+  sortedDocuments: Requirement[];
+  sortedForms: Requirement[];
+  expandedState: Record<string, boolean>;
+  setExpandedState: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  onRequirementToggle: (locationId: string, requirementId: string) => void;
+  onAvailabilityToggle: (locationId: string) => void;
+  onSave: () => void;
+  onCancel?: () => void;
+  hasChanges: boolean;
+  isSaving: boolean;
+  isLoading: boolean;
+  disabled?: boolean;
+  onAddField?: () => void;
+  onAddDocument?: () => void;
+  onAddForm?: () => void;
+  isRequirementSelected: (locationId: string, requirementId: string) => boolean;
+  isLocationAvailable: (locationId: string) => boolean;
+}
+
+// Shared UI component used by both modes
+function RequirementsTableUI({
+  serviceName,
+  hierarchicalData,
+  sortedFields,
+  sortedDocuments,
+  sortedForms,
+  expandedState,
+  setExpandedState,
+  onRequirementToggle,
+  onAvailabilityToggle,
+  onSave,
+  onCancel,
+  hasChanges,
+  isSaving,
+  isLoading,
+  disabled = false,
+  onAddField,
+  onAddDocument,
+  onAddForm,
+  isRequirementSelected,
+  isLocationAvailable,
+}: RequirementsTableUIProps) {
+
   const parentRef = React.useRef<HTMLDivElement>(null);
 
   // Define columns for the table
-  const columns = useMemo<ColumnDef<Location>[]>(() => {
-    const baseColumns: ColumnDef<Location>[] = [
-      {
-        id: 'expander',
-        header: () => null,
-        size: 24,
-        cell: ({ row }) => {
-          const location = row.original;
-          return location.children && location.children.length > 0 ? (
-            <button
-              onClick={row.getToggleExpandedHandler()}
-              className="p-0.5 hover:bg-gray-100 rounded"
-            >
-              {row.getIsExpanded() ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </button>
-          ) : null;
-        },
-      },
-      {
-        id: 'country',
-        header: 'Country',
-        size: 100,
-        cell: ({ row }) => {
-          const location = row.original;
-          const indent = location.level > 1 ? (location.level - 1) * 8 : 0;
-          return (
-            <div style={{ paddingLeft: `${indent}px` }} className="font-medium">
-              {location.level === 0 ? 'ALL' :
-               location.level === 1 ? location.name : ''}
-            </div>
-          );
-        },
-      },
-      {
-        id: 'subregion1',
-        header: 'SUBREG-1',
-        size: 80,
-        cell: ({ row }) => {
-          const location = row.original;
-          return location.level === 2 ? location.name : location.subregion1 || '';
-        },
-      },
-      {
-        id: 'subregion2',
-        header: 'SUBREG-2',
-        size: 80,
-        cell: ({ row }) => {
-          const location = row.original;
-          return location.level === 3 ? location.name : location.subregion2 || '';
-        },
-      },
-      {
-        id: 'subregion3',
-        header: 'SUBREG-3',
-        size: 80,
-        cell: ({ row }) => {
-          const location = row.original;
-          return location.level === 4 ? location.name : location.subregion3 || '';
-        },
-      },
-      {
-        id: 'available',
-        header: 'Avail',
-        size: 50,
-        cell: ({ row }) => {
-          const location = row.original;
-          // For ALL location, use the computed available state
-          const isChecked = location.id === 'all'
-            ? location.available === true
-            : localAvailability[location.id] !== false;
-          return (
-            <div className="flex justify-center">
-              <Checkbox
-                checked={isChecked}
-                onCheckedChange={(checked) =>
-                  handleAvailabilityChange(location.id, checked === true)
-                }
-                disabled={disabled}
-              />
-            </div>
-          );
-        },
-      },
-    ];
-
-    // Add requirement columns
-    const requirementColumns: ColumnDef<Location>[] = [
-      ...sortedFields.map((field): ColumnDef<Location> => ({
-        id: `field-${field.id}`,
-        header: () => (
-          <div className="text-xs text-center break-words leading-tight" title={field.description || field.name}>
-            {field.name}
-          </div>
-        ),
-        size: 80,
-        cell: ({ row }) => {
-          const location = row.original;
-          // For ALL location, use the computed state from location.requirements
-          const isChecked = location.id === 'all'
-            ? location.requirements?.[field.id] === true
-            : localMappings[`${location.id}___${field.id}`] === true;
-          const isAvailable = localAvailability[location.id] !== false;
-          return (
-            <div className="flex justify-center">
-              <Checkbox
-                checked={isChecked}
-                onCheckedChange={(checked) =>
-                  handleRequirementChange(location.id, field.id, checked === true)
-                }
-                disabled={disabled || !isAvailable}
-                className={cn(!isAvailable && 'opacity-50')}
-              />
-            </div>
-          );
-        },
-      })),
-      ...sortedDocuments.map((doc): ColumnDef<Location> => ({
-        id: `doc-${doc.id}`,
-        header: () => (
-          <div className="text-xs text-center break-words leading-tight" title={doc.description || doc.name}>
-            {doc.name}
-          </div>
-        ),
-        size: 80,
-        cell: ({ row }) => {
-          const location = row.original;
-          // For ALL location, use the computed state from location.requirements
-          const isChecked = location.id === 'all'
-            ? location.requirements?.[doc.id] === true
-            : localMappings[`${location.id}___${doc.id}`] === true;
-          const isAvailable = localAvailability[location.id] !== false;
-          return (
-            <div className="flex justify-center">
-              <Checkbox
-                checked={isChecked}
-                onCheckedChange={(checked) =>
-                  handleRequirementChange(location.id, doc.id, checked === true)
-                }
-                disabled={disabled || !isAvailable}
-                className={cn(!isAvailable && 'opacity-50')}
-              />
-            </div>
-          );
-        },
-      })),
-      ...sortedForms.map((form): ColumnDef<Location> => ({
-        id: `form-${form.id}`,
-        header: () => (
-          <div className="text-xs text-center break-words leading-tight" title={form.description || form.name}>
-            {form.name}
-          </div>
-        ),
-        size: 80,
-        cell: ({ row }) => {
-          const location = row.original;
-          // For ALL location, use the computed state from location.requirements
-          const isChecked = location.id === 'all'
-            ? location.requirements?.[form.id] === true
-            : localMappings[`${location.id}___${form.id}`] === true;
-          const isAvailable = localAvailability[location.id] !== false;
-          return (
-            <div className="flex justify-center">
-              <Checkbox
-                checked={isChecked}
-                onCheckedChange={(checked) =>
-                  handleRequirementChange(location.id, form.id, checked === true)
-                }
-                disabled={disabled || !isAvailable}
-                className={cn(!isAvailable && 'opacity-50')}
-              />
-            </div>
-          );
-        },
-      })),
-    ];
-
-    return [...baseColumns, ...requirementColumns];
-  }, [
+  const columns = useRequirementsColumns({
     sortedFields,
     sortedDocuments,
     sortedForms,
-    localMappings,
-    localAvailability,
-    handleRequirementChange,
-    handleAvailabilityChange,
+    onRequirementToggle,
+    onAvailabilityToggle,
+    isRequirementSelected,
+    isLocationAvailable,
     disabled,
-    // Add a key based on the requirement IDs and their order to force column re-render when order changes
-    sortedFields.map((f: any) => f.id).join(','),
-    sortedDocuments.map((d: any) => d.id).join(','),
-    sortedForms.map((f: any) => f.id).join(',')
-  ]);
+  });
 
   // Create table instance
   const table = useReactTable({
@@ -364,11 +391,13 @@ export function RequirementsDataTable({
       <CardContent>
         {hasChanges && (
           <div className="flex justify-end gap-2 mb-4">
-            <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
-              Cancel Changes
-            </Button>
-            <Button onClick={handleSave} disabled={isLoading}>
-              Save Changes
+            {onCancel && (
+              <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+                Cancel Changes
+              </Button>
+            )}
+            <Button onClick={onSave} disabled={isLoading || isSaving}>
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         )}
@@ -377,7 +406,7 @@ export function RequirementsDataTable({
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
-        ) : requirements.length === 0 ? (
+        ) : (sortedFields.length + sortedDocuments.length + sortedForms.length) === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <p>No requirements have been defined yet.</p>
             <p className="text-sm mt-2">Click "Add Data Field" or "Add Document" to get started.</p>

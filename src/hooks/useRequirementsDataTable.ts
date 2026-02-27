@@ -20,10 +20,10 @@
  *    - This ensures logical consistency (parent can't be "complete" if child isn't)
  *
  * 3. ALL Checkbox Special Logic:
- *    - The ALL checkbox state is COMPUTED, never directly set
- *    - Shows checked only when EVERY child location is checked
- *    - Checking ALL will check every location in the system
- *    - ALL state is excluded from saved data (it's derivable)
+ *    - The ALL checkbox state is PROVIDED by the parent component
+ *    - When used in controlled mode, parent manages ALL state computation
+ *    - When used standalone, hook computes ALL state based on children
+ *    - ALL state is excluded from saved data (managed separately by parent)
  *
  * 4. Location Availability:
  *    - Controls whether requirements can be selected for a location
@@ -45,10 +45,9 @@
  *
  * Key Features:
  * - Builds hierarchical location structure with ALL as root
- * - Manages parent-child checkbox propagation for requirements
- * - Handles location availability with cascade logic
- * - Tracks local changes with save/cancel functionality
- * - Computes ALL checkbox state based on children
+ * - Manages parent-child checkbox propagation for requirements (standalone mode)
+ * - Uses provided state directly in controlled mode
+ * - Tracks local changes with save/cancel functionality (standalone mode)
  * - Provides flattened data for virtual scrolling
  */
 
@@ -111,7 +110,7 @@ interface UseRequirementsDataTableReturn {
  * - Creates a virtual ALL node as the root of the hierarchy
  * - Organizes locations based on parentId relationships
  * - Computes level for each location (0=ALL, 1=Country, 2=Subregion1, etc.)
- * - Calculates ALL checkbox state based on whether all children are checked
+ * - Uses provided ALL state directly from mappings and availability parameters
  * - Sorts countries alphabetically for consistent user experience
  * - Preserves requirement selections even for unavailable locations
  *
@@ -120,7 +119,7 @@ interface UseRequirementsDataTableReturn {
  * @param availability - Record of locationId -> boolean for service availability
  * @returns Hierarchical location tree with ALL as root
  */
-function buildLocationHierarchy(
+export function buildLocationHierarchy(
   locations: Location[],
   mappings: Record<string, boolean>,
   availability: Record<string, boolean>
@@ -134,7 +133,7 @@ function buildLocationHierarchy(
     name: 'ALL',
     level: 0,
     children: [],
-    available: true, // Will be computed later
+    available: availability['all'] !== false, // Use the passed-in availability directly
     requirements: {}
   };
 
@@ -180,53 +179,22 @@ function buildLocationHierarchy(
     }
   });
 
-  // Compute ALL checkbox state for each requirement based on whether all children are checked
-  const computeAllState = (parentLocation: Location, requirementId: string): boolean => {
-    if (!parentLocation.children || parentLocation.children.length === 0) {
-      return false;
-    }
 
-    // Check if all children have this requirement checked
-    return parentLocation.children.every(child => {
-      const childKey = `${child.id}___${requirementId}`;
-      // If the child has its own children, recursively check them
-      if (child.children && child.children.length > 0) {
-        return mappings[childKey] === true || computeAllState(child, requirementId);
-      }
-      // For leaf nodes, check the mapping directly
-      return mappings[childKey] === true;
-    });
-  };
-
-  // Update the ALL location's requirements based on children states
+  // Update the ALL location's requirements based on passed-in mappings
   if (allLocation.requirements) {
     // Get all unique requirement IDs from mappings
     const requirementIds = new Set<string>();
     Object.keys(mappings).forEach(key => {
-      const [, requirementId] = key.split('___');
+      const [locationId, requirementId] = key.split('___');
       if (requirementId) {
         requirementIds.add(requirementId);
       }
     });
 
-    // For each requirement, check if ALL should be checked
+    // For each requirement, use the passed-in mapping for ALL
     requirementIds.forEach(requirementId => {
-      const allChecked = computeAllState(allLocation, requirementId);
-      allLocation.requirements[requirementId] = allChecked;
-    });
-  }
-
-  // Compute ALL availability state based on whether all children are available
-  if (allLocation.children && allLocation.children.length > 0) {
-    allLocation.available = allLocation.children.every(child => {
-      // If the child has its own children, check them recursively
-      const checkAvailability = (loc: Location): boolean => {
-        if (loc.children && loc.children.length > 0) {
-          return availability[loc.id] !== false || loc.children.every(checkAvailability);
-        }
-        return availability[loc.id] !== false;
-      };
-      return checkAvailability(child);
+      const allKey = `all___${requirementId}`;
+      allLocation.requirements[requirementId] = mappings[allKey] === true;
     });
   }
 
