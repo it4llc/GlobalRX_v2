@@ -31,9 +31,10 @@ export default defineConfig({
         }
       }
     },
-    testMatch: [
-      '**/__tests__/**/*.{test,spec}.{ts,tsx}',
-      '**/*.{test,spec}.{ts,tsx}'
+    // Use 'include' instead of 'testMatch' to avoid duplicates
+    include: [
+      'src/**/*.{test,spec}.{ts,tsx}',
+      'src/**/__tests__/**/*.{ts,tsx}'
     ],
     exclude: [
       'node_modules',
