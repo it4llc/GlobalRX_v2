@@ -1,10 +1,10 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    branches: [main, dev, staging, feature/*]
   pull_request:
     branches: [main, dev, staging]
+  push:
+    branches: [main]  # Only run on direct pushes to main (after PR merge)
 
 env:
   NODE_VERSION: '20'
@@ -14,8 +14,6 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
-    # Skip duplicate test runs on merge commits
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
 
     services:
       postgres:
@@ -82,8 +80,6 @@ jobs:
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
-    # Skip duplicate runs on merge commits
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
 
     steps:
       - name: Checkout code
@@ -160,8 +156,6 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
-    # Skip duplicate runs on merge commits
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
 
     steps:
       - name: Checkout code
