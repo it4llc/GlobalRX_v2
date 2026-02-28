@@ -188,6 +188,7 @@ export function useDsxTab() {
 
 
       // Compute and add ALL state explicitly
+      // ALL is checked unless at least one location is explicitly set to false
       const allAvailable = locationsData.length > 0 && locationsData.every((loc: any) => newLocationAvailability[loc.id] !== false);
       newLocationAvailability['all'] = allAvailable;
 
@@ -248,6 +249,7 @@ export function useDsxTab() {
         };
 
         // Update ALL state based on whether all individual locations are now available
+        // ALL should be unchecked if any location is explicitly false
         const allLocationsAvailable = locations.every(loc =>
           newAvailability[loc.id] !== false
         );
