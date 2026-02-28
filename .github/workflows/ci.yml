@@ -3,8 +3,6 @@ name: CI/CD Pipeline
 on:
   pull_request:
     branches: [main, dev, staging]
-  push:
-    branches: [main]  # Only run on direct pushes to main (after PR merge)
 
 env:
   NODE_VERSION: '20'
