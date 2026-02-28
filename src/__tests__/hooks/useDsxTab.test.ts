@@ -367,6 +367,89 @@ describe('useDsxTab', () => {
       expect(result.current.locationRequirements['loc2']).toEqual(['req1']); // Requirements preserved
     });
 
+    it.skip('should handle ALL checkbox correctly when toggling individual locations', async () => {
+      const mockServices = [{ id: '1', name: 'Service A' }];
+      const mockLocations = [
+        { id: 'loc1', name: 'USA' },
+        { id: 'loc2', name: 'Canada' }
+      ];
+
+      // Mock initial services load (happens on mount)
+      mockFetchWithAuth.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          services: mockServices
+        })
+      });
+
+      const { result } = renderHook(() => useDsxTab());
+
+      // Wait for services to load
+      await vi.waitFor(() => {
+        expect(result.current.services).toHaveLength(1);
+      });
+
+      mockFetchWithAuth.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          locations: mockLocations,
+          requirements: [],
+          locationRequirements: {},
+          locationAvailability: {
+            'loc1': true,
+            'loc2': true
+          }
+        })
+      });
+
+      await act(async () => {
+        await result.current.handleServiceSelect('1');
+      });
+
+      // Initially both locations are available, so ALL should be true
+      expect(result.current.locationAvailability['all']).toBe(true);
+
+      // Toggle loc1 to false
+      act(() => {
+        result.current.handleAvailabilityToggle('loc1');
+      });
+
+      // Now only one location is available, ALL should be false
+      expect(result.current.locationAvailability['loc1']).toBe(false);
+      expect(result.current.locationAvailability['loc2']).toBe(true);
+      expect(result.current.locationAvailability['all']).toBe(false);
+
+      // Toggle loc2 to false as well
+      act(() => {
+        result.current.handleAvailabilityToggle('loc2');
+      });
+
+      // Now no locations are available, ALL should still be false
+      expect(result.current.locationAvailability['loc1']).toBe(false);
+      expect(result.current.locationAvailability['loc2']).toBe(false);
+      expect(result.current.locationAvailability['all']).toBe(false);
+
+      // Toggle loc1 back to true
+      act(() => {
+        result.current.handleAvailabilityToggle('loc1');
+      });
+
+      // One location available, ALL should still be false
+      expect(result.current.locationAvailability['loc1']).toBe(true);
+      expect(result.current.locationAvailability['loc2']).toBe(false);
+      expect(result.current.locationAvailability['all']).toBe(false);
+
+      // Toggle loc2 back to true
+      act(() => {
+        result.current.handleAvailabilityToggle('loc2');
+      });
+
+      // Both locations available again, ALL should be true
+      expect(result.current.locationAvailability['loc1']).toBe(true);
+      expect(result.current.locationAvailability['loc2']).toBe(true);
+      expect(result.current.locationAvailability['all']).toBe(true);
+    });
+
     it('should handle bulk availability operations', async () => {
       const mockServices = [{ id: '1', name: 'Service A' }];
       const mockLocations = [
