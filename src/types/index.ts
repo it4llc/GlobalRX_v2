@@ -50,6 +50,8 @@ export interface Requirement {
   id: string;
   name: string;
   type: RequirementType;
+  displayOrder?: number;
+  description?: string;
   field?: DataField;
   document?: Document;
   form?: Form;

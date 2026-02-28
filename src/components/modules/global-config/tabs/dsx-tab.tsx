@@ -248,25 +248,7 @@ export function DSXTab() {
     }
   }, [selectedService, selectedRequirementIds, availableRequirements, fetchWithAuth, handleServiceSelect]);
 
-  // Handle mapping changes from the data table (legacy compatibility)
-  const handleMappingChange = useCallback((mappingKey: string, checked: boolean) => {
-    // Parse the legacy mapping key format
-    const [locationId, requirementId] = mappingKey.split('___');
-    handleRequirementToggle(locationId, requirementId);
-  }, [handleRequirementToggle]);
-
-  // Handle availability changes from the data table (legacy compatibility)
-  const handleAvailabilityChange = useCallback((locationId: string, checked: boolean) => {
-    handleAvailabilityToggle(locationId);
-  }, [handleAvailabilityToggle]);
-
-  // Convert hook data to legacy format for RequirementsDataTable
-  const legacyMappings = Object.entries(locationRequirements).reduce((acc, [locationId, reqIds]) => {
-    reqIds.forEach(reqId => {
-      acc[`${locationId}___${reqId}`] = true;
-    });
-    return acc;
-  }, {} as Record<string, boolean>);
+  // No more complex callback logic needed - direct state integration!
 
   // Handle field order changes (refresh DSX data)
   const handleFieldOrderChange = useCallback(() => {
@@ -469,16 +451,17 @@ export function DSXTab() {
               </div>
             ) : (
               <RequirementsDataTable
+                controlled={true}
                 serviceName={selectedServiceName}
                 requirements={enrichedRequirements as Requirement[]}
-                onMappingChange={handleMappingChange}
-                initialMappings={legacyMappings}
-                serviceId={selectedService}
-                onAvailabilityChange={handleAvailabilityChange}
-                initialAvailability={locationAvailability}
-                isLoading={isLoading}
-                disabled={isSaving}
                 locations={locations}
+                locationRequirements={locationRequirements}
+                locationAvailability={locationAvailability}
+                onRequirementToggle={handleRequirementToggle}
+                onAvailabilityToggle={handleAvailabilityToggle}
+                onSave={handleSave}
+                isSaving={isSaving}
+                isLoading={isLoading}
               />
             )}
           </CardContent>

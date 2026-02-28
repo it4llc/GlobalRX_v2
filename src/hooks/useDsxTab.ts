@@ -28,6 +28,7 @@
  *    - Each checkbox indicates if a requirement is needed in that location
  *    - Requirements can be selected even if location is unavailable
  *    - Bulk operations supported (select all/none per location or requirement)
+ *    - ALL state is computed and managed explicitly to ensure UI consistency
  *
  * 5. FIELD ORDER MANAGEMENT:
  *    - Controls display order of requirement columns
@@ -150,7 +151,11 @@ export function useDsxTab() {
       // Log for debugging
       logger.info('DSX data received:', {
         requirementsCount: requirementsData.length,
-        requirementIds: requirementsData.map((r: any) => r.id)
+        requirementIds: requirementsData.map((r: any) => r.id),
+        mappingsReceived: !!dsxData.mappings,
+        mappingsCount: dsxData.mappings ? Object.keys(dsxData.mappings).length : 0,
+        availabilityReceived: !!dsxData.availability,
+        availabilityCount: dsxData.availability ? Object.keys(dsxData.availability).length : 0
       });
 
       // Process mappings to convert from legacy format to our format
@@ -159,6 +164,7 @@ export function useDsxTab() {
 
       // Convert legacy mappings (locationId___requirementId) to our format
       if (dsxData.mappings) {
+        logger.info('Processing mappings:', dsxData.mappings);
         Object.entries(dsxData.mappings).forEach(([key, value]) => {
           const [locationId, requirementId] = key.split('___');
           if (value === true) {
@@ -168,6 +174,9 @@ export function useDsxTab() {
             newLocationRequirements[locationId].push(requirementId);
           }
         });
+        logger.info('Processed location requirements:', newLocationRequirements);
+      } else {
+        logger.warn('No mappings data received from API');
       }
 
       // Process availability
@@ -177,7 +186,28 @@ export function useDsxTab() {
         });
       }
 
-      setLocationRequirements(newLocationRequirements);
+
+      // Compute and add ALL state explicitly
+      const allAvailable = locationsData.length > 0 && locationsData.every((loc: any) => newLocationAvailability[loc.id] !== false);
+      newLocationAvailability['all'] = allAvailable;
+
+      // Compute ALL requirements state
+      const allLocationRequirements: Record<string, string[]> = { ...newLocationRequirements };
+      if (requirementsData.length > 0) {
+        const allRequirementIds: string[] = [];
+        requirementsData.forEach((req: any) => {
+          // Check if ALL locations have this requirement
+          const allLocationsHaveReq = locationsData.length > 0 && locationsData.every((loc: any) =>
+            newLocationRequirements[loc.id]?.includes(req.id)
+          );
+          if (allLocationsHaveReq) {
+            allRequirementIds.push(req.id);
+          }
+        });
+        allLocationRequirements['all'] = allRequirementIds;
+      }
+
+      setLocationRequirements(allLocationRequirements);
       setLocationAvailability(newLocationAvailability);
 
       // Set field order
@@ -196,11 +226,37 @@ export function useDsxTab() {
   };
 
   const handleAvailabilityToggle = useCallback((locationId: string) => {
-    setLocationAvailability(prev => ({
-      ...prev,
-      [locationId]: !prev[locationId]
-    }));
-  }, []);
+    if (locationId === 'all') {
+      // Special handling for ALL checkbox - determine current UI state
+      // The ALL checkbox appears checked when all individual locations are available
+      const allCurrentlyChecked = locations.every(loc => locationAvailability[loc.id] !== false);
+      const newValue = !allCurrentlyChecked;
+
+
+      const newAvailability: Record<string, boolean> = { ...locationAvailability };
+      locations.forEach(location => {
+        newAvailability[location.id] = newValue;
+      });
+      newAvailability['all'] = newValue; // ALL state matches the new value
+      setLocationAvailability(newAvailability);
+    } else {
+      // Normal single location toggle
+      setLocationAvailability(prev => {
+        const newAvailability = {
+          ...prev,
+          [locationId]: !prev[locationId]
+        };
+
+        // Update ALL state based on whether all individual locations are now available
+        const allLocationsAvailable = locations.every(loc =>
+          newAvailability[loc.id] !== false
+        );
+        newAvailability['all'] = allLocationsAvailable;
+
+        return newAvailability;
+      });
+    }
+  }, [locations, locationAvailability]);
 
   const handleSelectAllAvailability = useCallback(() => {
     const newAvailability: Record<string, boolean> = {};
@@ -220,17 +276,63 @@ export function useDsxTab() {
 
   const handleRequirementToggle = useCallback((locationId: string, requirementId: string) => {
     setLocationRequirements(prev => {
-      const currentRequirements = prev[locationId] || [];
-      const isSelected = currentRequirements.includes(requirementId);
+      const newRequirements = { ...prev };
 
-      return {
-        ...prev,
-        [locationId]: isSelected
+      if (locationId === 'all') {
+        // Special handling for ALL - toggle requirement for all locations
+        const allCurrentlyHave = locations.every(loc =>
+          newRequirements[loc.id]?.includes(requirementId)
+        );
+        const newValue = !allCurrentlyHave;
+
+        locations.forEach(loc => {
+          const currentReqs = newRequirements[loc.id] || [];
+          if (newValue) {
+            // Add requirement to all locations that don't have it
+            if (!currentReqs.includes(requirementId)) {
+              newRequirements[loc.id] = [...currentReqs, requirementId];
+            }
+          } else {
+            // Remove requirement from all locations
+            newRequirements[loc.id] = currentReqs.filter(id => id !== requirementId);
+          }
+        });
+
+        // Update ALL state
+        const allReqs = newRequirements['all'] || [];
+        if (newValue) {
+          if (!allReqs.includes(requirementId)) {
+            newRequirements['all'] = [...allReqs, requirementId];
+          }
+        } else {
+          newRequirements['all'] = allReqs.filter(id => id !== requirementId);
+        }
+      } else {
+        // Normal single location toggle
+        const currentRequirements = newRequirements[locationId] || [];
+        const isSelected = currentRequirements.includes(requirementId);
+
+        newRequirements[locationId] = isSelected
           ? currentRequirements.filter(id => id !== requirementId)
-          : [...currentRequirements, requirementId]
-      };
+          : [...currentRequirements, requirementId];
+
+        // Update ALL state based on whether all individual locations now have this requirement
+        const allLocationsHaveReq = locations.every(loc =>
+          newRequirements[loc.id]?.includes(requirementId)
+        );
+        const allReqs = newRequirements['all'] || [];
+        if (allLocationsHaveReq) {
+          if (!allReqs.includes(requirementId)) {
+            newRequirements['all'] = [...allReqs, requirementId];
+          }
+        } else {
+          newRequirements['all'] = allReqs.filter(id => id !== requirementId);
+        }
+      }
+
+      return newRequirements;
     });
-  }, []);
+  }, [locations]);
 
   const handleSelectAllRequirements = useCallback((locationId: string) => {
     setLocationRequirements(prev => ({
@@ -312,27 +414,55 @@ export function useDsxTab() {
       setIsSaving(true);
       setError(null);
 
-      // Convert our format back to legacy format for the API
-      const legacyMappings: Record<string, boolean> = {};
+      // Convert to the format expected by the API: requirementId -> locationIds[]
+      const apiMappingsFormat: Record<string, string[]> = {};
       Object.entries(locationRequirements).forEach(([locationId, reqIds]) => {
         reqIds.forEach(reqId => {
-          legacyMappings[`${locationId}___${reqId}`] = true;
+          if (!apiMappingsFormat[reqId]) {
+            apiMappingsFormat[reqId] = [];
+          }
+          apiMappingsFormat[reqId].push(locationId);
         });
       });
 
-      const configData = {
+      logger.info('Saving mappings in API format:', apiMappingsFormat);
+
+      // Save mappings first
+      const mappingsData = {
         serviceId: selectedService,
-        mappings: legacyMappings,
-        availability: locationAvailability
+        type: 'mappings',
+        data: apiMappingsFormat
       };
 
-      const response = await fetchWithAuth('/api/dsx', {
+      const mappingsResponse = await fetchWithAuth('/api/dsx', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(configData)
+        body: JSON.stringify(mappingsData)
       });
+
+      if (!mappingsResponse.ok) {
+        const errorData = await mappingsResponse.json();
+        throw new Error(errorData.error || 'Failed to save mappings');
+      }
+
+      // Save availability second
+      const availabilityData = {
+        serviceId: selectedService,
+        type: 'availability',
+        data: locationAvailability
+      };
+
+      const availabilityResponse = await fetchWithAuth('/api/dsx', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(availabilityData)
+      });
+
+      const response = availabilityResponse;
 
       if (!response.ok) {
         let errorMessage = 'Failed to save DSX configuration';
@@ -346,6 +476,9 @@ export function useDsxTab() {
       }
 
       setSuccessMessage('DSX configuration saved successfully');
+
+      // Refresh the data to show the saved state
+      await handleServiceSelect(selectedService);
 
       // Clear success message after 3 seconds
       setTimeout(() => {
