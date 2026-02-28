@@ -73,4 +73,6 @@ afterAll(() => {
 // Clean up after each test
 afterEach(() => {
   vi.clearAllMocks();
+  vi.clearAllTimers();
+  vi.restoreAllMocks();
 });

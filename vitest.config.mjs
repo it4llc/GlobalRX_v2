@@ -6,6 +6,13 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    testTimeout: 10000, // 10 second timeout per test
+    hookTimeout: 10000, // 10 second timeout for hooks
+    teardownTimeout: 5000, // 5 second timeout for teardown
+    pool: 'forks', // Use forks instead of threads for better isolation
+    maxWorkers: 2, // Limit parallel test files to prevent resource exhaustion (Vitest 4 syntax)
+    minWorkers: 1,
+    isolate: true, // Isolate test files for better cleanup
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
