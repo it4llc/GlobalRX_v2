@@ -116,6 +116,19 @@ export class OrderCoreService {
     // Normalize the subject data to ensure consistency
     const normalizedSubject = await this.normalizeSubjectData(data.subject, undefined, data.userId);
 
+    // Auto-assign to primary vendor if one exists
+    const primaryVendor = await prisma.vendorOrganization.findFirst({
+      where: { isPrimary: true, isActive: true }
+    });
+
+    if (primaryVendor) {
+      logger.info('Auto-assigning order to primary vendor', {
+        orderNumber,
+        vendorId: primaryVendor.id,
+        vendorName: primaryVendor.name
+      });
+    }
+
     return prisma.order.create({
       data: {
         orderNumber,
@@ -124,6 +137,7 @@ export class OrderCoreService {
         statusCode: 'draft',
         subject: normalizedSubject,
         notes: data.notes,
+        assignedVendorId: primaryVendor?.id || null,
       },
       include: {
         customer: {
@@ -138,6 +152,12 @@ export class OrderCoreService {
             email: true,
             firstName: true,
             lastName: true,
+          },
+        },
+        assignedVendor: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -165,6 +185,19 @@ export class OrderCoreService {
     status?: 'draft' | 'submitted';
   }) {
     const orderNumber = await OrderNumberService.generateOrderNumber(data.customerId);
+
+    // Auto-assign to primary vendor if one exists
+    const primaryVendor = await prisma.vendorOrganization.findFirst({
+      where: { isPrimary: true, isActive: true }
+    });
+
+    if (primaryVendor) {
+      logger.info('Auto-assigning order to primary vendor', {
+        orderNumber,
+        vendorId: primaryVendor.id,
+        vendorName: primaryVendor.name
+      });
+    }
 
     // Normalize and resolve the subject data properly
     const normalizedSubject = await this.normalizeSubjectData(
@@ -210,6 +243,7 @@ export class OrderCoreService {
           statusCode: finalStatus || 'draft', // Default to draft if no status
           subject: normalizedSubject,
           notes: data.notes,
+          assignedVendorId: primaryVendor?.id || null,
         },
         include: {
           customer: {

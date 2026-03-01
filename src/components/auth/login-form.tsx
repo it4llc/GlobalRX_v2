@@ -48,6 +48,8 @@ export function LoginForm() {
       router.refresh();
       if (session?.user?.userType === 'customer') {
         router.push('/portal/dashboard');
+      } else if (session?.user?.userType === 'vendor') {
+        router.push('/fulfillment');
       } else {
         router.push('/');
       }

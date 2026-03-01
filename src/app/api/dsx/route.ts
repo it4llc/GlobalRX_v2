@@ -5,37 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import logger, { logAuthError, logPermissionDenied, logDatabaseError, logApiRequest } from '@/lib/logger';
+import { canAccessDataRx } from '@/lib/auth-utils';
 
-// Helper function to check permissions
-function hasPermission(permissions: any, module: string): boolean {
-  if (!permissions) return false;
-  
-  // For super admin format (* string or array with *)
-  if (permissions === '*') return true;
-  if (Array.isArray(permissions) && permissions.includes('*')) return true;
-  
-  // Check granular permissions
-  if (typeof permissions === 'object') {
-    // Check object with properties
-    if (permissions[module]) {
-      // If it's a boolean value directly
-      if (typeof permissions[module] === 'boolean') return permissions[module];
-      
-      // If it's an object with view property
-      if (typeof permissions[module] === 'object' && permissions[module].view === true) {
-        return true;
-      }
-      
-      // If it's an array of actions
-      if (Array.isArray(permissions[module]) && 
-          (permissions[module].includes('*') || permissions[module].includes('view'))) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-}
 
 // Helper function that filters out location IDs that don't exist in the database
 async function filterValidLocationIds(locationIds: string[]): Promise<string[]> {
@@ -106,9 +77,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    // Check permissions using new module format
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
     }
 
     try {
@@ -223,9 +194,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    // Check permissions using new module format
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
     }
 
     let rawBody;

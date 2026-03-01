@@ -5,31 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import logger from '@/lib/logger';
+import { canAccessDataRx } from '@/lib/auth-utils';
 
-// Helper function for permission checks
-function hasPermission(permissions: any, module: string): boolean {
-  if (!permissions) return false;
-  
-  // For super admin format
-  if (permissions === '*') return true;
-  if (Array.isArray(permissions) && permissions.includes('*')) return true;
-  
-  // Check specific permissions
-  if (typeof permissions === 'object') {
-    if (permissions[module]) {
-      if (typeof permissions[module] === 'boolean') return permissions[module];
-      if (typeof permissions[module] === 'object' && permissions[module].view === true) {
-        return true;
-      }
-      if (Array.isArray(permissions[module]) && 
-         (permissions[module].includes('*') || permissions[module].includes('view'))) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-}
 
 function standardizeFieldData(fieldData: any): any {
   if (!fieldData) return {};
@@ -57,9 +34,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    // Check permissions using new module format
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
     }
     
     // Get query parameters
@@ -138,9 +115,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    // Check permissions using new module format
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
     }
     
     // Parse request body
@@ -225,9 +202,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    // Check permissions using new module format
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
     }
     
     // Parse request body
@@ -347,9 +324,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    // Check permissions using new module format
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
     }
     
     // Get query parameters

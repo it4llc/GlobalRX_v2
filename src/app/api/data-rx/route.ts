@@ -5,39 +5,10 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import logger from '@/lib/logger';
+import { canAccessDataRx } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
-// Helper function to check permissions (copied from dsx endpoint)
-function hasPermission(permissions: any, module: string): boolean {
-  if (!permissions) return false;
-  
-  // For super admin format (* string or array with *)
-  if (permissions === '*') return true;
-  if (Array.isArray(permissions) && permissions.includes('*')) return true;
-  
-  // Check granular permissions
-  if (typeof permissions === 'object') {
-    // Check object with properties
-    if (permissions[module]) {
-      // If it's a boolean value directly
-      if (typeof permissions[module] === 'boolean') return permissions[module];
-      
-      // If it's an object with view property
-      if (typeof permissions[module] === 'object' && permissions[module].view === true) {
-        return true;
-      }
-      
-      // If it's an array of actions
-      if (Array.isArray(permissions[module]) && 
-          (permissions[module].includes('*') || permissions[module].includes('view'))) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-}
 
 // GET handler to fetch all data-rx data (fields and documents)
 export async function GET(request: NextRequest) {
@@ -48,8 +19,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
+    // Check permissions using new module format
+    if (!canAccessDataRx(session.user)) {
       return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
     }
 

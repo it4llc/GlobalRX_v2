@@ -124,6 +124,40 @@ When refactoring existing code:
 3. **Extract business logic** into testable services/hooks
 4. **Ask before changing** any business behavior, even if it seems like a bug
 
+## 🤖 Agent Workflow
+
+This project uses a team of specialized subagents to enforce TDD.
+Agent files are in `.claude/agents/`.
+
+### TDD Pipeline (run in order, automatically)
+
+To build any new feature using the full TDD pipeline, type:
+```
+/build-feature [describe the feature in plain English]
+```
+
+This automatically chains these agents in sequence:
+1. `business-analyst` — writes the specification (pauses for Andy's approval)
+2. `architect` — produces the technical plan (pauses for Andy's approval)
+3. `test-writer` — writes all tests before any code exists
+4. `implementer` — writes code to make tests pass
+5. `code-reviewer` — reviews logic and security
+6. `standards-checker` — verifies coding standards compliance
+7. `documentation-writer` — updates docs and code comments
+
+### Running individual agents
+
+```
+Use the file-explorer agent to find files related to [topic]
+Use the code-reviewer agent on the recent changes
+Use the standards-checker agent on [filename]
+Use the documentation-writer agent now that implementation is complete
+```
+
+### Key rule
+Never write code before tests exist. Never skip the business-analyst stage.
+Full agent instructions are in `.claude/agents/` — agents read these automatically.
+
 ## Work Process
 
 ### CRITICAL: Verify Changes Before Committing
@@ -232,3 +266,78 @@ To create a pull request after pushing your branch:
 3. Or manually go to: https://github.com/it4llc/GlobalRX_v2/pulls and click "New pull request"
 
 Do not attempt to use `gh pr create` or other GitHub CLI commands.
+
+---
+
+## 📝 Documentation Requirements
+
+### When Building New Features:
+
+**Always create/update documentation for:**
+- New API endpoints → Add JSDoc comments with permissions, params, responses
+- Complex business logic → Explain the "why" with inline comments
+- New environment variables → Update `.env.example` immediately
+- Breaking changes → Document migration path in `/docs/migrations/`
+- Significant features → Create `/docs/features/[feature-name].md`
+
+### Inline Documentation Guidelines:
+
+**DO add comments for:**
+```typescript
+// Good: Explains business logic
+// Order sequences reset daily per customer to maintain readable IDs
+// that can be communicated over phone support (e.g., 20250223-XK7-0003)
+const sequence = await getNextSequenceForCustomer(customerId, today);
+```
+
+**DON'T add obvious comments:**
+```typescript
+// Bad: States the obvious
+// Set the user's name
+user.name = formData.name;
+```
+
+### API Documentation Template:
+```typescript
+/**
+ * POST /api/orders/[id]/submit
+ *
+ * Submits an order for processing
+ *
+ * Required permissions: orders.submit
+ *
+ * Body: { reviewedBy: string, notes?: string }
+ * Returns: { order: Order, status: 'submitted' }
+ *
+ * Errors:
+ *   401: Not authenticated
+ *   403: Insufficient permissions
+ *   404: Order not found
+ *   409: Order already submitted
+ */
+```
+
+### Feature Documentation Structure:
+
+For new features, create `/docs/features/[feature-name].md`:
+
+```markdown
+# Feature Name
+
+## Overview
+Brief description of what the feature does and why it exists
+
+## User Guide
+How end users interact with this feature
+
+## Technical Details
+- **Key files:** List main components/APIs
+- **Database:** Any schema changes
+- **Dependencies:** External services or packages
+
+## Configuration
+Environment variables and settings
+
+## Testing
+How to verify the feature works correctly
+```

@@ -6,9 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { Session } from 'next-auth';
+import {
+  canManageUsers,
+  canAccessGlobalConfig,
+  canManageCustomers,
+  canManageVendors,
+  canAccessFulfillment
+} from '@/lib/auth-utils';
 
 export function HomepageContent({ session }: { session: Session | null }) {
   const { t } = useTranslation();
+  const user = session?.user || null;
   
   return (
     <div style={{ padding: '24px' }}>
@@ -17,45 +25,81 @@ export function HomepageContent({ session }: { session: Session | null }) {
       </h1>
       
       {session ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Module 1: User Admin */}
-          <Card className="flex flex-col h-full">
-            <CardHeader>
-              <CardTitle>{t('module.userAdmin.title')}</CardTitle>
-              <CardDescription>{t('module.userAdmin.description')}</CardDescription>
-            </CardHeader>
-            <CardContent className="mt-auto">
-              <Link href="/admin/users">
-                <Button className="w-full">{t('module.userAdmin.button')}</Button>
-              </Link>
-            </CardContent>
-          </Card>
-          
-          {/* Module 2: Global Configs */}
-          <Card className="flex flex-col h-full">
-            <CardHeader>
-              <CardTitle>{t('module.globalConfig.title')}</CardTitle>
-              <CardDescription>{t('module.globalConfig.description')}</CardDescription>
-            </CardHeader>
-            <CardContent className="mt-auto">
-              <Link href="/global-configurations/locations">
-                <Button className="w-full">{t('module.globalConfig.button')}</Button>
-              </Link>
-            </CardContent>
-          </Card>
-          
-          {/* Module 3: Customer Configs */}
-          <Card className="flex flex-col h-full">
-            <CardHeader>
-              <CardTitle>{t('module.customerConfig.title')}</CardTitle>
-              <CardDescription>{t('module.customerConfig.description')}</CardDescription>
-            </CardHeader>
-            <CardContent className="mt-auto">
-              <Link href="/customer-configs">
-                <Button className="w-full">{t('module.customerConfig.button')}</Button>
-              </Link>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Module 1: User Admin - Only for users with permission */}
+          {canManageUsers(user) && (
+            <Card className="flex flex-col h-full">
+              <CardHeader>
+                <CardTitle>{t('module.userAdmin.title')}</CardTitle>
+                <CardDescription>{t('module.userAdmin.description')}</CardDescription>
+              </CardHeader>
+              <CardContent className="mt-auto">
+                <Link href="/admin/users">
+                  <Button className="w-full">{t('module.userAdmin.button')}</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Module 2: Global Configs - Only for users with permission */}
+          {canAccessGlobalConfig(user) && (
+            <Card className="flex flex-col h-full">
+              <CardHeader>
+                <CardTitle>{t('module.globalConfig.title')}</CardTitle>
+                <CardDescription>{t('module.globalConfig.description')}</CardDescription>
+              </CardHeader>
+              <CardContent className="mt-auto">
+                <Link href="/global-configurations/locations">
+                  <Button className="w-full">{t('module.globalConfig.button')}</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Module 3: Customer Configs - Only for users with permission */}
+          {canManageCustomers(user) && (
+            <Card className="flex flex-col h-full">
+              <CardHeader>
+                <CardTitle>{t('module.customerConfig.title')}</CardTitle>
+                <CardDescription>{t('module.customerConfig.description')}</CardDescription>
+              </CardHeader>
+              <CardContent className="mt-auto">
+                <Link href="/customer-configs">
+                  <Button className="w-full">{t('module.customerConfig.button')}</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Module 4: Vendor Management - Only for users with permission */}
+          {canManageVendors(user) && (
+            <Card className="flex flex-col h-full">
+              <CardHeader>
+                <CardTitle>{t('module.vendorAdmin.title')}</CardTitle>
+                <CardDescription>{t('module.vendorAdmin.description')}</CardDescription>
+              </CardHeader>
+              <CardContent className="mt-auto">
+                <Link href="/admin/vendors">
+                  <Button className="w-full">{t('module.vendorAdmin.button')}</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Module 5: Fulfillment - For users with fulfillment permission */}
+          {canAccessFulfillment(user) && (
+            <Card className="flex flex-col h-full">
+              <CardHeader>
+                <CardTitle>{t('module.fulfillment.title')}</CardTitle>
+                <CardDescription>{t('module.fulfillment.description')}</CardDescription>
+              </CardHeader>
+              <CardContent className="mt-auto">
+                <Link href="/fulfillment">
+                  <Button className="w-full">{t('module.fulfillment.button')}</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
         </div>
       ) : (
         <div className="max-w-2xl mx-auto">
