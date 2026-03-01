@@ -38,6 +38,10 @@ vi.mock('@/lib/prisma', () => ({
       findMany: vi.fn(),
     },
     $transaction: vi.fn(),
+    vendorOrganization: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+    },
   },
 }));
 

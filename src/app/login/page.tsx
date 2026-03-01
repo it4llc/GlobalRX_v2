@@ -16,6 +16,8 @@ export default async function LoginPage() {
   if (session) {
     if (session.user.userType === 'customer') {
       redirect('/portal/dashboard');
+    } else if (session.user.userType === 'vendor') {
+      redirect('/fulfillment');
     } else {
       redirect('/');
     }

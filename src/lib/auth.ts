@@ -86,6 +86,7 @@ export const authOptions: NextAuthOptions = {
             userType: user.userType,
             customerId: user.customerId,
             customerName: user.customer?.name,
+            vendorId: user.vendorId,
             rememberMe: credentials.rememberMe === 'true',
           };
         } catch (error: unknown) {
@@ -103,6 +104,7 @@ export const authOptions: NextAuthOptions = {
         session.user.userType = token.userType as string;
         session.user.customerId = token.customerId as string | null;
         session.user.customerName = token.customerName as string | undefined;
+        session.user.vendorId = token.vendorId as string | null;
       }
       return session;
     },
@@ -113,6 +115,7 @@ export const authOptions: NextAuthOptions = {
         token.userType = user.userType;
         token.customerId = user.customerId;
         token.customerName = user.customerName;
+        token.vendorId = user.vendorId;
       }
       return token;
     },

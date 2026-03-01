@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import logger, { logAuthEvent, logAuthError, logPermissionDenied, logDatabaseError, logApiRequest } from '@/lib/logger';
+import { canManageCustomers } from '@/lib/auth-utils';
 
 // Validation schema
 const customerSchema = z.object({
@@ -21,21 +22,6 @@ const customerSchema = z.object({
   serviceIds: z.array(z.string().uuid()).optional(),
 });
 
-// Helper function to check permissions with array structure
-function hasPermission(permissions: any, resource: string, action: string): boolean {
-  if (!permissions || !permissions[resource]) {
-    return false;
-  }
-  
-  // If permissions are stored as arrays (e.g., customers: ["*"])
-  if (Array.isArray(permissions[resource])) {
-    return permissions[resource].includes('*') || 
-           permissions[resource].includes(action);
-  }
-  
-  // If permissions are stored as objects (e.g., customers: { view: true })
-  return !!permissions[resource][action];
-}
 
 /**
  * @route GET /api/customers
@@ -58,10 +44,8 @@ export async function GET(request: NextRequest) {
       userId: session.user?.id || 'unknown'
     });
 
-    // Check permissions - UPDATED to work with array structure
-    const hasViewPermission = hasPermission(session.user.permissions, 'customers', 'view');
-
-    if (!hasViewPermission) {
+    // Check permissions using new module format
+    if (!canManageCustomers(session.user)) {
       logPermissionDenied(session.user?.id || 'unknown', 'customers', 'view', '/api/customers');
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -212,8 +196,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions - UPDATED to work with array structure
-    if (!hasPermission(session.user.permissions, 'customers', 'create')) {
+    // Check permissions using new module format
+    if (!canManageCustomers(session.user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
