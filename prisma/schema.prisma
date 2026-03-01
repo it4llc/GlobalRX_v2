@@ -18,6 +18,7 @@ model User {
   permissions         Json?
   userType            String          @default("admin") // "admin" or "customer"
   customerId          String?         // For customer users
+  vendorId            String?         // For vendor users - ADDITIVE FIELD
   failedLoginAttempts Int             @default(0)
   lockedUntil         DateTime?
   lastPasswordChange  DateTime        @default(now())
@@ -31,11 +32,13 @@ model User {
   workflowsUpdated    Workflow[]      @relation("WorkflowUpdatedBy")
   customerUser        CustomerUser?
   customer            Customer?       @relation("CustomerUserRelation", fields: [customerId], references: [id])
+  vendor              VendorOrganization? @relation("VendorUserRelation", fields: [vendorId], references: [id])
   orders              Order[]
   orderStatusChanges  OrderStatusHistory[]
   auditLogs           AuditLog[]
 
   @@index([customerId])
+  @@index([vendorId])
   @@map("users")
 }
 
@@ -344,27 +347,30 @@ model OrderStatus {
 }
 
 model Order {
-  id            String               @id @default(uuid())
-  orderNumber   String               @unique
-  customerId    String
-  userId        String
-  statusCode    String
-  subject       Json
-  totalPrice    Decimal?             @db.Decimal(10, 2)
-  notes         String?
-  submittedAt   DateTime?
-  completedAt   DateTime?
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  items         OrderItem[]
-  statusHistory OrderStatusHistory[]
-  addressEntries AddressEntry[]
-  customer      Customer             @relation(fields: [customerId], references: [id])
-  user          User                 @relation(fields: [userId], references: [id])
+  id               String               @id @default(uuid())
+  orderNumber      String               @unique
+  customerId       String
+  userId           String
+  statusCode       String
+  assignedVendorId String?              // For vendor assignment - ADDITIVE FIELD
+  subject          Json
+  totalPrice       Decimal?             @db.Decimal(10, 2)
+  notes            String?
+  submittedAt      DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  items            OrderItem[]
+  statusHistory    OrderStatusHistory[]
+  addressEntries   AddressEntry[]
+  customer         Customer             @relation(fields: [customerId], references: [id])
+  user             User                 @relation(fields: [userId], references: [id])
+  assignedVendor   VendorOrganization?  @relation("OrderVendorAssignment", fields: [assignedVendorId], references: [id])
 
   @@index([customerId])
   @@index([statusCode])
   @@index([orderNumber])
+  @@index([assignedVendorId])
   @@map("orders")
 }
 
@@ -485,4 +491,25 @@ model CityMapping {
   @@index([cityName])
   @@index([stateId])
   @@map("city_mappings")
+}
+
+// Vendor Management Models
+
+model VendorOrganization {
+  id           String  @id @default(uuid())
+  name         String
+  isActive     Boolean @default(true)
+  isPrimary    Boolean @default(false)
+  contactEmail String
+  contactPhone String
+  address      String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  users        User[]   @relation("VendorUserRelation")
+  assignedOrders Order[] @relation("OrderVendorAssignment")
+
+  @@index([isActive])
+  @@index([isPrimary])
+  @@map("vendor_organizations")
 }

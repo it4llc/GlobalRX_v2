@@ -1,9 +1,10 @@
-// src/app/api/users/[id]/route.ts
+// /GlobalRX_v2/src/app/api/users/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth.server';
 import logger from '@/lib/logger';
+import { z } from 'zod';
 
 export async function GET(
   request: NextRequest,
@@ -17,18 +18,36 @@ export async function GET(
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions - require admin, users.manage permission, or all wildcard permissions for user management
-    const hasAdminPermission = session.user?.permissions?.admin === true;
-    const hasUserManagePermission = session.user?.permissions?.users?.manage === true;
+    // Check permissions - support both old and new permission formats
+    const perms = session.user?.permissions || {};
 
-    // Check if user has all wildcard permissions (super admin)
-    const hasAllWildcards = session.user?.permissions?.countries?.includes('*') &&
-                            session.user?.permissions?.services?.includes('*') &&
-                            session.user?.permissions?.dsx?.includes('*') &&
-                            session.user?.permissions?.customers?.includes('*');
+    // Old format checks
+    const hasAdminPermission = perms.admin === true;
+    const hasUserManagePermission = perms.users?.manage === true;
 
-    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards) {
-      return NextResponse.json({ message: 'Forbidden: Admin or users.manage permission required for user management' }, { status: 403 });
+    // Check if user has all wildcard permissions (super admin) in old format
+    const hasAllWildcards = perms.countries?.includes?.('*') &&
+                            perms.services?.includes?.('*') &&
+                            perms.dsx?.includes?.('*') &&
+                            perms.customers?.includes?.('*');
+
+    // New format checks - check for user_admin module permissions
+    const hasUserAdminModule =
+      perms.user_admin === '*' ||
+      perms.user_admin === true ||
+      perms.user_admin?.manage === true ||
+      (Array.isArray(perms.user_admin) && perms.user_admin.includes('*'));
+
+    // Also check for global_config as it might grant user management
+    const hasGlobalConfigModule =
+      perms.global_config === '*' ||
+      perms.global_config === true ||
+      perms.global_config?.manage === true ||
+      (Array.isArray(perms.global_config) && perms.global_config.includes('*'));
+
+    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards &&
+        !hasUserAdminModule && !hasGlobalConfigModule) {
+      return NextResponse.json({ message: 'Forbidden: Admin or user management permission required' }, { status: 403 });
     }
 
     const { id } = params;
@@ -41,6 +60,9 @@ export async function GET(
         firstName: true,
         lastName: true,
         permissions: true,
+        userType: true,
+        vendorId: true,
+        customerId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -69,26 +91,86 @@ export async function PUT(
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions - require admin, users.manage permission, or all wildcard permissions for user management
-    const hasAdminPermission = session.user?.permissions?.admin === true;
-    const hasUserManagePermission = session.user?.permissions?.users?.manage === true;
+    // Check permissions - support both old and new permission formats
+    const perms = session.user?.permissions || {};
 
-    // Check if user has all wildcard permissions (super admin)
-    const hasAllWildcards = session.user?.permissions?.countries?.includes('*') &&
-                            session.user?.permissions?.services?.includes('*') &&
-                            session.user?.permissions?.dsx?.includes('*') &&
-                            session.user?.permissions?.customers?.includes('*');
+    // Old format checks
+    const hasAdminPermission = perms.admin === true;
+    const hasUserManagePermission = perms.users?.manage === true;
 
-    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards) {
-      return NextResponse.json({ message: 'Forbidden: Admin or users.manage permission required for user management' }, { status: 403 });
+    // Check if user has all wildcard permissions (super admin) in old format
+    const hasAllWildcards = perms.countries?.includes?.('*') &&
+                            perms.services?.includes?.('*') &&
+                            perms.dsx?.includes?.('*') &&
+                            perms.customers?.includes?.('*');
+
+    // New format checks - check for user_admin module permissions
+    const hasUserAdminModule =
+      perms.user_admin === '*' ||
+      perms.user_admin === true ||
+      perms.user_admin?.manage === true ||
+      (Array.isArray(perms.user_admin) && perms.user_admin.includes('*'));
+
+    // Also check for global_config as it might grant user management
+    const hasGlobalConfigModule =
+      perms.global_config === '*' ||
+      perms.global_config === true ||
+      perms.global_config?.manage === true ||
+      (Array.isArray(perms.global_config) && perms.global_config.includes('*'));
+
+    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards &&
+        !hasUserAdminModule && !hasGlobalConfigModule) {
+      return NextResponse.json({ message: 'Forbidden: Admin or user management permission required' }, { status: 403 });
     }
 
     const { id } = params;
-    const { email, password, firstName, lastName, permissions } = await request.json();
+    const body = await request.json();
 
-    // Validate required fields
-    if (!email) {
-      return NextResponse.json({ message: 'Email is required' }, { status: 400 });
+    // Define validation schema for user updates
+    const userUpdateSchema = z.object({
+      email: z.string({ required_error: 'Email is required' }).email('Invalid email format'),
+      password: z.string().optional(),
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+      permissions: z.record(z.union([z.boolean(), z.string(), z.array(z.string())])).optional(),
+      userType: z.enum(['internal', 'vendor', 'customer']).optional(),
+      vendorId: z.string().nullable().optional(),
+      customerId: z.string().nullable().optional()
+    }).refine(data => {
+      // Validate that vendor users have vendorId
+      if (data.userType === 'vendor' && !data.vendorId) {
+        return false;
+      }
+      // Validate that customer users have customerId
+      if (data.userType === 'customer' && !data.customerId) {
+        return false;
+      }
+      // Validate that internal users don't have vendorId or customerId
+      if (data.userType === 'internal' && (data.vendorId || data.customerId)) {
+        return false;
+      }
+      return true;
+    }, {
+      message: 'Invalid user type and organization ID combination'
+    });
+
+    // Validate input
+    const validation = userUpdateSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { message: validation.error.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    const { email, password, firstName, lastName, permissions, userType, vendorId, customerId } = validation.data;
+
+    // Enforce vendor user permission restrictions
+    if (userType === 'vendor' && permissions) {
+      const vendorPermissions = Object.keys(permissions).filter(key => permissions[key] && key !== 'fulfillment');
+      if (vendorPermissions.length > 0) {
+        return NextResponse.json({ message: 'Vendor users can only have fulfillment permission' }, { status: 400 });
+      }
     }
 
     // Check if user exists
@@ -112,11 +194,23 @@ export async function PUT(
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: {
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      permissions: Record<string, boolean | string | string[]>;
+      userType: 'internal' | 'vendor' | 'customer';
+      vendorId: string | null;
+      customerId: string | null;
+      password?: string;
+    } = {
       email,
       firstName: firstName || null,
       lastName: lastName || null,
       permissions: permissions || {},
+      userType: userType || 'internal',
+      vendorId: userType === 'vendor' ? vendorId : null,
+      customerId: userType === 'customer' ? customerId : null,
     };
 
     // Only update password if provided
@@ -134,6 +228,9 @@ export async function PUT(
         firstName: true,
         lastName: true,
         permissions: true,
+        userType: true,
+        vendorId: true,
+        customerId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -158,18 +255,36 @@ export async function DELETE(
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions - require admin, users.manage permission, or all wildcard permissions for user management
-    const hasAdminPermission = session.user?.permissions?.admin === true;
-    const hasUserManagePermission = session.user?.permissions?.users?.manage === true;
+    // Check permissions - support both old and new permission formats
+    const perms = session.user?.permissions || {};
 
-    // Check if user has all wildcard permissions (super admin)
-    const hasAllWildcards = session.user?.permissions?.countries?.includes('*') &&
-                            session.user?.permissions?.services?.includes('*') &&
-                            session.user?.permissions?.dsx?.includes('*') &&
-                            session.user?.permissions?.customers?.includes('*');
+    // Old format checks
+    const hasAdminPermission = perms.admin === true;
+    const hasUserManagePermission = perms.users?.manage === true;
 
-    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards) {
-      return NextResponse.json({ message: 'Forbidden: Admin or users.manage permission required for user management' }, { status: 403 });
+    // Check if user has all wildcard permissions (super admin) in old format
+    const hasAllWildcards = perms.countries?.includes?.('*') &&
+                            perms.services?.includes?.('*') &&
+                            perms.dsx?.includes?.('*') &&
+                            perms.customers?.includes?.('*');
+
+    // New format checks - check for user_admin module permissions
+    const hasUserAdminModule =
+      perms.user_admin === '*' ||
+      perms.user_admin === true ||
+      perms.user_admin?.manage === true ||
+      (Array.isArray(perms.user_admin) && perms.user_admin.includes('*'));
+
+    // Also check for global_config as it might grant user management
+    const hasGlobalConfigModule =
+      perms.global_config === '*' ||
+      perms.global_config === true ||
+      perms.global_config?.manage === true ||
+      (Array.isArray(perms.global_config) && perms.global_config.includes('*'));
+
+    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards &&
+        !hasUserAdminModule && !hasGlobalConfigModule) {
+      return NextResponse.json({ message: 'Forbidden: Admin or user management permission required' }, { status: 403 });
     }
 
     const { id } = params;

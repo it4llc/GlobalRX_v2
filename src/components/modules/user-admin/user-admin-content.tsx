@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { UserForm } from '@/components/modules/user-admin/user-form';
 import { CheckIcon, XIcon } from 'lucide-react';
+import { ActionDropdown } from '@/components/ui/action-dropdown';
 
 // Types
 type User = {
@@ -39,11 +40,22 @@ type User = {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  userType: 'internal' | 'customer' | 'vendor';
+  customerId?: string | null;
+  vendorId?: string | null;
   permissions: {
+    // Old format (for backward compatibility)
     countries?: string[];
     services?: string[];
     dsx?: string[];
     customers?: string[];
+    // New module-based format
+    user_admin?: any;
+    global_config?: any;
+    customer_config?: any;
+    candidate_workflow?: any;
+    vendors?: any;
+    fulfillment?: any;
   };
 };
 
@@ -183,76 +195,96 @@ export function UserAdminContent() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Actions</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Countries</TableHead>
-                  <TableHead>Services</TableHead>
-                  <TableHead>Data Rx/DSX</TableHead>
-                  <TableHead>Customers</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>User Type</TableHead>
+                  <TableHead>Organization</TableHead>
+                  <TableHead>User Admin</TableHead>
+                  <TableHead>Global Config</TableHead>
+                  <TableHead>Customer Config</TableHead>
+                  <TableHead>Vendors</TableHead>
+                  <TableHead>Fulfillment</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-4">
+                    <TableCell colSpan={10} className="text-center py-4">
                       No users found. Click "Add New User" to create one.
                     </TableCell>
                   </TableRow>
                 ) : (
                   users.map((user) => (
                     <TableRow key={user.id}>
+                      <TableCell>
+                        <ActionDropdown
+                          options={[
+                            {
+                              label: 'Edit',
+                              onClick: () => prepareUserEdit(user),
+                            },
+                            {
+                              label: 'Delete',
+                              onClick: () => prepareUserDelete(user),
+                              color: '#ef4444', // Red color for delete
+                            },
+                          ]}
+                        />
+                      </TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        {user.firstName || user.lastName 
-                          ? `${user.firstName || ''} ${user.lastName || ''}`.trim() 
+                        {user.firstName || user.lastName
+                          ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
                           : 'N/A'}
                       </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full
+                          ${user.userType === 'internal' ? 'bg-blue-100 text-blue-800' :
+                            user.userType === 'customer' ? 'bg-green-100 text-green-800' :
+                            'bg-purple-100 text-purple-800'}`}>
+                          {user.userType || 'internal'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {user.userType === 'customer' && user.customerId ? 'Customer Org' :
+                         user.userType === 'vendor' && user.vendorId ? 'Vendor Org' :
+                         user.userType === 'internal' ? 'GlobalRx' : '-'}
+                      </TableCell>
                       <TableCell className="text-center">
-                        {hasPermission(user, 'countries') ? (
+                        {user.permissions?.user_admin ? (
                           <CheckIcon className="h-5 w-5 mx-auto" style={{ color: '#10b981' }} />
                         ) : (
                           <XIcon className="h-5 w-5 mx-auto" style={{ color: '#ef4444' }} />
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {hasPermission(user, 'services') ? (
+                        {user.permissions?.global_config ? (
                           <CheckIcon className="h-5 w-5 mx-auto" style={{ color: '#10b981' }} />
                         ) : (
                           <XIcon className="h-5 w-5 mx-auto" style={{ color: '#ef4444' }} />
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {hasPermission(user, 'dsx') ? (
+                        {user.permissions?.customer_config || user.permissions?.customers ? (
                           <CheckIcon className="h-5 w-5 mx-auto" style={{ color: '#10b981' }} />
                         ) : (
                           <XIcon className="h-5 w-5 mx-auto" style={{ color: '#ef4444' }} />
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {hasPermission(user, 'customers') ? (
+                        {user.permissions?.vendors ? (
                           <CheckIcon className="h-5 w-5 mx-auto" style={{ color: '#10b981' }} />
                         ) : (
                           <XIcon className="h-5 w-5 mx-auto" style={{ color: '#ef4444' }} />
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => prepareUserEdit(user)}
-                          >
-                            Edit
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => prepareUserDelete(user)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
+                      <TableCell className="text-center">
+                        {user.permissions?.fulfillment ? (
+                          <CheckIcon className="h-5 w-5 mx-auto" style={{ color: '#10b981' }} />
+                        ) : (
+                          <XIcon className="h-5 w-5 mx-auto" style={{ color: '#ef4444' }} />
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

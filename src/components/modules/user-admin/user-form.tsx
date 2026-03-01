@@ -1,12 +1,13 @@
 // src/components/modules/user-admin/user-form.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Types
 type User = {
@@ -14,11 +15,19 @@ type User = {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  userType?: 'internal' | 'customer' | 'vendor';
+  customerId?: string | null;
+  vendorId?: string | null;
   permissions: {
     countries?: string[];
     services?: string[];
     dsx?: string[];
     customers?: string[];
+    user_admin?: any;
+    global_config?: any;
+    customer_config?: any;
+    vendors?: any;
+    fulfillment?: any;
   };
 };
 
@@ -28,11 +37,15 @@ type FormValues = {
   lastName: string;
   password: string;
   confirmPassword: string;
+  userType: 'internal' | 'customer' | 'vendor';
+  vendorId: string;
+  customerId: string;
   permissions: {
-    countries: boolean;
-    services: boolean;
-    dsx: boolean;
-    customers: boolean;
+    user_admin: boolean;
+    global_config: boolean;
+    customer_config: boolean;
+    vendors: boolean;
+    fulfillment: boolean;
   };
 };
 
@@ -44,38 +57,85 @@ type UserFormProps = {
 
 export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
   const [loading, setLoading] = useState(false);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [formValues, setFormValues] = useState<FormValues>({
     email: '',
     firstName: '',
     lastName: '',
     password: '',
     confirmPassword: '',
+    userType: 'internal',
+    vendorId: '',
+    customerId: '',
     permissions: {
-      countries: false,
-      services: false,
-      dsx: false,
-      customers: false,
+      user_admin: false,
+      global_config: false,
+      customer_config: false,
+      vendors: false,
+      fulfillment: false,
     },
   });
+
+  // Fetch vendors when component mounts
+  useEffect(() => {
+    fetch('/api/vendors')
+      .then(res => res.json())
+      .then(data => setVendors(data))
+      .catch(() => {
+        // Silently fail - vendors list will be empty
+        setVendors([]);
+      });
+
+    fetch('/api/customers')
+      .then(res => res.json())
+      .then(data => setCustomers(data))
+      .catch(() => {
+        // Silently fail - customers list will be empty
+        setCustomers([]);
+      });
+  }, []);
 
   // Set form values when editing a user
   useEffect(() => {
     if (user) {
-      setFormValues({
+      const newFormValues = {
         email: user.email,
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         password: '',
         confirmPassword: '',
+        userType: user.userType || 'internal',
+        vendorId: user.vendorId || '',
+        customerId: user.customerId || '',
         permissions: {
-          countries: !!user.permissions?.countries?.length,
-          services: !!user.permissions?.services?.length,
-          dsx: !!user.permissions?.dsx?.length,
-          customers: !!user.permissions?.customers?.length,
+          user_admin: !!user.permissions?.user_admin,
+          global_config: !!user.permissions?.global_config,
+          customer_config: !!user.permissions?.customer_config || !!user.permissions?.customers,
+          vendors: !!user.permissions?.vendors,
+          fulfillment: !!user.permissions?.fulfillment,
         },
-      });
+      };
+      setFormValues(newFormValues);
     }
   }, [user]);
+
+  // Handle vendor user permission restrictions
+  useEffect(() => {
+    if (formValues.userType === 'vendor') {
+      // Vendor users can only have fulfillment permission
+      setFormValues(prev => ({
+        ...prev,
+        permissions: {
+          user_admin: false,
+          global_config: false,
+          customer_config: false,
+          vendors: false,
+          fulfillment: true,
+        },
+      }));
+    }
+  }, [formValues.userType]);
 
   // Handle input change for form fields
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,13 +174,13 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
     try {
       setLoading(true);
       
-      // Convert permission booleans to string arrays
+      // Convert permission booleans to appropriate format
       const permissionsObj: any = {};
-      
+
       Object.keys(formValues.permissions).forEach((key) => {
         const permKey = key as keyof FormValues['permissions'];
         if (formValues.permissions[permKey]) {
-          permissionsObj[key] = ['*']; // Grant full access
+          permissionsObj[key] = '*'; // Use wildcard for full access
         }
       });
 
@@ -130,6 +190,9 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
           email: formValues.email,
           firstName: formValues.firstName,
           lastName: formValues.lastName,
+          userType: formValues.userType,
+          vendorId: formValues.userType === 'vendor' ? formValues.vendorId : null,
+          customerId: formValues.userType === 'customer' ? formValues.customerId : null,
           permissions: permissionsObj,
         };
         
@@ -165,6 +228,9 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
             firstName: formValues.firstName,
             lastName: formValues.lastName,
             password: formValues.password,
+            userType: formValues.userType,
+            vendorId: formValues.userType === 'vendor' ? formValues.vendorId : null,
+            customerId: formValues.userType === 'customer' ? formValues.customerId : null,
             permissions: permissionsObj,
           }),
         });
@@ -252,43 +318,119 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
             />
           </div>
           
+          <div className="space-y-1">
+            <Label htmlFor="userType">User Type</Label>
+            <Select
+              value={formValues.userType}
+              onValueChange={(value: 'internal' | 'customer' | 'vendor') => {
+                if (value) { // Only update if value is not empty
+                  setFormValues(prev => ({ ...prev, userType: value }));
+                }
+              }}
+            >
+              <SelectTrigger id="userType">
+                <SelectValue placeholder="Select user type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="internal">Internal</SelectItem>
+                <SelectItem value="customer">Customer</SelectItem>
+                <SelectItem value="vendor">Vendor</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formValues.userType === 'vendor' && (
+            <div className="space-y-1">
+              <Label htmlFor="vendorId">Vendor Organization</Label>
+              <Select
+                value={formValues.vendorId}
+                onValueChange={(value) => setFormValues(prev => ({ ...prev, vendorId: value }))}
+              >
+                <SelectTrigger id="vendorId">
+                  <SelectValue placeholder="Select vendor organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vendors.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      {vendor.name} {vendor.isPrimary ? '(Primary)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {formValues.userType === 'customer' && (
+            <div className="space-y-1">
+              <Label htmlFor="customerId">Customer Organization</Label>
+              <Select
+                value={formValues.customerId}
+                onValueChange={(value) => setFormValues(prev => ({ ...prev, customerId: value }))}
+              >
+                <SelectTrigger id="customerId">
+                  <SelectValue placeholder="Select customer organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2 pt-1">
             <Label>Permissions</Label>
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="countries"
-                  checked={formValues.permissions.countries}
-                  onCheckedChange={() => handlePermissionChange('countries')}
+                <Checkbox
+                  id="user_admin"
+                  checked={formValues.permissions.user_admin}
+                  onCheckedChange={() => handlePermissionChange('user_admin')}
+                  disabled={formValues.userType === 'vendor'}
                 />
-                <Label htmlFor="countries" className="cursor-pointer">Countries</Label>
+                <Label htmlFor="user_admin" className="cursor-pointer">User Admin</Label>
               </div>
-              
+
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="services"
-                  checked={formValues.permissions.services}
-                  onCheckedChange={() => handlePermissionChange('services')}
+                <Checkbox
+                  id="global_config"
+                  checked={formValues.permissions.global_config}
+                  onCheckedChange={() => handlePermissionChange('global_config')}
+                  disabled={formValues.userType === 'vendor'}
                 />
-                <Label htmlFor="services" className="cursor-pointer">Services</Label>
+                <Label htmlFor="global_config" className="cursor-pointer">Global Config</Label>
               </div>
-              
+
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="dsx"
-                  checked={formValues.permissions.dsx}
-                  onCheckedChange={() => handlePermissionChange('dsx')}
+                <Checkbox
+                  id="customer_config"
+                  checked={formValues.permissions.customer_config}
+                  onCheckedChange={() => handlePermissionChange('customer_config')}
+                  disabled={formValues.userType === 'vendor'}
                 />
-                <Label htmlFor="dsx" className="cursor-pointer">Data Rx/DSX</Label>
+                <Label htmlFor="customer_config" className="cursor-pointer">Customer Config</Label>
               </div>
-              
+
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="customers"
-                  checked={formValues.permissions.customers}
-                  onCheckedChange={() => handlePermissionChange('customers')}
+                <Checkbox
+                  id="vendors"
+                  checked={formValues.permissions.vendors}
+                  onCheckedChange={() => handlePermissionChange('vendors')}
+                  disabled={formValues.userType === 'vendor'}
                 />
-                <Label htmlFor="customers" className="cursor-pointer">Customers</Label>
+                <Label htmlFor="vendors" className="cursor-pointer">Vendors</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fulfillment"
+                  checked={formValues.permissions.fulfillment}
+                  onCheckedChange={() => handlePermissionChange('fulfillment')}
+                />
+                <Label htmlFor="fulfillment" className="cursor-pointer">Fulfillment</Label>
               </div>
             </div>
           </div>
