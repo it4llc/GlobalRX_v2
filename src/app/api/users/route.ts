@@ -1,4 +1,4 @@
-// src/app/api/users/route.ts
+// /GlobalRX_v2/src/app/api/users/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -14,26 +14,44 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions - require admin, users.manage permission, or all wildcard permissions for user management
-    // This is a critical security check per our audit report
-    const hasAdminPermission = session.user?.permissions?.admin === true;
-    const hasUserManagePermission = session.user?.permissions?.users?.manage === true;
+    // Check permissions - support both old and new permission formats
+    const perms = session.user?.permissions || {};
 
-    // Check if user has all wildcard permissions (super admin)
-    const hasAllWildcards = session.user?.permissions?.countries?.includes('*') &&
-                            session.user?.permissions?.services?.includes('*') &&
-                            session.user?.permissions?.dsx?.includes('*') &&
-                            session.user?.permissions?.customers?.includes('*');
+    // Old format checks
+    const hasAdminPermission = perms.admin === true;
+    const hasUserManagePermission = perms.users?.manage === true;
 
-    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards) {
-      return NextResponse.json({ message: 'Forbidden: Admin or users.manage permission required for user management' }, { status: 403 });
+    // Check if user has all wildcard permissions (super admin) in old format
+    const hasAllWildcards = perms.countries?.includes?.('*') &&
+                            perms.services?.includes?.('*') &&
+                            perms.dsx?.includes?.('*') &&
+                            perms.customers?.includes?.('*');
+
+    // New format checks - check for user_admin module permissions
+    const hasUserAdminModule =
+      perms.user_admin === '*' ||
+      perms.user_admin === true ||
+      perms.user_admin?.view === true ||
+      perms.user_admin?.manage === true ||
+      (Array.isArray(perms.user_admin) && perms.user_admin.includes('*'));
+
+    // Also check for global_config as it might grant user management
+    const hasGlobalConfigModule =
+      perms.global_config === '*' ||
+      perms.global_config === true ||
+      perms.global_config?.manage === true ||
+      (Array.isArray(perms.global_config) && perms.global_config.includes('*'));
+
+    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards &&
+        !hasUserAdminModule && !hasGlobalConfigModule) {
+      return NextResponse.json({
+        message: 'Forbidden: Admin or user management permission required',
+        debug: { permissions: perms }
+      }, { status: 403 });
     }
 
-    // Fetch only admin users (not customer users)
+    // Fetch all users (internal, customer, vendor)
     const users = await prisma.user.findMany({
-      where: {
-        userType: 'admin',
-      },
       select: {
         id: true,
         email: true,
@@ -43,6 +61,8 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         updatedAt: true,
         userType: true,
+        vendorId: true,
+        customerId: true,
       },
       orderBy: {
         email: 'asc',
@@ -65,29 +85,66 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions - require admin, users.manage permission, or all wildcard permissions for user management
-    const hasAdminPermission = session.user?.permissions?.admin === true;
-    const hasUserManagePermission = session.user?.permissions?.users?.manage === true;
+    // Check permissions - support both old and new permission formats
+    const perms = session.user?.permissions || {};
 
-    // Check if user has all wildcard permissions (super admin)
-    const hasAllWildcards = session.user?.permissions?.countries?.includes('*') &&
-                            session.user?.permissions?.services?.includes('*') &&
-                            session.user?.permissions?.dsx?.includes('*') &&
-                            session.user?.permissions?.customers?.includes('*');
+    // Old format checks
+    const hasAdminPermission = perms.admin === true;
+    const hasUserManagePermission = perms.users?.manage === true;
 
-    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards) {
-      return NextResponse.json({ message: 'Forbidden: Admin or users.manage permission required for user management' }, { status: 403 });
+    // Check if user has all wildcard permissions (super admin) in old format
+    const hasAllWildcards = perms.countries?.includes?.('*') &&
+                            perms.services?.includes?.('*') &&
+                            perms.dsx?.includes?.('*') &&
+                            perms.customers?.includes?.('*');
+
+    // New format checks - check for user_admin module permissions
+    const hasUserAdminModule =
+      perms.user_admin === '*' ||
+      perms.user_admin === true ||
+      perms.user_admin?.create === true ||
+      perms.user_admin?.manage === true ||
+      (Array.isArray(perms.user_admin) && perms.user_admin.includes('*'));
+
+    // Also check for global_config as it might grant user management
+    const hasGlobalConfigModule =
+      perms.global_config === '*' ||
+      perms.global_config === true ||
+      perms.global_config?.manage === true ||
+      (Array.isArray(perms.global_config) && perms.global_config.includes('*'));
+
+    if (!hasAdminPermission && !hasUserManagePermission && !hasAllWildcards &&
+        !hasUserAdminModule && !hasGlobalConfigModule) {
+      return NextResponse.json({
+        message: 'Forbidden: Admin or user management permission required'
+      }, { status: 403 });
     }
 
     const body = await request.json();
     logger.info('Received user creation request', { hasEmail: !!body.email, hasPassword: !!body.password });
 
-    const { email, password, firstName, lastName, permissions } = body;
+    const { email, password, firstName, lastName, permissions, userType, vendorId, customerId } = body;
 
     // Validate required fields
     if (!email || !password) {
       logger.warn('Missing required fields for user creation');
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
+    }
+
+    // Validate userType enum
+    const validUserTypes = ['internal', 'vendor', 'customer'];
+    if (userType && !validUserTypes.includes(userType)) {
+      logger.warn('Invalid user type provided', { userType });
+      return NextResponse.json({ message: 'Invalid user type. Must be: internal, vendor, or customer' }, { status: 400 });
+    }
+
+    // Enforce vendor user permission restrictions
+    if (userType === 'vendor' && permissions) {
+      const vendorPermissions = Object.keys(permissions).filter(key => permissions[key] && key !== 'fulfillment');
+      if (vendorPermissions.length > 0) {
+        logger.warn('Vendor user created with invalid permissions', { vendorPermissions });
+        return NextResponse.json({ message: 'Vendor users can only have fulfillment permission' }, { status: 400 });
+      }
     }
 
     // Check if user with email already exists
@@ -103,7 +160,7 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create new admin user (always set userType to 'admin')
+    // Create new user with specified type
     const newUser = await prisma.user.create({
       data: {
         email,
@@ -111,7 +168,9 @@ export async function POST(request: NextRequest) {
         firstName: firstName || null,
         lastName: lastName || null,
         permissions: permissions || {},
-        userType: 'admin', // Always create admin users from User Admin
+        userType: userType || 'internal', // Default to internal if not specified
+        vendorId: userType === 'vendor' ? vendorId : null,
+        customerId: userType === 'customer' ? customerId : null,
       },
       select: {
         id: true,
@@ -122,6 +181,8 @@ export async function POST(request: NextRequest) {
         createdAt: true,
         updatedAt: true,
         userType: true,
+        vendorId: true,
+        customerId: true,
       },
     });
 

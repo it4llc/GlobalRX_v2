@@ -634,6 +634,129 @@ All features handling personal data must support:
 
 ---
 
+## SECTION 14: Documentation Standards
+
+### 14.1 When Documentation is Required
+
+Documentation must be created or updated in these situations:
+
+1. **New Features** - Document how to use the feature
+2. **API Changes** - Update endpoint documentation
+3. **Complex Business Logic** - Explain the "why" not just the "what"
+4. **Non-Obvious Code** - If it took you time to figure out, document it
+5. **Breaking Changes** - Document migration path
+6. **Configuration Changes** - Update .env.example
+
+### 14.2 Code Comments
+
+**When to add comments:**
+- Complex algorithms or business rules
+- Non-obvious workarounds or bug fixes
+- TODO items with context and ownership
+- API integration points
+- Security considerations
+
+**When NOT to add comments:**
+- Obvious code that is self-documenting
+- Every function/variable (TypeScript types are documentation)
+- Redundant information
+
+**Good comment:**
+```typescript
+// Calculate order sequence: Reset to 0001 each day per customer
+// This ensures order IDs are readable (e.g., 20250223-XK7-0003)
+// and can be communicated over phone support
+```
+
+**Bad comment:**
+```typescript
+// Set name to the name value
+const name = formData.name;
+```
+
+### 14.3 API Documentation
+
+Every API endpoint must have:
+
+```typescript
+/**
+ * GET /api/customers/[id]/packages
+ *
+ * Retrieves all packages for a specific customer
+ *
+ * Required permissions: customers.view
+ *
+ * Query params:
+ *   - status?: 'active' | 'inactive' | 'all'
+ *   - limit?: number (default: 25)
+ *   - offset?: number (default: 0)
+ *
+ * Returns: { packages: Package[], total: number }
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Customer not found
+ */
+```
+
+### 14.4 README Updates
+
+Update README.md when:
+- Adding new dependencies
+- Changing setup/installation steps
+- Adding new npm scripts
+- Changing deployment process
+
+### 14.5 Feature Documentation
+
+For significant features, create a markdown file in `/docs/features/`:
+
+```markdown
+# Feature Name
+
+## Overview
+Brief description of what the feature does
+
+## Usage
+How to use the feature from user perspective
+
+## Technical Implementation
+- Key components/files
+- Data flow
+- Database schema changes
+
+## Configuration
+Environment variables or settings needed
+
+## Testing
+How to test the feature works correctly
+```
+
+### 14.6 Migration Documentation
+
+For database migrations or breaking changes:
+
+```markdown
+# Migration: [Description]
+
+## Date: YYYY-MM-DD
+
+## What Changed
+- List of changes
+
+## Migration Steps
+1. Backup database
+2. Run migration: `pnpm prisma migrate deploy`
+3. Update environment variables
+4. Restart application
+
+## Rollback Plan
+Steps to revert if needed
+```
+
+---
+
 ## QUICK REFERENCE CHECKLIST
 
 Before submitting any code, verify:
@@ -658,3 +781,6 @@ Before submitting any code, verify:
 - [ ] **NEW:** Health checks included for new API routes
 - [ ] **NEW:** Data retention policies considered for personal data
 - [ ] **NEW:** Authentication verified on all new API routes (no exceptions)
+- [ ] **NEW:** Documentation updated for new features or API changes
+- [ ] **NEW:** Complex business logic has explanatory comments
+- [ ] **NEW:** .env.example updated if new environment variables added

@@ -1,7 +1,7 @@
 'use client';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import {
   ShoppingCartIcon,
@@ -173,14 +173,24 @@ export default function CustomerDashboard() {
     <div className="space-y-6">
       {/* Welcome Header */}
       <div className="bg-white rounded-lg shadow px-6 py-4">
-        <h2 className="text-2xl font-bold text-gray-900">
-          Welcome back, {session?.user?.name || session?.user?.email}
-        </h2>
-        <p className="mt-1 text-sm text-gray-600">
-          {session?.user?.customerName && (
-            <>Organization: {session.user.customerName}</>
-          )}
-        </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              Welcome back, {session?.user?.name || session?.user?.email}
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              {session?.user?.customerName && (
+                <>Organization: {session.user.customerName}</>
+              )}
+            </p>
+          </div>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* Stats Grid - Now clickable filters */}
