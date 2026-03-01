@@ -542,23 +542,62 @@ describe('POST /api/users', () => {
       });
 
       const response = await POST(request);
+      expect(response.status).toBe(400);
+
+      const body = await response.json();
+      expect(body.message).toBe('Vendor users can only have fulfillment permission');
+
+      // Verify that user was NOT created due to permission restriction
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('should create vendor user with only fulfillment permission', async () => {
+      const mockUser = {
+        id: 'vendor-user-1',
+        email: 'vendor@example.com',
+        password: 'hashed-password',
+        firstName: 'Vendor',
+        lastName: 'User',
+        permissions: { fulfillment: '*' },
+        userType: 'vendor' as const,
+        vendorId: 'vendor-123',
+        customerId: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null);
+      vi.mocked(prisma.user.create).mockResolvedValueOnce(mockUser);
+
+      const request = new Request('http://localhost:3000/api/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: 'vendor@example.com',
+          password: 'password123',
+          firstName: 'Vendor',
+          lastName: 'User',
+          userType: 'vendor',
+          vendorId: 'vendor-123',
+          permissions: {
+            fulfillment: '*'
+          }
+        })
+      });
+
+      const response = await POST(request);
       expect(response.status).toBe(201);
 
-      // Verify that user is created with only fulfillment permission
+      // Verify that user is created with fulfillment permission
       expect(prisma.user.create).toHaveBeenCalledWith({
         data: {
           email: 'vendor@example.com',
           password: 'hashed-password',
           firstName: 'Vendor',
           lastName: 'User',
-          permissions: {
-            fulfillment: '*',
-            user_admin: '*',  // API accepts what's sent, UI enforces restrictions
-            global_config: '*'
-          },
+          permissions: { fulfillment: '*' },
           userType: 'vendor',
           vendorId: 'vendor-123',
-          customerId: null,
+          customerId: null
         },
         select: {
           id: true,
@@ -570,8 +609,8 @@ describe('POST /api/users', () => {
           updatedAt: true,
           userType: true,
           vendorId: true,
-          customerId: true,
-        },
+          customerId: true
+        }
       });
     });
   });
