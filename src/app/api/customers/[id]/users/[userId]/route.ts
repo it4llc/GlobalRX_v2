@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth.server';
 import { z } from 'zod';
+import { canManageCustomers } from '@/lib/auth-utils';
 
 // Validation schema for updating a customer user
 const customerUserUpdateSchema = z.object({
@@ -25,32 +26,11 @@ const customerUserUpdateSchema = z.object({
   }).optional(),
 });
 
-/**
- * Check if a user has permission for a specific resource and action
- */
-function hasPermission(user: any, resource: string, action?: string): boolean {
-  if (!user?.permissions) return false;
-
-  // Admin users have full access
-  if (user.permissions.admin === true) return true;
-
-  // Check array-based permissions
-  if (Array.isArray(user.permissions[resource])) {
-    return user.permissions[resource].includes('*');
-  }
-
-  // Check object-based permissions
-  if (typeof user.permissions[resource] === 'object' && action) {
-    return !!user.permissions[resource][action];
-  }
-
-  return !!user.permissions[resource];
-}
 
 /**
  * @route PUT /api/customers/[id]/users/[userId]
  * @desc Update a customer user
- * @access Private - Requires customers.edit permission or being a customer user with user management permission
+ * @access Private - Requires customer_config or global_config permission for internal users, or being a customer user with user management permission
  */
 export async function PUT(
   request: NextRequest,
@@ -69,17 +49,17 @@ export async function PUT(
     }
 
     // Check permissions
-    const isAdmin = session.user.userType === 'admin';
+    const isInternalUser = session.user.userType === 'internal' || session.user.userType === 'admin';
     const isCustomerWithUserManagement =
       session.user.userType === 'customer' &&
       session.user.customerId === customerId &&
       session.user.permissions?.users?.manage === true;
 
-    if (isAdmin && !hasPermission(session.user, 'customers', 'edit')) {
+    if (isInternalUser && !canManageCustomers(session.user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (!isAdmin && !isCustomerWithUserManagement) {
+    if (!isInternalUser && !isCustomerWithUserManagement) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -172,7 +152,7 @@ export async function PUT(
 /**
  * @route DELETE /api/customers/[id]/users/[userId]
  * @desc Delete a customer user
- * @access Private - Requires customers.edit permission or being a customer user with user management permission
+ * @access Private - Requires customer_config or global_config permission for internal users, or being a customer user with user management permission
  */
 export async function DELETE(
   request: NextRequest,
@@ -191,17 +171,17 @@ export async function DELETE(
     }
 
     // Check permissions
-    const isAdmin = session.user.userType === 'admin';
+    const isInternalUser = session.user.userType === 'internal' || session.user.userType === 'admin';
     const isCustomerWithUserManagement =
       session.user.userType === 'customer' &&
       session.user.customerId === customerId &&
       session.user.permissions?.users?.manage === true;
 
-    if (isAdmin && !hasPermission(session.user, 'customers', 'edit')) {
+    if (isInternalUser && !canManageCustomers(session.user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (!isAdmin && !isCustomerWithUserManagement) {
+    if (!isInternalUser && !isCustomerWithUserManagement) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

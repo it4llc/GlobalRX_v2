@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import logger from '@/lib/logger';
 import { getErrorDetails } from '@/lib/utils';
+import { canManageCustomers } from '@/lib/auth-utils';
 
 // Validation schema for updating a customer
 const customerUpdateSchema = z.object({
@@ -32,27 +33,6 @@ const customerUpdateSchema = z.object({
 });
 
 /**
- * Check if a user has permission for a specific resource and action
- * Handles both object-based and array-based permission structures
- */
-function hasPermission(user: any, resource: string, action?: string): boolean {
-  if (!user?.permissions) return false;
-  
-  // Case 1: Star permission array like {"customers": ["*"]}
-  if (Array.isArray(user.permissions[resource])) {
-    return user.permissions[resource].includes('*');
-  }
-  
-  // Case 2: Object with boolean flags like {"customers": {"view": true}}
-  if (typeof user.permissions[resource] === 'object' && action) {
-    return !!user.permissions[resource][action];
-  }
-  
-  // If we have the resource but no action specified
-  return !!user.permissions[resource];
-}
-
-/**
  * @route GET /api/customers/[id]
  * @desc Get a specific customer by ID
  * @access Private - Requires customers.view permission
@@ -65,16 +45,21 @@ export async function GET(
   const params = await context.params;
 
   try {
-    
+
     // Check authentication
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions using the helper function
-    if (!hasPermission(session.user, 'customers', 'view')) {
+    // Check permissions using the centralized auth utility
+    // BUG FIX: Previously used inline permission checking that only looked for
+    // legacy 'customers.view' permissions. This caused 403 Forbidden errors
+    // when internal users had the new module-based permissions (customer_config, global_config)
+    // but not the old format. The centralized canManageCustomers() function properly
+    // handles both permission formats and user type restrictions.
+    if (!canManageCustomers(session.user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -163,16 +148,21 @@ export async function PUT(
   const params = await context.params;
 
   try {
-    
+
     // Check authentication
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions using the helper function
-    if (!hasPermission(session.user, 'customers', 'edit')) {
+    // Check permissions using the centralized auth utility
+    // BUG FIX: Previously used inline permission checking that only looked for
+    // legacy 'customers.edit' permissions. This caused 403 Forbidden errors
+    // when internal users had the new module-based permissions (customer_config, global_config)
+    // but not the old format. The centralized canManageCustomers() function properly
+    // handles both permission formats and user type restrictions.
+    if (!canManageCustomers(session.user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -413,15 +403,20 @@ export async function DELETE(
   const params = await context.params;
 
   try {
-    
+
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions using the helper function
-    if (!hasPermission(session.user, 'customers', 'delete')) {
+    // Check permissions using the centralized auth utility
+    // BUG FIX: Previously used inline permission checking that only looked for
+    // legacy 'customers.delete' permissions. This caused 403 Forbidden errors
+    // when internal users had the new module-based permissions (customer_config, global_config)
+    // but not the old format. The centralized canManageCustomers() function properly
+    // handles both permission formats and user type restrictions.
+    if (!canManageCustomers(session.user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
