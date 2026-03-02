@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth.server';
 import { z } from 'zod';
 import logger from '@/lib/logger';
+import { canManageCustomers } from '@/lib/auth-utils';
 
 // Validation schema for creating a customer user
 const customerUserCreateSchema = z.object({
@@ -24,28 +25,6 @@ const customerUserCreateSchema = z.object({
     }).optional(),
   }).optional(),
 });
-
-/**
- * Check if a user has permission for a specific resource and action
- */
-function hasPermission(user: any, resource: string, action?: string): boolean {
-  if (!user?.permissions) return false;
-
-  // Admin users have full access
-  if (user.permissions.admin === true) return true;
-
-  // Check array-based permissions
-  if (Array.isArray(user.permissions[resource])) {
-    return user.permissions[resource].includes('*');
-  }
-
-  // Check object-based permissions
-  if (typeof user.permissions[resource] === 'object' && action) {
-    return !!user.permissions[resource][action];
-  }
-
-  return !!user.permissions[resource];
-}
 
 /**
  * @route GET /api/customers/[id]/users
@@ -68,15 +47,15 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions - admin users need customers.view, customer users can only see their own
-    const isAdmin = session.user.userType === 'admin';
+    // Check permissions - admin/internal users need customer management permission, customer users can only see their own
+    // BUG FIX: Previously used inline permission checking that only looked for
+    // legacy 'customers.view' permissions. This caused 403 Forbidden errors
+    // when internal users had the new module-based permissions (customer_config, global_config)
+    // but not the old format. The centralized canManageCustomers() function properly
+    // handles both permission formats and user type restrictions.
     const isOwnCustomer = session.user.userType === 'customer' && session.user.customerId === customerId;
 
-    if (isAdmin && !hasPermission(session.user, 'customers', 'view')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    if (!isAdmin && !isOwnCustomer) {
+    if (!canManageCustomers(session.user) && !isOwnCustomer) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -178,18 +157,19 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions
-    const isAdmin = session.user.userType === 'admin';
+    // Check permissions - admin/internal users need customer management permission,
+    // customer users can manage users if they have user management permission for their own customer
+    // BUG FIX: Previously used inline permission checking that only looked for
+    // legacy 'customers.edit' permissions. This caused 403 Forbidden errors
+    // when internal users had the new module-based permissions (customer_config, global_config)
+    // but not the old format. The centralized canManageCustomers() function properly
+    // handles both permission formats and user type restrictions.
     const isCustomerWithUserManagement =
       session.user.userType === 'customer' &&
       session.user.customerId === customerId &&
       session.user.permissions?.users?.manage === true;
 
-    if (isAdmin && !hasPermission(session.user, 'customers', 'edit')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    if (!isAdmin && !isCustomerWithUserManagement) {
+    if (!canManageCustomers(session.user) && !isCustomerWithUserManagement) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -32,14 +32,6 @@ export function DocumentsTable({ documents, isLoading, onToggleStatus, onRefresh
   const { fetchWithAuth } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
-  
-  // Log documents structure to help with debugging
-  useEffect(() => {
-    if (documents && documents.length > 0) {
-      clientLogger.info("First document structure:", documents[0]);
-    }
-  }, [documents]);
-  
   // Filter documents based on search term and disabled status
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = 

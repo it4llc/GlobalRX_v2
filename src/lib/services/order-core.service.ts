@@ -2,6 +2,7 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
+import { SubjectInfo } from '@/components/portal/orders/types';
 import { OrderNumberService } from './order-number.service';
 import { AddressService } from './address.service';
 import { FieldResolverService } from './field-resolver.service';
@@ -65,7 +66,7 @@ export class OrderCoreService {
    * Normalize and merge subject data, ensuring consistent field naming and resolved values
    */
   static async normalizeSubjectData(
-    baseSubject: any,
+    baseSubject: SubjectInfo,
     subjectFieldValues?: Record<string, any>,
     userId?: string
   ): Promise<Record<string, any>> {
@@ -108,7 +109,7 @@ export class OrderCoreService {
   static async createOrder(data: {
     customerId: string;
     userId: string;
-    subject: any;
+    subject: SubjectInfo;
     notes?: string;
   }) {
     const orderNumber = await OrderNumberService.generateOrderNumber(data.customerId);
@@ -177,7 +178,7 @@ export class OrderCoreService {
       locationName: string;
       itemId: string;
     }>;
-    subject: any;
+    subject: SubjectInfo;
     subjectFieldValues?: Record<string, any>;
     searchFieldValues?: Record<string, Record<string, any>>;
     uploadedDocuments?: Record<string, any>;
@@ -505,7 +506,7 @@ export class OrderCoreService {
     orderId: string,
     customerId: string,
     data: Partial<{
-      subject: any;
+      subject: SubjectInfo;
       notes: string;
     }>
   ) {
@@ -642,6 +643,76 @@ export class OrderCoreService {
       include: {
         service: true,
         location: true,
+      },
+    });
+  }
+
+  /**
+   * Get full order details without customer ID constraint
+   * Used by internal users (fulfillment, admin) who need to access any order
+   *
+   * @param orderId The order ID to fetch
+   * @returns The full order details with customer info, or null if not found
+   */
+  static async getFullOrderDetails(orderId: string) {
+    return prisma.order.findUnique({
+      where: {
+        id: orderId,
+      },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            disabled: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        assignedVendor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        items: {
+          include: {
+            service: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+              },
+            },
+            location: {
+              select: {
+                id: true,
+                name: true,
+                code2: true,
+              },
+            },
+            data: true,
+            documents: true,
+          },
+        },
+        statusHistory: {
+          include: {
+            user: {
+              select: {
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
   }

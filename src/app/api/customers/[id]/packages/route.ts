@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import logger from '@/lib/logger';
 import { getErrorDetails } from '@/lib/utils';
+import { canManageCustomers } from '@/lib/auth-utils';
 
 // Validation schema for package
 const packageSchema = z.object({
@@ -36,12 +37,13 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Import hasPermission at the top of the file
-    const { hasPermission } = await import('@/lib/permission-utils');
-
-    // Check if user has permission to view customers using hasPermission
-    if (!hasPermission(session.user, "customers", "view") && 
-        !hasPermission(session.user, "admin")) {
+    // Check permissions using the centralized auth utility
+    // BUG FIX: Previously used inline permission checking that only looked for
+    // legacy 'customers.view' permissions. This caused 403 Forbidden errors
+    // when internal users had the new module-based permissions (customer_config, global_config)
+    // but not the old format. The centralized canManageCustomers() function properly
+    // handles both permission formats and user type restrictions.
+    if (!canManageCustomers(session.user)) {
       logger.warn('API: User lacks permission', { userId: session.user.id });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -120,12 +122,13 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Import hasPermission at the top of the file
-    const { hasPermission } = await import('@/lib/permission-utils');
-
-    // Check if user has permission to edit customers using hasPermission
-    if (!hasPermission(session.user, "customers", "edit") && 
-        !hasPermission(session.user, "admin")) {
+    // Check permissions using the centralized auth utility
+    // BUG FIX: Previously used inline permission checking that only looked for
+    // legacy 'customers.edit' permissions. This caused 403 Forbidden errors
+    // when internal users had the new module-based permissions (customer_config, global_config)
+    // but not the old format. The centralized canManageCustomers() function properly
+    // handles both permission formats and user type restrictions.
+    if (!canManageCustomers(session.user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -183,23 +183,24 @@ export function canAccessGlobalConfig(user: User | null | undefined): boolean {
 
 /**
  * Check if user can access Data Rx (DSX configuration)
- * Internal users with global_config permission have access
+ * ONLY internal users with global_config permission have access
+ *
+ * BREAKING CHANGE: Legacy 'dsx' permission is no longer supported.
+ * This is an intentional breaking change to identify users who need
+ * permission migration and consolidate Data Rx access under the
+ * centralized global_config permission system.
+ *
+ * Business rationale: Data Rx configuration affects global system
+ * settings and document requirements across all customers. Only users
+ * with global configuration privileges should have access.
+ *
+ * Migration required: Users previously granted 'dsx' permission
+ * must be updated to have 'global_config' permission instead.
  */
 export function canAccessDataRx(user: User | null | undefined): boolean {
   if (!isInternalUser(user)) return false;
 
-  // Check for global_config permission (grants access to all config)
-  if (hasModulePermission(user, 'global_config')) return true;
-
-  // Also check for old dsx permission for backward compatibility
-  const permissions = user?.permissions;
-  if (permissions?.dsx) {
-    if (permissions.dsx === true ||
-        permissions.dsx === '*' ||
-        (Array.isArray(permissions.dsx) && permissions.dsx.includes('*'))) {
-      return true;
-    }
-  }
-
-  return false;
+  // ONLY check for global_config permission
+  // Legacy 'dsx' permission is intentionally NOT supported to force migration
+  return hasModulePermission(user, 'global_config');
 }
