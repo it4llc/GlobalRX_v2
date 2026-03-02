@@ -90,6 +90,14 @@ Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Cri
   - Removed development mode bypasses from toggle-status routes
   - Centralized all Data Rx permission checking through `canAccessDataRx()`
   - Migrated from legacy 'dsx' to 'global_config' permission system
+- **Update**: ✅ Customer Management Permission Bug Fixed on March 2, 2026:
+  - Fixed 403 Forbidden errors in customer management API routes
+  - API routes only checked for legacy 'customers.view/edit' permissions
+  - Internal users with new 'customer_config/global_config' permissions were denied access
+  - Replaced inline permission checking with centralized `canManageCustomers()` function
+  - All customer/* API endpoints now use consistent permission logic
+  - Added comprehensive code comments explaining the bug fix
+  - Updated coding standards to prevent similar inline permission checking bugs
 
 ### 5. No Automated Backups - Data Loss Risk
 - **Finding**: Manual backup process only, no automation or remote storage

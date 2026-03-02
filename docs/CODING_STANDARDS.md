@@ -563,6 +563,16 @@ if (!canAccessDataRx(session.user)) {
 - Easier security auditing and testing
 - Prevents permission bypass vulnerabilities
 
+**Customer Management Access Pattern:**
+```typescript
+import { canManageCustomers } from '@/lib/auth-utils';
+
+// Always use centralized permission checking for customer operations
+if (!canManageCustomers(session.user)) {
+  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+}
+```
+
 **Breaking changes to permissions:**
 When permission requirements change (like the Data Rx 'dsx' → 'global_config' migration),
 centralized functions make it easy to:
@@ -570,6 +580,14 @@ centralized functions make it easy to:
 - Ensure all endpoints use the new requirements
 - Create comprehensive test coverage
 - Generate clear migration documentation
+
+**Bug Prevention:**
+The permission system migration revealed a common bug pattern:
+- API routes had inline permission checking for legacy permission format
+- Users were migrated to new module-based permissions
+- API routes returned 403 Forbidden because they only checked for old format
+- Frontend worked because it checked both formats
+- Solution: Replace all inline permission checking with centralized functions
 
 ### 9.6 No Secrets in Code
 
