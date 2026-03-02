@@ -109,6 +109,10 @@ export function ClientNav() {
             )}
 
             {/* Vendor Management - only for users with permission */}
+            {/* Translation key fix: Using 'module.vendorManagement.title' to match
+                homepage expectations, while translation files provide both
+                'module.vendorAdmin.title' and 'module.vendorManagement.title'
+                for backward compatibility */}
             {canManageVendors(user) && (
               <Link href="/admin/vendors">
                 <Button
@@ -121,6 +125,9 @@ export function ClientNav() {
             )}
 
             {/* Orders/Fulfillment - show for users with fulfillment permission */}
+            {/* Translation key fix: Added 'module.fulfillment.*' keys to all
+                translation files as they were completely missing, causing
+                raw key display instead of human-readable text */}
             {canAccessFulfillment(user) && (
               <Link href="/fulfillment">
                 <Button

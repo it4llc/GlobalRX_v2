@@ -1,6 +1,7 @@
 // src/components/homepage/homepage-content.tsx
 "use client";
 
+import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,6 +88,9 @@ export function HomepageContent({ session }: { session: Session | null }) {
           )}
 
           {/* Module 5: Fulfillment - For users with fulfillment permission */}
+          {/* Translation key fix: Added complete 'module.fulfillment.*' key set
+              (title, description, button) to all translation files as they were
+              entirely missing, preventing proper display of fulfillment module */}
           {canAccessFulfillment(user) && (
             <Card className="flex flex-col h-full">
               <CardHeader>
