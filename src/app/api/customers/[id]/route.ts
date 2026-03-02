@@ -53,13 +53,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Debug logging
-    logger.info('GET /api/customers/[id] - Session user:', {
-      userType: session.user.userType,
-      permissions: session.user.permissions,
-      customerId: session.user.customerId
-    });
-
     // Check permissions using the centralized auth utility
     // BUG FIX: Previously used inline permission checking that only looked for
     // legacy 'customers.view' permissions. This caused 403 Forbidden errors
@@ -67,10 +60,6 @@ export async function GET(
     // but not the old format. The centralized canManageCustomers() function properly
     // handles both permission formats and user type restrictions.
     if (!canManageCustomers(session.user)) {
-      logger.warn('GET /api/customers/[id] - Permission denied:', {
-        userType: session.user.userType,
-        permissions: session.user.permissions
-      });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
