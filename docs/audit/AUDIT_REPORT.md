@@ -79,12 +79,17 @@ Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Cri
   - AlertManager with Slack/PagerDuty/Email support
   - Automatic alerting on errors and performance issues
 
-### 4. ~~Unauthenticated Endpoints - Security Gap~~ ✅ RESOLVED
+### 4. ~~Unauthenticated Endpoints - Security Gap~~ ✅ FULLY RESOLVED
 - **Finding**: DSX management and debug endpoints accessible without authentication
 - **Specific Routes**: `/api/dsx` (GET), `/api/debug-session`
 - **Impact**: Unauthorized access to configuration and user data
 - **Fix Timeline**: ~~2 days to add authentication checks~~
 - **Resolution**: ✅ Fixed on Feb 23, 2026 - All endpoints now require authentication
+- **Update**: ✅ Further secured on March 2, 2026:
+  - Fixed missing permission check in `/api/data-rx/documents/[id]/upload-pdf`
+  - Removed development mode bypasses from toggle-status routes
+  - Centralized all Data Rx permission checking through `canAccessDataRx()`
+  - Migrated from legacy 'dsx' to 'global_config' permission system
 
 ### 5. No Automated Backups - Data Loss Risk
 - **Finding**: Manual backup process only, no automation or remote storage
