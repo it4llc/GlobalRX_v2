@@ -18,6 +18,7 @@
  * - OrderCoreService: Main order CRUD and state management
  */
 
+import { SubjectInfo } from '@/components/portal/orders/types';
 import { OrderCoreService } from './order-core.service';
 import { OrderNumberService } from './order-number.service';
 import { AddressService } from './address.service';
@@ -42,7 +43,7 @@ export class OrderService {
   static async createOrder(data: {
     customerId: string;
     userId: string;
-    subject: any;
+    subject: SubjectInfo;
     notes?: string;
   }) {
     return OrderCoreService.createOrder(data);
@@ -61,7 +62,7 @@ export class OrderService {
       locationName: string;
       itemId: string;
     }>;
-    subject: any;
+    subject: SubjectInfo;
     subjectFieldValues?: Record<string, any>;
     searchFieldValues?: Record<string, Record<string, any>>;
     uploadedDocuments?: Record<string, any>;
@@ -113,7 +114,7 @@ export class OrderService {
     orderId: string,
     customerId: string,
     data: Partial<{
-      subject: any;
+      subject: SubjectInfo;
       notes: string;
     }>
   ) {
@@ -161,7 +162,7 @@ export class OrderService {
    * @deprecated Use AddressService.createOrFindAddressEntry() directly
    * @private
    */
-  private static async createOrFindAddressEntry(addressData: any, userId: string): Promise<string | null> {
+  private static async createOrFindAddressEntry(addressData: SubjectInfo | Record<string, any>, userId: string): Promise<string | null> {
     return AddressService.createOrFindAddressEntry(addressData, userId);
   }
 
@@ -178,10 +179,21 @@ export class OrderService {
    * @private
    */
   private static async normalizeSubjectData(
-    baseSubject: any,
+    baseSubject: SubjectInfo,
     subjectFieldValues?: Record<string, any>,
     userId?: string
   ): Promise<Record<string, any>> {
     return OrderCoreService.normalizeSubjectData(baseSubject, subjectFieldValues, userId);
+  }
+
+  /**
+   * Get full order details without customer ID constraint
+   * Used by internal users (fulfillment, admin) who need to access any order
+   *
+   * @param orderId The order ID to fetch
+   * @returns The full order details with customer info, or null if not found
+   */
+  static async getFullOrderDetails(orderId: string) {
+    return OrderCoreService.getFullOrderDetails(orderId);
   }
 }

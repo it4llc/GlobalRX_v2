@@ -3,7 +3,7 @@ import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { hasPermission } from '@/lib/permission-utils';
+import { canManageCustomers } from '@/lib/auth-utils';
 
 // GET: Fetch workflows for a specific customer
 export async function GET(
@@ -16,10 +16,13 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user has permission to view workflows (either directly or via customers permission)
-    if (!hasPermission(session.user, 'workflows', 'view') && 
-        !hasPermission(session.user, 'customers', 'view') && 
-        !hasPermission(session.user, 'admin')) {
+    // Check permissions using the centralized auth utility
+    // BUG FIX: Previously used inline permission checking that only looked for
+    // legacy 'workflows.view', 'customers.view', and 'admin' permissions. This caused 403 Forbidden errors
+    // when internal users had the new module-based permissions (customer_config, global_config)
+    // but not the old format. The centralized canManageCustomers() function properly
+    // handles both permission formats and user type restrictions.
+    if (!canManageCustomers(session.user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

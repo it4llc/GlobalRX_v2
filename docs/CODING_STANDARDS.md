@@ -434,6 +434,27 @@ Translation keys follow a dot-notation hierarchy:
 
 Examples: `userAdmin.form.nameLabel`, `common.save`, `common.cancel`
 
+### 7.4 Translation Key Verification
+
+Before using any translation key in code, verify it exists in ALL language files:
+
+**Required verification process:**
+1. Check the key exists in `src/translations/en-US.json` (master file)
+2. Verify the key exists in ALL other translation files
+3. If adding new keys, update ALL translation files simultaneously
+4. Test the UI to ensure no raw translation keys are displayed
+
+**Common translation key bugs:**
+- Using `module.vendorManagement.*` when files only have `module.vendorAdmin.*`
+- Adding keys to one language file but forgetting others
+- Mistyping translation key names in components
+- Missing entire key hierarchies (like `module.fulfillment.*`)
+
+**Prevention:**
+- Always copy exact key names from translation files into components
+- Create a checklist of all translation files when adding new keys
+- Test UI in multiple languages to catch missing translations
+
 ---
 
 ## SECTION 8: Business Logic Standards
@@ -478,8 +499,8 @@ These rules protect the platform and the sensitive personal data it handles.
 Every API route that reads or writes data must check authentication before
 doing anything else. **No exceptions.**
 
-**Current Issue:** Audit found unauthenticated endpoints including `/api/dsx` GET
-requests and `/api/debug-session`. These must be secured immediately.
+**Fixed Issue:** All previously unauthenticated endpoints have been secured,
+including Data Rx endpoints and debug routes.
 
 **Critical:** Any API route without authentication is a security vulnerability.
 
@@ -493,13 +514,88 @@ Role and permission checks must happen in the API route, on the server.
 Never use data from a request body, query parameter, or URL without validating
 it first with a Zod schema. Assume all incoming data could be malformed or malicious.
 
-### 9.4 No Secrets in Code
+### 9.4 User Type Specific API Endpoints
+
+Different user types must use the appropriate API endpoints. **Never try to make
+a single endpoint serve all user types** as this leads to permission confusion
+and security vulnerabilities.
+
+**User Type Routing Rules:**
+- **Customer users** → use `/api/portal/*` endpoints (require customerId validation)
+- **Internal users** → use `/api/fulfillment/*` or `/api/admin/*` endpoints (require internal permissions)
+- **Vendor users** → use `/api/vendor/*` endpoints (require vendorId validation)
+
+**Example of the correct pattern:**
+```typescript
+// In a component that serves different user types
+const endpoint = user.type === 'customer'
+  ? `/api/portal/orders/${orderId}`
+  : `/api/fulfillment/orders/${orderId}`;
+```
+
+**Common mistake that causes 401 errors:**
+```typescript
+// Wrong - all users hitting the same endpoint
+const endpoint = `/api/portal/orders/${orderId}`; // Only works for customer users!
+```
+
+This pattern prevents the bug where internal users with fulfillment permissions
+receive 401 errors when trying to access customer-only endpoints.
+
+### 9.5 Centralized Permission Functions
+
+All permission checking must use the centralized functions in `auth-utils.ts`.
+This ensures consistent permission logic across the entire application.
+
+**Data Rx Access Pattern:**
+```typescript
+import { canAccessDataRx } from '@/lib/auth-utils';
+
+// Always use centralized permission checking
+if (!canAccessDataRx(session.user)) {
+  return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+}
+```
+
+**Why centralized permission checking matters:**
+- Consistent permission logic across all endpoints
+- Single source of truth for permission changes
+- Easier security auditing and testing
+- Prevents permission bypass vulnerabilities
+
+**Customer Management Access Pattern:**
+```typescript
+import { canManageCustomers } from '@/lib/auth-utils';
+
+// Always use centralized permission checking for customer operations
+if (!canManageCustomers(session.user)) {
+  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+}
+```
+
+**Breaking changes to permissions:**
+When permission requirements change (like the Data Rx 'dsx' → 'global_config' migration),
+centralized functions make it easy to:
+- Update permission logic in one place
+- Ensure all endpoints use the new requirements
+- Create comprehensive test coverage
+- Generate clear migration documentation
+
+**Bug Prevention:**
+The permission system migration revealed a common bug pattern:
+- API routes had inline permission checking for legacy permission format
+- Users were migrated to new module-based permissions
+- API routes returned 403 Forbidden because they only checked for old format
+- Frontend worked because it checked both formats
+- Solution: Replace all inline permission checking with centralized functions
+
+### 9.6 No Secrets in Code
 
 Database URLs, API keys, passwords, and other secrets must only exist in
 environment variables (`.env.local`). Never hardcode secrets in any file
 that is committed to GitHub.
 
-### 9.5 Environment Variables Must Be Documented
+### 9.7 Environment Variables Must Be Documented
 
 Every environment variable used in the project must be listed in `.env.example`
 with a description of what it is (but not its real value).
@@ -772,6 +868,7 @@ Before submitting any code, verify:
 - [ ] Every API route has try/catch error handling
 - [ ] No `any` TypeScript types used
 - [ ] All user-facing text uses the translation system
+- [ ] Translation keys verified to exist in ALL language files
 - [ ] No secrets or sensitive values hardcoded
 - [ ] Imports use `@/` prefix (no relative paths)
 - [ ] File is named using the correct convention (PascalCase/camelCase/kebab-case)

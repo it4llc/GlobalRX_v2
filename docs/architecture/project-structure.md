@@ -75,7 +75,10 @@
 
 **Key API Categories:**
 - **Customer Management:** `/customers`, `/customers/[id]`
-- **Order Processing:** `/orders`, `/orders/[id]`, `/orders/[id]/submit`
+- **Order Processing:**
+  - `/orders`, `/orders/[id]`, `/orders/[id]/submit` (general order management)
+  - `/portal/orders/[id]` (customer-specific order details)
+  - `/fulfillment/orders/[id]` (internal user order details) ⭐ NEW
 - **User Administration:** `/users`, `/users/[id]`
 - **Vendor Management:** `/vendors`, `/vendors/[id]` ⭐ NEW
 - **Global Configuration:** `/services`, `/countries`, `/data-rx`

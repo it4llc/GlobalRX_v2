@@ -83,9 +83,14 @@ export function useCustomerConfig(customerId: string | null) {
     dataRetentionDays: null, // Default to "Delete at Global Rule"
   });
 
-  // Permission checks
-  const canView = checkPermission('customers', 'view');
-  const canEdit = checkPermission('customers', 'edit');
+  // Permission checks - check for new module-based permissions
+  // BUG FIX: Previously only checked for legacy 'customers.view/edit' permissions.
+  // This caused the frontend to hide customer management features for internal users
+  // who had the new module-based permissions (customer_config, global_config) but not
+  // the old format. Now we check both formats to ensure compatibility during the transition.
+  // Users with customer_config or global_config can manage customers
+  const canView = checkPermission('customer_config') || checkPermission('global_config') || checkPermission('customers', 'view');
+  const canEdit = checkPermission('customer_config') || checkPermission('global_config') || checkPermission('customers', 'edit');
 
   // Email validation - empty is OK, but if provided must be valid format
   const validateEmail = useCallback((email: string | null | undefined): boolean => {

@@ -1,6 +1,8 @@
+// /GlobalRX_v2/src/components/portal/order-details-dialog.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
+import { SubjectInfo } from '@/components/portal/orders/types';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 import {
   Dialog,
@@ -25,7 +27,7 @@ interface OrderDetails {
   id: string;
   orderNumber: string;
   statusCode: string;
-  subject: any;
+  subject: SubjectInfo | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -36,6 +38,7 @@ interface OrderDetailsDialogProps {
   orderId: string | null;
   open: boolean;
   onClose: () => void;
+  isInternalUser?: boolean; // Flag to determine which endpoint to use
 }
 
 const getStatusColor = (statusCode: string): string => {
@@ -59,7 +62,7 @@ const formatStatus = (statusCode: string): string => {
   return statusCode.charAt(0).toUpperCase() + statusCode.slice(1);
 };
 
-const formatSubjectName = (subject: any): string => {
+const formatSubjectName = (subject: SubjectInfo | null): string => {
   if (!subject) return 'No subject';
 
   const firstName = subject.firstName ||
@@ -92,7 +95,7 @@ const formatSubjectName = (subject: any): string => {
   }
 };
 
-export default function OrderDetailsDialog({ orderId, open, onClose }: OrderDetailsDialogProps) {
+export default function OrderDetailsDialog({ orderId, open, onClose, isInternalUser = false }: OrderDetailsDialogProps) {
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +104,7 @@ export default function OrderDetailsDialog({ orderId, open, onClose }: OrderDeta
     if (open && orderId) {
       fetchOrderDetails();
     }
-  }, [open, orderId]);
+  }, [open, orderId, isInternalUser]);
 
   const fetchOrderDetails = async () => {
     if (!orderId) return;
@@ -110,7 +113,17 @@ export default function OrderDetailsDialog({ orderId, open, onClose }: OrderDeta
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/portal/orders/${orderId}`);
+      // BUG FIX: Use different endpoint based on user type to resolve 401 error
+      // The issue was that internal users with fulfillment permission were trying
+      // to use /api/portal/orders/[id] which only allows customer users, causing
+      // a 401 Unauthorized error. Now we route to the correct endpoint:
+      // - Internal users → /api/fulfillment/orders/[id] (allows fulfillment permissions)
+      // - Customer users → /api/portal/orders/[id] (requires customerId matching)
+      const endpoint = isInternalUser
+        ? `/api/fulfillment/orders/${orderId}`
+        : `/api/portal/orders/${orderId}`;
+
+      const response = await fetch(endpoint);
 
       if (!response.ok) {
         throw new Error('Failed to fetch order details');

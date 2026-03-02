@@ -25,12 +25,17 @@ export async function GET(request: NextRequest) {
       user: {
         id: session.user?.id,
         email: session.user?.email,
+        type: session.user?.type,
+        userType: session.user?.userType,
+        role: session.user?.role,
         permissions: session.user?.permissions
       },
       // Check specific permissions relevant to customers
       permissionChecks: {
         hasCustomersView: Boolean(session.user?.permissions?.customers?.view),
-        hasCustomersAll: Boolean(session.user?.permissions?.customers?.all)
+        hasCustomersAll: Boolean(session.user?.permissions?.customers?.all),
+        hasFulfillment: session.user?.permissions?.fulfillment,
+        userTypeCheck: session.user?.type || session.user?.userType || 'not set'
       }
     });
   } catch (error: unknown) {
