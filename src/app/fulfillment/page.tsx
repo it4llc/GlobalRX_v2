@@ -1,7 +1,8 @@
-// src/app/fulfillment/page.tsx
+// /GlobalRX_v2/src/app/fulfillment/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
+import { SubjectInfo } from '@/components/portal/orders/types';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,7 +37,7 @@ interface Order {
   id: string;
   orderNumber: string;
   statusCode: string;
-  subject: any;
+  subject: SubjectInfo | null;
   notes?: string | null;
   customer?: {
     id: string;
@@ -142,7 +143,7 @@ export default function FulfillmentPage() {
       };
       setStats(newStats);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      // Error already logged by API layer, no need to log again
     } finally {
       setLoading(false);
     }
@@ -188,7 +189,7 @@ export default function FulfillmentPage() {
     return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const getSubjectName = (subject: any) => {
+  const getSubjectName = (subject: SubjectInfo | null) => {
     if (!subject) return 'N/A';
     return `${subject.firstName || ''} ${subject.lastName || ''}`.trim() || 'N/A';
   };
@@ -443,6 +444,9 @@ export default function FulfillmentPage() {
       </Card>
 
       {/* Order Details Dialog */}
+      {/* BUG FIX: Pass isInternalUser=true to ensure dialog uses correct API endpoint
+          Previously, all users hit /api/portal/orders/[id] which caused 401 errors
+          for internal users. Now internal users route to /api/fulfillment/orders/[id] */}
       <OrderDetailsDialog
         orderId={selectedOrderId}
         open={dialogOpen}
@@ -450,6 +454,7 @@ export default function FulfillmentPage() {
           setDialogOpen(false);
           setSelectedOrderId(null);
         }}
+        isInternalUser={true}
       />
     </div>
   );

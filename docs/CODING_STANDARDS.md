@@ -514,7 +514,35 @@ Role and permission checks must happen in the API route, on the server.
 Never use data from a request body, query parameter, or URL without validating
 it first with a Zod schema. Assume all incoming data could be malformed or malicious.
 
-### 9.4 No Secrets in Code
+### 9.4 User Type Specific API Endpoints
+
+Different user types must use the appropriate API endpoints. **Never try to make
+a single endpoint serve all user types** as this leads to permission confusion
+and security vulnerabilities.
+
+**User Type Routing Rules:**
+- **Customer users** → use `/api/portal/*` endpoints (require customerId validation)
+- **Internal users** → use `/api/fulfillment/*` or `/api/admin/*` endpoints (require internal permissions)
+- **Vendor users** → use `/api/vendor/*` endpoints (require vendorId validation)
+
+**Example of the correct pattern:**
+```typescript
+// In a component that serves different user types
+const endpoint = user.type === 'customer'
+  ? `/api/portal/orders/${orderId}`
+  : `/api/fulfillment/orders/${orderId}`;
+```
+
+**Common mistake that causes 401 errors:**
+```typescript
+// Wrong - all users hitting the same endpoint
+const endpoint = `/api/portal/orders/${orderId}`; // Only works for customer users!
+```
+
+This pattern prevents the bug where internal users with fulfillment permissions
+receive 401 errors when trying to access customer-only endpoints.
+
+### 9.5 No Secrets in Code
 
 Database URLs, API keys, passwords, and other secrets must only exist in
 environment variables (`.env.local`). Never hardcode secrets in any file
