@@ -434,6 +434,27 @@ Translation keys follow a dot-notation hierarchy:
 
 Examples: `userAdmin.form.nameLabel`, `common.save`, `common.cancel`
 
+### 7.4 Translation Key Verification
+
+Before using any translation key in code, verify it exists in ALL language files:
+
+**Required verification process:**
+1. Check the key exists in `src/translations/en-US.json` (master file)
+2. Verify the key exists in ALL other translation files
+3. If adding new keys, update ALL translation files simultaneously
+4. Test the UI to ensure no raw translation keys are displayed
+
+**Common translation key bugs:**
+- Using `module.vendorManagement.*` when files only have `module.vendorAdmin.*`
+- Adding keys to one language file but forgetting others
+- Mistyping translation key names in components
+- Missing entire key hierarchies (like `module.fulfillment.*`)
+
+**Prevention:**
+- Always copy exact key names from translation files into components
+- Create a checklist of all translation files when adding new keys
+- Test UI in multiple languages to catch missing translations
+
 ---
 
 ## SECTION 8: Business Logic Standards
@@ -772,6 +793,7 @@ Before submitting any code, verify:
 - [ ] Every API route has try/catch error handling
 - [ ] No `any` TypeScript types used
 - [ ] All user-facing text uses the translation system
+- [ ] Translation keys verified to exist in ALL language files
 - [ ] No secrets or sensitive values hardcoded
 - [ ] Imports use `@/` prefix (no relative paths)
 - [ ] File is named using the correct convention (PascalCase/camelCase/kebab-case)
