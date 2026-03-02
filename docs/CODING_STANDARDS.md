@@ -499,8 +499,8 @@ These rules protect the platform and the sensitive personal data it handles.
 Every API route that reads or writes data must check authentication before
 doing anything else. **No exceptions.**
 
-**Current Issue:** Audit found unauthenticated endpoints including `/api/dsx` GET
-requests and `/api/debug-session`. These must be secured immediately.
+**Fixed Issue:** All previously unauthenticated endpoints have been secured,
+including Data Rx endpoints and debug routes.
 
 **Critical:** Any API route without authentication is a security vulnerability.
 
@@ -542,13 +542,42 @@ const endpoint = `/api/portal/orders/${orderId}`; // Only works for customer use
 This pattern prevents the bug where internal users with fulfillment permissions
 receive 401 errors when trying to access customer-only endpoints.
 
-### 9.5 No Secrets in Code
+### 9.5 Centralized Permission Functions
+
+All permission checking must use the centralized functions in `auth-utils.ts`.
+This ensures consistent permission logic across the entire application.
+
+**Data Rx Access Pattern:**
+```typescript
+import { canAccessDataRx } from '@/lib/auth-utils';
+
+// Always use centralized permission checking
+if (!canAccessDataRx(session.user)) {
+  return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+}
+```
+
+**Why centralized permission checking matters:**
+- Consistent permission logic across all endpoints
+- Single source of truth for permission changes
+- Easier security auditing and testing
+- Prevents permission bypass vulnerabilities
+
+**Breaking changes to permissions:**
+When permission requirements change (like the Data Rx 'dsx' → 'global_config' migration),
+centralized functions make it easy to:
+- Update permission logic in one place
+- Ensure all endpoints use the new requirements
+- Create comprehensive test coverage
+- Generate clear migration documentation
+
+### 9.6 No Secrets in Code
 
 Database URLs, API keys, passwords, and other secrets must only exist in
 environment variables (`.env.local`). Never hardcode secrets in any file
 that is committed to GitHub.
 
-### 9.5 Environment Variables Must Be Documented
+### 9.7 Environment Variables Must Be Documented
 
 Every environment variable used in the project must be listed in `.env.example`
 with a description of what it is (but not its real value).

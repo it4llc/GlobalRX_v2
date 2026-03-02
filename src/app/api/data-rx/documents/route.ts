@@ -4,34 +4,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { canAccessDataRx } from '@/lib/auth-utils';
 import logger, { logDatabaseError } from '@/lib/logger';
 
-// Helper function to check permissions
-function hasPermission(permissions: any, module: string): boolean {
-  if (!permissions) return false;
-  
-  // For super admin format
-  if (permissions === '*') return true;
-  if (Array.isArray(permissions) && permissions.includes('*')) return true;
-  
-  // Check granular permissions
-  if (typeof permissions === 'object') {
-    if (permissions[module]) {
-      if (typeof permissions[module] === 'boolean') return permissions[module];
-      if (typeof permissions[module] === 'object' && permissions[module].view === true) {
-        return true;
-      }
-      if (Array.isArray(permissions[module]) && 
-          (permissions[module].includes('*') || permissions[module].includes('view'))) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-}
-
-// GET handler to fetch documents
+/**
+ * GET /api/data-rx/documents
+ *
+ * Retrieves all Data Rx document requirements, optionally filtered by service
+ *
+ * Required permissions: global_config (internal users only)
+ *
+ * Query params:
+ *   - includeDisabled?: boolean - Include disabled documents in results
+ *   - serviceId?: string - Filter documents by specific service ID
+ *   - includeServices?: boolean - Include associated services in response
+ *
+ * Returns: { documents: DocumentRequirement[] }
+ *
+ * Breaking change: Legacy 'dsx' permission is no longer supported.
+ * Users must have 'global_config' permission to access this endpoint.
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions (requires global_config)
+ */
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
@@ -41,8 +37,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
     // Parse query parameters
@@ -137,7 +133,33 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST handler to create or update documents
+/**
+ * POST /api/data-rx/documents
+ *
+ * Creates a new document requirement or updates an existing one
+ *
+ * Required permissions: global_config (internal users only)
+ *
+ * Body: {
+ *   id?: string - If provided, updates existing document
+ *   name?: string - Document name (API usage)
+ *   documentName?: string - Document name (frontend usage)
+ *   instructions?: string - Instructions for the document
+ *   scope?: string - Scope information
+ *   retentionHandling?: string - Data retention policy (default: 'no_delete')
+ *   disabled?: boolean - Whether document is disabled (default: false)
+ * }
+ *
+ * Returns: DocumentRequirement with documentName alias
+ *
+ * Breaking change: Legacy 'dsx' permission is no longer supported.
+ * Users must have 'global_config' permission to access this endpoint.
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions (requires global_config)
+ *   - 400: Invalid request body or missing required fields
+ */
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
@@ -147,8 +169,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
     // Parse request body
@@ -244,7 +266,29 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE handler for documents
+/**
+ * DELETE /api/data-rx/documents
+ *
+ * Soft-deletes a document requirement by marking it as disabled
+ *
+ * Required permissions: global_config (internal users only)
+ *
+ * Query params:
+ *   - id: string (required) - Document ID to disable
+ *
+ * Returns: { success: true, message: string }
+ *
+ * Note: This is a soft delete - documents are disabled, not permanently deleted
+ * to maintain data integrity and audit trails.
+ *
+ * Breaking change: Legacy 'dsx' permission is no longer supported.
+ * Users must have 'global_config' permission to access this endpoint.
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions (requires global_config)
+ *   - 400: Missing document ID
+ */
 export async function DELETE(request: NextRequest) {
   try {
     // Check authentication
@@ -254,8 +298,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
     // Parse query parameters

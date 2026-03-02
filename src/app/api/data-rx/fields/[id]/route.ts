@@ -4,38 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { canAccessDataRx } from '@/lib/auth-utils';
 import logger, { logDatabaseError } from '@/lib/logger';
-
-// Helper function to check permissions
-function hasPermission(permissions: any, module: string): boolean {
-  if (!permissions) return false;
-  
-  // For super admin format (* string or array with *)
-  if (permissions === '*') return true;
-  if (Array.isArray(permissions) && permissions.includes('*')) return true;
-  
-  // Check granular permissions
-  if (typeof permissions === 'object') {
-    // Check object with properties
-    if (permissions[module]) {
-      // If it's a boolean value directly
-      if (typeof permissions[module] === 'boolean') return permissions[module];
-      
-      // If it's an object with view property
-      if (typeof permissions[module] === 'object' && permissions[module].view === true) {
-        return true;
-      }
-      
-      // If it's an array of actions
-      if (Array.isArray(permissions[module]) && 
-          (permissions[module].includes('*') || permissions[module].includes('view'))) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-}
 
 // Standardize the field data to use retentionHandling consistently
 function standardizeFieldData(fieldData: any): any {
@@ -66,13 +36,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Always allow access in development
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('Development mode - bypassing permission check');
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
+    // Check permissions
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
     const { id } = params;
@@ -157,13 +123,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Always allow access in development
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('Development mode - bypassing permission check');
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
+    // Check permissions
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
     const { id } = params;

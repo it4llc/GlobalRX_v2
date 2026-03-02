@@ -5,39 +5,36 @@ import logger from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { canAccessDataRx } from '@/lib/auth-utils';
 
-// Helper function to check permissions
-function hasPermission(permissions: any, module: string): boolean {
-  if (!permissions) return false;
-  
-  // For super admin format (* string or array with *)
-  if (permissions === '*') return true;
-  if (Array.isArray(permissions) && permissions.includes('*')) return true;
-  
-  // Check granular permissions
-  if (typeof permissions === 'object') {
-    // Check object with properties
-    if (permissions[module]) {
-      // If it's a boolean value directly
-      if (typeof permissions[module] === 'boolean') return permissions[module];
-      
-      // If it's an object with view property
-      if (typeof permissions[module] === 'object' && permissions[module].view === true) {
-        return true;
-      }
-      
-      // If it's an array of actions
-      if (Array.isArray(permissions[module]) && 
-          (permissions[module].includes('*') || permissions[module].includes('view'))) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-}
-
-// PATCH handler to toggle field disabled status
+/**
+ * PATCH /api/data-rx/fields/[id]/toggle-status
+ *
+ * Toggles the disabled status of a field requirement
+ *
+ * Required permissions: global_config (internal users only)
+ *
+ * Path params:
+ *   - id: string - Field requirement ID
+ *
+ * Returns: { success: true, isDisabled: boolean }
+ *
+ * Business logic: This endpoint toggles the disabled state stored in
+ * the fieldData.disabled field, allowing fields to be temporarily
+ * disabled without losing configuration.
+ *
+ * Security improvement: Removed development mode bypasses.
+ * All users must have proper permissions regardless of environment.
+ *
+ * Breaking change: Legacy 'dsx' permission is no longer supported.
+ * Users must have 'global_config' permission to access this endpoint.
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions (requires global_config)
+ *   - 404: Field not found
+ *   - 400: Missing field ID
+ */
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     // Check authentication
@@ -46,13 +43,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Always allow access in development
-    if (process.env.NODE_ENV === 'development') {
-      logger.info("Development mode - bypassing permission check");
-    }
-    // Otherwise check permissions
-    else if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission" }, { status: 403 });
+    // Check permissions
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
     const { id } = params;

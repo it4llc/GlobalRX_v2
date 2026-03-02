@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { canAccessDataRx } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
@@ -10,6 +11,33 @@ import { join, dirname } from 'path';
 // Define the maximum file size (5MB)
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
+/**
+ * POST /api/data-rx/documents/[id]/upload-pdf
+ *
+ * Uploads a PDF file for a specific document requirement
+ *
+ * Required permissions: global_config (internal users only)
+ *
+ * Path params:
+ *   - id: string - Document requirement ID
+ *
+ * Form data:
+ *   - pdfFile: File - PDF file to upload (max 5MB, PDF format only)
+ *
+ * Returns: { success: true }
+ *
+ * Security improvement: Now includes proper permission checking.
+ * Previously this endpoint was missing authorization checks.
+ *
+ * Breaking change: Legacy 'dsx' permission is no longer supported.
+ * Users must have 'global_config' permission to access this endpoint.
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions (requires global_config)
+ *   - 404: Document not found
+ *   - 400: Invalid file (not PDF, too large, or missing)
+ */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     // Check authentication
@@ -18,6 +46,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    // Check permissions - must have Data Rx access
+    if (!canAccessDataRx(session.user)) {
+      logger.warn('User attempted to upload PDF without Data Rx permission', {
+        userId: session.user.id,
+        documentId: params.id
+      });
+      return NextResponse.json(
+        { error: 'Forbidden - Insufficient permissions' },
+        { status: 403 }
       );
     }
 
