@@ -360,7 +360,7 @@ export function CommentTemplateGrid({ onTemplateSelect }: CommentTemplateGridPro
               <Table className="w-full">
                 <TableHeader>
                   <TableRow className="bg-gray-100">
-                    <TableHead className="w-48 sticky left-0 bg-gray-100">Service</TableHead>
+                    <TableHead className="w-48 sticky left-0 bg-gray-100 text-center">Service</TableHead>
                     {displayStatuses.map(status => (
                       <TableHead key={status} className="text-center min-w-[100px]">
                         {status}
@@ -374,13 +374,15 @@ export function CommentTemplateGrid({ onTemplateSelect }: CommentTemplateGridPro
                     <TableCell className="sticky left-0 bg-blue-50">All</TableCell>
                     {displayStatuses.map(status => (
                       <TableCell key={`all-${status}`} className="text-center">
-                        <Checkbox
+                        <div className="flex justify-center">
+                          <Checkbox
                           checked={services.every(s =>
                             isAvailable(s.code, status)
                           )}
                           onCheckedChange={() => toggleAllServices(status)}
                           disabled={!hasEditPermission}
                         />
+                        </div>
                       </TableCell>
                     ))}
                   </TableRow>
@@ -392,7 +394,8 @@ export function CommentTemplateGrid({ onTemplateSelect }: CommentTemplateGridPro
                         <TableCell className="sticky left-0 bg-gray-50">{category}</TableCell>
                         {displayStatuses.map(status => (
                           <TableCell key={`${category}-${status}`} className="text-center">
-                            <Checkbox
+                            <div className="flex justify-center">
+                              <Checkbox
                               checked={categoryServices.every(s =>
                                 isAvailable(s.code, status)
                               )}
@@ -401,6 +404,7 @@ export function CommentTemplateGrid({ onTemplateSelect }: CommentTemplateGridPro
                               }
                               disabled={!hasEditPermission}
                             />
+                            </div>
                           </TableCell>
                         ))}
                       </TableRow>
@@ -412,11 +416,13 @@ export function CommentTemplateGrid({ onTemplateSelect }: CommentTemplateGridPro
                           </TableCell>
                           {displayStatuses.map(status => (
                             <TableCell key={`${service.code}-${status}`} className="text-center">
-                              <Checkbox
+                              <div className="flex justify-center">
+                                <Checkbox
                                 checked={isAvailable(service.code, status)}
                                 onCheckedChange={() => toggleAvailability(service.code, status)}
                                 disabled={!hasEditPermission}
                               />
+                              </div>
                             </TableCell>
                           ))}
                         </TableRow>
