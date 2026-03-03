@@ -2,6 +2,38 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+// Add missing DOM methods for Radix UI components
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = function () {
+    return false;
+  };
+}
+
+if (!Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = function () {};
+}
+
+if (!Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = function () {};
+}
+
+// Mock HTMLDialogElement if it doesn't exist
+if (typeof HTMLDialogElement === 'undefined') {
+  (global as any).HTMLDialogElement = class HTMLDialogElement extends HTMLElement {
+    open = false;
+
+    showModal() {
+      this.open = true;
+      this.setAttribute('open', '');
+    }
+
+    close() {
+      this.open = false;
+      this.removeAttribute('open');
+    }
+  };
+}
+
 // Mock Next.js router
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
