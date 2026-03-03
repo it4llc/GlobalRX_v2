@@ -12,7 +12,37 @@ import { useTranslation } from '@/contexts/TranslationContext';
 // Mock dependencies
 vi.mock('@/hooks/useCommentTemplates');
 vi.mock('@/contexts/AuthContext');
-vi.mock('@/contexts/TranslationContext');
+vi.mock('@/contexts/TranslationContext', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      // Return the expected English translations for the keys used in tests
+      const translations: Record<string, string> = {
+        'commentTemplates.selectTemplate': 'Select a template to edit',
+        'commentTemplates.addNew': 'Add New Template',
+        'commentTemplates.editTemplate': 'Edit Template',
+        'commentTemplates.createNew': 'Create New Template',
+        'commentTemplates.saveConfiguration': 'Save Configuration',
+        'commentTemplates.availabilityGrid': 'Service Availability',
+        'commentTemplates.shortName': 'Short Name',
+        'commentTemplates.longName': 'Long Name',
+        'commentTemplates.templateText': 'Template Text',
+        'commentTemplates.allServices': 'All',
+        'commentTemplates.deactivate': 'deactivate',
+        'commentTemplates.permanentlyDelete': 'permanently delete',
+        'commentTemplates.deleteConfirm': 'Are you sure you want to {action} this template?',
+        'common.cancel': 'Cancel',
+        'common.create': 'Create',
+        'common.update': 'Update',
+        'common.delete': 'Delete',
+        'common.saving': 'Saving',
+        'common.creating': 'Creating',
+        'common.updating': 'Updating'
+      };
+      return translations[key] || key;
+    },
+    language: 'en'
+  })
+}));
 
 // Mock fetch
 global.fetch = vi.fn();
@@ -72,10 +102,7 @@ describe('CommentTemplateGrid', () => {
       signOut: vi.fn()
     });
 
-    vi.mocked(useTranslation).mockReturnValue({
-      t: (key) => key,
-      i18n: { language: 'en', changeLanguage: vi.fn() }
-    });
+    // useTranslation is already mocked at the module level with proper translations
 
     vi.mocked(useCommentTemplates).mockReturnValue({
       templates: mockTemplates,
