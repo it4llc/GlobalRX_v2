@@ -28,6 +28,7 @@ type User = {
     customer_config?: any;
     vendors?: any;
     fulfillment?: any;
+    comment_management?: any;
   };
 };
 
@@ -46,6 +47,7 @@ type FormValues = {
     customer_config: boolean;
     vendors: boolean;
     fulfillment: boolean;
+    comment_management: boolean;
   };
 };
 
@@ -74,6 +76,7 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
       customer_config: false,
       vendors: false,
       fulfillment: false,
+      comment_management: false,
     },
   });
 
@@ -114,6 +117,7 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
           customer_config: !!user.permissions?.customer_config || !!user.permissions?.customers,
           vendors: !!user.permissions?.vendors,
           fulfillment: !!user.permissions?.fulfillment,
+          comment_management: !!user.permissions?.comment_management,
         },
       };
       setFormValues(newFormValues);
@@ -132,6 +136,7 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
           customer_config: false,
           vendors: false,
           fulfillment: true,
+          comment_management: false,
         },
       }));
     }
@@ -431,6 +436,16 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
                   onCheckedChange={() => handlePermissionChange('fulfillment')}
                 />
                 <Label htmlFor="fulfillment" className="cursor-pointer">Fulfillment</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="comment_management"
+                  checked={formValues.permissions.comment_management}
+                  onCheckedChange={() => handlePermissionChange('comment_management')}
+                  disabled={formValues.userType === 'vendor'}
+                />
+                <Label htmlFor="comment_management" className="cursor-pointer">Comment Management</Label>
               </div>
             </div>
           </div>

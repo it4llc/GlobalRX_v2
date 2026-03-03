@@ -107,8 +107,7 @@ describe('Comment Management Permission Tests', () => {
         <UserForm
           user={mockUserWithCommentMgmt}
           onCancel={() => {}}
-          onSave={() => {}}
-          isLoading={false}
+          onSubmit={() => {}}
         />
       );
 
@@ -129,8 +128,7 @@ describe('Comment Management Permission Tests', () => {
         <UserForm
           user={vendorUser}
           onCancel={() => {}}
-          onSave={() => {}}
-          isLoading={false}
+          onSubmit={() => {}}
         />
       );
 
@@ -148,8 +146,7 @@ describe('Comment Management Permission Tests', () => {
         <UserForm
           user={mockUserWithoutCommentMgmt}
           onCancel={() => {}}
-          onSave={onSave}
-          isLoading={false}
+          onSubmit={onSave}
         />
       );
 
@@ -176,8 +173,7 @@ describe('Comment Management Permission Tests', () => {
         <UserForm
           user={mockUserWithoutCommentMgmt}
           onCancel={() => {}}
-          onSave={onSave}
-          isLoading={false}
+          onSubmit={onSave}
         />
       );
 
@@ -230,8 +226,7 @@ describe('Comment Management Permission Tests', () => {
         <UserForm
           user={vendorUser}
           onCancel={() => {}}
-          onSave={() => {}}
-          isLoading={false}
+          onSubmit={() => {}}
         />
       );
 
@@ -374,8 +369,7 @@ describe('Comment Management Permission Tests', () => {
         <UserForm
           user={null}
           onCancel={() => {}}
-          onSave={onSave}
-          isLoading={false}
+          onSubmit={onSave}
         />
       );
 
