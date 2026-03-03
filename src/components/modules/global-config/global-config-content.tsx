@@ -6,6 +6,7 @@ import { LocationsTab } from './locations/locations-tab';
 import { ServicesTab } from '@/components/modules/global-config/tabs/services-tab';
 import { DataRxTab } from '@/components/modules/global-config/tabs/data-rx-tab';
 import { DSXTab } from '@/components/modules/global-config/tabs/dsx-tab';
+import { CommentTemplateGrid } from '@/components/comment-templates/CommentTemplateGrid';
 import { useTranslation } from '@/contexts/TranslationContext';
 import Link from 'next/link';
 
@@ -19,6 +20,7 @@ export function GlobalConfigContent() {
     { id: 'services', label: 'config.tabs.services' },
     { id: 'data-rx', label: 'config.tabs.data-rx' },
     { id: 'dsx', label: 'config.tabs.dsx' },
+    { id: 'comment-templates', label: 'config.tabs.comment-templates' },
     { id: 'translations', label: 'config.tabs.translations' },
   ];
 
@@ -50,6 +52,7 @@ export function GlobalConfigContent() {
         {activeTab === 'services' && <ServicesTab />}
         {activeTab === 'data-rx' && <DataRxTab />}
         {activeTab === 'dsx' && <DSXTab />}
+        {activeTab === 'comment-templates' && <CommentTemplateGrid />}
         {activeTab === 'translations' && (
           <div>
             <h2 className="text-xl font-semibold mb-4" data-i18n-key="translations.title">
