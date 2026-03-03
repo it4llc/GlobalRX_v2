@@ -1,4 +1,4 @@
-// src/app/global-configurations/layout.tsx
+// /GlobalRX_v2/src/app/global-configurations/layout.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -17,29 +17,34 @@ export default function GlobalConfigurationsLayout({
   const { t } = useTranslation();
   
   const tabs = [
-    { 
-      name: t('config.tabs.locations'), 
-      href: '/global-configurations/locations' 
+    {
+      name: t('config.tabs.locations'),
+      href: '/global-configurations/locations'
     },
-    { 
-      name: t('config.tabs.services'), 
-      href: '/global-configurations/services' 
+    {
+      name: t('config.tabs.services'),
+      href: '/global-configurations/services'
     },
-    { 
-      name: t('config.tabs.data-rx'), 
-      href: '/global-configurations/data-rx' 
+    {
+      name: t('config.tabs.data-rx'),
+      href: '/global-configurations/data-rx'
     },
-    { 
-      name: t('config.tabs.dsx'), 
-      href: '/global-configurations/dsx' 
+    {
+      name: t('config.tabs.dsx'),
+      href: '/global-configurations/dsx'
     },
-    { 
-      name: t('config.tabs.translations'), 
-      href: '/global-configurations/translations' 
+    {
+      name: t('config.tabs.comment-templates'),
+      href: '/global-configurations/comment-templates'
+    },
+    {
+      name: t('config.tabs.translations'),
+      href: '/global-configurations/translations'
     },
   ];
   
   // Function to handle button click navigation
+  // Uses Next.js router for client-side navigation between configuration sections
   const handleTabClick = (href: string) => {
     router.push(href);
   };

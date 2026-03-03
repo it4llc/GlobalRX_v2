@@ -185,7 +185,15 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
       Object.keys(formValues.permissions).forEach((key) => {
         const permKey = key as keyof FormValues['permissions'];
         if (formValues.permissions[permKey]) {
-          permissionsObj[key] = '*'; // Use wildcard for full access
+          // Single permissions that represent a specific capability use boolean true
+          // (not array format) because they don't have sub-actions like "view", "edit"
+          if (key === 'comment_management' || key === 'user_admin' || key === 'global_config' ||
+              key === 'fulfillment' || key === 'vendors') {
+            permissionsObj[key] = true;
+          } else {
+            // Multi-action permissions (like customer_config) use array format for sub-permissions
+            permissionsObj[key] = ['*'];
+          }
         }
       });
 

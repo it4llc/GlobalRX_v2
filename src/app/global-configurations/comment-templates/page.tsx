@@ -1,29 +1,32 @@
-// src/app/global-configurations/comment-templates/page.tsx
+// /GlobalRX_v2/src/app/global-configurations/comment-templates/page.tsx
 'use client';
 
 import React from 'react';
 import { CommentTemplateGrid } from '@/components/comment-templates/CommentTemplateGrid';
 import { useAuth } from '@/contexts/AuthContext';
-import { hasPermission } from '@/lib/permission-utils';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export default function CommentTemplatesPage() {
-  const { user, loading } = useAuth();
+  const { user, isLoading, checkPermission } = useAuth();
+  const { t } = useTranslation();
 
   // Show loading state while user is being fetched
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4">
-        <p>Loading...</p>
+        <p>{t('common.loading')}</p>
       </div>
     );
   }
 
-  // Check for comment_management permission
-  if (!user || !hasPermission(user, 'comment_management')) {
+  // Comment management is restricted to internal users with specific permission
+  // This prevents customer/vendor users from modifying system-wide templates
+  // that affect order processing workflow across all organizations
+  if (!user || !checkPermission('comment_management')) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
         <p className="text-red-700">
-          You do not have permission to access comment templates.
+          {t('common.noPermission')}
         </p>
       </div>
     );

@@ -193,7 +193,7 @@ describe('Comment Management Permission Tests', () => {
         expect(userUpdateCall).toBeDefined();
         const body = JSON.parse(userUpdateCall[1].body);
         expect(body.permissions).toHaveProperty('comment_management');
-        expect(body.permissions.comment_management).toBe('*');
+        expect(body.permissions.comment_management).toBe(true);
       });
     });
 
@@ -359,7 +359,7 @@ describe('Comment Management Permission Tests', () => {
           json: async () => ({
             id: 'new-user',
             email: 'newuser@example.com',
-            permissions: { comment_management: '*' }
+            permissions: { comment_management: true }
           })
         });
 
