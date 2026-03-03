@@ -1,7 +1,7 @@
 // src/components/modules/user-admin/user-admin-content.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -205,12 +205,13 @@ export function UserAdminContent() {
                   <TableHead>Customer Config</TableHead>
                   <TableHead>Vendors</TableHead>
                   <TableHead>Fulfillment</TableHead>
+                  <TableHead>Comment Mgmt</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-4">
+                    <TableCell colSpan={11} className="text-center py-4">
                       No users found. Click "Add New User" to create one.
                     </TableCell>
                   </TableRow>
@@ -281,6 +282,13 @@ export function UserAdminContent() {
                       </TableCell>
                       <TableCell className="text-center">
                         {user.permissions?.fulfillment ? (
+                          <CheckIcon className="h-5 w-5 mx-auto" style={{ color: '#10b981' }} />
+                        ) : (
+                          <XIcon className="h-5 w-5 mx-auto" style={{ color: '#ef4444' }} />
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {user.permissions?.comment_management ? (
                           <CheckIcon className="h-5 w-5 mx-auto" style={{ color: '#10b981' }} />
                         ) : (
                           <XIcon className="h-5 w-5 mx-auto" style={{ color: '#ef4444' }} />
