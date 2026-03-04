@@ -8,34 +8,34 @@ datasource db {
 }
 
 model User {
-  id                  String          @id @default(uuid())
-  email               String          @unique
+  id                  String               @id @default(uuid())
+  email               String               @unique
   password            String
   firstName           String?
   lastName            String?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
   permissions         Json?
-  userType            String          @default("admin") // "admin" or "customer"
-  customerId          String?         // For customer users
-  vendorId            String?         // For vendor users - ADDITIVE FIELD
-  failedLoginAttempts Int             @default(0)
-  lockedUntil         DateTime?
-  lastPasswordChange  DateTime        @default(now())
-  mfaEnabled          Boolean         @default(false)
-  mfaSecret           String?         // Will use later
+  customerId          String?
+  failedLoginAttempts Int                  @default(0)
   lastLoginAt         DateTime?
   lastLoginIp         String?
-  servicesCreated     Service[]       @relation("ServiceCreatedBy")
-  servicesUpdated     Service[]       @relation("ServiceUpdatedBy")
-  workflowsCreated    Workflow[]      @relation("WorkflowCreatedBy")
-  workflowsUpdated    Workflow[]      @relation("WorkflowUpdatedBy")
-  customerUser        CustomerUser?
-  customer            Customer?       @relation("CustomerUserRelation", fields: [customerId], references: [id])
-  vendor              VendorOrganization? @relation("VendorUserRelation", fields: [vendorId], references: [id])
-  orders              Order[]
-  orderStatusChanges  OrderStatusHistory[]
+  lastPasswordChange  DateTime             @default(now())
+  lockedUntil         DateTime?
+  mfaEnabled          Boolean              @default(false)
+  mfaSecret           String?
+  userType            String               @default("admin")
+  vendorId            String?
   auditLogs           AuditLog[]
+  customerUser        CustomerUser?
+  orderStatusChanges  OrderStatusHistory[]
+  orders              Order[]
+  servicesCreated     Service[]            @relation("ServiceCreatedBy")
+  servicesUpdated     Service[]            @relation("ServiceUpdatedBy")
+  customer            Customer?            @relation("CustomerUserRelation", fields: [customerId], references: [id])
+  vendor              VendorOrganization?  @relation("VendorUserRelation", fields: [vendorId], references: [id])
+  workflowsCreated    Workflow[]           @relation("WorkflowCreatedBy")
+  workflowsUpdated    Workflow[]           @relation("WorkflowUpdatedBy")
 
   @@index([customerId])
   @@index([vendorId])
@@ -43,28 +43,28 @@ model User {
 }
 
 model Country {
-  id                  String            @id @default(uuid())
-  name                String
-  code2               String            @unique
-  code3               String            @unique
-  numeric             String?
-  subregion1          String?
-  subregion2          String?
-  subregion3          String?
-  createdAt           DateTime?         @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime?         @default(now()) @updatedAt @db.Timestamptz(6)
-  parentId            String?
-  disabled            Boolean?
-  parent              Country?          @relation("CountryToCountry", fields: [parentId], references: [id])
-  children            Country[]         @relation("CountryToCountry")
-  serviceAvailability DSXAvailability[]
-  mappings            DSXMapping[]
-  orderItems          OrderItem[]
-  addressStates       AddressEntry[]       @relation("AddressState")
-  addressCounties     AddressEntry[]       @relation("AddressCounty")
-  addressCountries    AddressEntry[]       @relation("AddressCountry")
-  cityMappingStates   CityMapping[]        @relation("CityMappingState")
-  cityMappingLocations CityMapping[]       @relation("CityMappingLocation")
+  id                   String            @id @default(uuid())
+  name                 String
+  code2                String            @unique
+  code3                String            @unique
+  numeric              String?
+  subregion1           String?
+  subregion2           String?
+  subregion3           String?
+  createdAt            DateTime?         @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime?         @default(now()) @updatedAt @db.Timestamptz(6)
+  parentId             String?
+  disabled             Boolean?
+  addressCountries     AddressEntry[]    @relation("AddressCountry")
+  addressCounties      AddressEntry[]    @relation("AddressCounty")
+  addressStates        AddressEntry[]    @relation("AddressState")
+  cityMappingLocations CityMapping[]     @relation("CityMappingLocation")
+  cityMappingStates    CityMapping[]     @relation("CityMappingState")
+  parent               Country?          @relation("CountryToCountry", fields: [parentId], references: [id])
+  children             Country[]         @relation("CountryToCountry")
+  serviceAvailability  DSXAvailability[]
+  mappings             DSXMapping[]
+  orderItems           OrderItem[]
 
   @@index([parentId])
   @@map("countries")
@@ -72,6 +72,7 @@ model Country {
 
 model Service {
   id                  String               @id @default(uuid())
+  code                String?              @unique // Service code for identification (e.g., "MVR", "CRIMINAL", "DRUG")
   name                String
   category            String
   description         String?
@@ -84,9 +85,9 @@ model Service {
   customerServices    CustomerService[]
   availability        DSXAvailability[]
   mappings            DSXMapping[]
+  orderItems          OrderItem[]
   packageServices     PackageService[]
   serviceRequirements ServiceRequirement[]
-  orderItems          OrderItem[]
   createdBy           User?                @relation("ServiceCreatedBy", fields: [createdById], references: [id])
   updatedBy           User?                @relation("ServiceUpdatedBy", fields: [updatedById], references: [id])
 
@@ -143,16 +144,16 @@ model Customer {
   billingAccountId String?
   createdAt        DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+  addressEntries   AddressEntry[]
   services         CustomerService[]
+  customerUsers    CustomerUser[]
   billingAccount   Customer?         @relation("BillingAccounts", fields: [billingAccountId], references: [id])
   billedAccounts   Customer[]        @relation("BillingAccounts")
   masterAccount    Customer?         @relation("MasterSubaccounts", fields: [masterAccountId], references: [id])
   subaccounts      Customer[]        @relation("MasterSubaccounts")
-  packages         Package[]
-  customerUsers    CustomerUser[]
-  users            User[]            @relation("CustomerUserRelation")
   orders           Order[]
-  addressEntries   AddressEntry[]
+  packages         Package[]
+  users            User[]            @relation("CustomerUserRelation")
 
   @@index([masterAccountId])
   @@index([billingAccountId])
@@ -192,9 +193,9 @@ model ServiceRequirement {
   id            String         @id @default(uuid())
   serviceId     String
   requirementId String
-  displayOrder  Int            @default(999)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  displayOrder  Int            @default(999)
   requirement   DSXRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
   service       Service        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
@@ -315,8 +316,6 @@ model WorkflowSection {
   @@map("workflow_sections")
 }
 
-// Customer Portal Models
-
 model CustomerUser {
   id         String   @id @default(uuid())
   userId     String   @unique
@@ -325,8 +324,8 @@ model CustomerUser {
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id])
   customer   Customer @relation(fields: [customerId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
 
   @@index([customerId])
   @@map("customer_users")
@@ -352,7 +351,6 @@ model Order {
   customerId       String
   userId           String
   statusCode       String
-  assignedVendorId String?              // For vendor assignment - ADDITIVE FIELD
   subject          Json
   totalPrice       Decimal?             @db.Decimal(10, 2)
   notes            String?
@@ -360,12 +358,13 @@ model Order {
   completedAt      DateTime?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
+  assignedVendorId String?
+  addressEntries   AddressEntry[]
   items            OrderItem[]
   statusHistory    OrderStatusHistory[]
-  addressEntries   AddressEntry[]
+  assignedVendor   VendorOrganization?  @relation("OrderVendorAssignment", fields: [assignedVendorId], references: [id])
   customer         Customer             @relation(fields: [customerId], references: [id])
   user             User                 @relation(fields: [userId], references: [id])
-  assignedVendor   VendorOrganization?  @relation("OrderVendorAssignment", fields: [assignedVendorId], references: [id])
 
   @@index([customerId])
   @@index([statusCode])
@@ -382,8 +381,8 @@ model OrderStatusHistory {
   changedBy  String
   reason     String?
   createdAt  DateTime @default(now())
-  order      Order    @relation(fields: [orderId], references: [id])
   user       User     @relation(fields: [changedBy], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id])
 
   @@index([orderId])
   @@map("order_status_history")
@@ -397,11 +396,11 @@ model OrderItem {
   status     String
   price      Decimal?        @db.Decimal(10, 2)
   createdAt  DateTime        @default(now())
-  order      Order           @relation(fields: [orderId], references: [id])
-  service    Service         @relation(fields: [serviceId], references: [id])
-  location   Country         @relation(fields: [locationId], references: [id])
   data       OrderData[]
   documents  OrderDocument[]
+  location   Country         @relation(fields: [locationId], references: [id])
+  order      Order           @relation(fields: [orderId], references: [id])
+  service    Service         @relation(fields: [serviceId], references: [id])
 
   @@index([orderId])
   @@map("order_items")
@@ -411,8 +410,8 @@ model OrderData {
   id          String    @id @default(uuid())
   orderItemId String
   fieldName   String
-  fieldValue  String // Will encrypt sensitive fields later
-  fieldType   String // To identify PII level
+  fieldValue  String
+  fieldType   String
   createdAt   DateTime  @default(now())
   orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
 
@@ -425,7 +424,7 @@ model OrderDocument {
   orderItemId  String
   documentType String
   fileName     String
-  filePath     String // Store in secure location
+  filePath     String
   fileSize     Int
   mimeType     String
   uploadedAt   DateTime  @default(now())
@@ -453,23 +452,23 @@ model AuditLog {
 }
 
 model AddressEntry {
-  id          String   @id @default(uuid())
-  orderId     String?
-  customerId  String?
-  street1     String?
-  street2     String?
-  city        String
-  stateId     String?
-  countyId    String?
-  postalCode  String?
-  countryId   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  order       Order?   @relation(fields: [orderId], references: [id])
-  customer    Customer? @relation(fields: [customerId], references: [id])
-  state       Country? @relation("AddressState", fields: [stateId], references: [id])
-  county      Country? @relation("AddressCounty", fields: [countyId], references: [id])
-  country     Country? @relation("AddressCountry", fields: [countryId], references: [id])
+  id         String    @id @default(uuid())
+  orderId    String?
+  customerId String?
+  street1    String?
+  street2    String?
+  city       String
+  stateId    String?
+  countyId   String?
+  postalCode String?
+  countryId  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  country    Country?  @relation("AddressCountry", fields: [countryId], references: [id])
+  county     Country?  @relation("AddressCounty", fields: [countyId], references: [id])
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  order      Order?    @relation(fields: [orderId], references: [id])
+  state      Country?  @relation("AddressState", fields: [stateId], references: [id])
 
   @@index([customerId])
   @@index([orderId])
@@ -484,8 +483,8 @@ model CityMapping {
   locationId String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  state      Country? @relation("CityMappingState", fields: [stateId], references: [id])
   location   Country  @relation("CityMappingLocation", fields: [locationId], references: [id])
+  state      Country? @relation("CityMappingState", fields: [stateId], references: [id])
 
   @@unique([cityName, stateId])
   @@index([cityName])
@@ -493,23 +492,58 @@ model CityMapping {
   @@map("city_mappings")
 }
 
-// Vendor Management Models
-
 model VendorOrganization {
-  id           String  @id @default(uuid())
-  name         String
-  isActive     Boolean @default(true)
-  isPrimary    Boolean @default(false)
-  contactEmail String
-  contactPhone String
-  address      String?
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  users        User[]   @relation("VendorUserRelation")
-  assignedOrders Order[] @relation("OrderVendorAssignment")
+  id             String   @id @default(uuid())
+  name           String
+  isActive       Boolean  @default(true)
+  isPrimary      Boolean  @default(false)
+  contactEmail   String
+  contactPhone   String
+  address        String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  assignedOrders Order[]  @relation("OrderVendorAssignment")
+  users          User[]   @relation("VendorUserRelation")
 
   @@index([isActive])
   @@index([isPrimary])
   @@map("vendor_organizations")
+}
+
+// Comment templates for standardized comments on background check results
+model CommentTemplate {
+  id           String    @id @default(uuid())
+  shortName    String    @db.VarChar(50) // Short name for dropdowns, unique among active templates
+  longName     String    @db.VarChar(100) // Long descriptive name for display
+  templateText String    @db.VarChar(1000) // Template text with [placeholder] syntax
+  isActive     Boolean   @default(true) // Whether template appears in selection lists
+  hasBeenUsed  Boolean   @default(false) // Set to true first time template is used
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdBy    String?   // User ID who created the template
+  updatedBy    String?   // User ID who last updated the template
+
+  // Availability assignments (service/status combinations where this template can be used)
+  availabilities CommentTemplateAvailability[]
+
+  @@unique([shortName, isActive]) // Unique short name among active templates
+  @@index([isActive])
+  @@index([hasBeenUsed])
+  @@map("comment_templates")
+}
+
+model CommentTemplateAvailability {
+  id          String   @id @default(uuid())
+  templateId  String
+  template    CommentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  serviceCode String  // Service this template is available for
+  status      String  // Status this template is available for
+  createdAt   DateTime @default(now())
+
+  @@unique([templateId, serviceCode, status])
+  @@index([serviceCode])
+  @@index([status])
+  @@index([templateId])
+  @@map("comment_template_availability")
 }
