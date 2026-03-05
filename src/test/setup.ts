@@ -65,13 +65,12 @@ vi.mock('next-auth/react', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// Mock useToast hook
+// Import toast helper for better toast mocking
+import { mockToastImplementation } from '@/test/toast-test-helper';
+
+// Mock useToast hook with DOM creation
 vi.mock('@/hooks/useToast', () => ({
-  useToast: () => ({
-    toast: vi.fn(),
-    toasts: [],
-    dismiss: vi.fn(),
-  }),
+  useToast: () => mockToastImplementation(),
 }));
 
 // Mock AuthContext
@@ -86,6 +85,13 @@ vi.mock('@/contexts/AuthContext', () => ({
   }),
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
+
+// Mock window methods that don't exist in test environment
+if (typeof window !== 'undefined') {
+  window.print = vi.fn();
+  window.alert = vi.fn();
+  window.confirm = vi.fn(() => true);
+}
 
 // Mock environment variables for testing
 process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';

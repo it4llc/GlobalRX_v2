@@ -9,6 +9,11 @@ describe('useToast', () => {
     vi.clearAllMocks();
     // Clear any existing toasts
     document.body.innerHTML = '';
+
+    // Create a mock container that tests can find
+    const container = document.createElement('div');
+    container.className = 'toast-container toast-container-top-right';
+    document.body.appendChild(container);
   });
 
   afterEach(() => {

@@ -21,15 +21,15 @@ export const updateServiceFulfillmentSchema = z.object({
 
 // Schema for bulk assignment
 export const bulkAssignSchema = z.object({
-  serviceFulfillmentIds: z.array(z.string()).min(1).max(100),
+  serviceFulfillmentIds: z.array(z.string().uuid()).min(1).max(100),
   vendorId: z.string().uuid(),
 });
 
 // Schema for querying services
 export const serviceQuerySchema = z.object({
-  orderId: z.string().optional(),
+  orderId: z.string().uuid().optional(),
   status: serviceStatusSchema.optional(),
-  vendorId: z.string().optional(),
+  vendorId: z.string().uuid().optional(),
   limit: z.coerce.number().min(1).max(100).default(50),
   offset: z.coerce.number().min(0).default(0),
 });
