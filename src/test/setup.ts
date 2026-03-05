@@ -65,10 +65,32 @@ vi.mock('next-auth/react', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// Mock useToast hook
+vi.mock('@/hooks/useToast', () => ({
+  useToast: () => ({
+    toast: vi.fn(),
+    toasts: [],
+    dismiss: vi.fn(),
+  }),
+}));
+
+// Mock AuthContext
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    hasPermission: vi.fn(() => true),
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock environment variables for testing
 process.env.NEXTAUTH_URL = 'http://localhost:3000';
 process.env.NEXTAUTH_SECRET = 'test-secret';
-process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/globalrx_test';
+process.env.DATABASE_URL = 'postgresql://test:testpassword@localhost:5432/globalrx_test';
 
 // Suppress console errors during tests (can be removed for debugging)
 const originalError = console.error;
