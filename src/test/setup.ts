@@ -68,9 +68,15 @@ vi.mock('next-auth/react', () => ({
 // Mock useToast hook
 vi.mock('@/hooks/useToast', () => ({
   useToast: () => ({
-    toast: vi.fn(),
-    toasts: [],
-    dismiss: vi.fn(),
+    toast: vi.fn((options) => `toast-${Date.now()}`),
+    toastSuccess: vi.fn((message, options) => `toast-${Date.now()}`),
+    toastError: vi.fn((message, options) => `toast-${Date.now()}`),
+    toastWarning: vi.fn((message, options) => `toast-${Date.now()}`),
+    toastInfo: vi.fn((message, options) => `toast-${Date.now()}`),
+    dismissToast: vi.fn(),
+    dismissAllToasts: vi.fn(),
+    dismissAll: vi.fn(),
+    updateToast: vi.fn(),
   }),
 }));
 
