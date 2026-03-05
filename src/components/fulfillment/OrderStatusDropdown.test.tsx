@@ -21,7 +21,7 @@ vi.mock('@/hooks/useToast', () => ({
 describe('OrderStatusDropdown', () => {
   const mockProps = {
     orderId: 'order-123',
-    currentStatus: 'pending',
+    currentStatus: 'Pending',
     onStatusChange: vi.fn()
   };
 
@@ -36,7 +36,7 @@ describe('OrderStatusDropdown', () => {
       render(<OrderStatusDropdown {...mockProps} />);
 
       const trigger = screen.getByRole('button');
-      expect(trigger).toHaveTextContent('pending');
+      expect(trigger).toHaveTextContent('Pending');
     });
 
     it('should apply correct status color class', () => {
@@ -65,10 +65,10 @@ describe('OrderStatusDropdown', () => {
       fireEvent.click(trigger);
 
       await waitFor(() => {
-        expect(screen.getByText('processing')).toBeInTheDocument();
-        expect(screen.getByText('completed')).toBeInTheDocument();
-        expect(screen.getByText('cancelled')).toBeInTheDocument();
-        expect(screen.getByText('on_hold')).toBeInTheDocument();
+        expect(screen.getByText('Processing')).toBeInTheDocument();
+        expect(screen.getByText('Completed')).toBeInTheDocument();
+        expect(screen.getByText('Cancelled')).toBeInTheDocument();
+        expect(screen.getByText('On Hold')).toBeInTheDocument();
       });
     });
 
@@ -79,7 +79,7 @@ describe('OrderStatusDropdown', () => {
       const trigger = screen.getByRole('button');
       fireEvent.click(trigger);
 
-      const currentOption = await screen.findByRole('option', { name: 'pending', selected: true });
+      const currentOption = await screen.findByRole('option', { name: 'Pending', selected: true });
       expect(currentOption).toHaveClass('selected');
     });
 
@@ -96,13 +96,13 @@ describe('OrderStatusDropdown', () => {
       fireEvent.click(trigger);
 
       await waitFor(() => {
-        expect(screen.getByText('processing')).toBeInTheDocument();
+        expect(screen.getByText('Processing')).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByTestId('outside'));
 
       await waitFor(() => {
-        expect(screen.queryByText('processing')).not.toBeInTheDocument();
+        expect(screen.queryByText('Processing')).not.toBeInTheDocument();
       });
     });
 
@@ -114,13 +114,13 @@ describe('OrderStatusDropdown', () => {
       fireEvent.click(trigger);
 
       await waitFor(() => {
-        expect(screen.getByText('processing')).toBeInTheDocument();
+        expect(screen.getByText('Processing')).toBeInTheDocument();
       });
 
       fireEvent.keyDown(document, { key: 'Escape' });
 
       await waitFor(() => {
-        expect(screen.queryByText('processing')).not.toBeInTheDocument();
+        expect(screen.queryByText('Processing')).not.toBeInTheDocument();
       });
     });
   });
@@ -132,7 +132,7 @@ describe('OrderStatusDropdown', () => {
         ok: true,
         json: async () => ({
           id: 'order-123',
-          statusCode: 'processing',
+          statusCode: 'Processing',
           message: 'Order status updated successfully'
         })
       });
@@ -142,7 +142,7 @@ describe('OrderStatusDropdown', () => {
       const trigger = screen.getByRole('button');
       fireEvent.click(trigger);
 
-      const processingOption = await screen.findByText('processing');
+      const processingOption = await screen.findByText('Processing');
       fireEvent.click(processingOption);
 
       await waitFor(() => {
@@ -153,7 +153,7 @@ describe('OrderStatusDropdown', () => {
             headers: {
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ status: 'processing' })
+            body: JSON.stringify({ status: 'Processing' })
           }
         );
       });
@@ -173,7 +173,7 @@ describe('OrderStatusDropdown', () => {
       const trigger = screen.getByRole('button');
       fireEvent.click(trigger);
 
-      const processingOption = await screen.findByText('processing');
+      const processingOption = await screen.findByText('Processing');
       fireEvent.click(processingOption);
 
       // Should show loading indicator
@@ -184,7 +184,7 @@ describe('OrderStatusDropdown', () => {
       // Resolve the promise
       resolvePromise({
         ok: true,
-        json: async () => ({ statusCode: 'processing' })
+        json: async () => ({ statusCode: 'Processing' })
       });
 
       // Loading indicator should disappear
@@ -207,7 +207,7 @@ describe('OrderStatusDropdown', () => {
       const trigger = screen.getByRole('button');
       fireEvent.click(trigger);
 
-      const processingOption = await screen.findByText('processing');
+      const processingOption = await screen.findByText('Processing');
       fireEvent.click(processingOption);
 
       // Dropdown should be disabled
@@ -219,7 +219,7 @@ describe('OrderStatusDropdown', () => {
       // Resolve the promise
       resolvePromise({
         ok: true,
-        json: async () => ({ statusCode: 'processing' })
+        json: async () => ({ statusCode: 'Processing' })
       });
 
       // Dropdown should be enabled again
@@ -235,23 +235,23 @@ describe('OrderStatusDropdown', () => {
         ok: true,
         json: async () => ({
           id: 'order-123',
-          statusCode: 'processing'
+          statusCode: 'Processing'
         })
       });
 
       render(<OrderStatusDropdown {...mockProps} />);
 
       const trigger = screen.getByRole('button');
-      expect(trigger).toHaveTextContent('pending');
+      expect(trigger).toHaveTextContent('Pending');
 
       fireEvent.click(trigger);
 
-      const processingOption = await screen.findByText('processing');
+      const processingOption = await screen.findByText('Processing');
       fireEvent.click(processingOption);
 
       await waitFor(() => {
         const updatedTrigger = screen.getByRole('button');
-        expect(updatedTrigger).toHaveTextContent('processing');
+        expect(updatedTrigger).toHaveTextContent('Processing');
       });
     });
 
@@ -261,7 +261,7 @@ describe('OrderStatusDropdown', () => {
         ok: true,
         json: async () => ({
           id: 'order-123',
-          statusCode: 'processing'
+          statusCode: 'Processing'
         })
       });
 
@@ -270,11 +270,11 @@ describe('OrderStatusDropdown', () => {
       const trigger = screen.getByRole('button');
       fireEvent.click(trigger);
 
-      const processingOption = await screen.findByText('processing');
+      const processingOption = await screen.findByText('Processing');
       fireEvent.click(processingOption);
 
       await waitFor(() => {
-        expect(mockProps.onStatusChange).toHaveBeenCalledWith('processing');
+        expect(mockProps.onStatusChange).toHaveBeenCalledWith('Processing');
       });
     });
 
@@ -286,7 +286,7 @@ describe('OrderStatusDropdown', () => {
         ok: true,
         json: async () => ({
           id: 'order-123',
-          statusCode: 'processing',
+          statusCode: 'Processing',
           message: 'Order status updated successfully'
         })
       });
@@ -296,7 +296,7 @@ describe('OrderStatusDropdown', () => {
       const trigger = screen.getByRole('button');
       fireEvent.click(trigger);
 
-      const processingOption = await screen.findByText('processing');
+      const processingOption = await screen.findByText('Processing');
       fireEvent.click(processingOption);
 
       await waitFor(() => {
@@ -312,7 +312,7 @@ describe('OrderStatusDropdown', () => {
       fireEvent.click(trigger);
 
       // Click on current status (pending)
-      const pendingOption = await screen.findByText('pending');
+      const pendingOption = await screen.findByText('Pending');
       fireEvent.click(pendingOption);
 
       // Should not call API
@@ -341,7 +341,7 @@ describe('OrderStatusDropdown', () => {
       const trigger = screen.getByRole('button');
       fireEvent.click(trigger);
 
-      const processingOption = await screen.findByText('processing');
+      const processingOption = await screen.findByText('Processing');
       fireEvent.click(processingOption);
 
       await waitFor(() => {
@@ -360,16 +360,16 @@ describe('OrderStatusDropdown', () => {
       render(<OrderStatusDropdown {...mockProps} />);
 
       const trigger = screen.getByRole('button');
-      expect(trigger).toHaveTextContent('pending');
+      expect(trigger).toHaveTextContent('Pending');
 
       fireEvent.click(trigger);
 
-      const processingOption = await screen.findByText('processing');
+      const processingOption = await screen.findByText('Processing');
       fireEvent.click(processingOption);
 
       await waitFor(() => {
         const revertedTrigger = screen.getByRole('button');
-        expect(revertedTrigger).toHaveTextContent('pending');
+        expect(revertedTrigger).toHaveTextContent('Pending');
       });
     });
 
@@ -384,7 +384,7 @@ describe('OrderStatusDropdown', () => {
       const trigger = screen.getByRole('button');
       fireEvent.click(trigger);
 
-      const processingOption = await screen.findByText('processing');
+      const processingOption = await screen.findByText('Processing');
       fireEvent.click(processingOption);
 
       await waitFor(() => {
@@ -407,7 +407,7 @@ describe('OrderStatusDropdown', () => {
       const trigger = screen.getByRole('button');
       fireEvent.click(trigger);
 
-      const processingOption = await screen.findByText('processing');
+      const processingOption = await screen.findByText('Processing');
       fireEvent.click(processingOption);
 
       await waitFor(() => {
@@ -420,11 +420,11 @@ describe('OrderStatusDropdown', () => {
     it('should format status labels correctly', () => {
       // THIS TEST WILL FAIL because the component doesn't exist yet
       const statuses = {
-        'pending': 'Pending',
-        'processing': 'Processing',
-        'completed': 'Completed',
-        'cancelled': 'Cancelled',
-        'on_hold': 'On Hold',
+        'Pending': 'Pending',
+        'Processing': 'Processing',
+        'Completed': 'Completed',
+        'Cancelled': 'Cancelled',
+        'On Hold': 'On Hold',
         'in_review': 'In Review'
       };
 
@@ -443,11 +443,11 @@ describe('OrderStatusDropdown', () => {
     it('should apply correct color classes for each status', () => {
       // THIS TEST WILL FAIL because the component doesn't exist yet
       const statusColors = {
-        'pending': 'status-pending',
-        'processing': 'status-processing',
-        'completed': 'status-completed',
-        'cancelled': 'status-cancelled',
-        'on_hold': 'status-on-hold'
+        'Pending': 'status-pending',
+        'Processing': 'status-processing',
+        'Completed': 'status-completed',
+        'Cancelled': 'status-cancelled',
+        'On Hold': 'status-on-hold'
       };
 
       Object.entries(statusColors).forEach(([status, className]) => {
@@ -488,7 +488,7 @@ describe('OrderStatusDropdown', () => {
       await user.type(trigger, '{Enter}');
 
       await waitFor(() => {
-        expect(screen.getByText('processing')).toBeInTheDocument();
+        expect(screen.getByText('Processing')).toBeInTheDocument();
       });
 
       // Navigate with arrow keys

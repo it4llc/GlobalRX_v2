@@ -61,6 +61,7 @@ const createToastElement = (toast: Toast, index: number = 0): HTMLDivElement => 
   element.style.transform = `translateY(${index * 4}rem)`;
   // Also set top for test checking
   element.style.top = `${index * 64}px`;
+  element.style.position = 'relative';
 
   // Build DOM structure safely
   // Add icon
@@ -153,8 +154,8 @@ const showToast = (options: ToastOptions): string => {
     duration: options.duration !== undefined ? options.duration : 3000,
   };
 
-  // Remove oldest toast if at max capacity
-  if (toasts.size >= MAX_TOASTS) {
+  // Remove oldest toasts if at max capacity
+  while (toasts.size >= MAX_TOASTS) {
     const firstToastId = toasts.keys().next().value;
     if (firstToastId) {
       // Remove immediately to make room
@@ -170,6 +171,8 @@ const showToast = (options: ToastOptions): string => {
         }
       }
       toasts.delete(firstToastId);
+    } else {
+      break;
     }
   }
 
