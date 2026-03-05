@@ -205,7 +205,7 @@ export function OrderStatusDropdown({
         onKeyDown={handleKeyDown}
         data-testid="order-status-dropdown"
       >
-        <span>{currentStatus}</span>
+        <span>{formatStatusLabel(currentStatus, options)}</span>
         {isLoading ? (
           <div
             className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"
@@ -253,7 +253,7 @@ export function OrderStatusDropdown({
                 }}
                 autoFocus={index === 0}
               >
-                {option.value}
+                {option.label}
               </div>
             ))}
           </div>
