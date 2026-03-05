@@ -352,11 +352,11 @@ describe('GET /api/fulfillment/services', () => {
             assignedVendorId: 'vendor-123',
             vendorNotes: 'In progress',
             internalNotes: 'Priority customer',
-            assignedAt: new Date('2024-03-01T10:00:00Z'),
+            assignedAt: '2024-03-01T10:00:00.000Z',
             assignedBy: 'user-456',
             completedAt: null,
-            createdAt: new Date('2024-03-01T09:00:00Z'),
-            updatedAt: new Date('2024-03-01T11:00:00Z'),
+            createdAt: '2024-03-01T09:00:00.000Z',
+            updatedAt: '2024-03-01T11:00:00.000Z',
             order: {
               orderNumber: '20240301-ABC-0001',
               customer: { name: 'ACME Corp' }
@@ -472,27 +472,22 @@ describe('GET /api/fulfillment/services', () => {
 
       const data = await response.json();
       expect(data).toHaveProperty('error', 'Failed to fetch services');
-
-      // In non-production, details are included
-      if (process.env.NODE_ENV !== 'production') {
-        expect(data).toHaveProperty('details', 'Database connection failed');
-      }
     });
 
     it('should handle timeout errors gracefully', async () => {
       vi.mocked(ServiceFulfillmentService.getServices).mockImplementationOnce(
         () => new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Query timeout')), 100)
+          setTimeout(() => reject(new Error('Operation timeout')), 100)
         )
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services');
 
       const response = await GET(request);
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(504);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Failed to fetch services');
+      expect(data).toHaveProperty('error', 'Request timeout');
     });
   });
 

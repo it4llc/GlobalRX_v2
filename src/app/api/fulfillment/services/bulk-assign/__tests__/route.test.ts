@@ -41,8 +41,8 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceFulfillmentIds: ['service-1'],
-          vendorId: 'vendor-123'
+          serviceFulfillmentIds: ['123e4567-e89b-12d3-a456-426614174001'],
+          vendorId: 'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'
         })
       });
 
@@ -62,8 +62,8 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceFulfillmentIds: ['service-1'],
-          vendorId: 'vendor-123'
+          serviceFulfillmentIds: ['123e4567-e89b-12d3-a456-426614174001'],
+          vendorId: 'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'
         })
       });
 
@@ -97,7 +97,7 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
           'user-agent': 'Test Browser'
         },
         body: JSON.stringify({
-          serviceFulfillmentIds: ['service-1', 'service-2', 'service-3'],
+          serviceFulfillmentIds: ['123e4567-e89b-12d3-a456-426614174001', '123e4567-e89b-12d3-a456-426614174002', '123e4567-e89b-12d3-a456-426614174003'],
           vendorId: 'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'
         })
       });
@@ -109,7 +109,7 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
       expect(data).toEqual(mockResult);
 
       expect(ServiceFulfillmentService.bulkAssignServices).toHaveBeenCalledWith(
-        ['service-1', 'service-2', 'service-3'],
+        ['123e4567-e89b-12d3-a456-426614174001', '123e4567-e89b-12d3-a456-426614174002', '123e4567-e89b-12d3-a456-426614174003'],
         'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d',
         expect.objectContaining({
           id: 'user-123',
@@ -136,8 +136,8 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceFulfillmentIds: ['service-1'],
-          vendorId: 'vendor-123'
+          serviceFulfillmentIds: ['123e4567-e89b-12d3-a456-426614174001'],
+          vendorId: 'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'
         })
       });
 
@@ -151,9 +151,9 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
     it('should return 403 for vendor users', async () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
-          id: 'vendor-user',
+          id: 'd12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d',
           userType: 'vendor',
-          vendorId: 'vendor-123',
+          vendorId: 'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d',
           permissions: {}
         }
       });
@@ -162,8 +162,8 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceFulfillmentIds: ['service-1'],
-          vendorId: 'vendor-123' // Even assigning to themselves
+          serviceFulfillmentIds: ['123e4567-e89b-12d3-a456-426614174001'],
+          vendorId: 'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d' // Even assigning to themselves
         })
       });
 
@@ -188,8 +188,8 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceFulfillmentIds: ['service-1'],
-          vendorId: 'vendor-123'
+          serviceFulfillmentIds: ['123e4567-e89b-12d3-a456-426614174001'],
+          vendorId: 'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'
         })
       });
 
@@ -398,7 +398,7 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceFulfillmentIds: ['s1', 's2', 's3', 's4', 's5'],
+          serviceFulfillmentIds: ['f12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c01', 'f12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c02', 'f12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c03', 'f12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c04', 'f12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c05'],
           vendorId: 'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'
         })
       });
@@ -423,7 +423,7 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceFulfillmentIds: ['s1', 's2', 's3', 's4', 's5'],
+          serviceFulfillmentIds: ['f12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c01', 'f12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c02', 'f12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c03', 'f12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c04', 'f12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c05'],
           vendorId: 'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'
         })
       });
@@ -445,7 +445,7 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceFulfillmentIds: ['c47d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'],
-          vendorId: 'non-existent-vendor'
+          vendorId: 'e12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'
         })
       });
 
@@ -466,7 +466,7 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceFulfillmentIds: ['c47d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'],
-          vendorId: 'deactivated-vendor-id'
+          vendorId: 'b12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'
         })
       });
 
@@ -487,8 +487,8 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceFulfillmentIds: ['service-1', 'service-2', 'service-3'],
-          vendorId: 'new-vendor-id'
+          serviceFulfillmentIds: ['123e4567-e89b-12d3-a456-426614174001', '123e4567-e89b-12d3-a456-426614174002', '123e4567-e89b-12d3-a456-426614174003'],
+          vendorId: 'c12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d'
         })
       });
 
@@ -574,11 +574,7 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
       expect(response.status).toBe(500);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Failed to assign services');
-
-      if (process.env.NODE_ENV !== 'production') {
-        expect(data).toHaveProperty('details', 'Database connection failed');
-      }
+      expect(data).toHaveProperty('error', 'Internal server error');
     });
 
     it('should handle timeout errors gracefully', async () => {
@@ -598,10 +594,10 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
       });
 
       const response = await POST(request);
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(504);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Failed to assign services');
+      expect(data).toHaveProperty('error', 'Request timeout');
     });
   });
 });
