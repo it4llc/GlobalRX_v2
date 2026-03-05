@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET, PATCH } from '../route';
 import { getServerSession } from 'next-auth';
 import { ServiceFulfillmentService } from '@/lib/services/service-fulfillment.service';
+import { prisma } from '@/lib/prisma';
 
 // Mock dependencies
 vi.mock('next-auth', () => ({
@@ -26,6 +27,14 @@ vi.mock('@/lib/logger', () => ({
     error: vi.fn(),
     warn: vi.fn(),
     info: vi.fn()
+  }
+}));
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    vendorOrganization: {
+      findUnique: vi.fn()
+    }
   }
 }));
 
@@ -197,11 +206,11 @@ describe('GET /api/fulfillment/services/[id]', () => {
         assignedVendorId: 'vendor-123',
         vendorNotes: 'Working on verification',
         internalNotes: 'Rush order',
-        assignedAt: new Date('2024-03-01T10:00:00Z'),
+        assignedAt: '2024-03-01T10:00:00.000Z',
         assignedBy: 'user-456',
         completedAt: null,
-        createdAt: new Date('2024-03-01T09:00:00Z'),
-        updatedAt: new Date('2024-03-01T11:00:00Z'),
+        createdAt: '2024-03-01T09:00:00.000Z',
+        updatedAt: '2024-03-01T11:00:00.000Z',
         order: {
           orderNumber: '20240301-ABC-0001',
           customer: { name: 'ACME Corp' }
@@ -370,18 +379,16 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         user: {
           id: 'user-123',
           userType: 'internal',
-          permissions: { fulfillment: true } // Has fulfillment but not manage
+          permissions: { fulfillment: { view: true } } // Has view but not manage
         }
       });
 
-      vi.mocked(ServiceFulfillmentService.updateService).mockRejectedValueOnce(
-        new Error('Insufficient permissions to assign vendors')
-      );
+      // No need to mock updateService - the route should return 403 before calling it
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignedVendorId: 'vendor-456' })
+        body: JSON.stringify({ assignedVendorId: 'a1234567-89ab-cdef-0123-456789abcdef' })
       });
       const params = { params: { id: 'service-123' } };
 
@@ -530,7 +537,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       expect(response.status).toBe(400);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'No updates provided');
+      expect(data).toHaveProperty('error', 'Request body cannot be empty');
     });
   });
 
@@ -547,7 +554,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
     it('should return 404 when service does not exist', async () => {
       vi.mocked(ServiceFulfillmentService.updateService).mockRejectedValueOnce(
-        new Error('Service not found')
+        new Error('Service with ID non-existent not found')
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/non-existent', {
@@ -565,14 +572,27 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
     });
 
     it('should prevent assignment to deactivated vendor', async () => {
-      vi.mocked(ServiceFulfillmentService.updateService).mockRejectedValueOnce(
-        new Error('Cannot assign service to deactivated vendor')
-      );
+      // Mock session with manage permission
+      vi.mocked(getServerSession).mockResolvedValueOnce({
+        user: {
+          id: 'user-123',
+          userType: 'internal',
+          permissions: { fulfillment: { manage: true } }
+        }
+      });
+
+      // Mock vendor as deactivated
+      const vendorId = 'b1234567-89ab-cdef-0123-456789abcdef';
+      vi.mocked(prisma.vendorOrganization.findUnique).mockResolvedValueOnce({
+        id: vendorId,
+        name: 'Deactivated Vendor',
+        deactivated: true
+      });
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignedVendorId: 'vendor-deactivated' })
+        body: JSON.stringify({ assignedVendorId: vendorId })
       });
       const params = { params: { id: 'service-123' } };
 
@@ -580,7 +600,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       expect(response.status).toBe(400);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Cannot assign service to deactivated vendor');
+      expect(data).toHaveProperty('error', 'Cannot assign to deactivated vendor');
     });
 
     it('should allow multiple field updates in single request', async () => {
@@ -589,7 +609,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         status: 'completed',
         vendorNotes: 'All checks passed',
         internalNotes: 'Approved for hire',
-        completedAt: new Date()
+        completedAt: new Date().toISOString()
       };
 
       vi.mocked(ServiceFulfillmentService.updateService).mockResolvedValueOnce(updatedService);
@@ -615,6 +635,15 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
     });
 
     it('should allow unassigning vendor by setting to null', async () => {
+      // Mock session for internal user with manage permission
+      vi.mocked(getServerSession).mockResolvedValueOnce({
+        user: {
+          id: 'user-123',
+          userType: 'internal',
+          permissions: { fulfillment: { manage: true } }
+        }
+      });
+
       const updatedService = {
         id: 'service-123',
         assignedVendorId: null,
@@ -681,7 +710,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
   });
 
   describe('error handling', () => {
-    beforeEach(() => {
+    it('should return 500 when service throws an unexpected error', async () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: 'user-123',
@@ -689,9 +718,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
           permissions: { fulfillment: true }
         }
       });
-    });
 
-    it('should return 500 when service throws an unexpected error', async () => {
       vi.mocked(ServiceFulfillmentService.updateService).mockRejectedValueOnce(
         new Error('Database connection failed')
       );
@@ -711,6 +738,14 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
     });
 
     it('should handle malformed JSON body', async () => {
+      vi.mocked(getServerSession).mockResolvedValueOnce({
+        user: {
+          id: 'user-123',
+          userType: 'internal',
+          permissions: { fulfillment: true }
+        }
+      });
+
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

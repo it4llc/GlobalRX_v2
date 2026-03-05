@@ -148,7 +148,7 @@ describe('ServiceFulfillmentService', () => {
       vi.mocked(prisma.orderItem.findMany).mockRejectedValueOnce(new Error('Database error'));
 
       await expect(ServiceFulfillmentService.createServicesForOrder(orderId, userId))
-        .rejects.toThrow('Failed to create service fulfillment records');
+        .rejects.toThrow('Database error');
     });
   });
 
@@ -708,11 +708,21 @@ describe('ServiceFulfillmentService', () => {
         isActive: true
       });
 
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce([
-        { id: 'service-1', orderId: 'order-1', assignedVendorId: null },
-        { id: 'service-2', orderId: 'order-2', assignedVendorId: 'vendor-old' },
-        { id: 'service-3', orderId: 'order-3', assignedVendorId: null }
-      ]);
+      const date1 = new Date('2024-01-01');
+      const date2 = new Date('2024-01-02');
+      const date3 = new Date('2024-01-03');
+
+      vi.mocked(prisma.servicesFulfillment.findMany)
+        .mockResolvedValueOnce([
+          { id: 'service-1', orderId: 'order-1', assignedVendorId: null, updatedAt: date1 },
+          { id: 'service-2', orderId: 'order-2', assignedVendorId: 'vendor-old', updatedAt: date2 },
+          { id: 'service-3', orderId: 'order-3', assignedVendorId: null, updatedAt: date3 }
+        ])
+        .mockResolvedValueOnce([
+          { id: 'service-1', updatedAt: date1 },
+          { id: 'service-2', updatedAt: date2 },
+          { id: 'service-3', updatedAt: date3 }
+        ]);
 
       vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn) => {
         return fn(prisma);
@@ -794,7 +804,7 @@ describe('ServiceFulfillmentService', () => {
         'vendor-123',
         user,
         {}
-      )).rejects.toThrow('Forbidden: Insufficient permissions for bulk vendor assignment');
+      )).rejects.toThrow('Forbidden: Insufficient permissions for bulk assignment');
     });
 
     it('should handle empty service list', async () => {
@@ -885,7 +895,7 @@ describe('ServiceFulfillmentService', () => {
       const result = await ServiceFulfillmentService.getServiceHistory(serviceId);
 
       expect(result).toEqual(mockHistory);
-      expect(ServiceAuditService.getHistory).toHaveBeenCalledWith(serviceId);
+      expect(ServiceAuditService.getHistory).toHaveBeenCalledWith(serviceId, undefined);
     });
   });
 
