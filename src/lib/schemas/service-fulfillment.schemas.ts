@@ -11,6 +11,13 @@ export const serviceStatusSchema = z.enum([
   'cancelled'
 ]);
 
+// Change type enum schema for audit logging
+export const changeTypeSchema = z.enum([
+  'status_change',
+  'vendor_assignment',
+  'note_update'
+]);
+
 // Schema for updating service fulfillment
 export const updateServiceFulfillmentSchema = z.object({
   status: serviceStatusSchema.optional(),
@@ -45,3 +52,4 @@ export type BulkAssignInput = z.infer<typeof bulkAssignSchema>;
 export type ServiceQueryInput = z.infer<typeof serviceQuerySchema>;
 export type CloseOrderInput = z.infer<typeof closeOrderSchema>;
 export type ServiceStatus = z.infer<typeof serviceStatusSchema>;
+export type ChangeType = z.infer<typeof changeTypeSchema>;
