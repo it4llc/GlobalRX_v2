@@ -93,6 +93,13 @@ vi.mock('@/contexts/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// Mock window methods that don't exist in test environment
+if (typeof window !== 'undefined') {
+  window.print = vi.fn();
+  window.alert = vi.fn();
+  window.confirm = vi.fn(() => true);
+}
+
 // Mock environment variables for testing
 process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || 'test-secret';

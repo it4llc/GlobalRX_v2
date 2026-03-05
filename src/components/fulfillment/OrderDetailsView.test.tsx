@@ -22,10 +22,31 @@ vi.mock('@/contexts/AuthContext', () => ({
   }))
 }));
 
-// Mock TranslationContext
+// Mock TranslationContext with proper labels for testing
+const translationMap: Record<string, string> = {
+  'module.fulfillment.firstName': 'First Name',
+  'module.fulfillment.lastName': 'Last Name',
+  'module.fulfillment.email': 'Email',
+  'module.fulfillment.phone': 'Phone',
+  'module.fulfillment.dateOfBirth': 'Date of Birth',
+  'module.fulfillment.ssn': 'SSN',
+  'module.fulfillment.orderNumber': 'Order Number',
+  'module.fulfillment.orderInformation': 'Order Information',
+  'module.fulfillment.subjectInformation': 'Subject Information',
+  'module.fulfillment.orderItems': 'Order Items',
+  'module.fulfillment.customerDetails': 'Customer Details',
+  'module.fulfillment.notes': 'Notes',
+  'module.fulfillment.created': 'Created',
+  'common.status': 'Status',
+  'common.updated': 'Updated',
+  'common.name': 'Name',
+  'common.code': 'Code',
+  'common.location': 'Location'
+};
+
 vi.mock('@/contexts/TranslationContext', () => ({
   useTranslation: vi.fn(() => ({
-    t: (key: string) => key,
+    t: (key: string) => translationMap[key] || key,
     locale: 'en-US'
   }))
 }));
@@ -147,16 +168,16 @@ describe('OrderDetailsView', () => {
       render(<OrderDetailsView order={orderWithEmptyFields} />);
 
       // Email and phone should show "--"
-      const emailLabel = screen.getByText('Email:');
-      const emailValue = emailLabel.nextElementSibling;
+      const emailLabel = screen.getByText('Email');
+      const emailValue = emailLabel.parentElement?.querySelector('dd');
       expect(emailValue).toHaveTextContent('--');
 
-      const phoneLabel = screen.getByText('Phone:');
-      const phoneValue = phoneLabel.nextElementSibling;
+      const phoneLabel = screen.getByText('Phone');
+      const phoneValue = phoneLabel.parentElement?.querySelector('dd');
       expect(phoneValue).toHaveTextContent('--');
 
-      const ssnLabel = screen.getByText('SSN:');
-      const ssnValue = ssnLabel.nextElementSibling;
+      const ssnLabel = screen.getByText('SSN');
+      const ssnValue = ssnLabel.parentElement?.querySelector('dd');
       expect(ssnValue).toHaveTextContent('--');
     });
   });
