@@ -1,4 +1,4 @@
-// src/lib/services/order-core.service.ts
+// /GlobalRX_v2/src/lib/services/order-core.service.ts
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
@@ -7,6 +7,7 @@ import { OrderNumberService } from './order-number.service';
 import { AddressService } from './address.service';
 import { FieldResolverService } from './field-resolver.service';
 import { OrderValidationService } from './order-validation.service';
+import { ServiceFulfillmentService } from './service-fulfillment.service';
 
 /**
  * Core order service handling CRUD operations and state management
@@ -312,26 +313,41 @@ export class OrderCoreService {
   /**
    * Update order status with state machine validation
    * Tracks status change reasons in history
+   *
+   * @param orderId The order ID
+   * @param customerId The customer ID (pass null to bypass customer check for fulfillment users)
+   * @param userId The user making the change
+   * @param newStatus The new status
+   * @param reason The reason for the change
+   * @param bypassValidation If true, bypasses transition validation (for fulfillment users)
    */
   static async updateOrderStatus(
     orderId: string,
-    customerId: string,
+    customerId: string | null,
     userId: string,
     newStatus: string,
-    reason: string
+    reason: string,
+    bypassValidation: boolean = false
   ): Promise<any> {
+    // If customerId is provided, include it in the query
+    const whereClause = customerId
+      ? { id: orderId, customerId }
+      : { id: orderId };
+
     const order = await prisma.order.findFirst({
-      where: { id: orderId, customerId },
+      where: whereClause,
     });
 
     if (!order) {
       throw new Error('Order not found');
     }
 
-    // Check if transition is valid
-    const allowedTransitions = this.VALID_TRANSITIONS[order.statusCode] || [];
-    if (!allowedTransitions.includes(newStatus)) {
-      throw new Error(`Invalid status transition from ${order.statusCode} to ${newStatus}`);
+    // Check if transition is valid (unless bypassing for fulfillment users)
+    if (!bypassValidation) {
+      const allowedTransitions = this.VALID_TRANSITIONS[order.statusCode] || [];
+      if (!allowedTransitions.includes(newStatus)) {
+        throw new Error(`Invalid status transition from ${order.statusCode} to ${newStatus}`);
+      }
     }
 
     // Special case: if transitioning from more_info_needed to processing
@@ -374,7 +390,7 @@ export class OrderCoreService {
       ]);
     }
 
-    return prisma.$transaction([
+    const result = await prisma.$transaction([
       prisma.order.update({
         where: { id: orderId },
         data: {
@@ -393,6 +409,39 @@ export class OrderCoreService {
         },
       }),
     ]);
+
+    // Create ServicesFulfillment records when order is submitted
+    // This is the critical transition point where order-level processing becomes service-level fulfillment.
+    // Each OrderItem gets its own ServicesFulfillment record for independent tracking, vendor assignment, and status management.
+    // This transformation enables granular fulfillment control where different services can have different vendors and timelines.
+    if (newStatus === 'submitted' && order.statusCode === 'draft') {
+      try {
+        // Get all order items for this order
+        const orderItems = await prisma.orderItem.findMany({
+          where: { orderId },
+          select: { id: true }
+        });
+
+        if (orderItems.length > 0) {
+          await ServiceFulfillmentService.createServicesForOrder(orderId, userId);
+
+          logger.info('ServicesFulfillment records created for submitted order', {
+            orderId,
+            itemCount: orderItems.length,
+            userId
+          });
+        }
+      } catch (error) {
+        // Log error but don't fail the order submission
+        logger.error('Failed to create ServicesFulfillment records', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          orderId,
+          userId
+        });
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -645,6 +694,32 @@ export class OrderCoreService {
         location: true,
       },
     });
+  }
+
+  /**
+   * Update order status for fulfillment users (no customer constraint, no validation)
+   * This method bypasses the normal state machine validation to allow unrestricted status changes
+   *
+   * @param orderId The order ID
+   * @param userId The fulfillment user making the change
+   * @param newStatus The new status
+   * @param notes Optional notes about the status change
+   */
+  static async updateOrderStatusForFulfillment(
+    orderId: string,
+    userId: string,
+    newStatus: string,
+    notes?: string
+  ): Promise<any> {
+    // Use the main method with bypass flags
+    return this.updateOrderStatus(
+      orderId,
+      null, // No customer constraint
+      userId,
+      newStatus,
+      notes || 'Status updated by fulfillment',
+      true // Bypass validation
+    );
   }
 
   /**

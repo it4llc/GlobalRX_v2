@@ -358,15 +358,88 @@ The use of `any` as a TypeScript type is prohibited. It defeats the purpose of
 TypeScript and makes code harder to maintain safely. If you are unsure of a type,
 use `unknown` and narrow it properly, or define an explicit type.
 
-**Wrong:**
+**Common `any` Anti-Patterns to Avoid:**
+
+**1. User objects without proper typing:**
 ```typescript
-const handleData = (data: any) => { ... }
+// ❌ WRONG - Don't use any for user objects
+const user: { id: string; permissions?: any } = ...
+
+// ✅ CORRECT - Define proper user types
+interface ServiceUser {
+  id: string;
+  userType: string;
+  vendorId?: string;
+  permissions?: Record<string, unknown>;
+}
 ```
 
-**Correct:**
+**2. Prisma where clauses:**
 ```typescript
-const handleData = (data: UserFormData) => { ... }
+// ❌ WRONG - Don't use any for where clauses
+const where: any = {};
+
+// ✅ CORRECT - Define typed where clause
+interface ServiceWhereClause {
+  orderId?: string;
+  status?: ServiceStatus;
+  assignedVendorId?: string;
+}
+const where: ServiceWhereClause = {};
 ```
+
+**3. Update data objects:**
+```typescript
+// ❌ WRONG - Don't use any for update data
+const updateData: any = { status: newStatus };
+
+// ✅ CORRECT - Define typed update interface
+interface ServiceUpdateData {
+  status?: ServiceStatus;
+  assignedVendorId?: string | null;
+  vendorNotes?: string | null;
+  updatedAt?: Date;
+}
+const updateData: ServiceUpdateData = { status: newStatus };
+```
+
+**4. Array operations and iterations:**
+```typescript
+// ❌ WRONG - Don't lose typing in forEach/map
+services.forEach((service: any) => {
+  delete service.order.customer;
+});
+
+// ✅ CORRECT - Maintain proper typing
+services.forEach((service) => {
+  // Use type assertions only when necessary
+  delete (service.order as any).customer;
+});
+```
+
+**5. Change tracking objects:**
+```typescript
+// ❌ WRONG - Don't use generic objects for tracking
+const changes: Array<{
+  fieldName: string;
+  oldValue: any;
+  newValue: any;
+}> = [];
+
+// ✅ CORRECT - Define proper change tracking type
+interface AuditChange {
+  fieldName: string;
+  changeType: 'status_change' | 'vendor_assignment' | 'note_update';
+  oldValue: string | number | boolean | null;
+  newValue: string | number | boolean | null;
+}
+const changes: AuditChange[] = [];
+```
+
+**When you MUST use type assertions:**
+- Use them sparingly and document why they're needed
+- Prefer `as unknown as TargetType` over `as any`
+- Consider if the underlying data structure should be fixed instead
 
 ### 6.2 Strict Mode
 
@@ -381,6 +454,35 @@ strict mode checks once enabled.
 
 All shared type definitions belong in the `/src/types/` directory. Do not define
 types locally inside a component file if they are used in more than one place.
+
+**Type Organization Best Practices:**
+
+1. **Create feature-specific type files:**
+   - `src/types/service-fulfillment.ts` - All types for service fulfillment feature
+   - `src/types/order.ts` - All types for order management
+   - `src/types/user.ts` - All user and permission types
+
+2. **Export related types together:**
+```typescript
+// src/types/service-fulfillment.ts
+export interface ServiceFulfillment { ... }
+export interface ServiceUser { ... }
+export interface ServiceWhereClause { ... }
+export interface ServiceUpdateData { ... }
+export type ServiceStatus = 'pending' | 'submitted' | 'processing' | 'completed' | 'cancelled';
+```
+
+3. **Import types in services and components:**
+```typescript
+import type {
+  ServiceFulfillment,
+  ServiceUser,
+  ServiceWhereClause,
+  ServiceUpdateData
+} from '@/types/service-fulfillment';
+```
+
+4. **Never duplicate type definitions** - If you find yourself defining the same interface in multiple places, move it to `/src/types/`
 
 ### 6.4 Zod Schemas as the Source of Truth
 
@@ -855,8 +957,16 @@ Steps to revert if needed
 
 ## QUICK REFERENCE CHECKLIST
 
-Before submitting any code, verify:
+### TypeScript Planning (BEFORE writing code):
+- [ ] Identified all data structures needing types (users, where clauses, updates, etc.)
+- [ ] Created proper interfaces instead of using `any`
+- [ ] Placed shared types in `/src/types/` directory
+- [ ] No `permissions?: any` in user objects
+- [ ] No `where: any` for database queries
+- [ ] No `updateData: any` for updates
+- [ ] Used proper types for array operations (no `forEach((item: any) => ...)`)
 
+### Code Quality Verification:
 - [ ] File path is in a comment at the top of the file
 - [ ] No inline styles used anywhere
 - [ ] All new styles added to `globals.css` or use existing Tailwind classes
@@ -866,7 +976,7 @@ Before submitting any code, verify:
 - [ ] Every API route checks authentication first
 - [ ] Every API route validates input with Zod
 - [ ] Every API route has try/catch error handling
-- [ ] No `any` TypeScript types used
+- [ ] **No `any` TypeScript types used (search your code for `: any`)**
 - [ ] All user-facing text uses the translation system
 - [ ] Translation keys verified to exist in ALL language files
 - [ ] No secrets or sensitive values hardcoded

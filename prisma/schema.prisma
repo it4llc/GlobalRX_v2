@@ -36,6 +36,9 @@ model User {
   vendor              VendorOrganization?  @relation("VendorUserRelation", fields: [vendorId], references: [id])
   workflowsCreated    Workflow[]           @relation("WorkflowCreatedBy")
   workflowsUpdated    Workflow[]           @relation("WorkflowUpdatedBy")
+  servicesAssigned    ServicesFulfillment[] @relation("ServiceAssignedBy")
+  serviceAuditLogs    ServiceAuditLog[]    @relation("ServiceAuditLogUser")
+  closedOrders        Order[]              @relation("OrderClosedBy")
 
   @@index([customerId])
   @@index([vendorId])
@@ -65,6 +68,7 @@ model Country {
   serviceAvailability  DSXAvailability[]
   mappings             DSXMapping[]
   orderItems           OrderItem[]
+  servicesFulfillment  ServicesFulfillment[]
 
   @@index([parentId])
   @@map("countries")
@@ -72,7 +76,6 @@ model Country {
 
 model Service {
   id                  String               @id @default(uuid())
-  code                String?              @unique // Service code for identification (e.g., "MVR", "CRIMINAL", "DRUG")
   name                String
   category            String
   description         String?
@@ -82,6 +85,7 @@ model Service {
   createdById         String?
   updatedById         String?
   functionalityType   String               @default("other")
+  code                String               @unique
   customerServices    CustomerService[]
   availability        DSXAvailability[]
   mappings            DSXMapping[]
@@ -90,6 +94,7 @@ model Service {
   serviceRequirements ServiceRequirement[]
   createdBy           User?                @relation("ServiceCreatedBy", fields: [createdById], references: [id])
   updatedBy           User?                @relation("ServiceUpdatedBy", fields: [updatedById], references: [id])
+  servicesFulfillment ServicesFulfillment[]
 
   @@index([createdById])
   @@index([updatedById])
@@ -359,12 +364,17 @@ model Order {
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   assignedVendorId String?
+  closedAt         DateTime?
+  closedBy         String?
+  closureComments  String?              @db.Text
   addressEntries   AddressEntry[]
   items            OrderItem[]
   statusHistory    OrderStatusHistory[]
   assignedVendor   VendorOrganization?  @relation("OrderVendorAssignment", fields: [assignedVendorId], references: [id])
   customer         Customer             @relation(fields: [customerId], references: [id])
   user             User                 @relation(fields: [userId], references: [id])
+  closedByUser     User?                @relation("OrderClosedBy", fields: [closedBy], references: [id])
+  servicesFulfillment ServicesFulfillment[]
 
   @@index([customerId])
   @@index([statusCode])
@@ -401,6 +411,7 @@ model OrderItem {
   location   Country         @relation(fields: [locationId], references: [id])
   order      Order           @relation(fields: [orderId], references: [id])
   service    Service         @relation(fields: [serviceId], references: [id])
+  serviceFulfillment ServicesFulfillment?
 
   @@index([orderId])
   @@map("order_items")
@@ -505,45 +516,98 @@ model VendorOrganization {
   updatedAt      DateTime @updatedAt
   assignedOrders Order[]  @relation("OrderVendorAssignment")
   users          User[]   @relation("VendorUserRelation")
+  assignedServices ServicesFulfillment[] @relation("ServiceVendorAssignment")
 
   @@index([isActive])
   @@index([isPrimary])
   @@map("vendor_organizations")
 }
 
-// Comment templates for standardized comments on background check results
 model CommentTemplate {
-  id           String    @id @default(uuid())
-  shortName    String    @db.VarChar(50) // Short name for dropdowns, unique among active templates
-  longName     String    @db.VarChar(100) // Long descriptive name for display
-  templateText String    @db.VarChar(1000) // Template text with [placeholder] syntax
-  isActive     Boolean   @default(true) // Whether template appears in selection lists
-  hasBeenUsed  Boolean   @default(false) // Set to true first time template is used
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  createdBy    String?   // User ID who created the template
-  updatedBy    String?   // User ID who last updated the template
-
-  // Availability assignments (service/status combinations where this template can be used)
+  id             String                        @id @default(uuid())
+  hasBeenUsed    Boolean                       @default(false)
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+  createdBy      String?
+  updatedBy      String?
+  isActive       Boolean                       @default(true)
+  longName       String                        @db.VarChar(100)
+  shortName      String                        @db.VarChar(50)
+  templateText   String                        @db.VarChar(1000)
   availabilities CommentTemplateAvailability[]
 
-  @@unique([shortName, isActive]) // Unique short name among active templates
+  @@unique([shortName, isActive])
   @@index([isActive])
   @@index([hasBeenUsed])
   @@map("comment_templates")
 }
 
 model CommentTemplateAvailability {
-  id          String   @id @default(uuid())
+  id          String          @id @default(uuid())
   templateId  String
+  serviceCode String
+  status      String
+  createdAt   DateTime        @default(now())
   template    CommentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  serviceCode String  // Service this template is available for
-  status      String  // Status this template is available for
-  createdAt   DateTime @default(now())
 
   @@unique([templateId, serviceCode, status])
   @@index([serviceCode])
   @@index([status])
   @@index([templateId])
   @@map("comment_template_availability")
+}
+
+model ServicesFulfillment {
+  id               String              @id @default(uuid())
+  orderId          String
+  orderItemId      String              @unique
+  serviceId        String
+  locationId       String
+  assignedVendorId String?
+  status           String              @default("pending")
+  vendorNotes      String?             @db.Text
+  internalNotes    String?             @db.Text
+  assignedAt       DateTime?
+  assignedBy       String?
+  completedAt      DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  order            Order               @relation(fields: [orderId], references: [id])
+  orderItem        OrderItem           @relation(fields: [orderItemId], references: [id])
+  service          Service             @relation(fields: [serviceId], references: [id])
+  location         Country             @relation(fields: [locationId], references: [id])
+  assignedVendor   VendorOrganization? @relation("ServiceVendorAssignment", fields: [assignedVendorId], references: [id])
+  assignedByUser   User?               @relation("ServiceAssignedBy", fields: [assignedBy], references: [id])
+  auditLogs        ServiceAuditLog[]
+
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([assignedVendorId])
+  @@index([status])
+  @@map("services_fulfillment")
+}
+
+model ServiceAuditLog {
+  id                   String              @id @default(uuid())
+  serviceFulfillmentId String
+  orderId              String
+  userId               String
+  changeType           String              // status_change, vendor_assignment, note_update
+  fieldName            String?
+  oldValue             String?             @db.Text
+  newValue             String?             @db.Text
+  notes                String?             @db.Text
+  ipAddress            String?
+  userAgent            String?
+  createdAt            DateTime            @default(now())
+
+  serviceFulfillment   ServicesFulfillment @relation(fields: [serviceFulfillmentId], references: [id])
+  user                 User                @relation("ServiceAuditLogUser", fields: [userId], references: [id])
+
+  @@index([serviceFulfillmentId])
+  @@index([orderId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("service_audit_log")
 }
