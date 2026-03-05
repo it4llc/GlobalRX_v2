@@ -65,19 +65,12 @@ vi.mock('next-auth/react', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// Mock useToast hook
+// Import toast helper for better toast mocking
+import { mockToastImplementation } from '@/test/toast-test-helper';
+
+// Mock useToast hook with DOM creation
 vi.mock('@/hooks/useToast', () => ({
-  useToast: () => ({
-    toast: vi.fn((options) => `toast-${Date.now()}`),
-    toastSuccess: vi.fn((message, options) => `toast-${Date.now()}`),
-    toastError: vi.fn((message, options) => `toast-${Date.now()}`),
-    toastWarning: vi.fn((message, options) => `toast-${Date.now()}`),
-    toastInfo: vi.fn((message, options) => `toast-${Date.now()}`),
-    dismissToast: vi.fn(),
-    dismissAllToasts: vi.fn(),
-    dismissAll: vi.fn(),
-    updateToast: vi.fn(),
-  }),
+  useToast: () => mockToastImplementation(),
 }));
 
 // Mock AuthContext
