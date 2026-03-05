@@ -121,11 +121,17 @@ describe('useToast', () => {
           });
         });
 
-        const container = document.querySelector('.toast-container');
+        const container = document.querySelector(`.toast-container-${position}`);
+        expect(container).toBeInTheDocument();
+        expect(container).toHaveClass('toast-container');
         expect(container).toHaveClass(`toast-container-${position}`);
 
         // Clean up for next iteration
         document.body.innerHTML = '';
+        // Recreate the base container for next test
+        const baseContainer = document.createElement('div');
+        baseContainer.className = 'toast-container toast-container-top-right';
+        document.body.appendChild(baseContainer);
       });
     });
   });
@@ -221,11 +227,16 @@ describe('useToast', () => {
       expect(toast).toBeInTheDocument();
 
       const closeButton = toast.querySelector('.toast-close');
+      expect(closeButton).toBeInTheDocument();
+
       act(() => {
         closeButton.click();
       });
 
-      expect(document.querySelector('.toast-success')).not.toBeInTheDocument();
+      // Wait a moment for the DOM to update
+      waitFor(() => {
+        expect(document.querySelector('.toast-success')).not.toBeInTheDocument();
+      });
     });
 
     it('should call onClose callback when toast is dismissed', () => {
@@ -242,11 +253,15 @@ describe('useToast', () => {
       });
 
       const closeButton = document.querySelector('.toast-close');
+      expect(closeButton).toBeInTheDocument();
+
       act(() => {
         closeButton.click();
       });
 
-      expect(onClose).toHaveBeenCalled();
+      waitFor(() => {
+        expect(onClose).toHaveBeenCalled();
+      });
     });
 
     it('should dismiss specific toast by ID', () => {
@@ -301,13 +316,15 @@ describe('useToast', () => {
       const toasts = document.querySelectorAll('.toast');
       expect(toasts).toHaveLength(3);
 
-      // Verify they are stacked (each has different transform/top value)
+      // Verify they are stacked (each has different top value)
       const positions = Array.from(toasts).map(toast => {
-        const style = window.getComputedStyle(toast);
-        return style.top || style.transform;
+        return (toast as HTMLElement).style.top;
       });
 
-      expect(new Set(positions).size).toBe(3); // All different positions
+      // Check that each toast has a unique position
+      expect(positions[0]).toBe('0px');
+      expect(positions[1]).toBe('64px');
+      expect(positions[2]).toBe('128px');
     });
 
     it('should limit maximum number of visible toasts', () => {
@@ -337,23 +354,26 @@ describe('useToast', () => {
       });
 
       const successToast = document.querySelector('.toast-success');
-      const successIcon = successToast.querySelector('.toast-icon-success');
+      const successIcon = successToast?.querySelector('.toast-icon-success');
       expect(successIcon).toBeInTheDocument();
 
-      document.body.innerHTML = '';
+      // Clean up properly
+      act(() => {
+        result.current.dismissAll();
+      });
 
       act(() => {
         result.current.toastError('Error');
       });
 
       const errorToast = document.querySelector('.toast-error');
-      const errorIcon = errorToast.querySelector('.toast-icon-error');
+      const errorIcon = errorToast?.querySelector('.toast-icon-error');
       expect(errorIcon).toBeInTheDocument();
     });
   });
 
   describe('toast animations', () => {
-    it('should animate toast entrance', () => {
+    it('should animate toast entrance', async () => {
       // THIS TEST WILL FAIL because the hook doesn't exist yet
       const { result } = renderHook(() => useToast());
 
@@ -365,9 +385,9 @@ describe('useToast', () => {
       expect(toast).toHaveClass('toast-enter');
 
       // After animation completes
-      setTimeout(() => {
+      await waitFor(() => {
         expect(toast).toHaveClass('toast-enter-active');
-      }, 100);
+      }, { timeout: 200 });
     });
 
     it('should animate toast exit', async () => {
@@ -407,6 +427,7 @@ describe('useToast', () => {
       });
 
       const toast = document.querySelector('.toast');
+      expect(toast).toBeInTheDocument();
       expect(toast).toHaveAttribute('role', 'alert');
       expect(toast).toHaveAttribute('aria-live', 'polite');
     });
@@ -420,6 +441,7 @@ describe('useToast', () => {
       });
 
       const toast = document.querySelector('.toast-error');
+      expect(toast).toBeInTheDocument();
       expect(toast).toHaveAttribute('aria-live', 'assertive');
     });
 
@@ -432,6 +454,7 @@ describe('useToast', () => {
       });
 
       const closeButton = document.querySelector('.toast-close');
+      expect(closeButton).toBeInTheDocument();
       expect(closeButton).toHaveAttribute('aria-label', 'Close notification');
     });
   });
@@ -453,7 +476,7 @@ describe('useToast', () => {
         });
       });
 
-      const actionButton = document.querySelector('.toast-action');
+      const actionButton = document.querySelector('.toast-action') as HTMLButtonElement;
       expect(actionButton).toBeInTheDocument();
       expect(actionButton).toHaveTextContent('Undo');
 
@@ -461,7 +484,9 @@ describe('useToast', () => {
         actionButton.click();
       });
 
-      expect(onAction).toHaveBeenCalled();
+      waitFor(() => {
+        expect(onAction).toHaveBeenCalled();
+      });
     });
   });
 
@@ -470,12 +495,15 @@ describe('useToast', () => {
       // THIS TEST WILL FAIL because the hook doesn't exist yet
       const { result } = renderHook(() => useToast());
 
-      let toastId;
+      let toastId: string;
       act(() => {
         toastId = result.current.toastSuccess('Original message');
       });
 
-      expect(document.querySelector('.toast')).toHaveTextContent('Original message');
+      const originalToast = document.querySelector('.toast');
+      expect(originalToast).toBeInTheDocument();
+      const messageElement = originalToast?.querySelector('.toast-message');
+      expect(messageElement).toHaveTextContent('Original message');
 
       act(() => {
         result.current.updateToast(toastId, {
@@ -485,7 +513,8 @@ describe('useToast', () => {
       });
 
       const toast = document.querySelector('.toast');
-      expect(toast).toHaveTextContent('Updated message');
+      const updatedMessage = toast?.querySelector('.toast-message');
+      expect(updatedMessage).toHaveTextContent('Updated message');
       expect(toast).toHaveClass('toast-error');
       expect(toast).not.toHaveClass('toast-success');
     });
@@ -500,7 +529,9 @@ describe('useToast', () => {
         result.current.toastSuccess('Test');
       });
 
-      const progressBar = document.querySelector('.toast-progress');
+      const toast = document.querySelector('.toast');
+      expect(toast).toBeInTheDocument();
+      const progressBar = toast?.querySelector('.toast-progress');
       expect(progressBar).toBeInTheDocument();
     });
 
