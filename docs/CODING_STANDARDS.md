@@ -691,6 +691,20 @@ The permission system migration revealed a common bug pattern:
 - Frontend worked because it checked both formats
 - Solution: Replace all inline permission checking with centralized functions
 
+**Critical Security Bug Fixed (March 5, 2026):**
+The DSX API permission migration revealed a critical security vulnerability:
+- `/api/dsx/remove-requirement` had NO permission checking at all
+- Any authenticated user could delete service requirements
+- This violated the "Authentication on Every API Route" rule (Section 9.1)
+- Other DSX endpoints checked for deprecated 'dsx' permission instead of 'global_config'
+
+**Mandatory Security Verification:**
+1. **NEVER ship an API endpoint without permission checking**
+2. **Always use centralized permission functions** (never inline permission checks)
+3. **Test API endpoints with different user permission levels** during development
+4. **Review ALL endpoints** when changing permission requirements
+5. **Document security-critical changes** with clear code comments explaining the fix
+
 ### 9.6 No Secrets in Code
 
 Database URLs, API keys, passwords, and other secrets must only exist in

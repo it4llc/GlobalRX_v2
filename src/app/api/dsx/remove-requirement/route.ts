@@ -1,9 +1,10 @@
-// src/app/api/dsx/remove-requirement/route.ts
+// /GlobalRX_v2/src/app/api/dsx/remove-requirement/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import logger, { logDatabaseError } from '@/lib/logger';
+import { canAccessDataRx } from '@/lib/auth-utils';
 
 /**
  * DELETE /api/dsx/remove-requirement
@@ -13,10 +14,18 @@ export async function DELETE(request: NextRequest) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
-
-    // Skip authentication in development mode
-    if (process.env.NODE_ENV !== 'development' && !session) {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // SECURITY FIX: Added missing permission check for DSX requirement removal
+    // This endpoint previously had NO permission checking, allowing any authenticated
+    // user to delete requirements from services. This was a critical security vulnerability.
+    //
+    // Fix: Use centralized canAccessDataRx() function which checks for 'global_config'
+    // permission instead of legacy 'dsx' permission to ensure consistent authorization.
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
 
     // Get parameters from query
@@ -83,10 +92,18 @@ export async function POST(request: NextRequest) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
-
-    // Skip authentication in development mode
-    if (process.env.NODE_ENV !== 'development' && !session) {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // SECURITY FIX: Added missing permission check for bulk requirement removal
+    // This endpoint previously had NO permission checking, allowing any authenticated
+    // user to bulk delete requirements from services. This was a critical security vulnerability.
+    //
+    // Fix: Use centralized canAccessDataRx() function which checks for 'global_config'
+    // permission instead of legacy 'dsx' permission to ensure consistent authorization.
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
 
     const body = await request.json();

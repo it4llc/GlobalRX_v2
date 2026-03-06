@@ -103,6 +103,12 @@ Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Cri
   - Updated permission conversion logic in user-form.tsx to properly handle comment_management permission
   - Ensures proper permission checking for comment template access across the application
   - Affects all single-capability permissions (comment_management, user_admin, global_config, etc.)
+- **Update**: ✅ DSX Permission Migration Security Bug Fixed on March 5, 2026:
+  - **CRITICAL**: Fixed `/api/dsx/remove-requirement` endpoint that had NO permission checking at all
+  - This was a severe security vulnerability allowing any authenticated user to delete service requirements
+  - Fixed 4 other DSX endpoints that checked for legacy 'dsx' permission instead of 'global_config'
+  - All DSX endpoints now use centralized `canAccessDataRx()` function with proper 'global_config' permission checking
+  - Added comprehensive security documentation and prevention guidelines to coding standards
 
 ### 5. No Automated Backups - Data Loss Risk
 - **Finding**: Manual backup process only, no automation or remote storage
