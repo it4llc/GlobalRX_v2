@@ -846,9 +846,55 @@ All features handling personal data must support:
 
 ---
 
-## SECTION 14: Documentation Standards
+## SECTION 14: Database Changes and Prisma Migrations
 
-### 14.1 When Documentation is Required
+### 14.1 Prisma Migration Process
+
+**IMPORTANT:** This project runs in a non-interactive environment (Claude Code), so the standard `pnpm prisma migrate dev` will NOT work.
+
+#### For Development (Non-Interactive):
+```bash
+# 1. Update the schema
+# Edit prisma/schema.prisma with your changes
+
+# 2. Create migration directory with timestamp
+mkdir -p prisma/migrations/$(date +%Y%m%d%H%M%S)_add_feature_name
+
+# 3. Write SQL migration file
+# Create migration.sql in the new directory with your SQL changes
+
+# 4. Apply the migration
+pnpm prisma migrate deploy
+
+# 5. Regenerate Prisma client for TypeScript types
+pnpm prisma generate
+```
+
+#### For Interactive Development (local terminal):
+```bash
+# Standard Prisma workflow works here
+pnpm prisma migrate dev --name add_feature_name
+```
+
+### 14.2 Migration File Requirements
+
+- Use descriptive names: `add_service_comments`, not `update_db`
+- Include indexes for foreign keys and commonly queried fields
+- Add appropriate CASCADE rules for foreign keys
+- Use correct PostgreSQL data types (TEXT for UUIDs, VARCHAR for limited strings)
+
+### 14.3 Schema Best Practices
+
+- Always add `@@map("table_name")` to use snake_case in database
+- Include audit fields: `createdAt`, `updatedAt`, `createdBy`, `updatedBy`
+- Use `@default(now())` for timestamps
+- Define both sides of relations properly
+
+---
+
+## SECTION 15: Documentation Standards
+
+### 15.1 When Documentation is Required
 
 Documentation must be created or updated in these situations:
 
@@ -859,7 +905,7 @@ Documentation must be created or updated in these situations:
 5. **Breaking Changes** - Document migration path
 6. **Configuration Changes** - Update .env.example
 
-### 14.2 Code Comments
+### 15.2 Code Comments
 
 **When to add comments:**
 - Complex algorithms or business rules
@@ -886,7 +932,7 @@ Documentation must be created or updated in these situations:
 const name = formData.name;
 ```
 
-### 14.3 API Documentation
+### 15.3 API Documentation
 
 Every API endpoint must have:
 
@@ -958,6 +1004,15 @@ For database migrations or breaking changes:
 - List of changes
 
 ## Migration Steps
+
+### Development (Non-Interactive Environment like Claude Code)
+1. Update `prisma/schema.prisma` with your changes
+2. Create migration directory: `mkdir -p prisma/migrations/$(date +%Y%m%d%H%M%S)_descriptive_name`
+3. Create `migration.sql` file in that directory with the SQL changes
+4. Apply migration: `pnpm prisma migrate deploy`
+5. Regenerate client: `pnpm prisma generate`
+
+### Production Deployment
 1. Backup database
 2. Run migration: `pnpm prisma migrate deploy`
 3. Update environment variables
