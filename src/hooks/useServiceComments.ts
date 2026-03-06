@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import clientLogger from '@/lib/client-logger';
 import type {
   ServiceComment,
   CreateServiceCommentInput,
@@ -101,6 +102,7 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
 
       setComments(sortedComments);
     } catch (err) {
+      clientLogger.error('Error fetching service comments', { error: err, serviceId });
       setError('Failed to load comments');
     } finally {
       setLoading(false);
@@ -141,6 +143,7 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
 
       setComments(allComments);
     } catch (err) {
+      clientLogger.error('Error fetching order comments', { error: err, orderId });
       setError('Failed to load comments');
     } finally {
       setLoading(false);
@@ -343,6 +346,7 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
       setTemplates(fetchedTemplates);
       return fetchedTemplates;
     } catch (err) {
+      clientLogger.error('Error fetching templates', { error: err, serviceType, serviceStatus });
       return [];
     }
   }, []);

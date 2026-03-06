@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { clientLogger } from '@/lib/client-logger';
 import { useServiceComments } from '@/hooks/useServiceComments';
 import { ServiceCommentCard } from './ServiceCommentCard';
 import { CommentCreateModal } from './CommentCreateModal';
@@ -62,6 +63,7 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
       await createComment(data);
       setIsCreateModalOpen(false);
     } catch (error) {
+      clientLogger.error('Failed to create comment', { error });
       throw error;
     }
   };
@@ -73,6 +75,7 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
       await updateComment(editingComment.id, data);
       setEditingComment(null);
     } catch (error) {
+      clientLogger.error('Failed to update comment', { error, commentId: editingComment.id });
       throw error;
     }
   };
@@ -89,6 +92,7 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
         setDeleteConfirmId(null);
         setShowDeleteDialog(false);
       } catch (error) {
+        clientLogger.error('Failed to delete comment', { error, commentId: deleteConfirmId });
         // Don't throw here to avoid breaking UI
       }
     }
