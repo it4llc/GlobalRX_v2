@@ -1,9 +1,10 @@
-// src/app/api/dsx/toggle-required/route.ts
+// /GlobalRX_v2/src/app/api/dsx/toggle-required/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { hasPermission } from '@/lib/permission-utils';
+import { canAccessDataRx } from '@/lib/auth-utils';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,9 +20,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check permissions
-    if (process.env.NODE_ENV !== 'development' && !hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    // SECURITY FIX: Updated permission check from legacy 'dsx' to 'global_config'
+    // This endpoint was previously checking for deprecated 'dsx' permission, causing
+    // 403 Forbidden errors for users migrated to the new permission system.
+    //
+    // Fix: Use centralized canAccessDataRx() function which checks for 'global_config'
+    // permission, ensuring all DSX endpoints use consistent authorization.
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -104,9 +110,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check permissions
-    if (process.env.NODE_ENV !== 'development' && !hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    // SECURITY FIX: Updated permission check from legacy 'dsx' to 'global_config'
+    // This endpoint was previously checking for deprecated 'dsx' permission, causing
+    // 403 Forbidden errors for users migrated to the new permission system.
+    //
+    // Fix: Use centralized canAccessDataRx() function which checks for 'global_config'
+    // permission, ensuring all DSX endpoints use consistent authorization.
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
     const body = await request.json();

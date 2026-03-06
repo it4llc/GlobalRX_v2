@@ -65,10 +65,39 @@ vi.mock('next-auth/react', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// Import toast helper for better toast mocking
+import { mockToastImplementation } from '@/test/toast-test-helper';
+
+// Mock useToast hook with DOM creation
+vi.mock('@/hooks/useToast', () => ({
+  useToast: () => mockToastImplementation(),
+}));
+
+// Mock AuthContext
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    hasPermission: vi.fn(() => true),
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock window methods that don't exist in test environment
+if (typeof window !== 'undefined') {
+  window.print = vi.fn();
+  window.alert = vi.fn();
+  window.confirm = vi.fn(() => true);
+}
+
 // Mock environment variables for testing
-process.env.NEXTAUTH_URL = 'http://localhost:3000';
-process.env.NEXTAUTH_SECRET = 'test-secret';
-process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/globalrx_test';
+process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || 'test-secret';
+// Use CI database URL if available, otherwise use local test database
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:testpassword@localhost:5432/globalrx_test';
 
 // Suppress console errors during tests (can be removed for debugging)
 const originalError = console.error;

@@ -1,138 +1,388 @@
 ---
-description: Runs the full GlobalRx TDD pipeline for a new feature. Chains all agents in sequence: business-analyst → architect → test-writer → implementer → code-reviewer → standards-checker → documentation-writer
+description: Runs the GlobalRx TDD pipeline ONE STAGE AT A TIME. After each stage completes, it stops completely, shows a summary, and waits for Andy to type CONTINUE before starting the next stage. Always describe the feature after the command.
 allowed-tools: Task, Read, Write, Edit, Bash, Glob, Grep
 ---
 
 # GlobalRx TDD Pipeline
 
-You are orchestrating the full TDD development pipeline for GlobalRx.
-The feature request is: **$ARGUMENTS**
+## BEFORE DOING ANYTHING ELSE
 
-Work through each stage below in strict order. Do not move to the next stage until
-the current one is fully complete and confirmed. At each handoff, pass the full
-output from the previous stage to the next agent so no context is lost.
+Check whether a feature description was provided after the command.
+
+If NO description was provided — STOP and respond with only this:
+
+"What feature would you like to build? Please describe it in plain English,
+for example: /build-feature I want to add invoice settings to the customer profile"
+
+Do NOT proceed. Do NOT invent a feature. Wait for Andy to re-run with a description.
+
+---
+
+Only continue if $ARGUMENTS contains a real feature description.
+
+The feature to build is: $ARGUMENTS
+
+---
+
+## CRITICAL INSTRUCTION — HOW THIS PIPELINE WORKS
+
+This pipeline runs ONE STAGE AT A TIME.
+
+After each stage completes, you MUST:
+1. Show the stage summary (using the exact format below)
+2. STOP COMPLETELY
+3. Wait for Andy to type CONTINUE
+4. Do NOT start the next stage until CONTINUE is received
+
+You are not permitted to start the next stage automatically.
+You are not permitted to ask "shall I continue?" and then continue anyway.
+You are not permitted to say "moving on to the next stage".
+The only thing that unlocks the next stage is Andy typing CONTINUE.
+
+If Andy types anything other than CONTINUE — answer their question or
+address their concern, then show the stage summary again and wait again.
 
 ---
 
 ## STAGE 1: Business Analysis
 
-Use the **business-analyst** agent to turn the feature request into a written specification.
+Run the business-analyst agent now.
 
-Tell the agent: "Write a full feature specification for: $ARGUMENTS. Ask any
-clarifying questions needed before writing the spec."
+Tell the agent:
+"Write a full feature specification for: $ARGUMENTS
+Check docs/specs/ for any existing spec first.
+Ask clarifying questions if anything is unclear before writing.
+Use a table for the Data Requirements section with columns:
+UI Label | Field Name | Type | Required | Validation | Default
+Save the confirmed spec to docs/specs/[kebab-case-name].md when Andy approves it."
 
-⏸ PAUSE after this stage and show the completed specification to Andy.
-Wait for Andy to confirm the spec is correct before proceeding to Stage 2.
-Do not continue until confirmation is received.
+When the agent finishes, verify the spec file was saved:
+```bash
+ls docs/specs/
+```
+
+If the spec file is not in docs/specs/ — tell the business-analyst to save
+it before this stage can close. Do not show the summary until the file exists.
+
+Then show this summary and STOP:
+
+---
+STAGE 1 COMPLETE — Business Analysis
+
+Spec file saved: docs/specs/[filename].md
+Fields defined: [count]
+Business rules defined: [count]
+Open questions remaining: [count, or None]
+
+What was done:
+[2-3 sentences describing what the spec covers]
+
+Before you type CONTINUE, please check:
+- Do the field names match exactly what you expect?
+- Are any fields missing?
+- Are all the business rules correct?
+
+If anything needs to change, tell me now and I will update the spec before we proceed.
+
+Type CONTINUE to move to Stage 2 (Technical Planning).
+---
+
+STOP. Do not proceed. Wait for Andy to type CONTINUE.
 
 ---
 
 ## STAGE 2: Technical Planning
 
-Use the **architect** agent to produce a technical plan.
+Only run this stage after Andy has typed CONTINUE.
 
-Pass the complete specification from Stage 1 to the architect.
-Tell the agent: "Produce a full technical plan based on this specification.
-Read the existing codebase and docs/standards/CODING_STANDARDS.md before planning."
+Run the architect agent.
 
-⏸ PAUSE after this stage and show Andy the technical plan.
-Highlight any decisions that need Andy's input (look for "Open Questions" or
-"Risks" sections in the plan). Wait for confirmation before proceeding.
+Tell the agent:
+"Produce a full technical plan based on the specification at docs/specs/[filename].md.
+Read that file completely before planning anything.
+Read the existing codebase to understand what already exists.
+Read docs/CODING_STANDARDS.md before planning.
+Identify every file that needs to be created or changed.
+List the implementation order clearly."
+
+When the agent finishes, show this summary and STOP:
+
+---
+STAGE 2 COMPLETE — Technical Planning
+
+Spec file used: docs/specs/[filename].md
+
+What needs to be built:
+- New files: [count]
+- Modified files: [count]
+- Database changes: Yes / No
+- New API routes: [count]
+- New UI components: [count]
+
+Implementation order the implementer will follow:
+1. [first step]
+2. [second step]
+[continue]
+
+Risks or open questions from the architect:
+[list any, or None]
+
+Before you type CONTINUE, please check:
+- Does this plan make sense for what you asked for?
+- Are there any concerns about what will be changed?
+- Are there any open questions that need answers first?
+
+Type CONTINUE to move to Stage 3 (Test Writing).
+---
+
+STOP. Do not proceed. Wait for Andy to type CONTINUE.
 
 ---
 
-## STAGE 3: Test Writing (TDD — Tests First)
+## STAGE 3: Test Writing
 
-Use the **test-writer** agent to write all tests before any code is written.
+Only run this stage after Andy has typed CONTINUE.
 
-Pass the specification and technical plan to the test-writer.
-Tell the agent: "Write all unit tests, API route tests, and end-to-end tests
-for this feature. All tests should fail when first run — that is correct.
-Do not write any production code."
+Run the test-writer agent.
 
-After the agent completes, run the tests to confirm they are all failing:
+Tell the agent:
+"Write all tests for the feature specified in docs/specs/[filename].md
+Read the spec file and output the Spec Confirmation Block before writing any tests.
+Write unit tests, API route tests, and end-to-end tests.
+Do not write any production code.
+All tests should fail when first run — that is correct."
+
+After the agent finishes, run the tests:
 ```bash
-pnpm test
+pnpm test 2>&1
 ```
 
-⏸ PAUSE and show Andy the test summary. Confirm that tests are failing as expected.
-Do not proceed until confirmed.
+If the test-writer did not output a Spec Confirmation Block — send it back
+to read the spec file and output the block. Do not accept tests without it.
+
+Then show this summary and STOP:
+
+---
+STAGE 3 COMPLETE — Test Writing
+
+Spec file used: docs/specs/[filename].md
+Spec Confirmation Block produced: Yes / No
+
+Tests written:
+- Unit tests: [n]
+- API route tests: [n]
+- End-to-end tests: [n]
+- Total: [n]
+
+Test run result: [n] failing (this is correct — they should all fail before code is written)
+
+Fields with tests (from spec):
+[list each field name and whether it has a test]
+
+Business rules with tests (from spec):
+[list each rule and whether it has a test]
+
+Gaps (spec items with no test):
+[list any, or None]
+
+Before you type CONTINUE, please check:
+- Do the test field names match the spec field names exactly?
+- Is every business rule covered by a test?
+- Are you satisfied that all tests are failing as expected?
+
+Type CONTINUE to move to Stage 4 (Implementation).
+---
+
+STOP. Do not proceed. Wait for Andy to type CONTINUE.
 
 ---
 
 ## STAGE 4: Implementation
 
-Use the **implementer** agent to write production code.
+Only run this stage after Andy has typed CONTINUE.
 
-Pass the specification, technical plan, and all test files to the implementer.
-Tell the agent: "Implement this feature by writing code to make the failing tests
-pass one at a time. Follow the technical plan and read
-docs/standards/CODING_STANDARDS.md first. Do not modify any tests."
+Run the implementer agent.
 
-After the agent completes, run the full test suite:
+Tell the agent:
+"Implement the feature specified in docs/specs/[filename].md.
+You must complete these steps in order before writing any code:
+1. Verify test files exist — stop if they do not
+2. Read docs/specs/[filename].md and output the Spec Confirmation Block
+3. After any database migration, output the Schema Verification table comparing
+   every spec field against the actual schema — stop if any mismatches exist
+4. Run pnpm test 2>&1 and paste the full output before declaring done
+Do not modify any test files."
+
+After the agent finishes, run the full test suite independently:
 ```bash
-pnpm test
+pnpm test 2>&1
 ```
 
-⏸ PAUSE and show Andy the implementation completion report and test results.
-If any tests are still failing, return to the implementer before proceeding.
+If the implementer did not output a Spec Confirmation Block — send it back.
+If the implementer did not output a Schema Verification table — send it back.
+If tests failing is not 0 — send it back with the specific failing test names.
+Do not show the summary until all three conditions are met.
+
+Then show this summary and STOP:
+
+---
+STAGE 4 COMPLETE — Implementation
+
+Spec file used: docs/specs/[filename].md
+Spec Confirmation Block produced by implementer: Yes / No
+Schema Verification produced (all fields matched): Yes / No
+
+Test results:
+- Total tests: [n]
+- Passing: [n]
+- Failing: 0
+- Previously passing tests broken: 0
+
+Files created:
+[list]
+
+Files modified:
+[list]
+
+Database changes:
+[migration name, or None]
+
+Before you type CONTINUE, please check:
+- Does everything appear to be working?
+- Are you satisfied with the test results?
+
+Type CONTINUE to move to Stage 5 (Code Review).
+---
+
+STOP. Do not proceed. Wait for Andy to type CONTINUE.
 
 ---
 
 ## STAGE 5: Code Review
 
-Use the **code-reviewer** agent to review the completed implementation.
+Only run this stage after Andy has typed CONTINUE.
 
-Tell the agent: "Review all files changed in this feature. Check for business
-logic correctness, security gaps, and data integrity issues. Reference the
-original specification to verify all business rules are implemented."
+Run the code-reviewer agent.
 
-⏸ PAUSE and show Andy the code review report.
-If the verdict is ❌ Requires rework, return to the implementer with the specific
-issues before continuing. If ✅ Approved or ⚠️ Approved with conditions, proceed.
+Tell the agent:
+"Review all files changed in this feature.
+Read the specification at docs/specs/[filename].md first.
+Verify every business rule from the spec is correctly implemented.
+Verify every field from the spec Data Requirements table is correctly implemented.
+Check for security issues, logic errors, and data integrity risks.
+Your report must end with one of these verdicts:
+APPROVED / APPROVED WITH CONDITIONS / REQUIRES REWORK"
+
+Then show this summary and STOP:
+
+---
+STAGE 5 COMPLETE — Code Review
+
+Verdict: [APPROVED / APPROVED WITH CONDITIONS / REQUIRES REWORK]
+
+Critical issues (must fix before proceeding):
+[list, or None]
+
+Warnings (should fix):
+[list, or None]
+
+Business rule compliance:
+[list each rule and whether it passed]
+
+Security assessment: Pass / Fail
+[details if fail]
+
+[If REQUIRES REWORK:]
+The implementer must fix the issues above before this stage can close.
+Tests must still pass after fixes. Tell me when fixes are done and I will
+re-run the code review before showing this summary again.
+
+[If APPROVED or APPROVED WITH CONDITIONS:]
+Type CONTINUE to move to Stage 6 (Standards Check).
+---
+
+STOP. Do not proceed. Wait for Andy to type CONTINUE.
 
 ---
 
 ## STAGE 6: Standards Check
 
-Use the **standards-checker** agent to verify coding standards compliance.
+Only run this stage after Andy has typed CONTINUE.
 
-Tell the agent: "Check all files changed in this feature against
-docs/standards/CODING_STANDARDS.md. Produce a full checklist report."
+Run the standards-checker agent.
 
-⏸ PAUSE and show Andy the standards report.
-If violations are found, return to the implementer with the specific line numbers
-and rules violated. Re-run the standards-checker after fixes before proceeding.
+Tell the agent:
+"Check all files changed in this feature against docs/CODING_STANDARDS.md.
+Produce a full checklist with every item marked Pass, Fail, or N/A.
+List every violation with the exact file path and line number."
+
+If violations are found — return to the implementer to fix them, then
+re-run the standards-checker. Run pnpm test again after fixes to confirm
+still 0 failures. Do not show the summary until violations = 0.
+
+Then show this summary and STOP:
+
+---
+STAGE 6 COMPLETE — Standards Check
+
+Violations found: [n, should be 0]
+Files checked: [list]
+
+Checklist result:
+- No inline styles: Pass / Fail
+- File path comment at top: Pass / Fail
+- Auth check first on all API routes: Pass / Fail
+- Zod validation on all inputs: Pass / Fail
+- No TypeScript any types: Pass / Fail
+- All text through translation system: Pass / Fail
+- Correct component usage (ModalDialog, FormTable, etc.): Pass / Fail
+[any other items checked]
+
+Test results after any fixes:
+- Passing: [n]
+- Failing: 0
+
+Type CONTINUE to move to Stage 7 (Documentation).
+---
+
+STOP. Do not proceed. Wait for Andy to type CONTINUE.
 
 ---
 
 ## STAGE 7: Documentation
 
-Use the **documentation-writer** agent to complete the documentation.
+Only run this stage after Andy has typed CONTINUE.
 
-Tell the agent: "Update all relevant documentation for this completed feature.
-Add inline code comments where needed, update the technical docs, update
-CODING_STANDARDS.md if new patterns were established, and note any impact
-on the audit report findings."
+Run the documentation-writer agent.
+
+Tell the agent:
+"Update all documentation for this completed feature.
+Reference the spec at docs/specs/[filename].md.
+Add inline code comments near complex logic explaining WHY decisions were made.
+Update technical docs for any new or changed functionality.
+Update CODING_STANDARDS.md if new patterns were established.
+Note any audit report findings this feature addresses."
+
+Then show the final pipeline summary:
 
 ---
+PIPELINE COMPLETE
 
-## Pipeline Complete
+Feature: [Feature Name]
+Spec file: docs/specs/[filename].md
 
-When all 7 stages are done, produce a final summary:
-
-```
-# Feature Complete: [Feature Name]
-
-✅ Stage 1: Business Analysis — specification written and approved
-✅ Stage 2: Technical Planning — plan written and approved  
-✅ Stage 3: Tests Written — [n] tests written, all confirmed failing initially
-✅ Stage 4: Implementation — all [n] tests now passing
-✅ Stage 5: Code Review — approved
-✅ Stage 6: Standards Check — all standards met
-✅ Stage 7: Documentation — docs updated
+Stage 1: Business Analysis      COMPLETE — spec saved to docs/specs/
+Stage 2: Technical Planning     COMPLETE — plan confirmed
+Stage 3: Test Writing           COMPLETE — [n] tests, all initially failing
+Stage 4: Implementation         COMPLETE — [n] tests passing, 0 failing, schema verified
+Stage 5: Code Review            COMPLETE — [verdict]
+Stage 6: Standards Check        COMPLETE — 0 violations
+Stage 7: Documentation          COMPLETE
 
 Files created: [list]
 Files modified: [list]
 Tests added: [n]
-```
+
+This feature is complete. Before starting the next phase or feature,
+confirm the app is running correctly and commit your changes.
+---

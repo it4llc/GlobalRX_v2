@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(pnpm run dev:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "SlashCommand(/build-feature:*)"
     ],
     "deny": []
   }
