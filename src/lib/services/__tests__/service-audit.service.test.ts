@@ -505,7 +505,7 @@ describe('ServiceAuditService', () => {
   });
 
   describe('getStatsByUser', () => {
-    it.skip('should return audit statistics for a user', async () => {
+    it('should return audit statistics for a user', async () => {
       const userId = 'user-123';
       const startDate = new Date('2024-03-01');
       const endDate = new Date('2024-03-31');
