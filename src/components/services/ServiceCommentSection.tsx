@@ -1,3 +1,5 @@
+// /GlobalRX_v2/src/components/services/ServiceCommentSection.tsx
+
 "use client";
 
 import React, { useState } from 'react';
@@ -9,6 +11,7 @@ import { CommentEditModal } from './CommentEditModal';
 import { Button } from '@/components/ui/button';
 import { MessageSquarePlus, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import type { ServiceCommentWithRelations } from '@/types/comment-template';
 
 interface ServiceCommentSectionProps {
@@ -20,6 +23,7 @@ interface ServiceCommentSectionProps {
 
 export function ServiceCommentSection({ serviceId, serviceName = "Service", serviceType, serviceStatus }: ServiceCommentSectionProps) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const {
     comments,
     loading,
@@ -129,7 +133,7 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-900">
-          Comments ({visibleComments.length})
+          {t('serviceComments.title')} ({visibleComments.length})
         </h3>
         {canCreateComment && (
           <Button
@@ -140,7 +144,7 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
             title={!hasTemplates ? 'No templates available for this service' : undefined}
           >
             <MessageSquarePlus className="w-4 h-4" />
-            Add Comment
+            {t('serviceComments.addComment')}
           </Button>
         )}
       </div>
@@ -149,7 +153,7 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
       {visibleComments.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
           <MessageSquarePlus className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p>No comments yet. Add the first comment.</p>
+          <p>{t('serviceComments.emptyState')}</p>
         </div>
       ) : (
         <div className="space-y-3">
