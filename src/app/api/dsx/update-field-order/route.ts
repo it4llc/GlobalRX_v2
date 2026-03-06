@@ -1,35 +1,11 @@
-// src/app/api/dsx/update-field-order/route.ts
+// /GlobalRX_v2/src/app/api/dsx/update-field-order/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import logger, { logDatabaseError } from '@/lib/logger';
-
-// Helper function to check permissions
-function hasPermission(permissions: any, module: string): boolean {
-  if (!permissions) return false;
-
-  // For super admin format (* string or array with *)
-  if (permissions === '*') return true;
-  if (Array.isArray(permissions) && permissions.includes('*')) return true;
-
-  // Check granular permissions
-  if (typeof permissions === 'object') {
-    if (permissions[module]) {
-      if (typeof permissions[module] === 'boolean') return permissions[module];
-      if (typeof permissions[module] === 'object' && permissions[module].edit === true) {
-        return true;
-      }
-      if (Array.isArray(permissions[module]) &&
-          (permissions[module].includes('*') || permissions[module].includes('edit'))) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
+import { canAccessDataRx } from '@/lib/auth-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,9 +15,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Always check permissions
-    if (!hasPermission(session.user.permissions, 'dsx')) {
-      return NextResponse.json({ error: "Forbidden - Missing required permission: dsx" }, { status: 403 });
+    // SECURITY FIX: Updated permission check from legacy 'dsx' to 'global_config'
+    // This endpoint was previously checking for deprecated 'dsx' permission, causing
+    // 403 Forbidden errors for users migrated to the new permission system.
+    //
+    // Fix: Use centralized canAccessDataRx() function which checks for 'global_config'
+    // permission, ensuring all DSX endpoints use consistent authorization.
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -74,7 +55,7 @@ export async function POST(request: NextRequest) {
         where: {
           serviceId,
           requirementId: {
-            in: fieldOrders.map((fo: any) => fo.requirementId)
+            in: fieldOrders.map((fo) => fo.requirementId)
           }
         },
         select: {
@@ -82,7 +63,7 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      const existingRequirementIds = new Set(existingRecords.map((r: any) => r.requirementId));
+      const existingRequirementIds = new Set(existingRecords.map((r) => r.requirementId));
       logger.debug('Found existing ServiceRequirement records', { existingRecordCount: existingRecords.length });
 
       for (const fieldOrder of fieldOrders) {

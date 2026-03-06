@@ -1,10 +1,10 @@
-// src/app/api/dsx/associate-requirements/route.ts
+// /GlobalRX_v2/src/app/api/dsx/associate-requirements/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import logger, { logDatabaseError } from '@/lib/logger';
-import { hasPermission } from '@/lib/permission-utils';
+import { canAccessDataRx } from '@/lib/auth-utils';
 
 /**
  * API route to associate requirements with a service
@@ -18,9 +18,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Always check permissions - use hasPermission utility
-    if (!hasPermission(session.user, 'dsx', 'manage')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // SECURITY FIX: Updated permission check from legacy 'dsx' to 'global_config'
+    // This endpoint was previously checking for deprecated 'dsx' permission, causing
+    // 403 Forbidden errors for users migrated to the new permission system.
+    //
+    // Fix: Use centralized canAccessDataRx() function which checks for 'global_config'
+    // permission, ensuring all DSX endpoints use consistent authorization.
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
 
     // Parse request body
@@ -60,7 +65,7 @@ export async function POST(request: NextRequest) {
     logger.debug('Preserving display orders for existing requirements', { preservedCount: displayOrderMap.size });
 
     const removedRequirementIds = existingRequirements
-      .map((r: any) => r.requirementId)
+      .map((r) => r.requirementId)
       .filter(id => !requirements.some(req => req.id === id));
 
     // Remove DSX mappings for requirements that are being removed

@@ -1,0 +1,582 @@
+
+> globalrx@0.1.0 test /Users/andyhellman/Library/CloudStorage/Dropbox/9-REALi Data Solutions/GlobalRx_v2
+> vitest
+
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90m/Users/andyhellman/Library/CloudStorage/Dropbox/9-REALi Data Solutions/GlobalRx_v2[39m
+
+ [31m❯[39m src/components/fulfillment/OrderDetailsSidebar.test.tsx [2m([22m[2m24 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 98[2mms[22m[39m
+       [32m✓[39m should render with correct heading[32m 16[2mms[22m[39m
+       [32m✓[39m should have correct semantic structure[32m 4[2mms[22m[39m
+       [32m✓[39m should display order number prominently[32m 4[2mms[22m[39m
+       [32m✓[39m should render OrderStatusDropdown component[32m 2[2mms[22m[39m
+       [32m✓[39m should pass current status to dropdown[32m 3[2mms[22m[39m
+       [32m✓[39m should call onStatusUpdate when status changes[32m 10[2mms[22m[39m
+       [32m✓[39m should display customer name and code[32m 3[2mms[22m[39m
+       [32m✓[39m should display "--" when customer code is missing[32m 2[2mms[22m[39m
+       [32m✓[39m should display created and updated timestamps[32m 4[2mms[22m[39m
+       [32m✓[39m should format timestamps correctly in different timezones[32m 3[2mms[22m[39m
+       [32m✓[39m should display action buttons section[32m 2[2mms[22m[39m
+       [32m✓[39m should display print button[32m 3[2mms[22m[39m
+       [32m✓[39m should display export button[32m 3[2mms[22m[39m
+       [32m✓[39m should handle print action[32m 3[2mms[22m[39m
+       [32m✓[39m should handle export action[32m 5[2mms[22m[39m
+       [32m✓[39m should display quick links heading[32m 2[2mms[22m[39m
+       [32m✓[39m should display link to customer details[32m 3[2mms[22m[39m
+       [32m✓[39m should display link to order history[32m 2[2mms[22m[39m
+[31m       [31m×[31m should display status history when available[39m[32m 6[2mms[22m[39m
+       [32m✓[39m should display "--" when no status history exists[32m 2[2mms[22m[39m
+       [32m✓[39m should display loading skeleton when order is null[32m 1[2mms[22m[39m
+[31m       [31m×[31m should disable buttons during loading[39m[32m 10[2mms[22m[39m
+       [32m✓[39m should hide status dropdown for users without edit permission[32m 1[2mms[22m[39m
+       [32m✓[39m should adapt layout for mobile screens[32m 1[2mms[22m[39m
+ [31m❯[39m src/components/fulfillment/OrderDetailsView.test.tsx [2m([22m[2m11 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 61[2mms[22m[39m
+       [32m✓[39m should render with single column layout[32m 14[2mms[22m[39m
+       [32m✓[39m should display order number in header[32m 7[2mms[22m[39m
+[31m       [31m×[31m should display all subject fields[39m[32m 8[2mms[22m[39m
+[31m       [31m×[31m should display "--" for empty subject fields[39m[32m 4[2mms[22m[39m
+       [32m✓[39m should display all order items[32m 4[2mms[22m[39m
+       [32m✓[39m should display item status badges[32m 3[2mms[22m[39m
+       [32m✓[39m should display "--" for items without location[32m 5[2mms[22m[39m
+       [32m✓[39m should display customer details[32m 3[2mms[22m[39m
+       [32m✓[39m should display "--" when customer code is missing[32m 3[2mms[22m[39m
+       [32m✓[39m should display order notes[32m 4[2mms[22m[39m
+[31m       [31m×[31m should display "--" when notes are empty[39m[32m 5[2mms[22m[39m
+ [31m❯[39m src/hooks/useToast.test.ts [2m([22m[2m26 tests[22m[2m | [22m[31m11 failed[39m[2m)[22m[32m 31[2mms[22m[39m
+       [32m✓[39m should create success toast[32m 6[2mms[22m[39m
+       [32m✓[39m should create error toast[32m 1[2mms[22m[39m
+       [32m✓[39m should create warning toast[32m 1[2mms[22m[39m
+       [32m✓[39m should create info toast[32m 1[2mms[22m[39m
+       [32m✓[39m should create generic toast with custom options[32m 1[2mms[22m[39m
+       [32m✓[39m should position toast at top-right by default[32m 1[2mms[22m[39m
+       [32m✓[39m should support different positions[32m 3[2mms[22m[39m
+       [32m✓[39m should auto-dismiss after default duration[32m 1[2mms[22m[39m
+       [32m✓[39m should respect custom duration[32m 1[2mms[22m[39m
+       [32m✓[39m should not auto-dismiss when duration is 0[32m 0[2mms[22m[39m
+       [32m✓[39m should dismiss toast when close button is clicked[32m 2[2mms[22m[39m
+       [32m✓[39m should call onClose callback when toast is dismissed[32m 2[2mms[22m[39m
+       [32m✓[39m should dismiss specific toast by ID[32m 0[2mms[22m[39m
+       [32m✓[39m should dismiss all toasts[32m 1[2mms[22m[39m
+[31m       [31m×[31m should stack multiple toasts vertically[39m[32m 3[2mms[22m[39m
+[31m       [31m×[31m should limit maximum number of visible toasts[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should display appropriate icon for each type[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should animate toast entrance[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should animate toast exit[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should have proper ARIA attributes[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should use assertive for error toasts[39m[32m 0[2mms[22m[39m
+[31m       [31m×[31m should have accessible close button[39m[32m 0[2mms[22m[39m
+[31m       [31m×[31m should render action button when provided[39m[32m 0[2mms[22m[39m
+[31m       [31m×[31m should update existing toast content[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should show progress bar for auto-dismissing toasts[39m[32m 0[2mms[22m[39m
+       [32m✓[39m should not show progress bar for persistent toasts[32m 0[2mms[22m[39m
+ [31m❯[39m src/app/api/fulfillment/orders/[id]/status/__tests__/service-closure.test.ts [2m([22m[2m17 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 13[2mms[22m[39m
+       [32m✓[39m should allow closing order when all services are in terminal status[32m 4[2mms[22m[39m
+       [32m✓[39m should prevent closing order when services are not complete[32m 1[2mms[22m[39m
+       [32m✓[39m should require closure comments when closing an order[32m 0[2mms[22m[39m
+       [32m✓[39m should store closure timestamp when order is closed[32m 0[2mms[22m[39m
+       [32m✓[39m should allow closing order with all services completed[32m 0[2mms[22m[39m
+       [32m✓[39m should allow closing order with all services cancelled[32m 0[2mms[22m[39m
+       [32m✓[39m should allow closing order with mixed terminal statuses[32m 0[2mms[22m[39m
+       [32m✓[39m should prevent closing order with services in pending status[32m 0[2mms[22m[39m
+       [32m✓[39m should prevent closing order with services in submitted status[32m 0[2mms[22m[39m
+       [32m✓[39m should prevent closing order with services in processing status[32m 0[2mms[22m[39m
+       [32m✓[39m should handle order with no services (allow closure)[32m 0[2mms[22m[39m
+       [32m✓[39m should validate closure comments maximum length[32m 0[2mms[22m[39m
+[31m       [31m×[31m should handle concurrent closure attempts gracefully[39m[32m 3[2mms[22m[39m
+[31m       [31m×[31m should create audit log entry when closing order[39m[32m 1[2mms[22m[39m
+       [32m✓[39m should require fulfillment permission to close orders[32m 0[2mms[22m[39m
+       [32m✓[39m should prevent vendors from closing orders[32m 0[2mms[22m[39m
+       [32m✓[39m should prevent customers from closing orders[32m 0[2mms[22m[39m
+ [31m❯[39m src/app/api/fulfillment/services/[id]/__tests__/route.test.ts [2m([22m[2m27 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[32m 15[2mms[22m[39m
+       [32m✓[39m should return 401 when not authenticated[32m 2[2mms[22m[39m
+       [32m✓[39m should allow internal users with fulfillment permission[32m 1[2mms[22m[39m
+       [32m✓[39m should allow vendor users to see their assigned services[32m 0[2mms[22m[39m
+       [32m✓[39m should return 403 when vendor tries to access unassigned service[32m 0[2mms[22m[39m
+       [32m✓[39m should return 403 for customer users[32m 0[2mms[22m[39m
+       [32m✓[39m should return 404 when service does not exist[32m 0[2mms[22m[39m
+       [32m✓[39m should return 400 when service ID is not provided[32m 0[2mms[22m[39m
+       [32m✓[39m should return full service details including relations[32m 0[2mms[22m[39m
+       [32m✓[39m should return 500 when service throws an unexpected error[32m 0[2mms[22m[39m
+       [32m✓[39m should return 401 when not authenticated[32m 0[2mms[22m[39m
+       [32m✓[39m should allow internal users with fulfillment permission to update status[32m 1[2mms[22m[39m
+       [32m✓[39m should allow vendor users to update their assigned services[32m 0[2mms[22m[39m
+       [32m✓[39m should require fulfillment.manage permission for vendor assignment[32m 0[2mms[22m[39m
+       [32m✓[39m should prevent vendors from updating internal notes[32m 0[2mms[22m[39m
+       [32m✓[39m should return 403 for customer users[32m 0[2mms[22m[39m
+       [32m✓[39m should return 400 for invalid status value[32m 0[2mms[22m[39m
+       [32m✓[39m should return 400 for non-UUID vendor ID[32m 0[2mms[22m[39m
+       [32m✓[39m should return 400 for notes exceeding maximum length[32m 0[2mms[22m[39m
+       [32m✓[39m should return 400 when service ID is not provided[32m 0[2mms[22m[39m
+       [32m✓[39m should return 400 for empty update body[32m 0[2mms[22m[39m
+[31m       [31m×[31m should return 404 when service does not exist[39m[32m 3[2mms[22m[39m
+       [32m✓[39m should prevent assignment to deactivated vendor[32m 0[2mms[22m[39m
+[31m       [31m×[31m should allow multiple field updates in single request[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should allow unassigning vendor by setting to null[39m[32m 0[2mms[22m[39m
+       [32m✓[39m should pass IP address and user agent to service[32m 0[2mms[22m[39m
+[31m       [31m×[31m should return 500 when service throws an unexpected error[39m[32m 0[2mms[22m[39m
+       [32m✓[39m should handle malformed JSON body[32m 0[2mms[22m[39m
+ [31m❯[39m src/app/api/fulfillment/orders/[id]/status/__tests__/route.test.ts [2m([22m[2m14 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 14[2mms[22m[39m
+       [32m✓[39m should return 401 when not authenticated[32m 2[2mms[22m[39m
+       [32m✓[39m should return 401 when session exists but user is undefined[32m 0[2mms[22m[39m
+       [32m✓[39m should return 403 when internal user lacks fulfillment permission[32m 0[2mms[22m[39m
+       [32m✓[39m should return 403 when customer user tries to update status[32m 0[2mms[22m[39m
+       [32m✓[39m should return 400 when status is missing[32m 1[2mms[22m[39m
+       [32m✓[39m should return 400 when status is invalid[32m 0[2mms[22m[39m
+       [32m✓[39m should return 400 when order ID is not provided[32m 0[2mms[22m[39m
+       [32m✓[39m should return 404 when order does not exist[32m 0[2mms[22m[39m
+[31m       [31m×[31m should successfully update order status and create history entry[39m[32m 5[2mms[22m[39m
+       [32m✓[39m should handle updating to the same status (no-op)[32m 0[2mms[22m[39m
+       [32m✓[39m should allow unrestricted status changes per specification[32m 1[2mms[22m[39m
+       [32m✓[39m should return 500 when database error occurs during update[32m 0[2mms[22m[39m
+       [32m✓[39m should handle transaction rollback on failure[32m 0[2mms[22m[39m
+       [32m✓[39m should accept all valid order status codes[32m 1[2mms[22m[39m
+ [31m❯[39m src/lib/services/__tests__/service-fulfillment.service.test.ts [2m([22m[2m36 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[32m 12[2mms[22m[39m
+       [32m✓[39m should create service fulfillment records for all order items[32m 1[2mms[22m[39m
+       [32m✓[39m should skip creation if services already exist for the order[32m 0[2mms[22m[39m
+       [32m✓[39m should handle orders with no items[32m 0[2mms[22m[39m
+       [32m✓[39m should handle database errors gracefully[32m 1[2mms[22m[39m
+       [32m✓[39m should return all services for internal users with fulfillment permission[32m 0[2mms[22m[39m
+       [32m✓[39m should filter services by assigned vendor for vendor users[32m 1[2mms[22m[39m
+       [32m✓[39m should filter services by status when provided[32m 0[2mms[22m[39m
+       [32m✓[39m should filter services by orderId when provided[32m 0[2mms[22m[39m
+       [32m✓[39m should apply pagination with limit and offset[32m 0[2mms[22m[39m
+[31m       [31m×[31m should throw error for users without proper permissions[39m[32m 3[2mms[22m[39m
+[31m       [31m×[31m should include deactivated vendor services but flag them[39m[32m 0[2mms[22m[39m
+       [32m✓[39m should return service details for authorized users[32m 0[2mms[22m[39m
+       [32m✓[39m should return service for vendor if they are assigned[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error if vendor tries to access unassigned service[32m 0[2mms[22m[39m
+       [32m✓[39m should return null if service does not exist[32m 0[2mms[22m[39m
+[31m       [31m×[31m should update service status and create audit log[39m[32m 1[2mms[22m[39m
+       [32m✓[39m should update vendor assignment and set assignedAt timestamp[32m 0[2mms[22m[39m
+       [32m✓[39m should update vendor notes when vendor user updates[32m 0[2mms[22m[39m
+       [32m✓[39m should prevent vendor from updating internal notes[32m 0[2mms[22m[39m
+       [32m✓[39m should prevent vendor assignment without fulfillment.manage permission[32m 0[2mms[22m[39m
+       [32m✓[39m should set completedAt when status changes to completed[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error if service not found[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error if trying to assign deactivated vendor[32m 0[2mms[22m[39m
+[31m       [31m×[31m should assign multiple services to a vendor[39m[32m 1[2mms[22m[39m
+       [32m✓[39m should throw error if vendor not found[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error if vendor is deactivated[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error if user lacks permission[32m 0[2mms[22m[39m
+       [32m✓[39m should handle empty service list[32m 0[2mms[22m[39m
+       [32m✓[39m should handle more than 100 services[32m 0[2mms[22m[39m
+       [32m✓[39m should return true when all services are in terminal status[32m 0[2mms[22m[39m
+       [32m✓[39m should return false when some services are not in terminal status[32m 0[2mms[22m[39m
+       [32m✓[39m should return true for order with no services[32m 0[2mms[22m[39m
+       [32m✓[39m should delegate to ServiceAuditService[32m 0[2mms[22m[39m
+       [32m✓[39m should allow reassignment between vendors[32m 0[2mms[22m[39m
+       [32m✓[39m should keep terminal status services visible to vendors[32m 0[2mms[22m[39m
+       [32m✓[39m should only show orderNumber to vendors, not customer details[32m 0[2mms[22m[39m
+ [31m❯[39m src/lib/services/__tests__/service-audit.service.test.ts [2m([22m[2m17 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[32m 10[2mms[22m[39m
+       [32m✓[39m should create an audit log entry for status change[32m 1[2mms[22m[39m
+       [32m✓[39m should create an audit log entry for vendor assignment[32m 0[2mms[22m[39m
+       [32m✓[39m should create an audit log entry for note updates[32m 0[2mms[22m[39m
+       [32m✓[39m should handle long text values in oldValue and newValue[32m 0[2mms[22m[39m
+       [32m✓[39m should handle database errors gracefully[32m 1[2mms[22m[39m
+       [32m✓[39m should include optional notes field when provided[32m 1[2mms[22m[39m
+[31m       [31m×[31m should create multiple audit logs for bulk vendor assignment[39m[32m 2[2mms[22m[39m
+[31m       [31m×[31m should handle empty changes array[39m[32m 0[2mms[22m[39m
+[31m       [31m×[31m should handle database errors in bulk operations[39m[32m 2[2mms[22m[39m
+       [32m✓[39m should return audit history for a service[32m 0[2mms[22m[39m
+       [32m✓[39m should return empty array for service with no history[32m 0[2mms[22m[39m
+       [32m✓[39m should handle database errors when fetching history[32m 0[2mms[22m[39m
+       [32m✓[39m should include all change types in history[32m 0[2mms[22m[39m
+[31m       [31m×[31m should return all audit logs for an order[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should return audit statistics for a user[39m[32m 0[2mms[22m[39m
+       [32m✓[39m should never allow modification of existing audit logs[32m 0[2mms[22m[39m
+       [32m✓[39m should always include timestamp in audit logs[32m 0[2mms[22m[39m
+ [31m❯[39m src/components/fulfillment/OrderStatusDropdown.test.tsx [2m([22m[2m26 tests[22m[2m | [22m[31m13 failed[39m[2m)[22m[33m 5127[2mms[22m[39m
+       [32m✓[39m should display current status as dropdown trigger[32m 13[2mms[22m[39m
+[31m       [31m×[31m should apply correct status color class[39m[32m 5[2mms[22m[39m
+       [32m✓[39m should display dropdown icon[32m 1[2mms[22m[39m
+       [32m✓[39m should show all available status options when clicked[32m 9[2mms[22m[39m
+[31m       [31m×[31m should highlight current status in dropdown[39m[33m 1005[2mms[22m[39m
+[31m       [31m×[31m should close dropdown when clicking outside[39m[32m 2[2mms[22m[39m
+       [32m✓[39m should close dropdown on Escape key[32m 6[2mms[22m[39m
+[31m       [31m×[31m should call API when new status is selected[39m[33m 1006[2mms[22m[39m
+       [32m✓[39m should show loading state during update[32m 7[2mms[22m[39m
+       [32m✓[39m should disable dropdown during update[32m 7[2mms[22m[39m
+       [32m✓[39m should update displayed status after successful update[32m 5[2mms[22m[39m
+[31m       [31m×[31m should call onStatusChange callback after successful update[39m[33m 1004[2mms[22m[39m
+[31m       [31m×[31m should show success toast after update[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should not update if same status is selected[39m[33m 1004[2mms[22m[39m
+[31m       [31m×[31m should show error toast on API failure[39m[32m 2[2mms[22m[39m
+       [32m✓[39m should revert to original status on failure[32m 6[2mms[22m[39m
+[31m       [31m×[31m should handle network errors gracefully[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should handle 403 forbidden response[39m[32m 0[2mms[22m[39m
+       [32m✓[39m should format status labels correctly[32m 3[2mms[22m[39m
+[31m       [31m×[31m should apply correct color classes for each status[39m[32m 1[2mms[22m[39m
+       [32m✓[39m should have proper ARIA attributes[32m 1[2mms[22m[39m
+[31m       [31m×[31m should support keyboard navigation[39m[33m 1015[2mms[22m[39m
+[31m       [31m×[31m should have proper focus management[39m[32m 14[2mms[22m[39m
+       [32m✓[39m should disable dropdown when disabled prop is true[32m 3[2mms[22m[39m
+       [32m✓[39m should show disabled cursor[32m 1[2mms[22m[39m
+       [32m✓[39m should accept custom status options[32m 3[2mms[22m[39m
+ [32m✓[39m src/hooks/useCommentTemplates.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 991[2mms[22m[39m
+ [32m✓[39m src/__tests__/hooks/useLocationForm.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 879[2mms[22m[39m
+ [32m✓[39m src/components/comment-templates/CommentTemplateGrid.test.tsx [2m([22m[2m23 tests[22m[2m)[22m[33m 820[2mms[22m[39m
+ [32m✓[39m src/components/fulfillment/__tests__/ServiceFulfillmentTable.test.tsx [2m([22m[2m47 tests[22m[2m)[22m[33m 650[2mms[22m[39m
+ [32m✓[39m src/__tests__/auth.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 559[2mms[22m[39m
+ [31m❯[39m src/__tests__/hooks/useDsxTab.test.ts [2m([22m[2m23 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 11103[2mms[22m[39m
+       [32m✓[39m should initialize with empty state[32m 6[2mms[22m[39m
+       [32m✓[39m should load services on mount[32m 53[2mms[22m[39m
+       [32m✓[39m should handle service loading error[32m 53[2mms[22m[39m
+       [32m✓[39m should load all data when a service is selected[32m 56[2mms[22m[39m
+       [32m✓[39m should clear data when switching services[32m 54[2mms[22m[39m
+       [32m✓[39m should handle errors when loading service data[32m 56[2mms[22m[39m
+       [32m✓[39m should toggle location availability without clearing requirements[32m 56[2mms[22m[39m
+[31m       [31m×[31m should handle ALL checkbox correctly when toggling individual locations[39m[32m 62[2mms[22m[39m
+       [32m✓[39m should handle bulk availability operations[32m 55[2mms[22m[39m
+       [32m✓[39m should toggle requirement for a specific location[32m 53[2mms[22m[39m
+       [32m✓[39m should handle bulk requirement operations for a location[32m 53[2mms[22m[39m
+       [32m✓[39m should handle bulk requirement operations across all locations[32m 52[2mms[22m[39m
+       [32m✓[39m should reorder requirements[32m 53[2mms[22m[39m
+       [32m✓[39m should handle moving field up[32m 54[2mms[22m[39m
+       [32m✓[39m should handle moving field down[32m 52[2mms[22m[39m
+       [32m✓[39m should save DSX configuration successfully[32m 54[2mms[22m[39m
+       [32m✓[39m should handle save errors gracefully[32m 53[2mms[22m[39m
+       [32m✓[39m should not save if no service is selected[32m 2[2mms[22m[39m
+[31m       [31m×[31m should show success message after save[39m[33m 10004[2mms[22m[39m
+       [32m✓[39m should handle empty locations list[32m 54[2mms[22m[39m
+       [32m✓[39m should handle empty requirements list[32m 54[2mms[22m[39m
+       [32m✓[39m should handle missing DSX configuration gracefully[32m 58[2mms[22m[39m
+       [32m✓[39m should preserve requirement selections when unavailable[32m 55[2mms[22m[39m
+ [32m✓[39m src/__tests__/hooks/useCustomerConfig.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 387[2mms[22m[39m
+ [32m✓[39m src/__tests__/customer-configs-page.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 368[2mms[22m[39m
+ [31m❯[39m src/components/vendors/VendorForm.test.tsx [2m([22m[2m11 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[33m 4497[2mms[22m[39m
+       [32m✓[39m should render all required fields[32m 19[2mms[22m[39m
+       [32m✓[39m should show validation errors for empty required fields[32m 22[2mms[22m[39m
+[31m       [31m×[31m should validate email format[39m[33m 3104[2mms[22m[39m
+[31m       [31m×[31m should submit form with valid data[39m[33m 1080[2mms[22m[39m
+[31m       [31m×[31m should show loading state while submitting[39m[32m 76[2mms[22m[39m
+       [32m✓[39m should handle API errors[32m 84[2mms[22m[39m
+       [32m✓[39m should populate form with existing vendor data[32m 3[2mms[22m[39m
+       [32m✓[39m should submit only changed fields[32m 43[2mms[22m[39m
+       [32m✓[39m should show warning when setting as primary vendor[32m 13[2mms[22m[39m
+       [32m✓[39m should call onCancel when cancel button is clicked[32m 15[2mms[22m[39m
+       [32m✓[39m should show confirmation if form has unsaved changes[32m 38[2mms[22m[39m
+ [32m✓[39m src/components/modules/user-admin/__tests__/user-form.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 332[2mms[22m[39m
+ [32m✓[39m src/__tests__/hooks/useDataRxTab.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 230[2mms[22m[39m
+ [32m✓[39m src/components/modules/user-admin/__tests__/comment-management.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[32m 191[2mms[22m[39m
+ [32m✓[39m src/hooks/useVendorManagement.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 134[2mms[22m[39m
+ [32m✓[39m src/app/api/fulfillment/orders/[id]/__tests__/route.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 112[2mms[22m[39m
+ [32m✓[39m src/app/api/fulfillment/services/__tests__/route.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 112[2mms[22m[39m
+ [32m✓[39m src/app/api/fulfillment/services/bulk-assign/__tests__/route.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 113[2mms[22m[39m
+ [32m✓[39m src/app/api/fulfillment/services/[id]/history/__tests__/route.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 110[2mms[22m[39m
+[90mstdout[2m | src/__tests__/order-services-refactor.test.ts[2m > [22m[2mOrder Services Refactor - TDD Tests[2m > [22m[2mAddressService[2m > [22m[2mcreateOrFindAddressEntry[2m > [22m[2mshould reuse existing address when exact match found
+[22m[39m2026-03-05T23:55:43.741Z [[32minfo[39m]: Reusing existing address entry {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "addressId": "existing-address-123",
+  "userId": "user123"
+}
+
+[90mstdout[2m | src/__tests__/order-services-refactor.test.ts[2m > [22m[2mOrder Services Refactor - TDD Tests[2m > [22m[2mAddressService[2m > [22m[2mcreateOrFindAddressEntry[2m > [22m[2mshould create new address when no exact match found
+[22m[39m2026-03-05T23:55:43.743Z [[32minfo[39m]: Created new address entry {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "addressId": "new-address-456",
+  "userId": "user123"
+}
+
+[90mstdout[2m | src/__tests__/order-services-refactor.test.ts[2m > [22m[2mOrder Services Refactor - TDD Tests[2m > [22m[2mOrderValidationService[2m > [22m[2mvalidateOrderRequirements[2m > [22m[2mshould save as draft when validation fails
+[22m[39m2026-03-05T23:55:43.744Z [[32minfo[39m]: Order validation failed {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "serviceItemsCount": 1,
+  "missingSubjectFields": 1,
+  "missingSearchFields": 0,
+  "missingDocuments": 0
+}
+
+[90mstdout[2m | src/__tests__/order-services-refactor.test.ts[2m > [22m[2mOrder Services Refactor - TDD Tests[2m > [22m[2mOrderValidationService[2m > [22m[2mvalidateOrderRequirements[2m > [22m[2mshould save as draft when validation fails
+[22m[39m2026-03-05T23:55:43.744Z [[32minfo[39m]: Order validation failed {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "serviceItemsCount": 1,
+  "missingSubjectFields": 1,
+  "missingSearchFields": 0,
+  "missingDocuments": 0
+}
+
+[90mstdout[2m | src/__tests__/order-services-refactor.test.ts[2m > [22m[2mOrder Services Refactor - TDD Tests[2m > [22m[2mOrderValidationService[2m > [22m[2mvalidateOrderRequirements[2m > [22m[2mshould save as draft when validation fails
+[22m[39m2026-03-05T23:55:43.744Z [[33mwarn[39m]: Order validation failed, saving as draft {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "customerId": "customer123",
+  "serviceItemsCount": 1,
+  "missingRequirements": {
+    "subjectFields": [
+      {
+        "fieldName": "Last Name",
+        "serviceLocation": "Background Check - Unknown"
+      }
+    ],
+    "searchFields": [],
+    "documents": []
+  }
+}
+
+[90mstdout[2m | src/__tests__/order-services-refactor.test.ts[2m > [22m[2mOrder Services Refactor - TDD Tests[2m > [22m[2mOrderStateTransitions[2m > [22m[2mStatus transition rules[2m > [22m[2mshould allow transition from draft to submitted
+[22m[39m2026-03-05T23:55:43.745Z [[31merror[39m]: Failed to create ServicesFulfillment records {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "error": "__vite_ssr_import_0__.prisma.orderItem.findMany is not a function",
+  "orderId": "order123",
+  "userId": "user123"
+}
+
+ [32m✓[39m src/__tests__/order-services-refactor.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 84[2mms[22m[39m
+ [32m✓[39m src/components/layout/ViewToggle.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m src/contexts/ViewContext.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/__tests__/hooks/useRequirementsTable.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/components/layout/__tests__/client-nav-permissions.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/app/api/users/[id]/__tests__/route.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/__tests__/order-form-hooks.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/app/api/comment-templates/__tests__/route.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+[90mstdout[2m | src/app/api/vendors/__tests__/route.test.ts[2m > [22m[2mPOST /api/vendors[2m > [22m[2mauthentication[2m > [22m[2mshould return 403 when user lacks global_config permission
+[22m[39m2026-03-05T23:55:45.065Z [[32minfo[39m]: Checking vendor management permissions {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "userId": "1",
+  "userType": "internal",
+  "permissions": {
+    "candidate_workflow": true
+  }
+}
+2026-03-05T23:55:45.066Z [[33mwarn[39m]: User lacks vendor management permissions {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "userId": "1",
+  "userType": "internal",
+  "permissions": {
+    "candidate_workflow": true
+  }
+}
+
+[90mstdout[2m | src/app/api/vendors/__tests__/route.test.ts[2m > [22m[2mPOST /api/vendors[2m > [22m[2mauthentication[2m > [22m[2mshould return 403 when vendor user tries to create vendor
+[22m[39m2026-03-05T23:55:45.067Z [[32minfo[39m]: Checking vendor management permissions {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "userId": "2",
+  "userType": "vendor",
+  "permissions": {
+    "global_config": true
+  }
+}
+2026-03-05T23:55:45.067Z [[33mwarn[39m]: User lacks vendor management permissions {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "userId": "2",
+  "userType": "vendor",
+  "permissions": {
+    "global_config": true
+  }
+}
+
+[90mstdout[2m | src/app/api/vendors/__tests__/route.test.ts[2m > [22m[2mPOST /api/vendors[2m > [22m[2mvalidation[2m > [22m[2mshould return 400 when name is missing
+[22m[39m2026-03-05T23:55:45.067Z [[32minfo[39m]: Checking vendor management permissions {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "userId": "1",
+  "userType": "internal",
+  "permissions": {
+    "global_config": true
+  }
+}
+
+[90mstdout[2m | src/app/api/vendors/__tests__/route.test.ts[2m > [22m[2mPOST /api/vendors[2m > [22m[2mvalidation[2m > [22m[2mshould return 400 when phone number is missing
+[22m[39m2026-03-05T23:55:45.068Z [[32minfo[39m]: Checking vendor management permissions {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "userId": "1",
+  "userType": "internal",
+  "permissions": {
+    "global_config": true
+  }
+}
+
+[90mstdout[2m | src/app/api/vendors/__tests__/route.test.ts[2m > [22m[2mPOST /api/vendors[2m > [22m[2mvalidation[2m > [22m[2mshould return 400 when email is invalid
+[22m[39m2026-03-05T23:55:45.069Z [[32minfo[39m]: Checking vendor management permissions {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "userId": "1",
+  "userType": "internal",
+  "permissions": {
+    "global_config": true
+  }
+}
+
+[90mstdout[2m | src/app/api/vendors/__tests__/route.test.ts[2m > [22m[2mPOST /api/vendors[2m > [22m[2mbusiness logic[2m > [22m[2mshould unset other primary vendors when creating new primary
+[22m[39m2026-03-05T23:55:45.069Z [[32minfo[39m]: Checking vendor management permissions {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "userId": "1",
+  "userType": "internal",
+  "permissions": {
+    "global_config": true
+  }
+}
+
+[90mstdout[2m | src/app/api/vendors/__tests__/route.test.ts[2m > [22m[2mPOST /api/vendors[2m > [22m[2mbusiness logic[2m > [22m[2mshould unset other primary vendors when creating new primary
+[22m[39m2026-03-05T23:55:45.069Z [[32minfo[39m]: Created new primary vendor {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "event": "vendor_created",
+  "vendorId": "new-vendor",
+  "vendorName": "Primary Vendor",
+  "isPrimary": true,
+  "userId": "1"
+}
+
+[90mstdout[2m | src/app/api/vendors/__tests__/route.test.ts[2m > [22m[2mPOST /api/vendors[2m > [22m[2mbusiness logic[2m > [22m[2mshould create vendor successfully with valid data
+[22m[39m2026-03-05T23:55:45.070Z [[32minfo[39m]: Checking vendor management permissions {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "userId": "1",
+  "userType": "internal",
+  "permissions": {
+    "global_config": true
+  }
+}
+
+[90mstdout[2m | src/app/api/vendors/__tests__/route.test.ts[2m > [22m[2mPOST /api/vendors[2m > [22m[2mbusiness logic[2m > [22m[2mshould create vendor successfully with valid data
+[22m[39m2026-03-05T23:55:45.070Z [[32minfo[39m]: Created new vendor {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "event": "vendor_created",
+  "vendorId": "new-vendor",
+  "vendorName": "Test Vendor",
+  "isPrimary": false,
+  "userId": "1"
+}
+
+[90mstdout[2m | src/app/api/vendors/__tests__/route.test.ts[2m > [22m[2mPOST /api/vendors[2m > [22m[2mbusiness logic[2m > [22m[2mshould return 409 when vendor name already exists
+[22m[39m2026-03-05T23:55:45.070Z [[32minfo[39m]: Checking vendor management permissions {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "userId": "1",
+  "userType": "internal",
+  "permissions": {
+    "global_config": true
+  }
+}
+
+ [32m✓[39m src/app/api/vendors/__tests__/route.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+[90mstdout[2m | src/app/api/orders/[id]/assign/__tests__/route.test.ts[2m > [22m[2mPUT /api/orders/[id]/assign[2m > [22m[2mvalidation[2m > [22m[2mshould accept null vendorId for internal assignment
+[22m[39m2026-03-05T23:55:45.306Z [[32minfo[39m]: Order assignment updated {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "event": "order_assignment_updated",
+  "orderId": "order-123",
+  "fromVendorId": "vendor-456",
+  "toVendorId": null,
+  "assignedBy": "1",
+  "hasNotes": true
+}
+
+[90mstdout[2m | src/app/api/orders/[id]/assign/__tests__/route.test.ts[2m > [22m[2mPUT /api/orders/[id]/assign[2m > [22m[2mbusiness logic[2m > [22m[2mshould successfully assign order to vendor
+[22m[39m2026-03-05T23:55:45.310Z [[32minfo[39m]: Order assignment updated {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "event": "order_assignment_updated",
+  "orderId": "order-123",
+  "fromVendorId": null,
+  "toVendorId": "vendor-456",
+  "assignedBy": "1",
+  "hasNotes": true
+}
+
+[90mstdout[2m | src/app/api/orders/[id]/assign/__tests__/route.test.ts[2m > [22m[2mPUT /api/orders/[id]/assign[2m > [22m[2mbusiness logic[2m > [22m[2mshould create status history entry on assignment
+[22m[39m2026-03-05T23:55:45.311Z [[32minfo[39m]: Order assignment updated {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "event": "order_assignment_updated",
+  "orderId": "order-123",
+  "fromVendorId": null,
+  "toVendorId": "vendor-456",
+  "assignedBy": "1",
+  "hasNotes": false
+}
+
+[90mstdout[2m | src/app/api/orders/[id]/assign/__tests__/route.test.ts[2m > [22m[2mPUT /api/orders/[id]/assign[2m > [22m[2mbusiness logic[2m > [22m[2mshould handle reassignment from one vendor to another
+[22m[39m2026-03-05T23:55:45.312Z [[32minfo[39m]: Order assignment updated {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "event": "order_assignment_updated",
+  "orderId": "order-123",
+  "fromVendorId": "vendor-111",
+  "toVendorId": "vendor-456",
+  "assignedBy": "1",
+  "hasNotes": true
+}
+
+ [32m✓[39m src/app/api/orders/[id]/assign/__tests__/route.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/app/api/comment-templates/[id]/__tests__/route.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/app/api/data-rx/documents/__tests__/route.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[90mstdout[2m | src/app/api/vendors/[id]/__tests__/route.test.ts[2m > [22m[2mPUT /api/vendors/[id][2m > [22m[2mvalidation[2m > [22m[2mshould accept partial updates
+[22m[39m2026-03-05T23:55:45.606Z [[32minfo[39m]: Updated vendor {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "event": "vendor_updated",
+  "vendorId": "vendor-123",
+  "updatedFields": [
+    "name"
+  ],
+  "userId": "1"
+}
+
+[90mstdout[2m | src/app/api/vendors/[id]/__tests__/route.test.ts[2m > [22m[2mPUT /api/vendors/[id][2m > [22m[2mbusiness logic[2m > [22m[2mshould unset other primary vendors when updating to primary
+[22m[39m2026-03-05T23:55:45.608Z [[32minfo[39m]: Updated vendor as primary {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "event": "vendor_updated",
+  "vendorId": "vendor-123",
+  "isPrimary": true,
+  "userId": "1"
+}
+
+[90mstdout[2m | src/app/api/vendors/[id]/__tests__/route.test.ts[2m > [22m[2mDELETE /api/vendors/[id][2m > [22m[2mbusiness logic[2m > [22m[2mshould successfully delete vendor without dependencies
+[22m[39m2026-03-05T23:55:45.609Z [[32minfo[39m]: Deleted vendor {
+  "service": "globalrx",
+  "version": "0.1.0",
+  "environment": "test",
+  "event": "vendor_deleted",
+  "vendorId": "vendor-123",
+  "vendorName": "Deletable Vendor",
+  "userId": "1"
+}
+
+ [32m✓[39m src/app/api/vendors/[id]/__tests__/route.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/__tests__/service-fulfillment.schemas.test.ts [2m([22m[2m43 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/app/api/users/__tests__/route.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/__tests__/order-form.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/vendorSchemas.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/lib/vendorUtils.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/commentTemplateSchemas.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/__tests__/permission-utils.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/__tests__/comment-management-permission.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 3[2mms[22m[39m

@@ -1,8 +1,9 @@
-// src/app/api/dsx/available-requirements/route.ts
+// /GlobalRX_v2/src/app/api/available-requirements/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { canAccessDataRx } from '@/lib/auth-utils';
 import logger, { logDatabaseError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -20,9 +21,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions
-    if (!session.user?.permissions?.dsx?.view) {
-      return NextResponse.json({ error: 'Forbidden - DSX view permission required' }, { status: 403 });
+    // SECURITY FIX: Updated permission check from legacy 'dsx' to 'global_config'
+    // This endpoint was previously checking for deprecated 'dsx' permission, causing
+    // 403 Forbidden errors for users migrated to the new permission system.
+    //
+    // Fix: Use centralized canAccessDataRx() function which checks for 'global_config'
+    // permission, ensuring all DSX endpoints use consistent authorization.
+    if (!canAccessDataRx(session.user)) {
+      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
 
     // Get service ID if provided for filtering already associated requirements
@@ -66,13 +72,13 @@ export async function GET(request: NextRequest) {
       });
 
       // Extract requirement IDs
-      associatedRequirementIds = existingRequirements.map((req: any) => req.requirementId);
+      associatedRequirementIds = existingRequirements.map((req) => req.requirementId);
       
       logger.debug('Found already associated requirements', { associatedCount: associatedRequirementIds.length });
     }
     
     // Transform data fields to requirements format
-    const dataFieldRequirements = dataFields.map((field: any) => ({
+    const dataFieldRequirements = dataFields.map((field) => ({
       id: field.id,
       name: field.fieldLabel,
       shortName: field.shortName,
@@ -85,7 +91,7 @@ export async function GET(request: NextRequest) {
     }));
     
     // Transform documents to requirements format
-    const documentRequirements = documents.map((doc: any) => ({
+    const documentRequirements = documents.map((doc) => ({
       id: doc.id,
       name: doc.name,
       type: 'document',

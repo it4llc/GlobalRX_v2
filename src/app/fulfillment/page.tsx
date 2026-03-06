@@ -1,4 +1,15 @@
 // /GlobalRX_v2/src/app/fulfillment/page.tsx
+// Order Fulfillment Dashboard - Main listing page for fulfillment workflow
+//
+// Key features:
+// - Statistics dashboard showing order counts by status
+// - Filterable and searchable order list
+// - Status-based visual indicators with color coding
+// - New tab navigation to order details (preserves list context)
+// - Full internationalization support for multi-language use
+// - Permission-based access control (requires fulfillment.* permission)
+//
+// Required permissions: fulfillment.* or admin.*
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,6 +17,7 @@ import { SubjectInfo } from '@/components/portal/orders/types';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import {
   Table,
   TableBody,
@@ -85,6 +97,7 @@ export default function FulfillmentPage() {
   const { data: session } = useSession();
   const auth = useAuth();
   const router = useRouter();
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,8 +186,13 @@ export default function FulfillmentPage() {
   };
 
   const handleOrderClick = (orderId: string) => {
-    setSelectedOrderId(orderId);
-    setDialogOpen(true);
+    // Phase 2a design decision: Open order details page in a new tab
+    // Business rationale:
+    // 1. Keeps the main order list accessible for quick navigation
+    // 2. Allows fulfillers to compare multiple orders side-by-side
+    // 3. Prevents accidental loss of search/filter state when returning to list
+    // 4. Supports natural workflow where fulfillers often need to reference multiple orders
+    window.open(`/fulfillment/orders/${orderId}`, '_blank');
   };
 
   const formatDate = (dateString: string) => {
@@ -190,8 +208,8 @@ export default function FulfillmentPage() {
   };
 
   const getSubjectName = (subject: SubjectInfo | null) => {
-    if (!subject) return 'N/A';
-    return `${subject.firstName || ''} ${subject.lastName || ''}`.trim() || 'N/A';
+    if (!subject) return t('module.fulfillment.na');
+    return `${subject.firstName || ''} ${subject.lastName || ''}`.trim() || t('module.fulfillment.na');
   };
 
   // Pagination
@@ -214,16 +232,16 @@ export default function FulfillmentPage() {
       <div className="bg-white rounded-lg shadow px-6 py-4">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Order Fulfillment</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('module.fulfillment.pageTitle')}</h1>
             <p className="mt-1 text-sm text-gray-600">
-              Manage and process orders assigned to your organization
+              {t('module.fulfillment.pageDescription')}
             </p>
           </div>
           <Button
             variant="outline"
             onClick={() => signOut({ callbackUrl: '/login' })}
           >
-            Logout
+            {t('module.fulfillment.logout')}
           </Button>
         </div>
       </div>
@@ -241,7 +259,7 @@ export default function FulfillmentPage() {
               <DocumentTextIcon className="h-8 w-8 text-blue-500" />
             </div>
             <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">Total Orders</p>
+              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.totalOrders')}</p>
               <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
             </div>
           </div>
@@ -258,7 +276,7 @@ export default function FulfillmentPage() {
               <ClockIcon className="h-8 w-8 text-blue-500" />
             </div>
             <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">Submitted</p>
+              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.submitted')}</p>
               <p className="text-2xl font-semibold text-gray-900">{stats.submitted}</p>
             </div>
           </div>
@@ -275,7 +293,7 @@ export default function FulfillmentPage() {
               <ClockIcon className="h-8 w-8 text-yellow-500" />
             </div>
             <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">Processing</p>
+              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.processing')}</p>
               <p className="text-2xl font-semibold text-gray-900">{stats.processing}</p>
             </div>
           </div>
@@ -292,7 +310,7 @@ export default function FulfillmentPage() {
               <CheckCircleIcon className="h-8 w-8 text-green-500" />
             </div>
             <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">Completed</p>
+              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.completed')}</p>
               <p className="text-2xl font-semibold text-gray-900">{stats.completed}</p>
             </div>
           </div>
@@ -309,7 +327,7 @@ export default function FulfillmentPage() {
               <XCircleIcon className="h-8 w-8 text-red-500" />
             </div>
             <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">Cancelled</p>
+              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.cancelled')}</p>
               <p className="text-2xl font-semibold text-gray-900">{stats.cancelled}</p>
             </div>
           </div>
@@ -320,26 +338,26 @@ export default function FulfillmentPage() {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle>Orders</CardTitle>
+            <CardTitle>{t('module.fulfillment.orders')}</CardTitle>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Input
                 type="search"
-                placeholder="Search orders..."
+                placeholder={t('module.fulfillment.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full sm:w-64"
               />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue placeholder="Filter by status" />
+                  <SelectValue placeholder={t('module.fulfillment.filterByStatus')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="more_info_needed">More Info Needed</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="all">{t('module.fulfillment.allStatuses')}</SelectItem>
+                  <SelectItem value="submitted">{t('module.fulfillment.submitted')}</SelectItem>
+                  <SelectItem value="processing">{t('module.fulfillment.processing')}</SelectItem>
+                  <SelectItem value="more_info_needed">{t('module.fulfillment.moreInfoNeeded')}</SelectItem>
+                  <SelectItem value="completed">{t('module.fulfillment.completed')}</SelectItem>
+                  <SelectItem value="cancelled">{t('module.fulfillment.cancelled')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -348,7 +366,7 @@ export default function FulfillmentPage() {
         <CardContent>
           {filteredOrders.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">No orders found</p>
+              <p className="text-gray-500">{t('module.fulfillment.noOrdersFound')}</p>
             </div>
           ) : (
             <>
@@ -356,13 +374,13 @@ export default function FulfillmentPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Order Number</TableHead>
-                      <TableHead>Subject</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Services</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead>{t('module.fulfillment.orderNumber')}</TableHead>
+                      <TableHead>{t('module.fulfillment.subject')}</TableHead>
+                      <TableHead>{t('module.fulfillment.customer')}</TableHead>
+                      <TableHead>{t('common.status')}</TableHead>
+                      <TableHead>{t('module.fulfillment.services')}</TableHead>
+                      <TableHead>{t('module.fulfillment.created')}</TableHead>
+                      <TableHead>{t('common.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -372,7 +390,7 @@ export default function FulfillmentPage() {
                           {order.orderNumber}
                         </TableCell>
                         <TableCell>{getSubjectName(order.subject)}</TableCell>
-                        <TableCell>{order.customer?.name || 'N/A'}</TableCell>
+                        <TableCell>{order.customer?.name || t('module.fulfillment.na')}</TableCell>
                         <TableCell>
                           <Badge className={statusColors[order.statusCode] || 'bg-gray-100'}>
                             {formatStatus(order.statusCode)}
@@ -389,7 +407,7 @@ export default function FulfillmentPage() {
                               ))}
                             </div>
                           ) : (
-                            'No services'
+                            t('module.fulfillment.noServices')
                           )}
                         </TableCell>
                         <TableCell>{formatDate(order.createdAt)}</TableCell>
@@ -398,8 +416,9 @@ export default function FulfillmentPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleOrderClick(order.id)}
+                            title={t('module.fulfillment.openInNewTab')}
                           >
-                            View Details
+                            {t('module.fulfillment.view')}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -412,8 +431,8 @@ export default function FulfillmentPage() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <p className="text-sm text-gray-600">
-                    Showing {startIndex + 1} to {Math.min(endIndex, filteredOrders.length)} of{' '}
-                    {filteredOrders.length} orders
+                    {t('module.fulfillment.showing')} {startIndex + 1} {t('module.fulfillment.to')} {Math.min(endIndex, filteredOrders.length)} {t('module.fulfillment.of')}{' '}
+                    {filteredOrders.length} {t('module.fulfillment.orders').toLowerCase()}
                   </p>
                   <div className="flex gap-2">
                     <Button
@@ -422,10 +441,10 @@ export default function FulfillmentPage() {
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
                     >
-                      Previous
+                      {t('module.fulfillment.previous')}
                     </Button>
                     <span className="flex items-center px-3 text-sm">
-                      Page {currentPage} of {totalPages}
+                      {t('module.fulfillment.page')} {currentPage} {t('module.fulfillment.of')} {totalPages}
                     </span>
                     <Button
                       variant="outline"
@@ -433,7 +452,7 @@ export default function FulfillmentPage() {
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
                     >
-                      Next
+                      {t('module.fulfillment.next')}
                     </Button>
                   </div>
                 </div>

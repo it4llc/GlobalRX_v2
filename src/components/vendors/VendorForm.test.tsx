@@ -39,7 +39,7 @@ describe('VendorForm Component', () => {
       });
     });
 
-    it.skip('should validate email format', async () => {
+    it('should validate email format', async () => {
       const user = userEvent.setup();
 
       // Mock fetch to fail - form should not reach this point if validation works
