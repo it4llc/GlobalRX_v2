@@ -49,7 +49,9 @@ export function CommentEditModal({
   }, [isOpen]);
 
   const handleVisibilityChange = (checked: boolean) => {
-    // Show warning when changing from internal to external
+    // Show warning when changing from internal to external - this is critical
+    // because once a comment becomes external, customers can see it and it
+    // may contain sensitive information that shouldn't be exposed
     if (comment.isInternalOnly && !checked) {
       setShowVisibilityWarning(true);
     } else {

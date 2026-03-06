@@ -135,3 +135,68 @@ export async function PUT(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+/**
+ * DELETE /api/services/[id]/comments/[commentId]
+ *
+ * Deletes an existing comment (internal users only)
+ *
+ * Required permissions: Must be an internal user with access to the service
+ *
+ * Returns: Success confirmation
+ *
+ * Errors:
+ *   401: Not authenticated
+ *   403: Insufficient permissions (vendor users cannot delete)
+ *   404: Comment not found
+ *   500: Server error
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string; commentId: string } }
+) {
+  try {
+    // Step 1: Authentication check
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Step 2: Check if user is internal (vendors and customers cannot delete comments)
+    const userType = session.user.type || 'internal';
+    if (userType === 'vendor' || userType === 'customer') {
+      return NextResponse.json({ error: 'Only internal users can delete comments' }, { status: 403 });
+    }
+
+    // Step 3: Validate user has access to the service
+    const service = new ServiceCommentService();
+    const hasAccess = await service.validateUserAccess(
+      params.id,
+      session.user.id,
+      userType
+    );
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'You do not have access to this service' }, { status: 403 });
+    }
+
+    // Step 4: Delete the comment
+    await service.deleteComment(params.commentId, session.user.id);
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    // Handle specific business logic errors
+    if (error instanceof Error) {
+      if (error.message === 'Comment not found') {
+        return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
+      }
+    }
+
+    logger.error('Error deleting service comment', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      commentId: params.commentId
+    });
+
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

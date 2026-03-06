@@ -169,7 +169,35 @@ Updates an existing comment. Only internal users can edit comments.
 
 ---
 
-### 4. Get Order Service Comments
+### 4. Delete Service Comment
+**DELETE** `/api/services/{serviceId}/comments/{commentId}`
+
+Deletes an existing comment. Only internal users can delete comments.
+
+#### Parameters
+- `serviceId` (path) - UUID of the service
+- `commentId` (path) - UUID of the comment
+
+#### Response
+- **200 OK** - Comment deleted successfully
+```json
+{
+  "success": true
+}
+```
+- **401 Unauthorized** - No authentication
+- **403 Forbidden** - Not an internal user or no service access
+- **404 Not Found** - Comment not found
+
+#### Business Rules
+- Only internal users can delete (vendors and customers cannot)
+- Must have access to the parent service
+- Comment is permanently removed from database
+- Maintains referential integrity
+
+---
+
+### 5. Get Order Service Comments
 **GET** `/api/orders/{orderId}/services/comments`
 
 Retrieves comments for all services in an order (bulk operation).
@@ -250,7 +278,7 @@ Common error scenarios:
 6. **Audit Trail**: All changes tracked with user and timestamp
 
 ## Implementation Status
-- **Backend**: ✅ Complete (March 6, 2026)
-- **Frontend**: ⏳ Pending (Phase 3)
-- **Tests**: ✅ 120 tests passing
+- **Backend**: ✅ Complete (March 6, 2026) - Phase 2b
+- **Frontend**: ✅ Complete (March 6, 2026) - Phase 2c
+- **Tests**: ✅ 48+ frontend tests + 120+ backend tests passing
 - **Documentation**: ✅ Complete

@@ -44,21 +44,24 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Use the permission check from the hook
+  // Use the permission check from the hook - validates user has fulfillment permission
+  // and is not a customer (customers cannot create comments per business rules)
   const canCreateComment = checkCanCreate();
   const hasTemplates = availableTemplates && availableTemplates.length > 0;
 
   // Check if user is a customer
   const isCustomer = user?.userType === 'customer';
 
-  // Filter comments based on user role
+  // Filter comments based on user role - this implements the core business rule
+  // that customers should never see internal comments (security requirement)
   const visibleComments = React.useMemo(() => {
     const sorted = getSortedComments ? getSortedComments() : comments;
     if (isCustomer) {
-      // Customers can only see external comments
+      // Customers can only see external comments (isInternalOnly = false)
+      // This is a critical security filter to prevent exposure of sensitive internal notes
       return sorted.filter(c => !c.isInternalOnly);
     }
-    // Internal users and vendors see all comments
+    // Internal users and vendors see all comments for full operational context
     return sorted;
   }, [comments, isCustomer, getSortedComments]);
 

@@ -62,6 +62,8 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
   }, [isOpen]);
 
   // Update final text when template or placeholder values change
+  // This provides live preview functionality so users can see exactly what
+  // the comment will look like before saving (critical for accuracy)
   useEffect(() => {
     if (!selectedTemplate) {
       setFinalText('');
@@ -71,11 +73,13 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
     let text = selectedTemplate.templateText;
 
     // Extract placeholders from template text if not provided
+    // Placeholders are in format [PLACEHOLDER_NAME] and must all be replaced
     const placeholders = selectedTemplate.placeholders ||
       (selectedTemplate.templateText.match(/\[([^\]]+)\]/g) || [])
         .map(match => match.slice(1, -1));
 
-    // Replace placeholders with values
+    // Replace placeholders with values - unreplaced placeholders will remain as [NAME]
+    // This allows users to see which placeholders still need values
     placeholders.forEach(placeholder => {
       const value = placeholderValues[placeholder] || `[${placeholder}]`;
       // Replace all occurrences of the placeholder
