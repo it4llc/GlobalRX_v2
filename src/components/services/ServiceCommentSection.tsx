@@ -62,7 +62,6 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
       await createComment(data);
       setIsCreateModalOpen(false);
     } catch (error) {
-      console.error('Failed to create comment:', error);
       throw error;
     }
   };
@@ -74,7 +73,6 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
       await updateComment(editingComment.id, data);
       setEditingComment(null);
     } catch (error) {
-      console.error('Failed to update comment:', error);
       throw error;
     }
   };
@@ -91,7 +89,6 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
         setDeleteConfirmId(null);
         setShowDeleteDialog(false);
       } catch (error) {
-        console.error('Failed to delete comment:', error);
         // Don't throw here to avoid breaking UI
       }
     }

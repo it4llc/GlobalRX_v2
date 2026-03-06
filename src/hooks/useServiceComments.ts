@@ -102,7 +102,6 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
       setComments(sortedComments);
     } catch (err) {
       setError('Failed to load comments');
-      console.error('Error fetching comments:', err);
     } finally {
       setLoading(false);
     }
@@ -143,7 +142,6 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
       setComments(allComments);
     } catch (err) {
       setError('Failed to load comments');
-      console.error('Error fetching order comments:', err);
     } finally {
       setLoading(false);
     }
@@ -326,7 +324,6 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
     serviceStatus: string
   ): Promise<any[]> => {
     try {
-      console.log('Fetching templates for:', { serviceType, serviceStatus });
       const response = await fetch(
         `/api/comment-templates?serviceType=${serviceType}&serviceStatus=${serviceStatus}`,
         {
@@ -338,17 +335,14 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
       );
 
       if (!response.ok) {
-        console.error('Failed to fetch templates:', response.status, response.statusText);
         throw new Error('Failed to fetch templates');
       }
 
       const data = await response.json();
-      console.log('Received templates data:', data);
       const fetchedTemplates = data.templates || data;
       setTemplates(fetchedTemplates);
       return fetchedTemplates;
     } catch (err) {
-      console.error('Error fetching templates:', err);
       return [];
     }
   }, []);
