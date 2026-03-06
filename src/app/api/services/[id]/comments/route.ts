@@ -93,7 +93,8 @@ export async function POST(
     // Transform the response to match expected format
     const response = {
       id: comment.id,
-      serviceId: comment.serviceId,
+      orderItemId: comment.orderItemId,
+      serviceId: comment.orderItemId, // Keep for backward compatibility
       templateId: comment.templateId,
       finalText: comment.finalText,
       isInternalOnly: comment.isInternalOnly,
@@ -194,7 +195,8 @@ export async function GET(
     // Transform the response to match expected format
     const transformedComments = comments.map(comment => ({
       id: comment.id,
-      serviceId: comment.serviceId,
+      orderItemId: comment.orderItemId,
+      serviceId: comment.orderItemId, // Keep for backward compatibility
       templateId: comment.templateId,
       finalText: comment.finalText,
       isInternalOnly: comment.isInternalOnly,
