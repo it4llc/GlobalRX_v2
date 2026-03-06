@@ -64,6 +64,7 @@ const sequence = await getNextSequenceForCustomer(customerId, today)
 Read the current technical documentation at `docs/`:
 - `GlobalRx Technical Documentation` (the main doc)
 - Any other relevant docs in the folder
+- API documentation in `docs/api/`
 
 Determine what needs to be updated:
 
@@ -73,6 +74,11 @@ Determine what needs to be updated:
 - Database schema section — reflect any new models or fields
 - Implementation status — update the ✅ / 🔄 / ⬜ status of phases
 
+**For new API endpoints, ALWAYS create/update API documentation:**
+- Create a new file in `docs/api/[feature-name].md` if it's a new feature
+- Or update existing API docs if modifying existing endpoints
+- Include: HTTP method, path, authentication requirements, permissions required, request body schema, response schemas for all status codes, business rules, error scenarios, example requests/responses
+
 **Update if new patterns were established:**
 - If a new reusable component was created, document it
 - If a new CSS class was added to `globals.css`, add it to the styling section
@@ -80,7 +86,9 @@ Determine what needs to be updated:
 
 **Create a new doc if needed:**
 - If a new module section was started, create documentation for it
-- Save new documentation to `docs/` with a clear descriptive filename
+- API documentation MUST go in `docs/api/` folder
+- Feature documentation should go in `docs/features/` folder
+- Save new documentation with clear descriptive filenames
 
 ### Step 4: Update the coding standards if needed
 
@@ -121,6 +129,11 @@ For each document updated:
 - **Document:** [path]
 - **Section:** [which section]
 - **Change:** [what was added or updated]
+
+## API Documentation
+- **New endpoints documented:** [list any new API endpoints with their docs location]
+- **Updated endpoints:** [list any updated API endpoints]
+- **Location:** `docs/api/[filename].md`
 
 ## Coding Standards Updated
 - [Description of any additions to CODING_STANDARDS.md, or "No updates required"]

@@ -39,6 +39,8 @@ model User {
   servicesAssigned    ServicesFulfillment[] @relation("ServiceAssignedBy")
   serviceAuditLogs    ServiceAuditLog[]    @relation("ServiceAuditLogUser")
   closedOrders        Order[]              @relation("OrderClosedBy")
+  serviceCommentsCreated ServiceComment[]  @relation("ServiceCommentCreatedBy")
+  serviceCommentsUpdated ServiceComment[]  @relation("ServiceCommentUpdatedBy")
 
   @@index([customerId])
   @@index([vendorId])
@@ -535,6 +537,7 @@ model CommentTemplate {
   shortName      String                        @db.VarChar(50)
   templateText   String                        @db.VarChar(1000)
   availabilities CommentTemplateAvailability[]
+  serviceComments ServiceComment[]
 
   @@unique([shortName, isActive])
   @@index([isActive])
@@ -580,6 +583,7 @@ model ServicesFulfillment {
   assignedVendor   VendorOrganization? @relation("ServiceVendorAssignment", fields: [assignedVendorId], references: [id])
   assignedByUser   User?               @relation("ServiceAssignedBy", fields: [assignedBy], references: [id])
   auditLogs        ServiceAuditLog[]
+  comments         ServiceComment[]
 
   @@index([orderId])
   @@index([orderItemId])
@@ -610,4 +614,27 @@ model ServiceAuditLog {
   @@index([userId])
   @@index([createdAt])
   @@map("service_audit_log")
+}
+
+model ServiceComment {
+  id              String               @id @default(uuid())
+  serviceId       String
+  templateId      String
+  finalText       String               @db.Text
+  isInternalOnly  Boolean              @default(true)
+  createdBy       String
+  createdAt       DateTime             @default(now())
+  updatedBy       String?
+  updatedAt       DateTime?
+
+  serviceFulfillment ServicesFulfillment @relation(fields: [serviceId], references: [id])
+  template        CommentTemplate      @relation(fields: [templateId], references: [id])
+  createdByUser   User                 @relation("ServiceCommentCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser   User?                @relation("ServiceCommentUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@index([serviceId])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@index([serviceId, createdAt])
+  @@map("service_comments")
 }
