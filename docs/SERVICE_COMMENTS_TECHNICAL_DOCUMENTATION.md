@@ -1,9 +1,10 @@
 # Service Comments System - Technical Documentation
 
-**Feature:** Service Comments Database and API (Phase 2b)
+**Feature:** Service Comments Database, API, and Frontend UI (Phases 2b & 2c)
 **Date:** March 6, 2026
-**Status:** ✅ Complete - Backend Implementation
-**Frontend Status:** ⬜ Pending (Phase 3)
+**Status:** ✅ Complete - Full Implementation
+**Phase 2b Status:** ✅ Complete - Backend Implementation
+**Phase 2c Status:** ✅ Complete - Frontend UI Implementation
 
 ---
 
@@ -13,20 +14,32 @@ The Service Comments system enables users to add standardized comments to indivi
 
 ## Key Features
 
-### ✅ Implemented (Phase 2b)
+### ✅ Implemented (Phase 2b - Backend)
 - **Template-based commenting** - All comments must use predefined templates
 - **Service-level attachment** - Comments belong to individual services, not orders
 - **Role-based visibility** - Internal/External comment filtering based on user type
 - **Edit capability** - Internal users can edit comments with full audit trail
+- **Delete capability** - Internal users can delete comments with confirmation
 - **Access control** - Vendor/customer/internal user access validation
 - **Text sanitization** - XSS and injection protection for comment content
 - **Bulk retrieval** - Efficient API for loading all order service comments
 - **Database schema** - ServiceComment table with proper indexes and relations
 
-### ⬜ Pending (Phase 3)
-- **Frontend UI** - Service tabs, comment forms, and comment display
+### ✅ Implemented (Phase 2c - Frontend)
+- **Expandable comment sections** - Comments shown in expandable rows within service fulfillment tables
+- **Comment creation modals** - Template-based comment creation with placeholder support
+- **Comment editing interface** - Internal users can edit comment text and visibility
+- **Comment deletion** - Internal users can delete comments with confirmation dialog
+- **Role-based UI controls** - Different UI capabilities based on user type (internal/vendor/customer)
+- **Visual distinction** - Internal vs external comments clearly identified
+- **Real-time character counting** - Live feedback during comment creation and editing
+- **Template placeholder replacement** - Dynamic form fields for template placeholders with live preview
+
+### ⬜ Future Enhancements
 - **Real-time updates** - Live comment updates across user sessions
 - **Notification system** - Email/push notifications for new comments
+- **Comment threading** - Nested comment conversations
+- **File attachments** - Add documents and images to comments
 
 ---
 
@@ -130,6 +143,23 @@ Updates an existing comment (internal users only).
 - Updates audit trail with editor information
 - Preserves original creation data
 
+### DELETE /api/services/[id]/comments/[commentId]
+
+Deletes an existing comment (internal users only).
+
+**Restriction:** Only internal users can delete comments
+
+**Business Logic:**
+- Validates user is internal (not vendor or customer)
+- Validates user has access to the parent service
+- Removes comment permanently from database
+- Maintains referential integrity
+
+**Response:**
+```typescript
+{ "success": true }
+```
+
 ### GET /api/orders/[id]/services/comments
 
 Bulk endpoint to retrieve all comments for all services in an order.
@@ -207,6 +237,112 @@ The system implements multi-layered text security:
 1. Comment text: 1-1000 characters
 2. Empty or whitespace-only text rejected
 3. Text sanitization preserves readability
+
+---
+
+## Frontend Components (Phase 2c)
+
+### React Component Architecture
+
+**File Location:** `src/components/services/`
+
+The frontend implementation follows a modular component architecture that integrates seamlessly with the existing Service Fulfillment Table:
+
+#### ServiceCommentSection
+**File:** `src/components/services/ServiceCommentSection.tsx`
+
+**Purpose:** Main container component that manages the comment display and interactions for a specific service
+
+**Key Features:**
+- Role-based comment visibility filtering (customers see only external comments)
+- Comment creation, editing, and deletion flows
+- Integration with template system for standardized comments
+- Real-time permission checks and UI state management
+
+**Business Rules Implemented:**
+- Internal users can create, edit, and delete all comments
+- Vendor users can create and view comments but cannot edit or delete
+- Customer users can only view external comments (isInternalOnly = false)
+- Template selection is required for comment creation
+- All placeholder values must be provided before saving
+
+#### CommentCreateModal
+**File:** `src/components/services/CommentCreateModal.tsx`
+
+**Purpose:** Modal dialog for creating new service comments using templates
+
+**Key Features:**
+- Template dropdown filtered by service type and status
+- Dynamic placeholder form fields based on selected template
+- Live preview of final comment text with placeholder replacement
+- Character count validation (1-1000 characters)
+- Internal/external visibility toggle (defaults to internal)
+
+**Template Processing:**
+- Extracts placeholders from template text using regex pattern `/\[([^\]]+)\]/g`
+- Creates dynamic form fields for each placeholder
+- Updates live preview as user types placeholder values
+- Validates all placeholders are replaced before submission
+
+#### CommentEditModal
+**File:** `src/components/services/CommentEditModal.tsx`
+
+**Purpose:** Modal dialog for editing existing comments (internal users only)
+
+**Key Features:**
+- Direct text editing with character count validation
+- Visibility change capability with warning for internal-to-external changes
+- Edit history display showing last modification details
+- Validation to ensure at least one field is changed
+
+**Visibility Change Warning:**
+When changing a comment from internal to external, displays warning:
+"Warning: This will make the comment visible to customers. Are you sure you want to continue?"
+
+#### ServiceCommentCard
+**File:** `src/components/services/ServiceCommentCard.tsx`
+
+**Purpose:** Individual comment display component with metadata and actions
+
+**Key Features:**
+- Visual distinction between internal (gray background, lock icon) and external comments (white background, globe icon)
+- Author and timestamp information with relative time formatting
+- Edit history display when comment has been modified
+- Role-based action buttons (edit/delete for internal users only)
+
+**Visual Indicators:**
+- Lock icon for internal comments with gray background
+- Globe icon for external comments with white background
+- Edit/delete buttons only visible to internal users
+- Template name display for context
+
+### Hook Integration
+
+#### useServiceComments Hook
+**File:** `src/hooks/useServiceComments.ts`
+
+**Purpose:** Custom React hook providing comprehensive comment management functionality
+
+**API Integration:**
+- `createComment()` - Calls POST /api/services/[id]/comments
+- `updateComment()` - Calls PUT /api/services/[id]/comments/[commentId]
+- `deleteComment()` - Calls DELETE /api/services/[id]/comments/[commentId]
+- `fetchComments()` - Calls GET /api/services/[id]/comments
+
+**Business Logic:**
+- Client-side validation before API calls
+- Optimistic UI updates for better user experience
+- Role-based permission checking
+- Template management and placeholder processing
+
+### Integration with Service Fulfillment Table
+
+The comment system integrates with the existing ServiceFulfillmentTable through expandable rows:
+
+1. **Comment Count Display** - Each service row shows comment count
+2. **Row Expansion** - Clicking a service row reveals ServiceCommentSection below
+3. **Context Preservation** - Service ID, type, and status passed to comment components
+4. **Permission Context** - User role and permissions flow through to comment controls
 
 ---
 

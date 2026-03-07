@@ -38,15 +38,31 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Step 2: Permission check - comment management is restricted to internal users only
-  // Business rule: vendors and customers should never have access to comment templates
-  // as these are internal workflow tools for order fulfillment
-  if (session.user.type === 'vendor' || session.user.type === 'customer') {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-  }
+  // Step 2: Permission check
+  // For fetching templates for commenting (with serviceType/serviceStatus), allow fulfillment permission
+  // For managing templates (no params), require comment_management permission
+  const searchParams = request.nextUrl.searchParams;
+  const isForCommenting = searchParams.has('serviceType') || searchParams.has('serviceStatus');
 
-  if (!session.user.permissions?.comment_management) {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  if (isForCommenting) {
+    // Users with fulfillment permission can fetch templates for commenting
+    const hasFulfillmentPermission =
+      session.user.permissions?.fulfillment === true ||
+      session.user.permissions?.fulfillment === '*' ||
+      (typeof session.user.permissions?.fulfillment === 'object' && session.user.permissions.fulfillment !== null);
+
+    if (!hasFulfillmentPermission && session.user.type !== 'internal') {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+  } else {
+    // Original permission check for template management
+    if (session.user.type === 'vendor' || session.user.type === 'customer') {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+
+    if (!session.user.permissions?.comment_management) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
   }
 
   // Step 3: Fetch data

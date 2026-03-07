@@ -93,7 +93,7 @@ export async function POST(
     // Transform the response to match expected format
     const response = {
       id: comment.id,
-      serviceId: comment.serviceId,
+      orderItemId: comment.orderItemId,
       templateId: comment.templateId,
       finalText: comment.finalText,
       isInternalOnly: comment.isInternalOnly,
@@ -171,7 +171,18 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Step 2: Validate user has access to the service
+    // Step 2: Check fulfillment permission (same as POST)
+    const userPermissions = session.user.permissions || {};
+    const hasFulfillmentPermission =
+      userPermissions.fulfillment === true ||
+      (Array.isArray(userPermissions.fulfillment) && userPermissions.fulfillment.includes('*')) ||
+      (userPermissions.fulfillment && typeof userPermissions.fulfillment === 'object');
+
+    if (!hasFulfillmentPermission) {
+      return NextResponse.json({ error: 'You do not have permission to view comments' }, { status: 403 });
+    }
+
+    // Step 3: Validate user has access to the service
     const service = new ServiceCommentService();
     const userType = session.user.type || 'internal';
     const hasAccess = await service.validateUserAccess(
@@ -184,7 +195,7 @@ export async function GET(
       return NextResponse.json({ error: 'You do not have access to view this service' }, { status: 403 });
     }
 
-    // Step 3: Get comments with visibility filtering
+    // Step 4: Get comments with visibility filtering
     const comments = await service.getServiceComments(
       params.id,
       userType,
@@ -194,7 +205,7 @@ export async function GET(
     // Transform the response to match expected format
     const transformedComments = comments.map(comment => ({
       id: comment.id,
-      serviceId: comment.serviceId,
+      orderItemId: comment.orderItemId,
       templateId: comment.templateId,
       finalText: comment.finalText,
       isInternalOnly: comment.isInternalOnly,
