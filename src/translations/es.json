@@ -225,5 +225,8 @@
   "module.fulfillment.commentPlaceholder": "Enter your comment here...",
   "module.fulfillment.commentCharacterLimit": "1000 characters maximum",
   "module.fulfillment.commentRequired": "Comment text is required",
-  "module.fulfillment.templateRequired": "Please select a comment template"
+  "module.fulfillment.templateRequired": "Please select a comment template",
+  "serviceComments.title": "Comentarios",
+  "serviceComments.addComment": "Agregar Comentario",
+  "serviceComments.emptyState": "No hay comentarios todavía. Agregue el primer comentario."
 }

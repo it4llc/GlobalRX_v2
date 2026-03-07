@@ -10,10 +10,10 @@ import {
 
 export class ServiceCommentService {
   /**
-   * Create a new comment for a service
+   * Create a new comment for a service (order item)
    */
   async createComment(
-    serviceId: string,
+    orderItemId: string,
     data: CreateServiceCommentInput,
     userId: string
   ) {
@@ -25,13 +25,13 @@ export class ServiceCommentService {
       throw new Error('Comment text cannot exceed 1000 characters');
     }
 
-    // Verify service exists and fetch order context for access validation
-    const service = await prisma.servicesFulfillment.findUnique({
-      where: { id: serviceId },
+    // Verify order item exists and fetch order context for access validation
+    const orderItem = await prisma.orderItem.findUnique({
+      where: { id: orderItemId },
       include: { order: true }
     });
 
-    if (!service) {
+    if (!orderItem) {
       throw new Error('Service not found');
     }
 
@@ -50,9 +50,9 @@ export class ServiceCommentService {
 
     // Business rule: Template must be configured for this service type and current status
     // This prevents using inappropriate templates (e.g., "Processing" templates on "Completed" services)
-    // ServicesFulfillment.serviceId references the Service definition which has the service code
+    // OrderItem.serviceId references the Service definition which has the service code
     const serviceDefinition = await prisma.service.findUnique({
-      where: { id: service.serviceId },
+      where: { id: orderItem.serviceId },
       select: { code: true }
     });
 
@@ -64,7 +64,7 @@ export class ServiceCommentService {
       where: {
         templateId: data.templateId,
         serviceCode: serviceDefinition.code,
-        status: service.status
+        status: orderItem.status
       }
     });
 
@@ -79,7 +79,7 @@ export class ServiceCommentService {
       // to prevent accidentally exposing sensitive information to customers
       const newComment = await tx.serviceComment.create({
         data: {
-          serviceId: serviceId,
+          orderItemId: orderItemId,
           templateId: data.templateId,
           finalText: data.finalText,
           isInternalOnly: data.isInternalOnly ?? true,
@@ -103,7 +103,7 @@ export class ServiceCommentService {
 
     logger.info('Service comment created', {
       commentId: comment.id,
-      serviceId: serviceId,
+      orderItemId: orderItemId,
       userId: userId
     });
 
@@ -165,7 +165,7 @@ export class ServiceCommentService {
    * Get comments for a service with visibility filtering
    */
   async getServiceComments(
-    serviceId: string,
+    orderItemId: string,
     userRole: string,
     userId: string
   ) {
@@ -173,10 +173,10 @@ export class ServiceCommentService {
     // Customers see only external comments to protect sensitive internal communications
     // Internal and vendor users see all comments for full context when fulfilling services
     const whereClause: {
-      serviceId: string;
+      orderItemId: string;
       isInternalOnly?: boolean;
     } = {
-      serviceId: serviceId
+      orderItemId: orderItemId
     };
 
     // Only customers have filtered visibility - they cannot see internal-only comments
@@ -244,26 +244,26 @@ export class ServiceCommentService {
   }
 
   /**
-   * Validate if a user has access to a service
+   * Validate if a user has access to a service (order item)
    *
    * Business rules for service access:
    * - Internal users: Full access to all services (for support and management)
-   * - Vendor users: Access only to services assigned to their specific vendor
+   * - Vendor users: For now, access to all services (TODO: implement vendor assignment)
    * - Customer users: Access only to services within orders they own
    */
   async validateUserAccess(
-    serviceId: string,
+    orderItemId: string,
     userId: string,
     userType: string
   ): Promise<boolean> {
-    const service = await prisma.servicesFulfillment.findUnique({
-      where: { id: serviceId },
+    const orderItem = await prisma.orderItem.findUnique({
+      where: { id: orderItemId },
       include: {
         order: true
       }
     });
 
-    if (!service) {
+    if (!orderItem) {
       return false;
     }
 
@@ -281,16 +281,16 @@ export class ServiceCommentService {
       return false;
     }
 
-    // Vendor users can only access services assigned to their vendor
-    // This ensures vendors only see services they're responsible for fulfilling
+    // Vendor users: For Phase 2c, allow access to all services
+    // TODO: In the future, check ServicesFulfillment for vendor assignment
     if (userType === 'vendor') {
-      return service.assignedVendorId === user.vendorId;
+      return true; // Temporarily allow all vendor access
     }
 
     // Customer users can only access services for their orders
     // This maintains data privacy by preventing cross-customer access
     if (userType === 'customer') {
-      return service.order.customerId === user.customerId;
+      return orderItem.order.customerId === user.customerId;
     }
 
     return false;
