@@ -12,6 +12,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { ServiceFulfillmentTable } from './ServiceFulfillmentTable';
 
 interface OrderDetailsViewProps {
   order: {
@@ -31,6 +32,7 @@ interface OrderDetailsViewProps {
       service?: {
         id: string;
         name: string;
+        code?: string;
         category?: string | null;
       };
       location?: {
@@ -218,42 +220,32 @@ export function OrderDetailsView({ order }: OrderDetailsViewProps) {
         {/* Services Section */}
         <section>
           <h2 className="text-lg font-medium text-gray-900 mb-4">{t('module.fulfillment.services')}</h2>
-          <div className="bg-white rounded-lg border">
+          <div className="bg-white rounded-lg border p-4">
             {order.items && order.items.length > 0 ? (
-              <div className="services-list">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('module.fulfillment.service')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('module.fulfillment.location')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('common.status')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {order.items.map((item) => (
-                      <tr key={item.id}>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {item.service ? formatValue(item.service.name) : '--'}
-                          {item.service?.category && (
-                            <div className="text-xs text-gray-500">{item.service.category}</div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {item.location ? formatValue(item.location.name) : '--'}
-                          {item.location?.code2 && (
-                            <div className="text-xs text-gray-500">({item.location.code2})</div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColorClass(item.status)}`}>
-                            {formatStatus(item.status)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ServiceFulfillmentTable
+                orderId={order.id}
+                services={order.items.map(item => ({
+                  id: item.id,
+                  orderId: order.id,
+                  orderItemId: item.id,
+                  serviceId: item.service?.id || '',
+                  locationId: item.location?.id || '',
+                  status: item.status || 'pending',
+                  assignedVendorId: null,
+                  vendorNotes: null,
+                  internalNotes: null,
+                  assignedAt: null,
+                  assignedBy: null,
+                  completedAt: null,
+                  createdAt: order.createdAt.toString(),
+                  updatedAt: order.updatedAt.toString(),
+                  service: item.service || { id: '', name: 'Unknown Service', code: undefined, category: null },
+                  location: item.location || { id: '', name: 'Unknown Location', code2: null },
+                  assignedVendor: null
+                }))}
+                readOnly={false}
+                showNotes={false}
+              />
             ) : (
               <div className="p-4 text-sm text-gray-500">{t('module.fulfillment.noServices')}</div>
             )}
