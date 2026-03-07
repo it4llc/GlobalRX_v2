@@ -14,6 +14,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
+import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
 
 export interface StatusOption {
   value: string;
@@ -28,20 +29,15 @@ interface OrderStatusDropdownProps {
   options?: StatusOption[];
 }
 
-// Default status options
+// Default status options using the new service status values
 const defaultStatusOptions: StatusOption[] = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'processing', label: 'Processing' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'failed', label: 'Failed' },
-  { value: 'submitted', label: 'Submitted' },
-  { value: 'in_review', label: 'In Review' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'more_info_needed', label: 'More Info Needed' },
+  { value: SERVICE_STATUSES.DRAFT, label: SERVICE_STATUSES.DRAFT },
+  { value: SERVICE_STATUSES.SUBMITTED, label: SERVICE_STATUSES.SUBMITTED },
+  { value: SERVICE_STATUSES.PROCESSING, label: SERVICE_STATUSES.PROCESSING },
+  { value: SERVICE_STATUSES.MISSING_INFO, label: SERVICE_STATUSES.MISSING_INFO },
+  { value: SERVICE_STATUSES.COMPLETED, label: SERVICE_STATUSES.COMPLETED },
+  { value: SERVICE_STATUSES.CANCELLED, label: SERVICE_STATUSES.CANCELLED },
+  { value: SERVICE_STATUSES.CANCELLED_DNB, label: SERVICE_STATUSES.CANCELLED_DNB },
 ];
 
 // Format status for display
@@ -59,18 +55,13 @@ const formatStatusLabel = (status: string, options: StatusOption[]): string => {
 // Get status color class
 const getStatusColorClass = (status: string): string => {
   const statusColors: Record<string, string> = {
-    pending: 'status-pending',
-    processing: 'status-processing',
-    completed: 'status-completed',
-    cancelled: 'status-cancelled',
-    on_hold: 'status-on-hold',
-    failed: 'status-failed',
-    submitted: 'status-submitted',
-    in_review: 'status-in-review',
-    approved: 'status-approved',
-    rejected: 'status-rejected',
-    draft: 'status-draft',
-    more_info_needed: 'status-warning',
+    [SERVICE_STATUSES.DRAFT]: 'status-draft',
+    [SERVICE_STATUSES.SUBMITTED]: 'status-submitted',
+    [SERVICE_STATUSES.PROCESSING]: 'status-processing',
+    [SERVICE_STATUSES.MISSING_INFO]: 'status-warning',
+    [SERVICE_STATUSES.COMPLETED]: 'status-completed',
+    [SERVICE_STATUSES.CANCELLED]: 'status-cancelled',
+    [SERVICE_STATUSES.CANCELLED_DNB]: 'status-cancelled',
   };
   return statusColors[status] || '';
 };

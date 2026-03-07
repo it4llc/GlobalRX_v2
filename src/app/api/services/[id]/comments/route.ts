@@ -63,6 +63,11 @@ export async function POST(
     const validation = createServiceCommentSchema.safeParse(body);
 
     if (!validation.success) {
+      logger.error('Comment validation failed', {
+        body,
+        errors: validation.error.errors,
+        serviceId: params.id
+      });
       const errorMessage = validation.error.errors[0]?.message || 'Invalid input';
       const field = validation.error.errors[0]?.path[0];
 

@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { ModalDialog, DialogFooter, DialogRef } from '@/components/ui/modal-dialog';
-import { createServiceCommentSchema } from '@/lib/schemas/serviceCommentSchemas';
+import { createServiceCommentSchema } from '@/lib/validations/service-comment';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -40,7 +40,6 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
     close: () => dialogRef.current?.close()
   }));
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>({});
   const [finalText, setFinalText] = useState('');
   const [isInternalOnly, setIsInternalOnly] = useState(true); // Default to true as per spec
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,46 +60,26 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
     }
   }, [isOpen]);
 
-  // Update final text when template or placeholder values change
-  // This provides live preview functionality so users can see exactly what
-  // the comment will look like before saving (critical for accuracy)
+  // Update final text when template changes
+  // Template text becomes the initial value that users can edit freely
   useEffect(() => {
     if (!selectedTemplate) {
       setFinalText('');
       return;
     }
 
-    let text = selectedTemplate.templateText;
-
-    // Extract placeholders from template text if not provided
-    // Placeholders are in format [PLACEHOLDER_NAME] and must all be replaced
-    const placeholders = selectedTemplate.placeholders ||
-      (selectedTemplate.templateText.match(/\[([^\]]+)\]/g) || [])
-        .map(match => match.slice(1, -1));
-
-    // Replace placeholders with values - unreplaced placeholders will remain as [NAME]
-    // This allows users to see which placeholders still need values
-    placeholders.forEach(placeholder => {
-      const value = placeholderValues[placeholder] || `[${placeholder}]`;
-      // Replace all occurrences of the placeholder
-      const regex = new RegExp(`\\[${placeholder}\\]`, 'g');
-      text = text.replace(regex, value);
-    });
-
-    setFinalText(text);
-  }, [selectedTemplate, placeholderValues]);
+    // Set template text as the initial value for the editable textarea
+    setFinalText(selectedTemplate.templateText);
+  }, [selectedTemplate]);
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
-    setPlaceholderValues({});
     setError(null);
   };
 
-  const handlePlaceholderChange = (placeholder: string, value: string) => {
-    setPlaceholderValues(prev => ({
-      ...prev,
-      [placeholder]: value
-    }));
+  const handleTextChange = (value: string) => {
+    setFinalText(value);
+    setError(null);
   };
 
   const handleSubmit = async () => {
@@ -108,6 +87,11 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
 
     try {
       // Validate the data
+      console.log('Validating comment data:', {
+        templateId: selectedTemplateId,
+        finalText: finalText.substring(0, 50) + '...',
+        isInternalOnly
+      });
       const validationResult = createServiceCommentSchema.safeParse({
         templateId: selectedTemplateId,
         finalText,
@@ -138,7 +122,6 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
   const handleClose = () => {
     // Reset state
     setSelectedTemplateId('');
-    setPlaceholderValues({});
     setFinalText('');
     setIsInternalOnly(true);
     setError(null);
@@ -155,6 +138,9 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
   const characterCount = finalText.length;
   const maxCharacters = 1000;
 
+  // Check if the text is empty or only whitespace
+  const isTextEmpty = !finalText || finalText.trim().length === 0;
+
   return (
     <ModalDialog
       ref={dialogRef}
@@ -166,7 +152,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
           onCancel={handleClose}
           onConfirm={handleSubmit}
           confirmText="Add Comment"
-          disabled={!selectedTemplateId || characterCount > maxCharacters || isSubmitting}
+          disabled={!selectedTemplateId || isTextEmpty || characterCount > maxCharacters || isSubmitting}
           loading={isSubmitting}
         />
       }
@@ -185,81 +171,38 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
             <option value="">Select a template...</option>
             {activeTemplates.map(template => (
               <option key={template.id} value={template.id}>
-                {template.shortName} - {template.longName}
+                {template.shortName && template.longName
+                  ? `${template.shortName} - ${template.longName}`
+                  : template.name || 'Unnamed Template'}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Template Text with Placeholders */}
+        {/* Editable Template Text */}
         {selectedTemplate && (
-          <>
-            <div>
-              <Label>Template Text</Label>
-              <div className="mt-1 p-3 bg-gray-50 rounded-md text-sm">
-                {selectedTemplate.templateText.split(/(\[[^\]]+\])/).map((part, index) => {
-                  const isPlaceholder = part.startsWith('[') && part.endsWith(']');
-                  return (
-                    <span
-                      key={index}
-                      className={isPlaceholder ? 'text-blue-600 font-medium' : ''}
-                    >
-                      {part}
-                    </span>
-                  );
-                })}
-              </div>
+          <div>
+            <Label htmlFor="comment-text">Comment Text *</Label>
+            <Textarea
+              id="comment-text"
+              className="mt-1"
+              value={finalText}
+              onChange={(e) => handleTextChange(e.target.value)}
+              rows={6}
+              disabled={isSubmitting}
+              placeholder="Enter your comment..."
+              aria-label="Comment text"
+            />
+            <div className={`text-sm mt-1 ${characterCount > maxCharacters ? 'text-red-600' : 'text-gray-500'}`}>
+              {characterCount}/{maxCharacters} characters
             </div>
-
-            {/* Placeholder Fields */}
-            {(() => {
-              const placeholders = selectedTemplate.placeholders ||
-                (selectedTemplate.templateText.match(/\[([^\]]+)\]/g) || [])
-                  .map(match => match.slice(1, -1));
-
-              return placeholders.length > 0 && (
-                <div className="space-y-3">
-                  <Label>Fill in the placeholders</Label>
-                  {placeholders.map(placeholder => (
-                  <div key={placeholder}>
-                    <Label htmlFor={`placeholder-${placeholder}`} className="text-sm">
-                      {placeholder} *
-                    </Label>
-                    <input
-                      id={`placeholder-${placeholder}`}
-                      type="text"
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      value={placeholderValues[placeholder] || ''}
-                      onChange={(e) => handlePlaceholderChange(placeholder, e.target.value)}
-                      placeholder={`Enter ${placeholder}`}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                ))}
-                </div>
-              );
-            })()}
-
-            {/* Live Preview */}
-            <div>
-              <Label>Preview</Label>
-              <Textarea
-                className="mt-1"
-                value={finalText}
-                readOnly
-                rows={4}
-              />
-              <div className={`text-sm mt-1 ${characterCount > maxCharacters ? 'text-red-600' : 'text-gray-500'}`}>
-                {characterCount}/1000 characters
-              </div>
-            </div>
-          </>
+          </div>
         )}
 
         {/* Show character count when no template selected */}
         {!selectedTemplate && (
           <div className="text-sm text-gray-500">
-            0/1000 characters
+            0/{maxCharacters} characters
           </div>
         )}
 

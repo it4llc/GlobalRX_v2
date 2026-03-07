@@ -6,23 +6,16 @@ export const createServiceCommentSchema = z.object({
   finalText: z.string()
     .trim()
     .min(1, 'Comment text is required')
-    .max(1000, 'Comment cannot exceed 1000 characters')
-    .refine(
-      (text) => !text.includes('[') && !text.includes(']'),
-      'All placeholders must be replaced'
-    ),
+    .max(1000, 'Comment cannot exceed 1000 characters'),
   isInternalOnly: z.boolean().default(true)
 });
 
 // Schema for updating an existing service comment
 export const updateServiceCommentSchema = z.object({
   finalText: z.string()
+    .trim()
     .min(1, 'Comment text is required')
     .max(1000, 'Comment cannot exceed 1000 characters')
-    .refine(
-      (text) => !text.includes('[') && !text.includes(']'),
-      'All placeholders must be replaced'
-    )
     .optional(),
   isInternalOnly: z.boolean().optional()
 });

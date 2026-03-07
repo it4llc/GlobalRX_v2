@@ -10,9 +10,7 @@ export const createServiceCommentSchema = z.object({
   finalText: z.string()
     .min(1, 'String must contain at least 1 character(s)')
     .max(1000, 'Comment text cannot exceed 1000 characters')
-    .refine(text => text.trim().length > 0, 'Comment text cannot be empty or only whitespace')
-    .refine(text => isTextSafe(text), 'Comment contains potentially unsafe content')
-    .transform(text => sanitizeText(text)),
+    .refine(text => text.trim().length > 0, 'Comment text cannot be empty or only whitespace'),
   isInternalOnly: z.boolean().optional().default(true)
 });
 
@@ -22,8 +20,6 @@ export const updateServiceCommentSchema = z.object({
     .min(1, 'String must contain at least 1 character(s)')
     .max(1000, 'Comment text cannot exceed 1000 characters')
     .refine(text => text.trim().length > 0, 'Comment text cannot be empty or only whitespace')
-    .refine(text => isTextSafe(text), 'Comment contains potentially unsafe content')
-    .transform(text => sanitizeText(text))
     .optional(),
   isInternalOnly: z.boolean().optional()
 });

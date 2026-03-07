@@ -12,7 +12,7 @@ import {
 describe('service-fulfillment schemas', () => {
   describe('serviceStatusSchema', () => {
     it('should accept valid status values', () => {
-      const validStatuses = ['pending', 'submitted', 'processing', 'completed', 'cancelled'];
+      const validStatuses = ['Draft', 'Submitted', 'Processing', 'Missing Information', 'Completed', 'Cancelled', 'Cancelled-DNB'];
 
       validStatuses.forEach(status => {
         const result = serviceStatusSchema.safeParse(status);
@@ -22,7 +22,7 @@ describe('service-fulfillment schemas', () => {
     });
 
     it('should reject invalid status values', () => {
-      const invalidStatuses = ['', 'in-progress', 'done', 'PENDING', 'Complete', 123, null, undefined];
+      const invalidStatuses = ['', 'in-progress', 'done', 'pending', 'complete', 123, null, undefined];
 
       invalidStatuses.forEach(status => {
         const result = serviceStatusSchema.safeParse(status);
@@ -55,11 +55,11 @@ describe('service-fulfillment schemas', () => {
   describe('updateServiceFulfillmentSchema', () => {
     describe('valid data', () => {
       it('should accept status update only', () => {
-        const data = { status: 'processing' };
+        const data = { status: 'Processing' };
         const result = updateServiceFulfillmentSchema.safeParse(data);
 
         expect(result.success).toBe(true);
-        expect(result.data).toEqual({ status: 'processing' });
+        expect(result.data).toEqual({ status: 'Processing' });
       });
 
       it('should accept vendor assignment', () => {
@@ -96,7 +96,7 @@ describe('service-fulfillment schemas', () => {
 
       it('should accept multiple fields at once', () => {
         const data = {
-          status: 'completed',
+          status: 'Completed',
           vendorNotes: 'All checks passed',
           internalNotes: 'No issues found'
         };
@@ -152,7 +152,7 @@ describe('service-fulfillment schemas', () => {
 
       it('should reject unknown fields', () => {
         const data = {
-          status: 'processing',
+          status: 'Processing',
           unknownField: 'value'
         };
         const result = updateServiceFulfillmentSchema.safeParse(data);
@@ -316,12 +316,12 @@ describe('service-fulfillment schemas', () => {
       });
 
       it('should accept status filter', () => {
-        const data = { status: 'completed' };
+        const data = { status: 'Completed' };
         const result = serviceQuerySchema.safeParse(data);
 
         expect(result.success).toBe(true);
         expect(result.data).toEqual({
-          status: 'completed',
+          status: 'Completed',
           limit: 50,
           offset: 0
         });
@@ -353,7 +353,7 @@ describe('service-fulfillment schemas', () => {
       it('should accept all filters together', () => {
         const data = {
           orderId: 'c47d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d',
-          status: 'processing',
+          status: 'Processing',
           vendorId: 'a12d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d',
           limit: 10,
           offset: 20

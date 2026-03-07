@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
   // For fetching templates for commenting (with serviceType/serviceStatus), allow fulfillment permission
   // For managing templates (no params), require comment_management permission
   const searchParams = request.nextUrl.searchParams;
-  const isForCommenting = searchParams.has('serviceType') || searchParams.has('serviceStatus');
+  const serviceType = searchParams.get('serviceType');
+  const serviceStatus = searchParams.get('serviceStatus');
+  const isForCommenting = serviceType || serviceStatus;
 
   if (isForCommenting) {
     // Users with fulfillment permission can fetch templates for commenting
@@ -67,12 +69,32 @@ export async function GET(request: NextRequest) {
 
   // Step 3: Fetch data
   try {
-    const [templates, services, orderStatuses] = await Promise.all([
-      // Get all active templates with their availabilities
-      prisma.commentTemplate.findMany({
+    // Build where clause for template filtering
+    const templateWhere: any = { isActive: true };
+
+    // If serviceType and serviceStatus are provided, filter templates by availability
+    if (serviceType && serviceStatus) {
+      // First get templates that have availability for this service/status combination
+      const availableTemplateIds = await prisma.commentTemplateAvailability.findMany({
         where: {
-          isActive: true
+          serviceCode: serviceType,
+          status: serviceStatus
         },
+        select: {
+          templateId: true
+        }
+      });
+
+      // If we found specific availabilities, filter to those templates
+      if (availableTemplateIds.length > 0) {
+        templateWhere.id = { in: availableTemplateIds.map(a => a.templateId) };
+      }
+    }
+
+    const [templates, services, orderStatuses] = await Promise.all([
+      // Get templates (filtered if serviceType/serviceStatus provided)
+      prisma.commentTemplate.findMany({
+        where: templateWhere,
         include: {
           availabilities: true
         },
@@ -94,14 +116,15 @@ export async function GET(request: NextRequest) {
           name: 'asc'
         }
       }),
-      // Business requirement: Use hardcoded status values for Phase 1 implementation
-      // These represent the standard order workflow progression and match UI expectations
-      // Future phases may make these dynamic, but for now consistency is prioritized
+      // Use the new service status values
       Promise.resolve([
-        { statusCode: 'DRAFT' },
-        { statusCode: 'SUBMITTED' },
-        { statusCode: 'PROCESSING' },
-        { statusCode: 'COMPLETED' }
+        { statusCode: 'Draft' },
+        { statusCode: 'Submitted' },
+        { statusCode: 'Processing' },
+        { statusCode: 'Missing Information' },
+        { statusCode: 'Completed' },
+        { statusCode: 'Cancelled' },
+        { statusCode: 'Cancelled-DNB' }
       ])
     ]);
 

@@ -66,10 +66,7 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
     if (text.length > 1000) {
       throw new Error('Comment cannot exceed 1000 characters');
     }
-    // Check for unreplaced placeholders
-    if (/\[.*?\]/.test(text)) {
-      throw new Error('All placeholders must be replaced');
-    }
+    // Brackets are now allowed as regular text - no validation needed
   };
 
   // Fetch comments for a single service
@@ -190,7 +187,8 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create comment');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to create comment' }));
+        throw new Error(errorData.error || 'Failed to create comment');
       }
 
       const result = await response.json();
