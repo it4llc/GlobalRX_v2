@@ -53,12 +53,12 @@ export async function GET(request: NextRequest) {
       session.user.permissions?.fulfillment === '*' ||
       (typeof session.user.permissions?.fulfillment === 'object' && session.user.permissions.fulfillment !== null);
 
-    if (!hasFulfillmentPermission && session.user.type !== 'internal') {
+    if (!hasFulfillmentPermission && session.user.userType !== 'internal') {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
   } else {
     // Original permission check for template management
-    if (session.user.type === 'vendor' || session.user.type === 'customer') {
+    if (session.user.userType === 'vendor' || session.user.userType === 'customer') {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 

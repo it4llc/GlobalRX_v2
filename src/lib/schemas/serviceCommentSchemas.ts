@@ -10,15 +10,14 @@ export {
   orderServiceCommentsResponseSchema
 } from '@/lib/validations/service-comment';
 
-// Deprecated: bulkCommentsResponseSchema - use getServiceCommentsResponseSchema instead
-export const bulkCommentsResponseSchema = z.array(serviceCommentResponseSchema);
-
-// Deprecated: bulkOrderCommentsResponseSchema - use orderServiceCommentsResponseSchema instead
-export const bulkOrderCommentsResponseSchema = z.object({
-  commentsByService: z.record(z.string(), z.array(serviceCommentResponseSchema))
-});
+// Import schemas for type inference
+import {
+  createServiceCommentSchema as _createSchema,
+  updateServiceCommentSchema as _updateSchema,
+  serviceCommentResponseSchema as _responseSchema
+} from '@/lib/validations/service-comment';
 
 // Type inference from schemas
-export type CreateServiceCommentInput = z.infer<typeof createServiceCommentSchema>;
-export type UpdateServiceCommentInput = z.infer<typeof updateServiceCommentSchema>;
-export type ServiceCommentResponse = z.infer<typeof serviceCommentResponseSchema>;
+export type CreateServiceCommentInput = z.infer<typeof _createSchema>;
+export type UpdateServiceCommentInput = z.infer<typeof _updateSchema>;
+export type ServiceCommentResponse = z.infer<typeof _responseSchema>;

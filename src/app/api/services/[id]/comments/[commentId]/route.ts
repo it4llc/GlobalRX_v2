@@ -36,7 +36,7 @@ export async function PUT(
     }
 
     // Step 2: Check if user is internal (vendors and customers cannot edit comments)
-    const userType = session.user.type || 'internal';
+    const userType = session.user.userType || 'internal';
     if (userType === 'vendor' || userType === 'customer') {
       return NextResponse.json({ error: 'Only internal users can edit comments' }, { status: 403 });
     }
@@ -163,7 +163,7 @@ export async function DELETE(
     }
 
     // Step 2: Check if user is internal (vendors and customers cannot delete comments)
-    const userType = session.user.type || 'internal';
+    const userType = session.user.userType || 'internal';
     if (userType === 'vendor' || userType === 'customer') {
       return NextResponse.json({ error: 'Only internal users can delete comments' }, { status: 403 });
     }
