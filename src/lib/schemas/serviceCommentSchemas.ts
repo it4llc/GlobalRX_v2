@@ -1,69 +1,19 @@
 import { z } from 'zod';
+// Re-export the validation schemas to maintain backward compatibility
+// while avoiding duplication. The validation file has better validation
+// (UUID checks, proper trim validation) so we use that as source of truth
+export {
+  createServiceCommentSchema,
+  updateServiceCommentSchema,
+  serviceCommentResponseSchema,
+  getServiceCommentsResponseSchema,
+  orderServiceCommentsResponseSchema
+} from '@/lib/validations/service-comment';
 
-// Schema for creating a new service comment
-export const createServiceCommentSchema = z.object({
-  templateId: z.string().min(1, 'Template ID is required'),
-  finalText: z.string()
-    .trim()
-    .min(1, 'Comment text is required')
-    .max(1000, 'Comment cannot exceed 1000 characters'),
-  isInternalOnly: z.boolean().default(true)
-});
-
-// Schema for updating an existing service comment
-export const updateServiceCommentSchema = z.object({
-  finalText: z.string()
-    .trim()
-    .min(1, 'Comment text is required')
-    .max(1000, 'Comment cannot exceed 1000 characters')
-    .optional(),
-  isInternalOnly: z.boolean().optional()
-});
-
-// Schema for a service comment response from the API
-export const serviceCommentResponseSchema = z.object({
-  id: z.string(),
-  serviceId: z.string(),
-  templateId: z.string(),
-  templateName: z.string().optional(),
-  finalText: z.string(),
-  isInternalOnly: z.boolean(),
-  createdBy: z.string(),
-  createdByName: z.string().optional(),
-  createdAt: z.union([z.string(), z.date()]).transform(val =>
-    val instanceof Date ? val.toISOString() : val
-  ),
-  updatedBy: z.string().nullable().optional().default(null),
-  updatedByName: z.string().nullable().optional().default(null),
-  updatedAt: z.union([z.string(), z.date()]).nullable().optional().default(null).transform(val =>
-    val instanceof Date ? val.toISOString() : val
-  ),
-  template: z.object({
-    id: z.string(),
-    name: z.string(),
-    templateText: z.string(),
-    placeholders: z.array(z.string()),
-    category: z.string(),
-    isActive: z.boolean(),
-    createdAt: z.string(),
-    updatedAt: z.string()
-  }).optional(),
-  createdByUser: z.object({
-    id: z.string(),
-    name: z.string(),
-    email: z.string()
-  }).optional(),
-  updatedByUser: z.object({
-    id: z.string(),
-    name: z.string(),
-    email: z.string()
-  }).nullable().optional()
-});
-
-// Schema for bulk comments response
+// Deprecated: bulkCommentsResponseSchema - use getServiceCommentsResponseSchema instead
 export const bulkCommentsResponseSchema = z.array(serviceCommentResponseSchema);
 
-// Schema for bulk order comments response
+// Deprecated: bulkOrderCommentsResponseSchema - use orderServiceCommentsResponseSchema instead
 export const bulkOrderCommentsResponseSchema = z.object({
   commentsByService: z.record(z.string(), z.array(serviceCommentResponseSchema))
 });

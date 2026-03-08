@@ -1,7 +1,7 @@
 # Service Comments API Documentation
 
 ## Overview
-The Service Comments API provides endpoints for managing comments on service fulfillment items. Comments support template-based creation, role-based visibility, and audit trail for edits.
+The Service Comments API provides endpoints for managing comments on service fulfillment items. Comments use templates as **fully editable starting points** - users can modify any part of the template text, with brackets treated as regular text characters. This represents a major change from previous placeholder-based validation. The API supports role-based visibility and maintains a complete audit trail for all edits.
 
 ## Authentication
 All endpoints require authentication via NextAuth session. Users must have the `fulfillment` permission to create or edit comments.
@@ -19,8 +19,11 @@ Creates a new comment for a specific service.
 #### Request Body
 ```json
 {
-  "templateId": "uuid",           // Required: Comment template ID
-  "finalText": "string",          // Required: Comment text (1-1000 chars)
+  "templateId": "uuid",           // Required: Template ID (for tracking origin)
+  "finalText": "string",          // Required: Final comment text (1-1000 chars)
+                                  // Can be completely different from template
+                                  // Brackets [ ] are treated as regular text
+                                  // No placeholder validation performed
   "isInternalOnly": boolean       // Optional: Default true
 }
 ```
@@ -54,11 +57,13 @@ Creates a new comment for a specific service.
 - **404 Not Found** - Service not found
 
 #### Business Rules
-- Template must be active
-- Template must be available for service type and status
-- Text cannot be empty or exceed 1000 characters
-- Text is sanitized for security
-- isInternalOnly defaults to true
+- Template must be active and available for the service type and status
+- Text cannot be empty or exceed 1000 characters (enforced at API level)
+- **Text can be completely different from template** - no similarity requirements
+- **No validation on brackets** - they're treated as regular text characters
+- **No placeholder replacement** - final text is saved exactly as entered by user
+- Text is sanitized for XSS/injection security before storage
+- isInternalOnly defaults to true for safety (external visibility must be explicit)
 
 ---
 

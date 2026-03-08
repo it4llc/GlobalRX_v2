@@ -10,12 +10,14 @@
 
 ## Overview
 
-The Service Comments system enables users to add standardized comments to individual services within orders using pre-configured comment templates. Comments are attached at the SERVICE level to support service-specific fulfillment workflows. The system includes complete CRUD operations, role-based visibility filtering, and comprehensive audit trails.
+The Service Comments system enables users to add comments to individual services within orders using pre-configured comment templates as **fully editable starting points**. This represents a major architectural change - templates no longer enforce placeholder validation but serve as editable text that users can completely modify. Brackets and placeholders are treated as regular text that can be kept, removed, or changed as needed. Comments are attached at the SERVICE level to support service-specific fulfillment workflows. The system includes complete CRUD operations, role-based visibility filtering, and comprehensive audit trails.
 
 ## Key Features
 
 ### ✅ Implemented (Phase 2b - Backend)
-- **Template-based commenting** - All comments must use predefined templates
+- **Template-based foundation** - All comments start from predefined templates but are fully editable
+- **Full text editing** - Template text serves as starting point that can be completely modified
+- **No bracket validation** - Brackets treated as regular text, not special placeholders
 - **Service-level attachment** - Comments belong to individual services, not orders
 - **Role-based visibility** - Internal/External comment filtering based on user type
 - **Edit capability** - Internal users can edit comments with full audit trail
@@ -25,15 +27,18 @@ The Service Comments system enables users to add standardized comments to indivi
 - **Bulk retrieval** - Efficient API for loading all order service comments
 - **Database schema** - ServiceComment table with proper indexes and relations
 
-### ✅ Implemented (Phase 2c - Frontend)
+### ✅ Implemented (Phase 2c - Frontend) - FULL TEXT EDITING ARCHITECTURE
 - **Expandable comment sections** - Comments shown in expandable rows within service fulfillment tables
-- **Comment creation modals** - Template-based comment creation with placeholder support
-- **Comment editing interface** - Internal users can edit comment text and visibility
+- **Comment creation modals** - Template selection with **single editable textarea** (no placeholder fields)
+- **Full text editing** - Template text appears as **starting point** that can be completely modified
+- **No placeholder validation** - Brackets [like this] treated as regular editable text characters
+- **Complete text freedom** - Users can delete entire template and write from scratch
+- **Comment editing interface** - Internal users can edit comment text and visibility with same full-text editing
 - **Comment deletion** - Internal users can delete comments with confirmation dialog
 - **Role-based UI controls** - Different UI capabilities based on user type (internal/vendor/customer)
 - **Visual distinction** - Internal vs external comments clearly identified
-- **Real-time character counting** - Live feedback during comment creation and editing
-- **Template placeholder replacement** - Dynamic form fields for template placeholders with live preview
+- **Real-time character counting** - Live feedback during comment creation and editing (1-1000 characters)
+- **Template tracking preserved** - Original templateId maintained for reporting even if text completely changed
 
 ### ⬜ Future Enhancements
 - **Real-time updates** - Live comment updates across user sessions

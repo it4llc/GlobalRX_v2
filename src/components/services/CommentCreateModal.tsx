@@ -9,15 +9,28 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertTriangle } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
+import type { CreateServiceCommentInput } from '@/types/comment-template';
+
+// Interface for templates with the specific properties used in this modal
+interface CommentModalTemplate {
+  id: string;
+  shortName?: string;
+  longName?: string;
+  name?: string;
+  templateText: string;
+  serviceTypes?: string[];
+  statuses?: string[];
+}
 
 interface CommentCreateModalProps {
   serviceName?: string;
-  templates?: any[];
-  onCreateComment: (data: any) => Promise<void>;
+  templates?: CommentModalTemplate[];
+  onCreateComment: (data: CreateServiceCommentInput) => Promise<void>;
   onCancel: () => void;
   isOpen?: boolean;
   onClose?: () => void;
-  onSubmit?: (data: any) => Promise<void>;
+  onSubmit?: (data: CreateServiceCommentInput) => Promise<void>;
   serviceId?: string;
 }
 
@@ -32,6 +45,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
     onSubmit,
     serviceId
   }, ref) => {
+  const { t } = useTranslation();
   const dialogRef = useRef<DialogRef>(null);
 
   // Use ref from parent if provided, otherwise use local ref
@@ -60,8 +74,10 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
     }
   }, [isOpen]);
 
-  // Update final text when template changes
-  // Template text becomes the initial value that users can edit freely
+  // Template text becomes editable starting point - major behavior change
+  // Previously templates had rigid bracket validation and placeholder fields
+  // Now the full template text (including brackets) appears in one editable textarea
+  // Users can modify any part of the text, keeping or removing brackets as needed
   useEffect(() => {
     if (!selectedTemplate) {
       setFinalText('');
@@ -69,6 +85,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
     }
 
     // Set template text as the initial value for the editable textarea
+    // This text can be completely changed by the user - brackets are just regular text
     setFinalText(selectedTemplate.templateText);
   }, [selectedTemplate]);
 
@@ -87,11 +104,6 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
 
     try {
       // Validate the data
-      console.log('Validating comment data:', {
-        templateId: selectedTemplateId,
-        finalText: finalText.substring(0, 50) + '...',
-        isInternalOnly
-      });
       const validationResult = createServiceCommentSchema.safeParse({
         templateId: selectedTemplateId,
         finalText,
@@ -139,19 +151,21 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
   const maxCharacters = 1000;
 
   // Check if the text is empty or only whitespace
+  // This validation prevents saving comments with no actual content
+  // even if user starts with template text but deletes everything
   const isTextEmpty = !finalText || finalText.trim().length === 0;
 
   return (
     <ModalDialog
       ref={dialogRef}
-      title={`Add Comment to ${serviceName}`}
+      title={`${t('serviceComments.addCommentTo')} ${serviceName}`}
       maxWidth="lg"
       onClose={handleClose}
       footer={
         <DialogFooter
           onCancel={handleClose}
           onConfirm={handleSubmit}
-          confirmText="Add Comment"
+          confirmText={t('common.addComment')}
           disabled={!selectedTemplateId || isTextEmpty || characterCount > maxCharacters || isSubmitting}
           loading={isSubmitting}
         />
@@ -160,7 +174,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
       <div className="space-y-4">
         {/* Template Selection */}
         <div>
-          <Label htmlFor="template">Template *</Label>
+          <Label htmlFor="template">{t('serviceComments.template')} *</Label>
           <select
             id="template"
             className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
@@ -168,12 +182,12 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
             onChange={(e) => handleTemplateChange(e.target.value)}
             disabled={isSubmitting}
           >
-            <option value="">Select a template...</option>
+            <option value="">{t('serviceComments.selectTemplate')}</option>
             {activeTemplates.map(template => (
               <option key={template.id} value={template.id}>
                 {template.shortName && template.longName
                   ? `${template.shortName} - ${template.longName}`
-                  : template.name || 'Unnamed Template'}
+                  : template.name || t('serviceComments.unnamedTemplate')}
               </option>
             ))}
           </select>
@@ -182,7 +196,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
         {/* Editable Template Text */}
         {selectedTemplate && (
           <div>
-            <Label htmlFor="comment-text">Comment Text *</Label>
+            <Label htmlFor="comment-text">{t('serviceComments.commentText')} *</Label>
             <Textarea
               id="comment-text"
               className="mt-1"
@@ -190,7 +204,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
               onChange={(e) => handleTextChange(e.target.value)}
               rows={6}
               disabled={isSubmitting}
-              placeholder="Enter your comment..."
+              placeholder={t('serviceComments.enterComment')}
               aria-label="Comment text"
             />
             <div className={`text-sm mt-1 ${characterCount > maxCharacters ? 'text-red-600' : 'text-gray-500'}`}>
@@ -199,12 +213,8 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
           </div>
         )}
 
-        {/* Show character count when no template selected */}
-        {!selectedTemplate && (
-          <div className="text-sm text-gray-500">
-            0/{maxCharacters} characters
-          </div>
-        )}
+        {/* Only show character count when template is selected and text is visible */}
+        {/* When no template is selected, the character count is not relevant */}
 
         {/* Visibility Toggle */}
         <div className="flex items-center space-x-2">
@@ -218,7 +228,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
             htmlFor="internal-only"
             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
-            Internal Only (not visible to customers)
+            {t('serviceComments.internalOnlyLabel')}
           </Label>
         </div>
 
@@ -233,7 +243,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
         {/* No templates warning */}
         {activeTemplates.length === 0 && (
           <div className="p-4 text-amber-700 bg-amber-50 rounded-md">
-            No active templates available. Please contact an administrator to create templates.
+            {t('serviceComments.noTemplatesAvailable')}
           </div>
         )}
       </div>
