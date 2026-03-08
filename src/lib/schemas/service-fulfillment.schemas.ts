@@ -1,15 +1,18 @@
 // /GlobalRX_v2/src/lib/schemas/service-fulfillment.schemas.ts
 
 import { z } from 'zod';
+import { SERVICE_STATUS_VALUES } from '@/constants/service-status';
 
-// Service status enum schema
+// Service status enum schema - uses the constants for validation
 export const serviceStatusSchema = z.enum([
-  'pending',
-  'submitted',
-  'processing',
-  'completed',
-  'cancelled'
-]);
+  'Draft',
+  'Submitted',
+  'Processing',
+  'Missing Information',
+  'Completed',
+  'Cancelled',
+  'Cancelled-DNB'
+] as const);
 
 // Change type enum schema for audit logging
 export const changeTypeSchema = z.enum([

@@ -60,6 +60,8 @@ export class ServiceCommentService {
       throw new Error('Service definition not found');
     }
 
+    // Check if the template is configured for this service type and status
+    // This ensures users can only use templates appropriate for the current context
     const availability = await prisma.commentTemplateAvailability.findFirst({
       where: {
         templateId: data.templateId,
@@ -69,6 +71,11 @@ export class ServiceCommentService {
     });
 
     if (!availability) {
+      logger.warn('Template availability check failed', {
+        templateId: data.templateId,
+        serviceCode: serviceDefinition.code,
+        status: orderItem.status
+      });
       throw new Error('Template not available for this service type and status');
     }
 

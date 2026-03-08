@@ -48,25 +48,37 @@ export async function POST(
 
     // Step 3: Validate user has access to the service
     const service = new ServiceCommentService();
+    // User type must be explicitly set - do not default
+    if (!session.user.type) {
+      logger.error('User type not set for user', { userId: session.user.id });
+      return NextResponse.json({ error: 'User type not configured. Please contact support.' }, { status: 403 });
+    }
+
     const hasAccess = await service.validateUserAccess(
       params.id,
       session.user.id,
-      session.user.type || 'internal'
+      session.user.type
     );
 
     if (!hasAccess) {
       return NextResponse.json({ error: 'You do not have access to this service' }, { status: 403 });
     }
 
-    // Step 4: Validate input
+    // Step 4: Validate input - supports full text editing (no bracket validation)
     const body = await request.json();
     const validation = createServiceCommentSchema.safeParse(body);
 
     if (!validation.success) {
+      logger.error('Comment validation failed', {
+        body,
+        errors: validation.error.errors,
+        serviceId: params.id
+      });
       const errorMessage = validation.error.errors[0]?.message || 'Invalid input';
       const field = validation.error.errors[0]?.path[0];
 
       // Return specific error messages for known validation issues
+      // Note: No bracket validation errors because brackets are treated as regular text
       if (field === 'templateId' && errorMessage.includes('Invalid')) {
         return NextResponse.json({ error: 'Invalid template ID format' }, { status: 400 });
       }
@@ -184,7 +196,13 @@ export async function GET(
 
     // Step 3: Validate user has access to the service
     const service = new ServiceCommentService();
-    const userType = session.user.type || 'internal';
+    // User type must be explicitly set - do not default
+    if (!session.user.type) {
+      logger.error('User type not set for user', { userId: session.user.id });
+      return NextResponse.json({ error: 'User type not configured. Please contact support.' }, { status: 403 });
+    }
+
+    const userType = session.user.type;
     const hasAccess = await service.validateUserAccess(
       params.id,
       session.user.id,

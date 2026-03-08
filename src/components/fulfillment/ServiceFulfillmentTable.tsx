@@ -12,6 +12,7 @@ import { ModalDialog, DialogFooter } from '@/components/ui/modal-dialog';
 import type { DialogRef } from '@/components/ui/modal-dialog';
 import { ServiceCommentSection } from '@/components/services/ServiceCommentSection';
 import { useServiceComments } from '@/hooks/useServiceComments';
+import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
 
 interface ServiceFulfillment {
   id: string;
@@ -73,21 +74,23 @@ interface HistoryEntry {
 }
 
 const statusIcons: Record<string, React.ReactNode> = {
-  pending: <Clock className="w-4 h-4 text-yellow-500" />,
-  processing: <Clock className="w-4 h-4 text-blue-500" />,
-  completed: <CheckCircle className="w-4 h-4 text-green-500" />,
-  failed: <XCircle className="w-4 h-4 text-red-500" />,
-  cancelled: <XCircle className="w-4 h-4 text-gray-500" />,
-  on_hold: <AlertCircle className="w-4 h-4 text-orange-500" />
+  [SERVICE_STATUSES.DRAFT]: <Clock className="w-4 h-4 text-gray-500" />,
+  [SERVICE_STATUSES.SUBMITTED]: <Clock className="w-4 h-4 text-blue-500" />,
+  [SERVICE_STATUSES.PROCESSING]: <Clock className="w-4 h-4 text-blue-500" />,
+  [SERVICE_STATUSES.MISSING_INFO]: <AlertCircle className="w-4 h-4 text-orange-500" />,
+  [SERVICE_STATUSES.COMPLETED]: <CheckCircle className="w-4 h-4 text-green-500" />,
+  [SERVICE_STATUSES.CANCELLED]: <XCircle className="w-4 h-4 text-gray-500" />,
+  [SERVICE_STATUSES.CANCELLED_DNB]: <XCircle className="w-4 h-4 text-red-500" />
 };
 
 const statusColors: Record<string, string> = {
-  pending: 'bg-gray-100 text-gray-800',
-  processing: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-  cancelled: 'bg-gray-100 text-gray-800',
-  on_hold: 'bg-orange-100 text-orange-800'
+  [SERVICE_STATUSES.DRAFT]: 'bg-gray-100 text-gray-800',
+  [SERVICE_STATUSES.SUBMITTED]: 'bg-blue-100 text-blue-800',
+  [SERVICE_STATUSES.PROCESSING]: 'bg-blue-100 text-blue-800',
+  [SERVICE_STATUSES.MISSING_INFO]: 'bg-orange-100 text-orange-800',
+  [SERVICE_STATUSES.COMPLETED]: 'bg-green-100 text-green-800',
+  [SERVICE_STATUSES.CANCELLED]: 'bg-gray-100 text-gray-800',
+  [SERVICE_STATUSES.CANCELLED_DNB]: 'bg-red-100 text-red-800'
 };
 
 const formatStatus = (status: string): string => {
@@ -316,7 +319,7 @@ export function ServiceFulfillmentTable({
     if (readOnly) return;
 
     // Show confirmation for cancel status
-    if (newStatus === 'cancelled') {
+    if (newStatus === SERVICE_STATUSES.CANCELLED || newStatus === SERVICE_STATUSES.CANCELLED_DNB) {
       const service = services.find(s => s.id === serviceId);
       if (service) {
         setConfirmCancelService(service);
@@ -365,7 +368,7 @@ export function ServiceFulfillmentTable({
 
   const handleConfirmCancel = async () => {
     if (confirmCancelService) {
-      await handleStatusChange(confirmCancelService.id, 'cancelled');
+      await handleStatusChange(confirmCancelService.id, SERVICE_STATUSES.CANCELLED);
       setConfirmCancelService(null);
       confirmCancelDialogRef.current?.close();
     }
@@ -546,11 +549,9 @@ export function ServiceFulfillmentTable({
             className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
           >
             <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="failed">Failed</option>
+            {SERVICE_STATUS_VALUES.map(status => (
+              <option key={status} value={status}>{status}</option>
+            ))}
           </select>
         </div>
 
@@ -663,8 +664,8 @@ export function ServiceFulfillmentTable({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredServices.map((service) => {
-              const isCompleted = service.status === 'completed';
-              const isCancelled = service.status === 'cancelled';
+              const isCompleted = service.status === SERVICE_STATUSES.COMPLETED;
+              const isCancelled = service.status === SERVICE_STATUSES.CANCELLED || service.status === SERVICE_STATUSES.CANCELLED_DNB;
               const statusDisabled = isCompleted || isCancelled;
 
               const isExpanded = expandedRows.has(service.id);
@@ -729,12 +730,9 @@ export function ServiceFulfillmentTable({
                         className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[service.status] || 'bg-gray-100 text-gray-800'}`}
                         aria-label={`Status for ${service.service.name}`}
                       >
-                        <option value="pending">pending</option>
-                        <option value="processing">processing</option>
-                        <option value="completed">completed</option>
-                        <option value="failed">failed</option>
-                        <option value="cancelled">cancelled</option>
-                        <option value="on_hold">on_hold</option>
+                        {SERVICE_STATUS_VALUES.map(status => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
                       </select>
                     ) : (
                       <span

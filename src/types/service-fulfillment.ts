@@ -1,5 +1,7 @@
 // /GlobalRX_v2/src/types/service-fulfillment.ts
 
+import { ServiceStatus } from '@/constants/service-status';
+
 export interface ServiceFulfillment {
   id: string;
   orderId: string;
@@ -17,7 +19,8 @@ export interface ServiceFulfillment {
   updatedAt: Date;
 }
 
-export type ServiceStatus = 'pending' | 'submitted' | 'processing' | 'completed' | 'cancelled';
+// Re-export for backward compatibility
+export type { ServiceStatus };
 
 export interface ServiceAuditLog {
   id: string;

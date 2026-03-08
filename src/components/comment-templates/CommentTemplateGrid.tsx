@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { CommentTemplate, CommentTemplateAvailability } from '@/lib/schemas/commentTemplateSchemas';
+import { SERVICE_STATUS_DISPLAY_ORDER } from '@/constants/service-status';
 
 interface CommentTemplateGridProps {
   onTemplateSelect?: (template: CommentTemplate) => void;
@@ -265,10 +266,9 @@ export function CommentTemplateGrid({ onTemplateSelect }: CommentTemplateGridPro
     return acc;
   }, {} as Record<string, typeof services>);
 
-  // Define the status order to match typical workflow progression
-  // These are hardcoded status columns as specified - represents the standard
-  // order lifecycle: draft → submitted → processing → completed
-  const displayStatuses = ['DRAFT', 'SUBMITTED', 'PROCESSING', 'COMPLETED'];
+  // Use the status display order from constants to ensure consistency
+  // These match the service-level statuses used in OrderItem and ServicesFulfillment
+  const displayStatuses = SERVICE_STATUS_DISPLAY_ORDER;
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
