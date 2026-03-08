@@ -51,13 +51,25 @@ After creating or selecting a template, use the availability grid:
 - **Status columns**: Fixed as DRAFT, SUBMITTED, PROCESSING, COMPLETED
 - Click **Save Configuration** to persist changes
 
-### Using Templates (Phase 2)
+### Using Templates in Comments (Phase 2b/2c - Implemented) - Full Text Editing
 
-When implemented in Phase 2, templates will be available when adding comments to orders:
-- Templates are filtered based on the current order's service and status
-- Only templates with matching availability configuration will appear
-- Placeholders can be filled in before saving
-- Once saved, comments are immutable for audit trail purposes
+**Major Change:** Templates now serve as fully editable starting points instead of rigid placeholder forms.
+
+**How It Works:**
+- Templates are filtered based on the service type and current status
+- Only templates with matching availability configuration will appear in dropdown
+- **Template text appears in a single editable textarea** - no separate placeholder fields
+- **Brackets are treated as regular text** - no special validation or replacement
+- Users can freely modify the entire text, including:
+  - Keeping brackets as regular text characters
+  - Removing placeholder sections entirely
+  - Completely rewriting the message from scratch
+  - Adding new content not in the original template
+  - Editing any part of the template text
+- The templateId is preserved to track which template was the starting point for reporting
+- Comments can be edited after saving (internal users only) with full audit trail
+
+**Business Rule:** Template selection is still required to provide a starting point and for tracking purposes, but the final text can be completely different from the original template.
 
 ## Technical Details
 

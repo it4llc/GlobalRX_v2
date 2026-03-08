@@ -4,20 +4,33 @@
 
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { ModalDialog, DialogFooter, DialogRef } from '@/components/ui/modal-dialog';
-import { createServiceCommentSchema } from '@/lib/schemas/serviceCommentSchemas';
+import { createServiceCommentSchema } from '@/lib/validations/service-comment';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertTriangle } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
+import type { CreateServiceCommentInput } from '@/types/comment-template';
+
+// Interface for templates with the specific properties used in this modal
+interface CommentModalTemplate {
+  id: string;
+  shortName?: string;
+  longName?: string;
+  name?: string;
+  templateText: string;
+  serviceTypes?: string[];
+  statuses?: string[];
+}
 
 interface CommentCreateModalProps {
   serviceName?: string;
-  templates?: any[];
-  onCreateComment: (data: any) => Promise<void>;
+  templates?: CommentModalTemplate[];
+  onCreateComment: (data: CreateServiceCommentInput) => Promise<void>;
   onCancel: () => void;
   isOpen?: boolean;
   onClose?: () => void;
-  onSubmit?: (data: any) => Promise<void>;
+  onSubmit?: (data: CreateServiceCommentInput) => Promise<void>;
   serviceId?: string;
 }
 
@@ -32,6 +45,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
     onSubmit,
     serviceId
   }, ref) => {
+  const { t } = useTranslation();
   const dialogRef = useRef<DialogRef>(null);
 
   // Use ref from parent if provided, otherwise use local ref
@@ -40,7 +54,6 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
     close: () => dialogRef.current?.close()
   }));
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>({});
   const [finalText, setFinalText] = useState('');
   const [isInternalOnly, setIsInternalOnly] = useState(true); // Default to true as per spec
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,46 +74,29 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
     }
   }, [isOpen]);
 
-  // Update final text when template or placeholder values change
-  // This provides live preview functionality so users can see exactly what
-  // the comment will look like before saving (critical for accuracy)
+  // Template text becomes editable starting point - major behavior change
+  // Previously templates had rigid bracket validation and placeholder fields
+  // Now the full template text (including brackets) appears in one editable textarea
+  // Users can modify any part of the text, keeping or removing brackets as needed
   useEffect(() => {
     if (!selectedTemplate) {
       setFinalText('');
       return;
     }
 
-    let text = selectedTemplate.templateText;
-
-    // Extract placeholders from template text if not provided
-    // Placeholders are in format [PLACEHOLDER_NAME] and must all be replaced
-    const placeholders = selectedTemplate.placeholders ||
-      (selectedTemplate.templateText.match(/\[([^\]]+)\]/g) || [])
-        .map(match => match.slice(1, -1));
-
-    // Replace placeholders with values - unreplaced placeholders will remain as [NAME]
-    // This allows users to see which placeholders still need values
-    placeholders.forEach(placeholder => {
-      const value = placeholderValues[placeholder] || `[${placeholder}]`;
-      // Replace all occurrences of the placeholder
-      const regex = new RegExp(`\\[${placeholder}\\]`, 'g');
-      text = text.replace(regex, value);
-    });
-
-    setFinalText(text);
-  }, [selectedTemplate, placeholderValues]);
+    // Set template text as the initial value for the editable textarea
+    // This text can be completely changed by the user - brackets are just regular text
+    setFinalText(selectedTemplate.templateText);
+  }, [selectedTemplate]);
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
-    setPlaceholderValues({});
     setError(null);
   };
 
-  const handlePlaceholderChange = (placeholder: string, value: string) => {
-    setPlaceholderValues(prev => ({
-      ...prev,
-      [placeholder]: value
-    }));
+  const handleTextChange = (value: string) => {
+    setFinalText(value);
+    setError(null);
   };
 
   const handleSubmit = async () => {
@@ -138,7 +134,6 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
   const handleClose = () => {
     // Reset state
     setSelectedTemplateId('');
-    setPlaceholderValues({});
     setFinalText('');
     setIsInternalOnly(true);
     setError(null);
@@ -155,18 +150,23 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
   const characterCount = finalText.length;
   const maxCharacters = 1000;
 
+  // Check if the text is empty or only whitespace
+  // This validation prevents saving comments with no actual content
+  // even if user starts with template text but deletes everything
+  const isTextEmpty = !finalText || finalText.trim().length === 0;
+
   return (
     <ModalDialog
       ref={dialogRef}
-      title={`Add Comment to ${serviceName}`}
+      title={`${t('serviceComments.addCommentTo')} ${serviceName}`}
       maxWidth="lg"
       onClose={handleClose}
       footer={
         <DialogFooter
           onCancel={handleClose}
           onConfirm={handleSubmit}
-          confirmText="Add Comment"
-          disabled={!selectedTemplateId || characterCount > maxCharacters || isSubmitting}
+          confirmText={t('common.addComment')}
+          disabled={!selectedTemplateId || isTextEmpty || characterCount > maxCharacters || isSubmitting}
           loading={isSubmitting}
         />
       }
@@ -174,7 +174,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
       <div className="space-y-4">
         {/* Template Selection */}
         <div>
-          <Label htmlFor="template">Template *</Label>
+          <Label htmlFor="template">{t('serviceComments.template')} *</Label>
           <select
             id="template"
             className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
@@ -182,86 +182,39 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
             onChange={(e) => handleTemplateChange(e.target.value)}
             disabled={isSubmitting}
           >
-            <option value="">Select a template...</option>
+            <option value="">{t('serviceComments.selectTemplate')}</option>
             {activeTemplates.map(template => (
               <option key={template.id} value={template.id}>
-                {template.shortName} - {template.longName}
+                {template.shortName && template.longName
+                  ? `${template.shortName} - ${template.longName}`
+                  : template.name || t('serviceComments.unnamedTemplate')}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Template Text with Placeholders */}
+        {/* Editable Template Text */}
         {selectedTemplate && (
-          <>
-            <div>
-              <Label>Template Text</Label>
-              <div className="mt-1 p-3 bg-gray-50 rounded-md text-sm">
-                {selectedTemplate.templateText.split(/(\[[^\]]+\])/).map((part, index) => {
-                  const isPlaceholder = part.startsWith('[') && part.endsWith(']');
-                  return (
-                    <span
-                      key={index}
-                      className={isPlaceholder ? 'text-blue-600 font-medium' : ''}
-                    >
-                      {part}
-                    </span>
-                  );
-                })}
-              </div>
+          <div>
+            <Label htmlFor="comment-text">{t('serviceComments.commentText')} *</Label>
+            <Textarea
+              id="comment-text"
+              className="mt-1"
+              value={finalText}
+              onChange={(e) => handleTextChange(e.target.value)}
+              rows={6}
+              disabled={isSubmitting}
+              placeholder={t('serviceComments.enterComment')}
+              aria-label="Comment text"
+            />
+            <div className={`text-sm mt-1 ${characterCount > maxCharacters ? 'text-red-600' : 'text-gray-500'}`}>
+              {characterCount}/{maxCharacters} characters
             </div>
-
-            {/* Placeholder Fields */}
-            {(() => {
-              const placeholders = selectedTemplate.placeholders ||
-                (selectedTemplate.templateText.match(/\[([^\]]+)\]/g) || [])
-                  .map(match => match.slice(1, -1));
-
-              return placeholders.length > 0 && (
-                <div className="space-y-3">
-                  <Label>Fill in the placeholders</Label>
-                  {placeholders.map(placeholder => (
-                  <div key={placeholder}>
-                    <Label htmlFor={`placeholder-${placeholder}`} className="text-sm">
-                      {placeholder} *
-                    </Label>
-                    <input
-                      id={`placeholder-${placeholder}`}
-                      type="text"
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      value={placeholderValues[placeholder] || ''}
-                      onChange={(e) => handlePlaceholderChange(placeholder, e.target.value)}
-                      placeholder={`Enter ${placeholder}`}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                ))}
-                </div>
-              );
-            })()}
-
-            {/* Live Preview */}
-            <div>
-              <Label>Preview</Label>
-              <Textarea
-                className="mt-1"
-                value={finalText}
-                readOnly
-                rows={4}
-              />
-              <div className={`text-sm mt-1 ${characterCount > maxCharacters ? 'text-red-600' : 'text-gray-500'}`}>
-                {characterCount}/1000 characters
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Show character count when no template selected */}
-        {!selectedTemplate && (
-          <div className="text-sm text-gray-500">
-            0/1000 characters
           </div>
         )}
+
+        {/* Only show character count when template is selected and text is visible */}
+        {/* When no template is selected, the character count is not relevant */}
 
         {/* Visibility Toggle */}
         <div className="flex items-center space-x-2">
@@ -275,7 +228,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
             htmlFor="internal-only"
             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
-            Internal Only (not visible to customers)
+            {t('serviceComments.internalOnlyLabel')}
           </Label>
         </div>
 
@@ -290,7 +243,7 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
         {/* No templates warning */}
         {activeTemplates.length === 0 && (
           <div className="p-4 text-amber-700 bg-amber-50 rounded-md">
-            No active templates available. Please contact an administrator to create templates.
+            {t('serviceComments.noTemplatesAvailable')}
           </div>
         )}
       </div>

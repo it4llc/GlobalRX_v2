@@ -19,7 +19,14 @@ The Service-Level Fulfillment system is a comprehensive feature that enables gra
 - Service-specific notes (both vendor and internal)
 
 ### Individual Service Status Management
-- Independent status tracking: pending, submitted, processing, completed, cancelled
+- Independent status tracking with 7 status values:
+  - **Draft** - Initial state, not yet submitted
+  - **Submitted** - Service request submitted for processing
+  - **Processing** - Actively being worked on
+  - **Missing Information** - On hold pending additional data
+  - **Completed** - Service successfully completed
+  - **Cancelled** - Service cancelled by customer/internal
+  - **Cancelled-DNB** - Cancelled as "Did Not Book"
 - No restrictions on status transitions (learning workflow patterns)
 - Automatic audit trail creation for every status change
 - Permission-based status updates (vendors vs internal users)
