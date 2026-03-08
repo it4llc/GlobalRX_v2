@@ -63,7 +63,7 @@ describe('GET /api/comment-templates', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '1',
-          type: 'vendor',
+          userType: 'vendor',
           permissions: {}
         }
       });
@@ -80,7 +80,7 @@ describe('GET /api/comment-templates', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '1',
-          type: 'customer',
+          userType: 'customer',
           permissions: {}
         }
       });
@@ -97,7 +97,7 @@ describe('GET /api/comment-templates', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: { candidate_workflow: true }
         }
       });
@@ -116,7 +116,7 @@ describe('GET /api/comment-templates', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: { comment_management: true }
         }
       });
@@ -172,14 +172,14 @@ describe('GET /api/comment-templates', () => {
       expect(data.templates).toHaveLength(1);
       expect(data.templates[0].shortName).toBe('Missing Doc');
       expect(data.services).toHaveLength(2);
-      expect(data.statuses).toEqual(['DRAFT', 'SUBMITTED', 'PROCESSING', 'COMPLETED']);
+      expect(data.statuses).toEqual(['Draft', 'Submitted', 'Processing', 'Missing Information', 'Completed', 'Cancelled', 'Cancelled-DNB']);
     });
 
     it('should return empty arrays when no data exists', async () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: { comment_management: true }
         }
       });
@@ -196,7 +196,7 @@ describe('GET /api/comment-templates', () => {
       const data = await response.json();
       expect(data.templates).toEqual([]);
       expect(data.services).toEqual([]);
-      expect(data.statuses).toEqual(['DRAFT', 'SUBMITTED', 'PROCESSING', 'COMPLETED']); // Always returns hardcoded statuses now
+      expect(data.statuses).toEqual(['Draft', 'Submitted', 'Processing', 'Missing Information', 'Completed', 'Cancelled', 'Cancelled-DNB']); // Always returns hardcoded statuses now
     });
   });
 });
@@ -232,7 +232,7 @@ describe('POST /api/comment-templates', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '1',
-          type: 'vendor',
+          userType: 'vendor',
           permissions: {}
         }
       });
@@ -257,7 +257,7 @@ describe('POST /api/comment-templates', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: { candidate_workflow: true }
         }
       });
@@ -393,7 +393,7 @@ describe('POST /api/comment-templates', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: { comment_management: true }
         }
       });

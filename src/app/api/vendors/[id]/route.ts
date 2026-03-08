@@ -30,12 +30,12 @@ export async function GET(
     }
 
     // Check access permissions
-    if (session.user.type === 'vendor') {
+    if (session.user.userType === 'vendor') {
       // Vendor users can only access their own vendor
       if (session.user.vendorId !== vendorId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
-    } else if (session.user.type === 'customer') {
+    } else if (session.user.userType === 'customer') {
       // Customer users cannot access vendor details
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

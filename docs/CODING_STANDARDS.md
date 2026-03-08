@@ -705,6 +705,77 @@ The DSX API permission migration revealed a critical security vulnerability:
 4. **Review ALL endpoints** when changing permission requirements
 5. **Document security-critical changes** with clear code comments explaining the fix
 
+### 9.8 User Type Property Standard
+
+**CRITICAL:** Always use `session.user.userType` for user type checking. **Never use `session.user.type`.**
+
+**Correct Pattern:**
+```typescript
+const userType = session.user.userType;
+if (userType === 'internal' || userType === 'admin') {
+  // Allow access
+}
+```
+
+**Incorrect Pattern (Bug-prone):**
+```typescript
+// ❌ WRONG - 'type' property doesn't exist
+const userType = session.user.type;
+// ❌ WRONG - Fallback patterns hide the real issue
+const userType = session.user.type || session.user.userType;
+// ❌ WRONG - TypeScript workarounds mask the problem
+const userType = (session.user as any).userType;
+```
+
+**Why this matters:**
+- The session user object from NextAuth uses `userType`, not `type`
+- This is defined in `/src/types/next-auth.d.ts`
+- Using the wrong property causes authorization failures
+- Fallback patterns hide bugs and make debugging difficult
+
+**Bug Prevention:**
+- Search for `session.user.type` in code reviews
+- Use TypeScript strict mode to catch property access errors
+- Never use `as any` casts to bypass type checking
+- Verify user type access patterns when debugging authorization issues
+
+### 9.9 Data Format Consistency Standard
+
+**CRITICAL:** Ensure consistent data formats across database storage, API responses, and frontend display.
+
+**Common Format Mismatch Bug:**
+Service status values are stored as title case in database ("Submitted", "Missing Information") but may be received from frontend or external systems as uppercase ("SUBMITTED", "MISSING INFORMATION"). This causes database query failures when case doesn't match.
+
+**Solution Pattern:**
+```typescript
+// Always normalize data before database queries
+const normalizedStatus = serviceStatus
+  .split(' ')
+  .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+  .join(' ');
+
+// Use normalized value in database query
+await prisma.commentTemplateAvailability.findMany({
+  where: {
+    status: normalizedStatus  // Use normalized, not original
+  }
+});
+```
+
+**Prevention Guidelines:**
+- Document expected data formats in API documentation
+- Normalize data at system boundaries (API route entry points)
+- Use database constraints to enforce format consistency
+- Add validation to catch format mismatches early
+- Test with different case formats to ensure normalization works
+- Never assume incoming data format matches storage format
+
+**Common Areas Requiring Normalization:**
+- Status values (order status, service status, application status)
+- Email addresses (always lowercase before storage/lookup)
+- Customer codes (consistent case format)
+- Service types (consistent naming convention)
+
 ### 9.6 No Secrets in Code
 
 Database URLs, API keys, passwords, and other secrets must only exist in
