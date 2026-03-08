@@ -49,7 +49,7 @@ export async function POST(
     // Step 3: Validate user has access to the service
     const service = new ServiceCommentService();
     // User type must be explicitly set - do not default
-    if (!session.user.type) {
+    if (!session.user.userType) {
       logger.error('User type not set for user', { userId: session.user.id });
       return NextResponse.json({ error: 'User type not configured. Please contact support.' }, { status: 403 });
     }
@@ -57,7 +57,7 @@ export async function POST(
     const hasAccess = await service.validateUserAccess(
       params.id,
       session.user.id,
-      session.user.type
+      session.user.userType
     );
 
     if (!hasAccess) {
@@ -197,12 +197,12 @@ export async function GET(
     // Step 3: Validate user has access to the service
     const service = new ServiceCommentService();
     // User type must be explicitly set - do not default
-    if (!session.user.type) {
+    if (!session.user.userType) {
       logger.error('User type not set for user', { userId: session.user.id });
       return NextResponse.json({ error: 'User type not configured. Please contact support.' }, { status: 403 });
     }
 
-    const userType = session.user.type;
+    const userType = session.user.userType;
     const hasAccess = await service.validateUserAccess(
       params.id,
       session.user.id,

@@ -9,8 +9,7 @@ import type {
 } from '@/types/comment-template';
 import {
   createServiceCommentSchema,
-  updateServiceCommentSchema,
-  bulkCommentsResponseSchema
+  updateServiceCommentSchema
 } from '@/lib/schemas/serviceCommentSchemas';
 
 // Single service interface
