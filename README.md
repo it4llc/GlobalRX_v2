@@ -40,18 +40,29 @@ This repository was created as a clean migration from the original GlobalRX repo
 - `dev` - Active development branch
 ## Recent Features (March 2026)
 
-### Service Comments (Phase 2b)
-- Template-based comments for service fulfillment
-- Role-based visibility (internal/external)
-- Edit capability with audit trail
-- 4 new API endpoints with full authentication
-- 120 tests with 100% pass rate
+### Service-Level Fulfillment System
+- **Granular service tracking** - Each service within an order tracked independently
+- **Individual vendor assignment** - Assign different vendors to specific services
+- **Service-specific status management** - Services progress through fulfillment at their own pace
+- **Dual-layer notes system** - Vendor notes and internal notes per service
+- **Complete audit trail** - Every change tracked with user, timestamp, and context
+- **Role-based access control** - Vendors see only assigned services
+
+### Service Comments System (Phase 2b & 2c)
+- **Full text editing** - Templates serve as editable starting points, not rigid forms
+- **Brackets as regular text** - No placeholder restrictions, brackets treated as normal characters
+- **Template-based foundation** - All comments start from templates but can be completely modified
+- **Role-based visibility** - Internal/external comment filtering
+- **Edit and delete capabilities** - Full CRUD operations with audit trail
+- **Service-level attachment** - Comments attached to individual services, not orders
+- **Expandable UI sections** - Comments displayed in collapsible rows within service tables
 
 ### Comment Templates (Phase 1)
-- Configurable message templates
-- Service type and status availability
-- Active/inactive status management
-- Admin interface for template management
+- **Flexible template text** - Templates with optional placeholders that can be freely edited
+- **Service and status availability** - Templates configured for specific service/status combinations
+- **Visual availability grid** - Intuitive UI for configuring when templates are available
+- **Active/inactive management** - Soft delete with preservation of used templates
+- **Category-based organization** - Templates grouped by service categories
 
 ## Testing
 - **732+ tests** across unit, integration, and E2E

@@ -4,26 +4,28 @@ import { z } from 'zod';
 import { sanitizeText, isTextSafe } from '@/lib/utils/text-sanitization';
 
 // UUID validation using built-in zod uuid validator
-// Create comment validation schema
+// Create comment validation schema - supports full text editing
+// NO bracket validation - brackets are treated as regular text that can be kept, removed, or modified
+// This is a major change from previous placeholder-based validation
 export const createServiceCommentSchema = z.object({
   templateId: z.string().uuid('Invalid template ID format'),
   finalText: z.string()
     .min(1, 'String must contain at least 1 character(s)')
     .max(1000, 'Comment text cannot exceed 1000 characters')
-    .refine(text => text.trim().length > 0, 'Comment text cannot be empty or only whitespace')
-    .refine(text => isTextSafe(text), 'Comment contains potentially unsafe content')
-    .transform(text => sanitizeText(text)),
+    // Critical validation: ensures text isn't just whitespace even if 1+ chars
+    .refine(text => text.trim().length > 0, 'Comment text cannot be empty or only whitespace'),
+  // Defaults to internal for security - external visibility must be explicitly set
   isInternalOnly: z.boolean().optional().default(true)
 });
 
-// Update comment validation schema - allows partial updates
+// Update comment validation schema - allows partial updates with same full-text editing rules
+// Uses identical validation to create schema to ensure consistent behavior
 export const updateServiceCommentSchema = z.object({
   finalText: z.string()
     .min(1, 'String must contain at least 1 character(s)')
     .max(1000, 'Comment text cannot exceed 1000 characters')
+    // Same whitespace validation as create - prevents emptying comments with spaces
     .refine(text => text.trim().length > 0, 'Comment text cannot be empty or only whitespace')
-    .refine(text => isTextSafe(text), 'Comment contains potentially unsafe content')
-    .transform(text => sanitizeText(text))
     .optional(),
   isInternalOnly: z.boolean().optional()
 });

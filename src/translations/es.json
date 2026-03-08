@@ -16,6 +16,7 @@
   "common.actions": "Acciones",
   "common.active": "Activo",
   "common.add": "Añadir",
+  "common.addComment": "Agregar Comentario",
   "common.back": "Atrás",
   "common.cancel": "Cancelar",
   "common.comingSoon": "Próximamente",
@@ -228,5 +229,13 @@
   "module.fulfillment.templateRequired": "Please select a comment template",
   "serviceComments.title": "Comentarios",
   "serviceComments.addComment": "Agregar Comentario",
-  "serviceComments.emptyState": "No hay comentarios todavía. Agregue el primer comentario."
+  "serviceComments.emptyState": "No hay comentarios todavía. Agregue el primer comentario.",
+  "serviceComments.addCommentTo": "Agregar Comentario a",
+  "serviceComments.template": "Plantilla",
+  "serviceComments.selectTemplate": "Seleccionar una plantilla...",
+  "serviceComments.unnamedTemplate": "Plantilla sin Nombre",
+  "serviceComments.commentText": "Texto del Comentario",
+  "serviceComments.internalOnlyLabel": "Solo Interno (no visible para clientes)",
+  "serviceComments.enterComment": "Ingrese su comentario...",
+  "serviceComments.noTemplatesAvailable": "No hay plantillas activas disponibles. Contacte a un administrador para crear plantillas."
 }
