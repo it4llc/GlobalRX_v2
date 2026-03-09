@@ -109,6 +109,21 @@ Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Cri
   - Fixed 4 other DSX endpoints that checked for legacy 'dsx' permission instead of 'global_config'
   - All DSX endpoints now use centralized `canAccessDataRx()` function with proper 'global_config' permission checking
   - Added comprehensive security documentation and prevention guidelines to coding standards
+- **Update**: ✅ User Type Property Bug Fixed on March 8, 2026:
+  - Fixed authorization failures in vendor and fulfillment API endpoints caused by incorrect property usage
+  - 7 API routes were using non-existent `session.user.type` instead of correct `session.user.userType`
+  - Fixed 10+ occurrences across vendor, fulfillment, and comment template endpoints
+  - Updated User interface in vendorUtils.ts to prevent TypeScript type mismatches
+  - Removed workaround TypeScript casts that were masking the underlying bug
+  - Added Section 9.8 to coding standards to prevent similar bugs
+  - Created comprehensive technical documentation at `/docs/technical/user-type-property-bug-fix.md`
+- **Update**: ✅ Status Case Normalization Bug Fixed on March 8, 2026:
+  - Fixed comment template query failures caused by case format mismatch between systems
+  - Service status from order items comes as uppercase ("SUBMITTED") but database stores title case ("Submitted")
+  - This mismatch was causing template availability queries to return empty results
+  - Implemented status normalization logic to convert uppercase to title case before database queries
+  - Added Section 9.9 to coding standards for "Data Format Consistency" to prevent similar bugs
+  - Added comprehensive code comments explaining the bug and fix for future developers
 
 ### 5. No Automated Backups - Data Loss Risk
 - **Finding**: Manual backup process only, no automation or remote storage

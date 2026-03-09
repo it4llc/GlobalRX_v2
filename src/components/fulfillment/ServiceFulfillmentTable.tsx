@@ -857,7 +857,7 @@ export function ServiceFulfillmentTable({
                   <tr data-testid={`comment-section-${service.id}`}>
                     <td colSpan={100} className="px-6 py-4 bg-gray-50">
                       <ServiceCommentSection
-                        serviceId={service.id}
+                        serviceId={service.orderItemId}
                         serviceName={service.service.name}
                         serviceType={service.service.code || service.service.category || undefined}
                         serviceStatus={service.status.toUpperCase()}

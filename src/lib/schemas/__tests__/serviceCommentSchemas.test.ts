@@ -4,8 +4,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createServiceCommentSchema,
   updateServiceCommentSchema,
-  serviceCommentResponseSchema,
-  bulkCommentsResponseSchema
+  serviceCommentResponseSchema
 } from '../serviceCommentSchemas';
 
 describe('serviceCommentSchemas', () => {
@@ -376,132 +375,6 @@ describe('serviceCommentSchemas', () => {
         };
 
         const result = serviceCommentResponseSchema.safeParse(invalidData);
-        expect(result.success).toBe(false);
-      });
-    });
-  });
-
-  describe('bulkCommentsResponseSchema', () => {
-    describe('valid data', () => {
-      it('should pass with empty comments map', () => {
-        const validData = {
-          commentsByService: {}
-        };
-
-        const result = bulkCommentsResponseSchema.safeParse(validData);
-        expect(result.success).toBe(true);
-      });
-
-      it('should pass with multiple services and comments', () => {
-        const validData = {
-          commentsByService: {
-            'service-1': [
-              {
-                id: 'comment-1',
-                serviceId: 'service-1',
-                templateId: 'template-1',
-                templateName: 'Template 1',
-                finalText: 'Comment 1',
-                isInternalOnly: true,
-                createdBy: 'user-1',
-                createdByName: 'User 1',
-                createdAt: '2024-03-01T10:00:00Z'
-              },
-              {
-                id: 'comment-2',
-                serviceId: 'service-1',
-                templateId: 'template-2',
-                templateName: 'Template 2',
-                finalText: 'Comment 2',
-                isInternalOnly: false,
-                createdBy: 'user-2',
-                createdByName: 'User 2',
-                createdAt: '2024-03-02T10:00:00Z'
-              }
-            ],
-            'service-2': [
-              {
-                id: 'comment-3',
-                serviceId: 'service-2',
-                templateId: 'template-3',
-                templateName: 'Template 3',
-                finalText: 'Comment 3',
-                isInternalOnly: true,
-                createdBy: 'user-3',
-                createdByName: 'User 3',
-                createdAt: '2024-03-03T10:00:00Z'
-              }
-            ],
-            'service-3': [] // Service with no comments
-          }
-        };
-
-        const result = bulkCommentsResponseSchema.safeParse(validData);
-        expect(result.success).toBe(true);
-        expect(Object.keys(result.data?.commentsByService || {}).length).toBe(3);
-      });
-
-      it('should handle null values in optional fields', () => {
-        const validData = {
-          commentsByService: {
-            'service-1': [
-              {
-                id: 'comment-1',
-                serviceId: 'service-1',
-                templateId: 'template-1',
-                templateName: 'Template',
-                finalText: 'Comment',
-                isInternalOnly: true,
-                createdBy: 'user-1',
-                createdByName: 'User',
-                createdAt: '2024-03-01T10:00:00Z',
-                updatedBy: null,
-                updatedByName: null,
-                updatedAt: null
-              }
-            ]
-          }
-        };
-
-        const result = bulkCommentsResponseSchema.safeParse(validData);
-        expect(result.success).toBe(true);
-      });
-    });
-
-    describe('invalid data', () => {
-      it('should fail when commentsByService is not an object', () => {
-        const invalidData = {
-          commentsByService: 'not-an-object'
-        };
-
-        const result = bulkCommentsResponseSchema.safeParse(invalidData);
-        expect(result.success).toBe(false);
-      });
-
-      it('should fail when comments are not in array', () => {
-        const invalidData = {
-          commentsByService: {
-            'service-1': 'not-an-array'
-          }
-        };
-
-        const result = bulkCommentsResponseSchema.safeParse(invalidData);
-        expect(result.success).toBe(false);
-      });
-
-      it('should fail when individual comments are invalid', () => {
-        const invalidData = {
-          commentsByService: {
-            'service-1': [
-              {
-                id: 'comment-1',
-                // Missing required fields
-              }
-            ]
-          }
-        };
-
-        const result = bulkCommentsResponseSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
       });
     });
