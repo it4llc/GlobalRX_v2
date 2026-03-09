@@ -923,7 +923,7 @@ All features handling personal data must support:
 
 **IMPORTANT:** This project runs in a non-interactive environment (Claude Code), so the standard `pnpm prisma migrate dev` will NOT work.
 
-#### For Development (Non-Interactive):
+#### For Development (Non-Interactive) (local terminal):
 ```bash
 # 1. Update the schema
 # Edit prisma/schema.prisma with your changes
@@ -941,7 +941,7 @@ pnpm prisma migrate deploy
 pnpm prisma generate
 ```
 
-#### For Interactive Development (local terminal):
+#### For Interactive Development :
 ```bash
 # Standard Prisma workflow works here
 pnpm prisma migrate dev --name add_feature_name

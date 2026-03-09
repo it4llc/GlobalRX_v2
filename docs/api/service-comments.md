@@ -1,7 +1,7 @@
 # Service Comments API Documentation
 
 ## Overview
-The Service Comments API provides endpoints for managing comments on service fulfillment items. Comments use templates as **fully editable starting points** - users can modify any part of the template text, with brackets treated as regular text characters. This represents a major change from previous placeholder-based validation. The API supports role-based visibility and maintains a complete audit trail for all edits.
+The Service Comments API provides endpoints for managing comments on service fulfillment items and changing service status (Phase 2d). Comments use templates as **fully editable starting points** - users can modify any part of the template text, with brackets treated as regular text characters. This represents a major change from previous placeholder-based validation. The API supports role-based visibility, order-level locking for concurrent access control, and maintains a complete audit trail for all edits and status changes.
 
 ## Authentication
 All endpoints require authentication via NextAuth session. Users must have the `fulfillment` permission to create or edit comments.
@@ -255,6 +255,171 @@ Retrieves comments for all services in an order (bulk operation).
 - **Internal users**: Access all orders
 - **Vendor users**: Access orders with assigned services
 - **Customer users**: Access only their orders
+
+---
+
+## Phase 2d - Service Status Change Endpoints
+
+### 6. Update Service Status
+**PUT** `/api/services/{serviceId}/status`
+
+Updates the status of a service with audit trail and locking (Phase 2d).
+
+#### Parameters
+- `serviceId` (path) - UUID of the service (OrderItem)
+
+#### Request Body
+```json
+{
+  "status": "Draft" | "Submitted" | "Processing" | "Missing Information" | "Completed" | "Cancelled" | "Cancelled-DNB",
+  "comment": "string",           // Optional: Context for status change (max 1000 chars)
+  "confirmReopenTerminal": boolean // Required: true when changing from terminal status
+}
+```
+
+#### Response
+- **200 OK** - Status updated successfully
+```json
+{
+  "service": {
+    "id": "uuid",
+    "status": "Processing",
+    "updatedAt": "2026-03-09T10:00:00Z",
+    "updatedById": "uuid"
+  },
+  "auditEntry": {
+    "id": "uuid",
+    "orderItemId": "uuid",
+    "isStatusChange": true,
+    "statusChangedFrom": "Draft",
+    "statusChangedTo": "Processing",
+    "comment": "Status changed from Draft to Processing. Additional context: Ready for vendor assignment",
+    "createdBy": "uuid",
+    "createdAt": "2026-03-09T10:00:00Z"
+  }
+}
+```
+- **401 Unauthorized** - No authentication
+- **403 Forbidden** - Not internal user or insufficient permissions
+- **404 Not Found** - Service not found
+- **409 Conflict** - Terminal status confirmation required
+```json
+{
+  "error": "Terminal status confirmation required",
+  "requiresConfirmation": true,
+  "currentStatus": "Completed",
+  "newStatus": "Processing",
+  "message": "This service is currently Completed. Are you sure you want to re-open it by changing the status to Processing?"
+}
+```
+- **423 Locked** - Order locked by another user
+```json
+{
+  "error": "Order is locked by another user",
+  "lockedBy": "user-uuid"
+}
+```
+
+#### Business Rules
+- **Phase 2d**: Internal GlobalRx users only (vendors excluded)
+- Requires `fulfillment` permission
+- Terminal statuses (Completed/Cancelled/Cancelled-DNB) require `confirmReopenTerminal: true`
+- Order must be locked by requesting user
+- Creates ServiceComment audit entry with `isStatusChange: true`
+- Logs all status changes with structured logging
+
+### 7. Acquire Order Lock
+**POST** `/api/orders/{orderId}/lock`
+
+Acquires a lock on an order to prevent concurrent service modifications.
+
+#### Parameters
+- `orderId` (path) - UUID of the order
+
+#### Request Body
+No body required.
+
+#### Response
+- **200 OK** - Lock acquired successfully
+```json
+{
+  "success": true,
+  "lock": {
+    "orderId": "uuid",
+    "lockedBy": "uuid",
+    "lockedAt": "2026-03-09T10:00:00Z",
+    "lockExpires": "2026-03-09T10:15:00Z"
+  }
+}
+```
+- **423 Locked** - Order already locked by another user
+```json
+{
+  "error": "Order is locked by another user",
+  "lockedBy": "user-uuid"
+}
+```
+
+#### Business Rules
+- 15-minute automatic expiration
+- Auto-extends if same user requests lock again
+- Only one user can hold lock per order
+- Covers ALL services within the order
+
+### 8. Release Order Lock
+**DELETE** `/api/orders/{orderId}/lock`
+
+Releases a lock on an order.
+
+#### Parameters
+- `orderId` (path) - UUID of the order
+- `force` (query) - Optional: `true` for admin force release
+
+#### Response
+- **200 OK** - Lock released successfully
+```json
+{
+  "success": true,
+  "message": "Lock released successfully"
+}
+```
+- **403 Forbidden** - Not authorized to release this lock
+- **404 Not Found** - No lock exists for this order
+
+#### Business Rules
+- Only lock holder can release normally
+- Admin users can force-release with `?force=true`
+- Automatic cleanup happens on lock expiration
+
+### 9. Check Order Lock Status
+**GET** `/api/orders/{orderId}/lock`
+
+Checks the lock status for an order.
+
+#### Parameters
+- `orderId` (path) - UUID of the order
+
+#### Response
+- **200 OK** - Lock status retrieved
+```json
+{
+  "isLocked": true,
+  "lock": {
+    "orderId": "uuid",
+    "lockedBy": "uuid",
+    "lockedAt": "2026-03-09T10:00:00Z",
+    "lockExpires": "2026-03-09T10:15:00Z"
+  },
+  "canEdit": true  // true if current user holds the lock
+}
+```
+
+#### Business Rules
+- Expired locks are treated as unlocked
+- `canEdit` indicates if current user can modify services
+- Used by frontend to show/hide edit controls
+
+---
 
 ## Error Responses
 
