@@ -776,6 +776,41 @@ await prisma.commentTemplateAvailability.findMany({
 - Customer codes (consistent case format)
 - Service types (consistent naming convention)
 
+### 9.10 Database Query Filter Logic Standard
+
+**CRITICAL:** Always verify that database query filters match business requirements, especially when filtering by presence/absence of related data.
+
+**Common Query Logic Bug:**
+When building dynamic query filters based on user type, be careful with inclusion/exclusion filters. A filter that excludes records (e.g., `assignedVendorId: { not: null }`) may unintentionally hide data that users need to see.
+
+**Bug Pattern Example:**
+```typescript
+// ❌ WRONG - This excludes unassigned orders that internal users need to manage
+if (userType === 'internal') {
+  whereClause.assignedVendorId = { not: null }; // Only shows assigned orders
+}
+
+// ✅ CORRECT - Internal users should see ALL orders
+if (userType === 'vendor') {
+  whereClause.assignedVendorId = session.user.vendorId; // Vendor sees only their orders
+}
+// Internal users: no filter = see all orders (assigned and unassigned)
+```
+
+**Prevention Guidelines:**
+- Write explicit tests for different user types and their expected data visibility
+- Document the business logic for who should see what data
+- Be especially careful with "not null" and "not equals" filters
+- Consider unassigned/null state records in your query logic
+- Use positive filters (include what should be seen) rather than negative filters (exclude what shouldn't be seen) when possible
+- Always test with edge cases like unassigned or empty state records
+
+**Common Query Filter Mistakes:**
+- Using `{ not: null }` when users need to see unassigned records
+- Forgetting to handle null/undefined foreign key relationships
+- Over-filtering data that users with broader permissions should see
+- Not considering the "unassigned" workflow state in business logic
+
 ### 9.6 No Secrets in Code
 
 Database URLs, API keys, passwords, and other secrets must only exist in
