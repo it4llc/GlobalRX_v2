@@ -1,10 +1,11 @@
 # Service Comments System - Technical Documentation
 
-**Feature:** Service Comments Database, API, and Frontend UI (Phases 2b & 2c)
-**Date:** March 6, 2026
-**Status:** ✅ Complete - Full Implementation
+**Feature:** Service Comments Database, API, and Frontend UI (Phases 2b, 2c, & 2d)
+**Date:** March 9, 2026
+**Status:** ✅ Complete - Full Implementation with Status Change
 **Phase 2b Status:** ✅ Complete - Backend Implementation
 **Phase 2c Status:** ✅ Complete - Frontend UI Implementation
+**Phase 2d Status:** ✅ Complete - Service Status Change Capability
 
 ---
 
@@ -40,7 +41,17 @@ The Service Comments system enables users to add comments to individual services
 - **Real-time character counting** - Live feedback during comment creation and editing (1-1000 characters)
 - **Template tracking preserved** - Original templateId maintained for reporting even if text completely changed
 
+### ✅ Implemented (Phase 2d - Service Status Change)
+- **Status change capability** - Internal users can change service status via dropdown
+- **Order locking mechanism** - Prevents concurrent edits with 15-minute automatic expiration
+- **Terminal status confirmation** - Requires confirmation to reopen Completed/Cancelled services
+- **Status change audit trail** - All status changes recorded as ServiceComment entries with isStatusChange=true
+- **Lock management API** - Full CRUD operations for order locks with admin force-release capability
+- **Visual status indicators** - Clear UI showing current status as clickable element separate from comment form
+- **Permission enforcement** - Phase 2d limited to internal GlobalRx users only (vendors excluded)
+
 ### ⬜ Future Enhancements
+- **Vendor status changes** - Allow vendors to change status of their assigned services (Phase 3+)
 - **Real-time updates** - Live comment updates across user sessions
 - **Notification system** - Email/push notifications for new comments
 - **Comment threading** - Nested comment conversations
@@ -54,27 +65,56 @@ The Service Comments system enables users to add comments to individual services
 
 ```sql
 model ServiceComment {
-  id              String               @id @default(uuid())
-  serviceId       String               -- References ServicesFulfillment.id
-  templateId      String               -- References CommentTemplate.id
-  finalText       String               @db.Text
-  isInternalOnly  Boolean              @default(true)
-  createdBy       String               -- References User.id
-  createdAt       DateTime             @default(now())
-  updatedBy       String?              -- References User.id (nullable)
-  updatedAt       DateTime?            -- Set when comment is edited
+  id                String               @id @default(uuid())
+  serviceId         String               -- References ServicesFulfillment.id (DEPRECATED - use orderItemId)
+  orderItemId       String               -- References OrderItem.id (NEW - Phase 2d)
+  templateId        String               -- References CommentTemplate.id
+  finalText         String               @db.VarChar(1000)
+  isInternalOnly    Boolean              @default(true)
+  isStatusChange    Boolean              @default(false)  -- NEW: Phase 2d status change tracking
+  statusChangedFrom String?              @db.VarChar(50)  -- NEW: Phase 2d previous status
+  statusChangedTo   String?              @db.VarChar(50)  -- NEW: Phase 2d new status
+  comment           String?              @db.Text         -- NEW: Phase 2d optional user comment
+  createdBy         String               -- References User.id
+  createdAt         DateTime             @default(now())
+  updatedBy         String?              -- References User.id (nullable)
+  updatedAt         DateTime?            -- Set when comment is edited
 
   -- Relations
   service         ServicesFulfillment  @relation(fields: [serviceId], references: [id])
+  orderItem       OrderItem           @relation(fields: [orderItemId], references: [id])
   template        CommentTemplate      @relation(fields: [templateId], references: [id])
   createdByUser   User                 @relation("ServiceCommentCreatedBy")
   updatedByUser   User?                @relation("ServiceCommentUpdatedBy")
 
   -- Indexes for performance
   @@index([serviceId])
+  @@index([orderItemId])        -- NEW: Phase 2d index
   @@index([createdBy])
   @@index([createdAt])
+  @@index([isStatusChange])     -- NEW: Phase 2d index for filtering status changes
   @@index([serviceId, createdAt])
+  @@index([orderItemId, createdAt])  -- NEW: Phase 2d composite index
+}
+```
+
+### OrderLock Table (NEW - Phase 2d)
+
+```sql
+model OrderLock {
+  orderId     String   @id                    -- References Order.id (composite primary key)
+  lockedBy    String                         -- References User.id of lock holder
+  lockedAt    DateTime @default(now())       -- When lock was acquired
+  lockExpires DateTime                       -- When lock automatically expires
+
+  -- Relations
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lockedByUser User    @relation(fields: [lockedBy], references: [id])
+
+  -- Indexes for performance
+  @@index([lockedBy])      -- Find all locks held by user
+  @@index([lockExpires])   -- Cleanup expired locks efficiently
+  @@map("order_locks")
 }
 ```
 
@@ -84,7 +124,9 @@ model ServiceComment {
 2. **Template requirement** - All comments must reference a valid `CommentTemplate` to ensure standardization
 3. **Audit trail** - Full tracking of creation and modification with user references
 4. **Security default** - `isInternalOnly` defaults to `true` to prevent accidental exposure of sensitive information
-5. **Soft relationships** - Uses proper foreign keys with cascade behavior for data integrity
+5. **Status change tracking** - NEW Phase 2d: `isStatusChange`, `statusChangedFrom`, `statusChangedTo` fields enable audit trail for status modifications
+6. **Order-level locking** - NEW Phase 2d: `OrderLock` table prevents concurrent edits with automatic expiration
+7. **Soft relationships** - Uses proper foreign keys with cascade behavior for data integrity
 
 ---
 
@@ -182,6 +224,68 @@ Bulk endpoint to retrieve all comments for all services in an order.
       total: number;
     }
   }
+}
+```
+
+### PUT /api/services/[id]/status (NEW - Phase 2d)
+
+Updates the status of a service with audit trail and locking.
+
+**Required Permission:** `fulfillment` (internal users only in Phase 2d)
+
+**Request Body:**
+```typescript
+{
+  status: 'Draft' | 'Submitted' | 'Processing' | 'Missing Information' | 'Completed' | 'Cancelled' | 'Cancelled-DNB';
+  comment?: string;               // Optional context for status change
+  confirmReopenTerminal?: boolean; // Required when changing from terminal status
+}
+```
+
+**Business Logic:**
+- Validates user is internal (vendors excluded in Phase 2d)
+- Requires order lock acquisition before status change
+- Terminal status changes require explicit confirmation
+- Creates ServiceComment audit entry with isStatusChange=true
+- Logs all status changes with structured logging
+
+**Response:**
+```typescript
+{
+  service: OrderItem;      // Updated service with new status
+  auditEntry: ServiceComment; // Status change audit record
+}
+```
+
+### POST /api/orders/[id]/lock (NEW - Phase 2d)
+
+Acquires a lock on an order for service editing.
+
+**Required Permission:** `fulfillment`
+
+**Business Logic:**
+- Prevents concurrent edits across all services in order
+- Auto-extends existing lock if same user
+- Returns error if locked by different user
+- 15-minute automatic expiration
+
+### DELETE /api/orders/[id]/lock (NEW - Phase 2d)
+
+Releases a lock on an order.
+
+**Query Parameters:**
+- `force=true` - Admin force release (admin permission required)
+
+### GET /api/orders/[id]/lock (NEW - Phase 2d)
+
+Checks lock status for an order.
+
+**Response:**
+```typescript
+{
+  isLocked: boolean;
+  lock: OrderLock | null;
+  canEdit?: boolean;      // True if current user holds the lock
 }
 ```
 

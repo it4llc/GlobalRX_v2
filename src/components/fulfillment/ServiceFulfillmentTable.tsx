@@ -13,6 +13,7 @@ import type { DialogRef } from '@/components/ui/modal-dialog';
 import { ServiceCommentSection } from '@/components/services/ServiceCommentSection';
 import { useServiceComments } from '@/hooks/useServiceComments';
 import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
+import { UpdateServiceFulfillmentRequest } from '@/types/service-fulfillment';
 
 interface ServiceFulfillment {
   id: string;
@@ -50,7 +51,7 @@ interface ServiceFulfillment {
 interface ServiceFulfillmentTableProps {
   orderId?: string;
   services: ServiceFulfillment[];
-  onStatusUpdate?: (serviceId: string, newStatus: string) => void;
+  onStatusUpdate?: (orderItemId: string, newStatus: string) => void;
   onVendorAssign?: (serviceId: string, vendorId: string) => void;
   readOnly?: boolean;
   isLoading?: boolean;
@@ -146,6 +147,13 @@ export function ServiceFulfillmentTable({
   const [currentServiceForHistory, setCurrentServiceForHistory] = useState<ServiceFulfillment | null>(null);
   const [currentServiceForNotes, setCurrentServiceForNotes] = useState<ServiceFulfillment | null>(null);
   const [confirmCancelService, setConfirmCancelService] = useState<ServiceFulfillment | null>(null);
+  const [activeLocks, setActiveLocks] = useState<Set<string>>(new Set());
+  const [confirmReopenService, setConfirmReopenService] = useState<{
+    orderItemId: string;
+    newStatus: string;
+    currentStatus: string;
+    message: string;
+  } | null>(null);
 
   // Form states
   const [selectedVendorId, setSelectedVendorId] = useState<string>('');
@@ -168,6 +176,7 @@ export function ServiceFulfillmentTable({
   const historyDialogRef = useRef<DialogRef>(null);
   const notesDialogRef = useRef<DialogRef>(null);
   const confirmCancelDialogRef = useRef<DialogRef>(null);
+  const confirmReopenDialogRef = useRef<DialogRef>(null);
 
   // Permission checks
   const canEdit = user?.userType === 'internal' || user?.userType === 'admin';
@@ -222,7 +231,7 @@ export function ServiceFulfillmentTable({
             const response = await fetch(`/api/services/${service.id}/comments`);
             if (response.ok) {
               const comments = await response.json();
-              const internalCount = comments.filter((c: any) => c.isInternalOnly).length;
+              const internalCount = comments.filter((c: { isInternalOnly?: boolean }) => c.isInternalOnly).length;
               counts[service.id] = {
                 total: comments.length,
                 internal: internalCount
@@ -243,6 +252,70 @@ export function ServiceFulfillmentTable({
       fetchCommentCounts();
     }
   }, [services]);
+
+  // Lock cleanup on unmount or navigation
+  useEffect(() => {
+    // Function to release all active locks
+    const releaseAllLocks = async () => {
+      const locksToRelease = Array.from(activeLocks);
+      const releasePromises = locksToRelease.map(async (orderId) => {
+        try {
+          await fetch(`/api/orders/${orderId}/lock`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+        } catch (error) {
+          // Log error only in development to avoid exposing in production
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Failed to release lock for order:', {
+              orderId,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+          }
+        }
+      });
+      await Promise.all(releasePromises);
+    };
+
+    // Handle page unload (browser close/refresh)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (activeLocks.size > 0) {
+        // Try to release locks (note: this may not always complete)
+        releaseAllLocks();
+        // Show browser warning if there are active locks
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+
+    // Handle visibility change (tab switch/minimize)
+    const handleVisibilityChange = () => {
+      if (document.hidden && activeLocks.size > 0) {
+        // Release locks when page is hidden for more than 5 minutes
+        setTimeout(() => {
+          if (document.hidden) {
+            releaseAllLocks();
+            setActiveLocks(new Set());
+          }
+        }, 5 * 60 * 1000); // 5 minutes
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup function - release locks on unmount
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Release all locks when component unmounts
+      if (activeLocks.size > 0) {
+        releaseAllLocks();
+      }
+    };
+  }, [activeLocks]);
 
   // Loading state
   if (isLoading) {
@@ -315,23 +388,31 @@ export function ServiceFulfillmentTable({
     setExpandedRows(newExpanded);
   };
 
-  const handleStatusChange = async (serviceId: string, newStatus: string) => {
+  const handleStatusChange = async (orderItemId: string, newStatus: string, skipCancelConfirmation = false) => {
     if (readOnly) return;
 
-    // Show confirmation for cancel status
-    if (newStatus === SERVICE_STATUSES.CANCELLED || newStatus === SERVICE_STATUSES.CANCELLED_DNB) {
-      const service = services.find(s => s.id === serviceId);
+    // Show confirmation for cancel status (but skip if we're already confirmed)
+    if (!skipCancelConfirmation && (newStatus === SERVICE_STATUSES.CANCELLED || newStatus === SERVICE_STATUSES.CANCELLED_DNB)) {
+      const service = services.find(s => s.orderItemId === orderItemId);
       if (service) {
-        setConfirmCancelService(service);
+        // Store the actual status we want to change to
+        setConfirmCancelService({ ...service, pendingStatus: newStatus });
         confirmCancelDialogRef.current?.showModal();
       }
       return;
     }
 
-    setLoadingService(serviceId);
+    setLoadingService(orderItemId);
+
+    // Track the order lock when status change is initiated
+    const service = services.find(s => s.orderItemId === orderItemId);
+    if (service && service.orderId) {
+      setActiveLocks(prev => new Set([...prev, service.orderId]));
+    }
+
     try {
-      const response = await fetch(`/api/fulfillment/services/${serviceId}`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/services/${orderItemId}/status`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -340,12 +421,29 @@ export function ServiceFulfillmentTable({
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to update status');
-      }
 
-      toastSuccess('Service status updated successfully');
-      if (onStatusUpdate) {
-        onStatusUpdate(serviceId, newStatus);
+        // Check if confirmation is required for terminal status change
+        if (response.status === 409 && error.requiresConfirmation) {
+          const confirmMessage = error.message || `This service is currently ${error.currentStatus}. Are you sure you want to re-open it?`;
+
+          // Show styled confirmation dialog instead of window.confirm
+          setConfirmReopenService({
+            orderItemId,
+            newStatus,
+            currentStatus: error.currentStatus,
+            message: confirmMessage
+          });
+          confirmReopenDialogRef.current?.showModal();
+          setLoadingService(null);
+          return;
+        } else {
+          throw new Error(error.error || 'Failed to update status');
+        }
+      } else {
+        toastSuccess('Service status updated successfully');
+        if (onStatusUpdate) {
+          onStatusUpdate(orderItemId, newStatus);
+        }
       }
 
       // Announce to screen readers
@@ -358,9 +456,42 @@ export function ServiceFulfillmentTable({
       document.body.appendChild(announcement);
       setTimeout(() => document.body.removeChild(announcement), 1000);
 
+      // Release lock after successful status update
+      if (service && service.orderId) {
+        try {
+          await fetch(`/api/orders/${service.orderId}/lock`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          setActiveLocks(prev => {
+            const newLocks = new Set(prev);
+            newLocks.delete(service.orderId);
+            return newLocks;
+          });
+        } catch (lockError) {
+          // Log error only in development to avoid exposing in production
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Failed to release lock on status change error:', {
+              serviceId,
+              error: lockError instanceof Error ? lockError.message : 'Unknown error'
+            });
+          }
+        }
+      }
+
       router.refresh();
     } catch (error) {
       toastError(error instanceof Error ? error.message : 'Failed to update service status');
+      // Also release lock on error
+      if (service && service.orderId) {
+        setActiveLocks(prev => {
+          const newLocks = new Set(prev);
+          newLocks.delete(service.orderId);
+          return newLocks;
+        });
+      }
     } finally {
       setLoadingService(null);
     }
@@ -368,9 +499,46 @@ export function ServiceFulfillmentTable({
 
   const handleConfirmCancel = async () => {
     if (confirmCancelService) {
-      await handleStatusChange(confirmCancelService.id, SERVICE_STATUSES.CANCELLED);
+      // Use the pendingStatus if available, otherwise default to CANCELLED
+      const statusToSet = (confirmCancelService as ServiceFulfillment & { pendingStatus?: string }).pendingStatus || SERVICE_STATUSES.CANCELLED;
+      await handleStatusChange(confirmCancelService.orderItemId, statusToSet, true); // Skip confirmation dialog
       setConfirmCancelService(null);
       confirmCancelDialogRef.current?.close();
+    }
+  };
+
+  const handleConfirmReopen = async () => {
+    if (confirmReopenService) {
+      setLoadingService(confirmReopenService.orderItemId);
+      try {
+        const response = await fetch(`/api/services/${confirmReopenService.orderItemId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: confirmReopenService.newStatus,
+            confirmReopenTerminal: true
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to update status');
+        }
+
+        toastSuccess('Service status updated successfully');
+        if (onStatusUpdate) {
+          onStatusUpdate(confirmReopenService.orderItemId, confirmReopenService.newStatus);
+        }
+        router.refresh();
+      } catch (error) {
+        toastError(error instanceof Error ? error.message : 'Failed to update service status');
+      } finally {
+        setLoadingService(null);
+        setConfirmReopenService(null);
+        confirmReopenDialogRef.current?.close();
+      }
     }
   };
 
@@ -664,9 +832,9 @@ export function ServiceFulfillmentTable({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredServices.map((service) => {
-              const isCompleted = service.status === SERVICE_STATUSES.COMPLETED;
-              const isCancelled = service.status === SERVICE_STATUSES.CANCELLED || service.status === SERVICE_STATUSES.CANCELLED_DNB;
-              const statusDisabled = isCompleted || isCancelled;
+              // Remove the frontend restriction on terminal statuses - backend handles confirmation
+              // Per requirements: terminal statuses can be reopened with confirmation
+              const statusDisabled = false;
 
               const isExpanded = expandedRows.has(service.id);
               const commentCount = commentCounts[service.id] || { total: 0, internal: 0 };
@@ -725,8 +893,8 @@ export function ServiceFulfillmentTable({
                     {!readOnly && !statusDisabled && ((isVendor && service.assignedVendorId === user?.vendorId) || canEdit) ? (
                       <select
                         value={service.status}
-                        onChange={(e) => handleStatusChange(service.id, e.target.value)}
-                        disabled={loadingService === service.id || statusDisabled}
+                        onChange={(e) => handleStatusChange(service.orderItemId, e.target.value)}
+                        disabled={loadingService === service.orderItemId || statusDisabled}
                         className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[service.status] || 'bg-gray-100 text-gray-800'}`}
                         aria-label={`Status for ${service.service.name}`}
                       >
@@ -1080,6 +1248,59 @@ export function ServiceFulfillmentTable({
         }
       >
         <p>Are you sure you want to cancel this service?</p>
+      </ModalDialog>
+
+      {/* Confirm Reopen Terminal Status Dialog */}
+      <ModalDialog
+        ref={confirmReopenDialogRef}
+        title={confirmReopenService?.currentStatus && confirmReopenService?.newStatus &&
+          ['Completed', 'Cancelled', 'Cancelled-DNB'].includes(confirmReopenService.newStatus)
+            ? "Change Closed Service Status"
+            : "Re-open Closed Service"
+        }
+        maxWidth="sm"
+        footer={
+          <DialogFooter
+            onCancel={() => {
+              confirmReopenDialogRef.current?.close();
+              setConfirmReopenService(null);
+            }}
+            onConfirm={handleConfirmReopen}
+            cancelText="No, Keep Current Status"
+            confirmText="Yes, Change Status"
+            loading={loadingService === confirmReopenService?.orderItemId}
+          />
+        }
+      >
+        {confirmReopenService && (
+          <>
+            <div className="mb-4">
+              <p className="text-gray-700">{confirmReopenService.message}</p>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-amber-800">
+                    {['Completed', 'Cancelled', 'Cancelled-DNB'].includes(confirmReopenService.newStatus)
+                      ? 'Changing Closed Service Status'
+                      : 'Re-opening Closed Service'
+                    }
+                  </h3>
+                  <div className="mt-2 text-sm text-amber-700">
+                    <p>
+                      This will change the status from <span className="font-semibold">{confirmReopenService.currentStatus}</span> to <span className="font-semibold">{confirmReopenService.newStatus}</span>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </ModalDialog>
     </div>
   );

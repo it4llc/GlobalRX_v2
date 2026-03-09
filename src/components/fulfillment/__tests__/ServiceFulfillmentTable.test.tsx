@@ -60,7 +60,7 @@ describe('ServiceFulfillmentTable', () => {
       orderItemId: 'item-1',
       serviceId: 'service-type-1',
       locationId: 'location-1',
-      status: 'pending',
+      status: 'Submitted',
       assignedVendorId: null,
       vendorNotes: null,
       internalNotes: null,
@@ -87,7 +87,7 @@ describe('ServiceFulfillmentTable', () => {
       orderItemId: 'item-2',
       serviceId: 'service-type-2',
       locationId: 'location-2',
-      status: 'processing',
+      status: 'Processing',
       assignedVendorId: 'vendor-123',
       vendorNotes: 'In progress',
       internalNotes: 'Rush order',
@@ -118,7 +118,7 @@ describe('ServiceFulfillmentTable', () => {
       orderItemId: 'item-3',
       serviceId: 'service-type-3',
       locationId: 'location-3',
-      status: 'completed',
+      status: 'Completed',
       assignedVendorId: 'vendor-456',
       vendorNotes: 'All checks passed',
       internalNotes: 'Approved',
@@ -194,17 +194,17 @@ describe('ServiceFulfillmentTable', () => {
       // Find status badges in the table cells (they also appear in dropdowns)
       const rows = screen.getAllByRole('row');
 
-      // Find the pending status in the first service row
-      const pendingRow = rows.find(row => row.textContent?.includes('Criminal Background Check'));
-      expect(pendingRow?.textContent).toContain('pending');
+      // Find the Submitted status in the first service row
+      const submittedRow = rows.find(row => row.textContent?.includes('Criminal Background Check'));
+      expect(submittedRow?.textContent).toContain('Submitted');
 
-      // Find the processing status in the second service row
+      // Find the Processing status in the second service row
       const processingRow = rows.find(row => row.textContent?.includes('Employment Verification'));
-      expect(processingRow?.textContent).toContain('processing');
+      expect(processingRow?.textContent).toContain('Processing');
 
-      // Find the completed status in the third service row
+      // Find the Completed status in the third service row
       const completedRow = rows.find(row => row.textContent?.includes('Education Verification'));
-      expect(completedRow?.textContent).toContain('completed');
+      expect(completedRow?.textContent).toContain('Completed');
     });
 
     it('should display "Not Assigned" for services without vendor', () => {
@@ -453,14 +453,17 @@ describe('ServiceFulfillmentTable', () => {
 
       // Get dropdowns specifically for service status (not filter dropdowns)
       const statusDropdowns = screen.getAllByRole('combobox', { name: /status for/i });
-      // Should be 2 dropdowns - pending and processing services (completed service has no dropdown)
-      expect(statusDropdowns).toHaveLength(2);
+      // Should be 3 dropdowns - all services can now have their status changed (terminal statuses with confirmation)
+      expect(statusDropdowns).toHaveLength(3);
     });
 
     it('should call API to update status', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ id: 'service-1', status: 'processing' })
+        json: async () => ({
+          service: { id: 'service-1', status: 'Processing' },
+          auditEntry: { id: 'audit-1' }
+        })
       });
 
       render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
@@ -468,53 +471,46 @@ describe('ServiceFulfillmentTable', () => {
       const statusDropdown = screen.getByRole('combobox', { name: /Status for Criminal Background Check/i });
 
       // Use fireEvent to change the value
-      fireEvent.change(statusDropdown, { target: { value: 'processing' } });
+      fireEvent.change(statusDropdown, { target: { value: 'Processing' } });
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/fulfillment/services/service-1',
+          '/api/services/item-1/status',
           expect.objectContaining({
-            method: 'PATCH',
-            body: JSON.stringify({ status: 'processing' })
+            method: 'PUT',
+            body: JSON.stringify({ status: 'Processing' })
           })
         );
       });
     });
 
-    it('should disable status changes for completed services', () => {
+    it('should allow status changes for completed services with confirmation', () => {
       render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
 
-      // Completed service should not have a dropdown at all, just a span
-      const statusElements = screen.getAllByRole('cell', { name: /completed/i });
-      expect(statusElements.length).toBeGreaterThan(0);
+      // Completed service should have a dropdown (terminal statuses can be changed with confirmation)
+      const completedService = mockServices.find(s => s.status === 'Completed');
+      expect(completedService).toBeDefined();
 
-      // Should not be a dropdown for completed status
-      const dropdowns = screen.getAllByRole('combobox', { name: /status/i });
-      dropdowns.forEach(dropdown => {
-        expect(dropdown.value).not.toBe('completed');
-      });
+      // Find the dropdown for the completed service
+      const dropdown = screen.getByLabelText(`Status for ${completedService.service.name}`);
+      expect(dropdown).toBeInTheDocument();
+      expect(dropdown).toHaveValue('Completed');
     });
 
-    it('should disable status changes for cancelled services', () => {
+    it('should allow status changes for cancelled services with confirmation', () => {
       const servicesWithCancelled = [
         {
           ...mockServices[0],
-          status: 'cancelled'
+          status: 'Cancelled'
         }
       ];
 
       render(<ServiceFulfillmentTable orderId="order-123" services={servicesWithCancelled} />);
 
-      // Cancelled service should show the status as text, not a dropdown
-      const statusCell = screen.getByRole('cell', { name: 'cancelled' });
-      expect(statusCell).toBeInTheDocument();
-
-      // The status should be displayed as text with the cancelled status
-      expect(statusCell.textContent).toContain('cancelled');
-
-      // Should not have any editable dropdown
-      const dropdowns = within(statusCell).queryAllByRole('combobox');
-      expect(dropdowns).toHaveLength(0);
+      // Cancelled service should have a dropdown (terminal statuses can be changed with confirmation)
+      const dropdown = screen.getByLabelText('Status for Criminal Background Check');
+      expect(dropdown).toBeInTheDocument();
+      expect(dropdown).toHaveValue('Cancelled');
     });
 
     it('should show confirmation for status change to cancelled', async () => {
@@ -522,7 +518,7 @@ describe('ServiceFulfillmentTable', () => {
       render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
 
       const statusDropdown = screen.getAllByRole('combobox', { name: /status/i })[0];
-      await user.selectOptions(statusDropdown, 'cancelled');
+      await user.selectOptions(statusDropdown, 'Cancelled');
 
       expect(screen.getByText('Confirm Status Change')).toBeInTheDocument();
       expect(screen.getByText('Are you sure you want to cancel this service?')).toBeInTheDocument();
@@ -638,7 +634,7 @@ describe('ServiceFulfillmentTable', () => {
       render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
 
       const statusFilter = screen.getByLabelText('Filter by Status');
-      await user.selectOptions(statusFilter, 'completed');
+      await user.selectOptions(statusFilter, 'Completed');
 
       expect(screen.queryByText('Criminal Background Check')).not.toBeInTheDocument();
       expect(screen.queryByText('Employment Verification')).not.toBeInTheDocument();
@@ -695,10 +691,10 @@ describe('ServiceFulfillmentTable', () => {
       const statusHeader = screen.getByText('Status');
       await user.click(statusHeader);
 
-      const statuses = screen.getAllByRole('cell', { name: /pending|processing|completed/i });
-      expect(statuses[0]).toHaveTextContent('completed');
-      expect(statuses[1]).toHaveTextContent('pending');
-      expect(statuses[2]).toHaveTextContent('processing');
+      const statuses = screen.getAllByRole('cell', { name: /Submitted|Processing|Completed/i });
+      expect(statuses[0]).toHaveTextContent('Completed');
+      expect(statuses[1]).toHaveTextContent('Submitted');
+      expect(statuses[2]).toHaveTextContent('Processing');
     });
   });
 
@@ -730,7 +726,10 @@ describe('ServiceFulfillmentTable', () => {
 
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ id: 'service-2', status: 'completed' })
+        json: async () => ({
+          service: { id: 'service-2', status: 'Completed' },
+          auditEntry: { id: 'audit-1' }
+        })
       });
 
       render(<ServiceFulfillmentTable orderId="order-123" services={vendorServices} />);
@@ -738,14 +737,14 @@ describe('ServiceFulfillmentTable', () => {
       const statusDropdown = screen.getByRole('combobox', { name: /Status for Employment Verification/i });
 
       // Use fireEvent to trigger the change
-      fireEvent.change(statusDropdown, { target: { value: 'completed' } });
+      fireEvent.change(statusDropdown, { target: { value: 'Completed' } });
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/fulfillment/services/service-2',
+          '/api/services/item-2/status',
           expect.objectContaining({
-            method: 'PATCH',
-            body: JSON.stringify({ status: 'completed' })
+            method: 'PUT',
+            body: JSON.stringify({ status: 'Completed' })
           })
         );
       });
@@ -773,7 +772,7 @@ describe('ServiceFulfillmentTable', () => {
       const completedServices = [
         {
           ...mockServices[1],
-          status: 'completed',
+          status: 'Completed',
           completedAt: '2024-03-02T10:00:00Z'
         }
       ];
@@ -781,7 +780,9 @@ describe('ServiceFulfillmentTable', () => {
       render(<ServiceFulfillmentTable orderId="order-123" services={completedServices} />);
 
       expect(screen.getByText('Employment Verification')).toBeInTheDocument();
-      expect(screen.getByText('completed')).toBeInTheDocument();
+      // Check that the status dropdown shows Completed as the selected value
+      const statusDropdown = screen.getByLabelText('Status for Employment Verification');
+      expect(statusDropdown).toHaveValue('Completed');
     });
   });
 
@@ -813,7 +814,10 @@ describe('ServiceFulfillmentTable', () => {
       // Mock the status update to succeed
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ id: 'service-1', status: 'processing' })
+        json: async () => ({
+        service: { id: 'service-1', status: 'Processing' },
+        auditEntry: { id: 'audit-1' }
+      })
       });
 
       render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
@@ -822,18 +826,18 @@ describe('ServiceFulfillmentTable', () => {
       const statusDropdown = screen.getByLabelText('Status for Criminal Background Check');
 
       // Verify initial value
-      expect(statusDropdown).toHaveValue('pending');
+      expect(statusDropdown).toHaveValue('Submitted');
 
       // Change to a different status
-      fireEvent.change(statusDropdown, { target: { value: 'processing' } });
+      fireEvent.change(statusDropdown, { target: { value: 'Processing' } });
 
       // Wait for the API call to complete
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/fulfillment/services/service-1',
+          '/api/services/item-1/status',
           expect.objectContaining({
-            method: 'PATCH',
-            body: JSON.stringify({ status: 'processing' })
+            method: 'PUT',
+            body: JSON.stringify({ status: 'Processing' })
           })
         );
       });

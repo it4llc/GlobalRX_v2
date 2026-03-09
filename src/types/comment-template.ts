@@ -22,17 +22,28 @@ export interface ServiceComment {
   createdAt: string;
   updatedBy?: string | null;
   updatedAt?: string | null;
+  // Status change fields
+  isStatusChange?: boolean;
+  statusChangedFrom?: string | null;
+  statusChangedTo?: string | null;
+  comment?: string | null;
+  // Legacy name fields (for backwards compatibility)
+  createdByName?: string | null;
+  updatedByName?: string | null;
+  templateName?: string | null;
   // Relations populated by API
   template?: CommentTemplate;
   createdByUser?: {
     id: string;
     name: string;
     email: string;
+    userType?: string;
   };
   updatedByUser?: {
     id: string;
     name: string;
     email: string;
+    userType?: string;
   } | null;
 }
 
@@ -53,10 +64,12 @@ export interface ServiceCommentWithRelations extends ServiceComment {
     id: string;
     name: string;
     email: string;
+    userType?: string;
   };
   updatedByUser?: {
     id: string;
     name: string;
     email: string;
+    userType?: string;
   } | null;
 }
