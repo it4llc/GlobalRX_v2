@@ -1,3 +1,5 @@
+// /GlobalRX_v2/src/app/api/vendors/route.ts
+
 /**
  * API Route: /api/vendors
  *
@@ -59,7 +61,11 @@ export async function GET(request: NextRequest) {
     // Data access control based on user type - enforces vendor data isolation
     // This implements the business rule that vendor users can only see their own
     // organization's data, while internal users manage all vendors
-    const userType = session.user.type || (session.user as Record<string, any>).userType;
+    //
+    // BUG FIX (2026-03-08): Previously used `session.user.type` which doesn't exist.
+    // The correct property is `userType` as defined in the TypeScript types and auth.ts.
+    // This was causing authorization failures in vendor endpoints.
+    const userType = session.user.userType;
 
     if (userType === 'internal' || userType === 'admin') {
       // Internal/admin users can see all vendors for management purposes
@@ -94,7 +100,7 @@ export async function GET(request: NextRequest) {
     logger.error('Error fetching vendors', {
       event: 'vendors_fetch_error',
       userId: session.user.id,
-      userType: session.user.type,
+      userType: session.user.userType,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
 
@@ -116,14 +122,14 @@ export async function POST(request: NextRequest) {
   logger.info('Checking vendor management permissions', {
     userId: session.user.id,
     userEmail: session.user.email,
-    userType: session.user.type || session.user.userType || 'not-set',
+    userType: session.user.userType || 'not-set',
     permissions: session.user.permissions
   });
 
   if (!canUserManageVendors(session.user)) {
     logger.warn('User lacks vendor management permissions', {
       userId: session.user.id,
-      userType: session.user.type || session.user.userType,
+      userType: session.user.userType,
       permissions: session.user.permissions
     });
     return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
