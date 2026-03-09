@@ -124,6 +124,13 @@ Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Cri
   - Implemented status normalization logic to convert uppercase to title case before database queries
   - Added Section 9.9 to coding standards for "Data Format Consistency" to prevent similar bugs
   - Added comprehensive code comments explaining the bug and fix for future developers
+- **Update**: ✅ Fulfillment Query Filter Bug Fixed on March 9, 2026:
+  - Fixed internal users unable to see unassigned orders in fulfillment view
+  - Root cause: Line 64 in `/src/app/api/fulfillment/route.ts` was incorrectly filtering with `assignedVendorId: { not: null }`
+  - This excluded unassigned orders that internal/admin users need to manage for proper fulfillment workflow
+  - Bug fix: Removed the incorrect vendor filter so internal users see ALL orders (assigned and unassigned)
+  - Added Section 9.10 to coding standards for "Database Query Filter Logic" to prevent similar logical filtering bugs
+  - Added comprehensive code comments explaining the specific bug and fix for future developers
 
 ### 5. No Automated Backups - Data Loss Risk
 - **Finding**: Manual backup process only, no automation or remote storage

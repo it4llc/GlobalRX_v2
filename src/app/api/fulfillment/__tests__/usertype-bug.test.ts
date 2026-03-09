@@ -1,6 +1,7 @@
 // /GlobalRX_v2/src/app/api/fulfillment/__tests__/usertype-bug.test.ts
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextRequest } from 'next/server';
 import { GET } from '../route';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
@@ -70,14 +71,14 @@ describe('UserType Bug - Fulfillment Route', () => {
           id: '1',
           userType: 'internal',  // CORRECT property
           // Note: NO 'type' property - the fallback pattern shouldn't be needed
-          permissions: { fulfillment: { view: true } }
+          permissions: { fulfillment: true }
         }
       });
 
       vi.mocked(prisma.order.findMany).mockResolvedValueOnce(mockOrders);
       vi.mocked(prisma.order.count).mockResolvedValueOnce(2);
 
-      const request = new Request('http://localhost:3000/api/fulfillment');
+      const request = new NextRequest('http://localhost:3000/api/fulfillment');
       const response = await GET(request);
 
       // Internal users should see all orders
@@ -87,10 +88,11 @@ describe('UserType Bug - Fulfillment Route', () => {
       expect(data.total).toBe(2);
 
       // Verify it queries all orders, not filtered by vendor
+      // After the fix, internal users should see ALL orders (no assignedVendorId filter)
       expect(prisma.order.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.not.objectContaining({
-            vendorId: expect.anything()
+            assignedVendorId: expect.anything()
           })
         })
       );
@@ -104,7 +106,7 @@ describe('UserType Bug - Fulfillment Route', () => {
           userType: 'vendor',  // CORRECT property
           // Note: NO 'type' property
           vendorId: 'vendor-1',
-          permissions: { fulfillment: { view: true } }
+          permissions: { fulfillment: true }
         }
       });
 
@@ -112,7 +114,7 @@ describe('UserType Bug - Fulfillment Route', () => {
       vi.mocked(prisma.order.findMany).mockResolvedValueOnce(vendorOrders);
       vi.mocked(prisma.order.count).mockResolvedValueOnce(1);
 
-      const request = new Request('http://localhost:3000/api/fulfillment');
+      const request = new NextRequest('http://localhost:3000/api/fulfillment');
       const response = await GET(request);
 
       // Vendor users should only see their orders
@@ -121,11 +123,11 @@ describe('UserType Bug - Fulfillment Route', () => {
       expect(data.orders).toHaveLength(1);
       expect(data.total).toBe(1);
 
-      // Verify it filters by vendorId
+      // Verify it filters by assignedVendorId (not vendorId)
       expect(prisma.order.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            vendorId: 'vendor-1'
+            assignedVendorId: 'vendor-1'
           })
         })
       );
@@ -139,7 +141,7 @@ describe('UserType Bug - Fulfillment Route', () => {
           userType: 'customer',  // CORRECT property
           // Note: NO 'type' property
           customerId: 'customer-1',
-          permissions: { fulfillment: { view: true } }
+          permissions: { fulfillment: true }
         }
       });
 
@@ -147,7 +149,7 @@ describe('UserType Bug - Fulfillment Route', () => {
       vi.mocked(prisma.order.findMany).mockResolvedValueOnce(customerOrders);
       vi.mocked(prisma.order.count).mockResolvedValueOnce(1);
 
-      const request = new Request('http://localhost:3000/api/fulfillment');
+      const request = new NextRequest('http://localhost:3000/api/fulfillment');
       const response = await GET(request);
 
       // Customer users should only see their orders
@@ -175,14 +177,14 @@ describe('UserType Bug - Fulfillment Route', () => {
           userType: 'internal',
           // type is explicitly undefined to test fallback isn't needed
           type: undefined as any,
-          permissions: { fulfillment: { view: true } }
+          permissions: { fulfillment: true }
         }
       });
 
       vi.mocked(prisma.order.findMany).mockResolvedValueOnce(mockOrders);
       vi.mocked(prisma.order.count).mockResolvedValueOnce(2);
 
-      const request = new Request('http://localhost:3000/api/fulfillment');
+      const request = new NextRequest('http://localhost:3000/api/fulfillment');
       const response = await GET(request);
 
       // Should work without needing the fallback
@@ -198,14 +200,14 @@ describe('UserType Bug - Fulfillment Route', () => {
           userType: 'internal',  // Correct value
           type: 'vendor' as any,  // Wrong value that fallback would use first
           vendorId: 'vendor-999', // Would be used if type='vendor' is honored
-          permissions: { fulfillment: { view: true } }
+          permissions: { fulfillment: true }
         }
       });
 
       vi.mocked(prisma.order.findMany).mockResolvedValueOnce(mockOrders);
       vi.mocked(prisma.order.count).mockResolvedValueOnce(2);
 
-      const request = new Request('http://localhost:3000/api/fulfillment');
+      const request = new NextRequest('http://localhost:3000/api/fulfillment');
       const response = await GET(request);
 
       // Should use userType (internal) and show all orders
@@ -231,7 +233,7 @@ describe('UserType Bug - Fulfillment Route', () => {
         user: {
           id: '1',
           userType: 'internal',  // Only userType, no type
-          permissions: { fulfillment: { view: true } }
+          permissions: { fulfillment: true }
         }
       });
 
@@ -239,7 +241,7 @@ describe('UserType Bug - Fulfillment Route', () => {
       vi.mocked(prisma.order.findMany).mockResolvedValueOnce(pendingOrders);
       vi.mocked(prisma.order.count).mockResolvedValueOnce(1);
 
-      const request = new Request('http://localhost:3000/api/fulfillment?status=pending');
+      const request = new NextRequest('http://localhost:3000/api/fulfillment?status=pending');
       const response = await GET(request);
 
       expect(response.status).toBe(200);
@@ -259,7 +261,7 @@ describe('UserType Bug - Fulfillment Route', () => {
           id: '2',
           userType: 'vendor',  // Only userType
           vendorId: 'vendor-1',
-          permissions: { fulfillment: { view: true } }
+          permissions: { fulfillment: true }
         }
       });
 
@@ -289,7 +291,7 @@ describe('UserType Bug - Fulfillment Route', () => {
         user: {
           id: '1',
           userType: 'internal',  // Only userType
-          permissions: { fulfillment: { view: true } }
+          permissions: { fulfillment: true }
         }
       });
 
@@ -303,7 +305,7 @@ describe('UserType Bug - Fulfillment Route', () => {
       vi.mocked(prisma.order.findMany).mockResolvedValueOnce(ordersWithServices);
       vi.mocked(prisma.order.count).mockResolvedValueOnce(2);
 
-      const request = new Request('http://localhost:3000/api/fulfillment?includeServices=true');
+      const request = new NextRequest('http://localhost:3000/api/fulfillment?includeServices=true');
       const response = await GET(request);
 
       expect(response.status).toBe(200);

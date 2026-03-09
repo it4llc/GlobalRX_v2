@@ -60,8 +60,12 @@ export async function GET(request: NextRequest) {
         vendorId: session.user.vendorId
       });
     } else if (userType === 'internal' || userType === 'admin') {
-      // Internal users can see all orders that have vendors assigned
-      whereClause.assignedVendorId = { not: null };
+      // Internal users can see all orders (both assigned and unassigned)
+      // Previously this incorrectly filtered with assignedVendorId: { not: null }
+      // which excluded unassigned orders that internal users need to manage.
+      // Bug Fix (March 9, 2026): Removed vendor filter so internal/admin users
+      // can see ALL orders including unassigned ones for proper fulfillment management.
+      // No vendor filter needed - they manage all fulfillment
 
       logger.info('Internal user fetching fulfillment orders', {
         userId: session.user.id
