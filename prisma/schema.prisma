@@ -8,39 +8,41 @@ datasource db {
 }
 
 model User {
-  id                  String               @id @default(uuid())
-  email               String               @unique
-  password            String
-  firstName           String?
-  lastName            String?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  permissions         Json?
-  customerId          String?
-  failedLoginAttempts Int                  @default(0)
-  lastLoginAt         DateTime?
-  lastLoginIp         String?
-  lastPasswordChange  DateTime             @default(now())
-  lockedUntil         DateTime?
-  mfaEnabled          Boolean              @default(false)
-  mfaSecret           String?
-  userType            String               @default("admin")
-  vendorId            String?
-  auditLogs           AuditLog[]
-  customerUser        CustomerUser?
-  orderStatusChanges  OrderStatusHistory[]
-  orders              Order[]
-  servicesCreated     Service[]            @relation("ServiceCreatedBy")
-  servicesUpdated     Service[]            @relation("ServiceUpdatedBy")
-  customer            Customer?            @relation("CustomerUserRelation", fields: [customerId], references: [id])
-  vendor              VendorOrganization?  @relation("VendorUserRelation", fields: [vendorId], references: [id])
-  workflowsCreated    Workflow[]           @relation("WorkflowCreatedBy")
-  workflowsUpdated    Workflow[]           @relation("WorkflowUpdatedBy")
-  servicesAssigned    ServicesFulfillment[] @relation("ServiceAssignedBy")
-  serviceAuditLogs    ServiceAuditLog[]    @relation("ServiceAuditLogUser")
-  closedOrders        Order[]              @relation("OrderClosedBy")
-  serviceCommentsCreated ServiceComment[]  @relation("ServiceCommentCreatedBy")
-  serviceCommentsUpdated ServiceComment[]  @relation("ServiceCommentUpdatedBy")
+  id                     String                @id @default(uuid())
+  email                  String                @unique
+  password               String
+  firstName              String?
+  lastName               String?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  permissions            Json?
+  customerId             String?
+  failedLoginAttempts    Int                   @default(0)
+  lastLoginAt            DateTime?
+  lastLoginIp            String?
+  lastPasswordChange     DateTime              @default(now())
+  lockedUntil            DateTime?
+  mfaEnabled             Boolean               @default(false)
+  mfaSecret              String?
+  userType               String                @default("admin")
+  vendorId               String?
+  auditLogs              AuditLog[]
+  customerUser           CustomerUser?
+  orderStatusChanges     OrderStatusHistory[]
+  closedOrders           Order[]               @relation("OrderClosedBy")
+  orders                 Order[]
+  serviceAuditLogs       ServiceAuditLog[]     @relation("ServiceAuditLogUser")
+  serviceCommentsCreated ServiceComment[]      @relation("ServiceCommentCreatedBy")
+  serviceCommentsUpdated ServiceComment[]      @relation("ServiceCommentUpdatedBy")
+  servicesCreated        Service[]             @relation("ServiceCreatedBy")
+  servicesUpdated        Service[]             @relation("ServiceUpdatedBy")
+  servicesAssigned       ServicesFulfillment[] @relation("ServiceAssignedBy")
+  customer               Customer?             @relation("CustomerUserRelation", fields: [customerId], references: [id])
+  vendor                 VendorOrganization?   @relation("VendorUserRelation", fields: [vendorId], references: [id])
+  workflowsCreated       Workflow[]            @relation("WorkflowCreatedBy")
+  workflowsUpdated       Workflow[]            @relation("WorkflowUpdatedBy")
+  orderLocks             OrderLock[]
+  orderItemsUpdated      OrderItem[]           @relation("OrderItemUpdatedBy")
 
   @@index([customerId])
   @@index([vendorId])
@@ -48,25 +50,25 @@ model User {
 }
 
 model Country {
-  id                   String            @id @default(uuid())
+  id                   String                @id @default(uuid())
   name                 String
-  code2                String            @unique
-  code3                String            @unique
+  code2                String                @unique
+  code3                String                @unique
   numeric              String?
   subregion1           String?
   subregion2           String?
   subregion3           String?
-  createdAt            DateTime?         @default(now()) @db.Timestamptz(6)
-  updatedAt            DateTime?         @default(now()) @updatedAt @db.Timestamptz(6)
+  createdAt            DateTime?             @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime?             @default(now()) @updatedAt @db.Timestamptz(6)
   parentId             String?
   disabled             Boolean?
-  addressCountries     AddressEntry[]    @relation("AddressCountry")
-  addressCounties      AddressEntry[]    @relation("AddressCounty")
-  addressStates        AddressEntry[]    @relation("AddressState")
-  cityMappingLocations CityMapping[]     @relation("CityMappingLocation")
-  cityMappingStates    CityMapping[]     @relation("CityMappingState")
-  parent               Country?          @relation("CountryToCountry", fields: [parentId], references: [id])
-  children             Country[]         @relation("CountryToCountry")
+  addressCountries     AddressEntry[]        @relation("AddressCountry")
+  addressCounties      AddressEntry[]        @relation("AddressCounty")
+  addressStates        AddressEntry[]        @relation("AddressState")
+  cityMappingLocations CityMapping[]         @relation("CityMappingLocation")
+  cityMappingStates    CityMapping[]         @relation("CityMappingState")
+  parent               Country?              @relation("CountryToCountry", fields: [parentId], references: [id])
+  children             Country[]             @relation("CountryToCountry")
   serviceAvailability  DSXAvailability[]
   mappings             DSXMapping[]
   orderItems           OrderItem[]
@@ -77,25 +79,25 @@ model Country {
 }
 
 model Service {
-  id                  String               @id @default(uuid())
+  id                  String                @id @default(uuid())
   name                String
   category            String
   description         String?
-  disabled            Boolean              @default(false)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  disabled            Boolean               @default(false)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
   createdById         String?
   updatedById         String?
-  functionalityType   String               @default("other")
-  code                String               @unique
+  functionalityType   String                @default("other")
+  code                String                @unique
   customerServices    CustomerService[]
   availability        DSXAvailability[]
   mappings            DSXMapping[]
   orderItems          OrderItem[]
   packageServices     PackageService[]
   serviceRequirements ServiceRequirement[]
-  createdBy           User?                @relation("ServiceCreatedBy", fields: [createdById], references: [id])
-  updatedBy           User?                @relation("ServiceUpdatedBy", fields: [updatedById], references: [id])
+  createdBy           User?                 @relation("ServiceCreatedBy", fields: [createdById], references: [id])
+  updatedBy           User?                 @relation("ServiceUpdatedBy", fields: [updatedById], references: [id])
   servicesFulfillment ServicesFulfillment[]
 
   @@index([createdById])
@@ -353,35 +355,37 @@ model OrderStatus {
 }
 
 model Order {
-  id               String               @id @default(uuid())
-  orderNumber      String               @unique
-  customerId       String
-  userId           String
-  statusCode       String
-  subject          Json
-  totalPrice       Decimal?             @db.Decimal(10, 2)
-  notes            String?
-  submittedAt      DateTime?
-  completedAt      DateTime?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  assignedVendorId String?
-  closedAt         DateTime?
-  closedBy         String?
-  closureComments  String?              @db.Text
-  addressEntries   AddressEntry[]
-  items            OrderItem[]
-  statusHistory    OrderStatusHistory[]
-  assignedVendor   VendorOrganization?  @relation("OrderVendorAssignment", fields: [assignedVendorId], references: [id])
-  customer         Customer             @relation(fields: [customerId], references: [id])
-  user             User                 @relation(fields: [userId], references: [id])
-  closedByUser     User?                @relation("OrderClosedBy", fields: [closedBy], references: [id])
+  id                  String                @id @default(uuid())
+  orderNumber         String                @unique
+  customerId          String
+  userId              String
+  statusCode          String
+  subject             Json
+  totalPrice          Decimal?              @db.Decimal(10, 2)
+  notes               String?
+  submittedAt         DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  assignedVendorId    String?
+  closedAt            DateTime?
+  closedBy            String?
+  closureComments     String?
+  addressEntries      AddressEntry[]
+  items               OrderItem[]
+  statusHistory       OrderStatusHistory[]
+  assignedVendor      VendorOrganization?   @relation("OrderVendorAssignment", fields: [assignedVendorId], references: [id])
+  closedByUser        User?                 @relation("OrderClosedBy", fields: [closedBy], references: [id])
+  customer            Customer              @relation(fields: [customerId], references: [id])
+  user                User                  @relation(fields: [userId], references: [id])
   servicesFulfillment ServicesFulfillment[]
+  lock                OrderLock?
 
   @@index([customerId])
   @@index([statusCode])
   @@index([orderNumber])
   @@index([assignedVendorId])
+  @@index([closedBy])
   @@map("orders")
 }
 
@@ -401,19 +405,22 @@ model OrderStatusHistory {
 }
 
 model OrderItem {
-  id         String          @id @default(uuid())
-  orderId    String
-  serviceId  String
-  locationId String
-  status     String
-  price      Decimal?        @db.Decimal(10, 2)
-  createdAt  DateTime        @default(now())
-  data       OrderData[]
-  documents  OrderDocument[]
-  comments   ServiceComment[]
-  location   Country         @relation(fields: [locationId], references: [id])
-  order      Order           @relation(fields: [orderId], references: [id])
-  service    Service         @relation(fields: [serviceId], references: [id])
+  id                 String               @id @default(uuid())
+  orderId            String
+  serviceId          String
+  locationId         String
+  status             String
+  price              Decimal?             @db.Decimal(10, 2)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  updatedById        String?
+  data               OrderData[]
+  documents          OrderDocument[]
+  location           Country              @relation(fields: [locationId], references: [id])
+  order              Order                @relation(fields: [orderId], references: [id])
+  service            Service              @relation(fields: [serviceId], references: [id])
+  updatedBy          User?                @relation("OrderItemUpdatedBy", fields: [updatedById], references: [id])
+  comments           ServiceComment[]
   serviceFulfillment ServicesFulfillment?
 
   @@index([orderId])
@@ -507,19 +514,19 @@ model CityMapping {
 }
 
 model VendorOrganization {
-  id             String   @id @default(uuid())
-  name           String
-  isActive       Boolean  @default(true)
-  isPrimary      Boolean  @default(false)
-  contactEmail   String
-  contactPhone   String
-  address        String?
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  assignedOrders Order[]  @relation("OrderVendorAssignment")
-  users          User[]   @relation("VendorUserRelation")
+  id               String                @id @default(uuid())
+  name             String
+  isActive         Boolean               @default(true)
+  isPrimary        Boolean               @default(false)
+  contactEmail     String
+  contactPhone     String
+  address          String?
+  notes            String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  assignedOrders   Order[]               @relation("OrderVendorAssignment")
   assignedServices ServicesFulfillment[] @relation("ServiceVendorAssignment")
+  users            User[]                @relation("VendorUserRelation")
 
   @@index([isActive])
   @@index([isPrimary])
@@ -527,17 +534,17 @@ model VendorOrganization {
 }
 
 model CommentTemplate {
-  id             String                        @id @default(uuid())
-  hasBeenUsed    Boolean                       @default(false)
-  createdAt      DateTime                      @default(now())
-  updatedAt      DateTime                      @updatedAt
-  createdBy      String?
-  updatedBy      String?
-  isActive       Boolean                       @default(true)
-  longName       String                        @db.VarChar(100)
-  shortName      String                        @db.VarChar(50)
-  templateText   String                        @db.VarChar(1000)
-  availabilities CommentTemplateAvailability[]
+  id              String                        @id @default(uuid())
+  hasBeenUsed     Boolean                       @default(false)
+  createdAt       DateTime                      @default(now())
+  updatedAt       DateTime                      @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  isActive        Boolean                       @default(true)
+  longName        String                        @default("Template Long Name") @db.VarChar(100)
+  shortName       String                        @default("Template") @db.VarChar(50)
+  templateText    String                        @default("Template text") @db.VarChar(1000)
+  availabilities  CommentTemplateAvailability[]
   serviceComments ServiceComment[]
 
   @@unique([shortName, isActive])
@@ -569,21 +576,20 @@ model ServicesFulfillment {
   locationId       String
   assignedVendorId String?
   status           String              @default("pending")
-  vendorNotes      String?             @db.Text
-  internalNotes    String?             @db.Text
+  vendorNotes      String?
+  internalNotes    String?
   assignedAt       DateTime?
   assignedBy       String?
   completedAt      DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
-
+  auditLogs        ServiceAuditLog[]
+  assignedByUser   User?               @relation("ServiceAssignedBy", fields: [assignedBy], references: [id])
+  assignedVendor   VendorOrganization? @relation("ServiceVendorAssignment", fields: [assignedVendorId], references: [id])
+  location         Country             @relation(fields: [locationId], references: [id])
   order            Order               @relation(fields: [orderId], references: [id])
   orderItem        OrderItem           @relation(fields: [orderItemId], references: [id])
   service          Service             @relation(fields: [serviceId], references: [id])
-  location         Country             @relation(fields: [locationId], references: [id])
-  assignedVendor   VendorOrganization? @relation("ServiceVendorAssignment", fields: [assignedVendorId], references: [id])
-  assignedByUser   User?               @relation("ServiceAssignedBy", fields: [assignedBy], references: [id])
-  auditLogs        ServiceAuditLog[]
 
   @@index([orderId])
   @@index([orderItemId])
@@ -597,15 +603,14 @@ model ServiceAuditLog {
   serviceFulfillmentId String
   orderId              String
   userId               String
-  changeType           String              // status_change, vendor_assignment, note_update
+  changeType           String
   fieldName            String?
-  oldValue             String?             @db.Text
-  newValue             String?             @db.Text
-  notes                String?             @db.Text
+  oldValue             String?
+  newValue             String?
+  notes                String?
   ipAddress            String?
   userAgent            String?
   createdAt            DateTime            @default(now())
-
   serviceFulfillment   ServicesFulfillment @relation(fields: [serviceFulfillmentId], references: [id])
   user                 User                @relation("ServiceAuditLogUser", fields: [userId], references: [id])
 
@@ -617,24 +622,41 @@ model ServiceAuditLog {
 }
 
 model ServiceComment {
-  id              String               @id @default(uuid())
-  orderItemId     String
-  templateId      String
-  finalText       String               @db.Text
-  isInternalOnly  Boolean              @default(true)
-  createdBy       String
-  createdAt       DateTime             @default(now())
-  updatedBy       String?
-  updatedAt       DateTime?
-
-  orderItem       OrderItem            @relation(fields: [orderItemId], references: [id])
-  template        CommentTemplate      @relation(fields: [templateId], references: [id])
-  createdByUser   User                 @relation("ServiceCommentCreatedBy", fields: [createdBy], references: [id])
-  updatedByUser   User?                @relation("ServiceCommentUpdatedBy", fields: [updatedBy], references: [id])
+  id             String          @id @default(uuid())
+  orderItemId    String
+  templateId     String
+  finalText      String          @db.VarChar(1000)
+  isInternalOnly Boolean         @default(true)
+  isStatusChange Boolean         @default(false)
+  statusChangedFrom String?      @db.VarChar(50)
+  statusChangedTo   String?      @db.VarChar(50)
+  comment        String?         @db.Text
+  createdBy      String
+  createdAt      DateTime        @default(now())
+  updatedBy      String?
+  updatedAt      DateTime?
+  createdByUser  User            @relation("ServiceCommentCreatedBy", fields: [createdBy], references: [id])
+  orderItem      OrderItem       @relation(fields: [orderItemId], references: [id])
+  template       CommentTemplate @relation(fields: [templateId], references: [id])
+  updatedByUser  User?           @relation("ServiceCommentUpdatedBy", fields: [updatedBy], references: [id])
 
   @@index([orderItemId])
   @@index([createdBy])
   @@index([createdAt])
   @@index([orderItemId, createdAt])
   @@map("service_comments")
+}
+
+model OrderLock {
+  orderId     String   @id
+  lockedBy    String
+  lockedAt    DateTime @default(now())
+  lockExpires DateTime
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lockedByUser User    @relation(fields: [lockedBy], references: [id])
+
+  @@index([lockedBy])
+  @@index([lockExpires])
+  @@map("order_locks")
 }
