@@ -231,18 +231,27 @@ export async function GET(
       createdAt: comment.createdAt.toISOString(),
       updatedBy: comment.updatedBy,
       updatedAt: comment.updatedAt ? comment.updatedAt.toISOString() : null,
+      // Include status change fields
+      isStatusChange: comment.isStatusChange || false,
+      statusChangedFrom: comment.statusChangedFrom,
+      statusChangedTo: comment.statusChangedTo,
+      comment: comment.comment,
       template: {
         shortName: comment.template.shortName,
         longName: comment.template.longName
       },
       createdByUser: {
+        id: comment.createdByUser.id,
         name: `${comment.createdByUser.firstName || ''} ${comment.createdByUser.lastName || ''}`.trim() || comment.createdByUser.email,
-        email: comment.createdByUser.email
+        email: comment.createdByUser.email,
+        userType: comment.createdByUser.userType
       },
       ...(comment.updatedByUser && {
         updatedByUser: {
+          id: comment.updatedByUser.id,
           name: `${comment.updatedByUser.firstName || ''} ${comment.updatedByUser.lastName || ''}`.trim() || comment.updatedByUser.email,
-          email: comment.updatedByUser.email
+          email: comment.updatedByUser.email,
+          userType: comment.updatedByUser.userType
         }
       })
     }));
