@@ -18,7 +18,7 @@ export async function PUT(
   }
 
   // Step 2: Permission check - only internal users can assign orders
-  if (session.user.type !== 'internal') {
+  if (session.user.userType !== 'internal') {
     return NextResponse.json(
       { error: 'Only internal users can assign orders' },
       { status: 403 }

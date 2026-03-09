@@ -1,4 +1,5 @@
-// src/app/api/fulfillment/route.ts
+// /GlobalRX_v2/src/app/api/fulfillment/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -32,14 +33,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 3: Build query based on user type
-    const userType = session.user.type || (session.user as any).userType;
+    const userType = session.user.userType;
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status') || undefined;
     const search = searchParams.get('search') || undefined;
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 50;
     const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0;
 
-    let whereClause: any = {};
+    interface OrderWhereClause {
+      assignedVendorId?: string | { not: null };
+      statusCode?: string;
+      OR?: Array<{
+        orderNumber?: { contains: string; mode: 'insensitive' };
+        subject?: { path: string[]; string_contains: string };
+      }>;
+    }
+
+    let whereClause: OrderWhereClause = {};
 
     // Filter by vendor for vendor users
     if (userType === 'vendor' && session.user.vendorId) {
@@ -175,7 +185,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Step 4: Check vendor access
-    const userType = session.user.type || (session.user as any).userType;
+    const userType = session.user.userType;
     if (userType === 'vendor' && session.user.vendorId) {
       if (order.assignedVendorId !== session.user.vendorId) {
         return NextResponse.json(

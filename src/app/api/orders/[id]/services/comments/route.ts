@@ -40,7 +40,7 @@ export async function GET(
 
     // Step 2: Verify user has access to the order
     const service = new ServiceCommentService();
-    const userType = session.user.type || 'internal';
+    const userType = session.user.userType || 'internal';
 
     const hasAccess = await service.validateOrderAccess(
       params.id,

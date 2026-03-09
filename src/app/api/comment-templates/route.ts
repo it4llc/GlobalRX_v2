@@ -53,12 +53,16 @@ export async function GET(request: NextRequest) {
       session.user.permissions?.fulfillment === '*' ||
       (typeof session.user.permissions?.fulfillment === 'object' && session.user.permissions.fulfillment !== null);
 
-    if (!hasFulfillmentPermission && session.user.type !== 'internal') {
+    // BUG FIX (March 8, 2026): Use session.user.userType not session.user.type
+    // The session.user object from NextAuth only has 'userType' property, not 'type'
+    // This was causing authorization failures when checking user access
+    if (!hasFulfillmentPermission && session.user.userType !== 'internal') {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
   } else {
-    // Original permission check for template management
-    if (session.user.type === 'vendor' || session.user.type === 'customer') {
+    // BUG FIX (March 8, 2026): Use session.user.userType not session.user.type
+    // Original permission check for template management - fixed property access
+    if (session.user.userType === 'vendor' || session.user.userType === 'customer') {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -70,24 +74,63 @@ export async function GET(request: NextRequest) {
   // Step 3: Fetch data
   try {
     // Build where clause for template filtering
-    const templateWhere: any = { isActive: true };
+    interface TemplateWhereClause {
+      isActive: boolean;
+      id?: { in: string[] };
+    }
+
+    const templateWhere: TemplateWhereClause = { isActive: true };
 
     // If serviceType and serviceStatus are provided, filter templates by availability
     if (serviceType && serviceStatus) {
+      logger.info('GET /api/comment-templates - Filtering by service/status', {
+        serviceType,
+        serviceStatus
+      });
+
       // First get templates that have availability for this service/status combination
+
+      // BUG FIX (March 8, 2026): Status case normalization required
+      // serviceStatus from order items is uppercase (e.g., "SUBMITTED", "MISSING INFORMATION")
+      // but availability status in database is title case (e.g., "Submitted", "Missing Information")
+      // This mismatch was causing template queries to return empty results
+      // Solution: Convert uppercase service status to title case before database lookup
+      const normalizedStatus = serviceStatus
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+
+      logger.info('GET /api/comment-templates - Normalizing status', {
+        originalStatus: serviceStatus,
+        normalizedStatus
+      });
+
       const availableTemplateIds = await prisma.commentTemplateAvailability.findMany({
         where: {
           serviceCode: serviceType,
-          status: serviceStatus
+          status: normalizedStatus
         },
         select: {
           templateId: true
         }
       });
 
+      logger.info('GET /api/comment-templates - Found availabilities', {
+        serviceType,
+        serviceStatus,
+        foundCount: availableTemplateIds.length,
+        templateIds: availableTemplateIds.map(a => a.templateId)
+      });
+
       // If we found specific availabilities, filter to those templates
       if (availableTemplateIds.length > 0) {
         templateWhere.id = { in: availableTemplateIds.map(a => a.templateId) };
+      } else {
+        // No templates have availability for this combination
+        logger.warn('GET /api/comment-templates - No templates available for service/status', {
+          serviceType,
+          serviceStatus
+        });
       }
     }
 
@@ -144,6 +187,13 @@ export async function GET(request: NextRequest) {
       statuses
     };
 
+    logger.info('GET /api/comment-templates - Returning data', {
+      templateCount: templates.length,
+      templateNames: templates.map(t => ({ id: t.id, shortName: t.shortName })),
+      isFiltered: !!(serviceType && serviceStatus),
+      filterParams: { serviceType, serviceStatus }
+    });
+
     // Validate response structure
     const validated = commentTemplateListSchema.parse(responseData);
 
@@ -185,18 +235,45 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Debug: Log session user details
+  logger.info('POST /api/comment-templates - Session user details', {
+    userId: session.user.id,
+    userType: session.user.userType,
+    permissions: session.user.permissions,
+    hasCommentManagement: !!session.user.permissions?.comment_management
+  });
+
   // Step 2: Permission check
-  if (session.user.type === 'vendor' || session.user.type === 'customer') {
+  if (session.user.userType === 'vendor' || session.user.userType === 'customer') {
+    logger.warn('POST /api/comment-templates - Blocked: vendor/customer user type', {
+      userId: session.user.id,
+      userType: session.user.userType
+    });
     return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
   }
 
   if (!session.user.permissions?.comment_management) {
+    logger.warn('POST /api/comment-templates - Blocked: no comment_management permission', {
+      userId: session.user.id,
+      permissions: session.user.permissions
+    });
     return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
   }
 
   // Step 3: Parse and validate request body
   try {
     const body = await request.json();
+
+    // Debug: Log raw request body
+    logger.info('POST /api/comment-templates - Raw request body', {
+      body: JSON.stringify(body),
+      bodyKeys: Object.keys(body),
+      bodyTypes: Object.entries(body).reduce((acc, [key, value]) => {
+        acc[key] = typeof value;
+        return acc;
+      }, {} as Record<string, string>)
+    });
+
     const validatedData = createCommentTemplateSchema.parse(body);
 
     // Step 4: Business rule validation - shortName must be unique among active templates
@@ -209,6 +286,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingTemplate) {
+      logger.warn('POST /api/comment-templates - Duplicate shortName found', {
+        requestedShortName: validatedData.shortName,
+        existingTemplateId: existingTemplate.id,
+        existingTemplateName: existingTemplate.longName
+      });
       return NextResponse.json(
         { error: 'A template with this short name already exists' },
         { status: 400 }
@@ -232,13 +314,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(newTemplate, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      // Debug: Log validation errors in detail
+      logger.warn('POST /api/comment-templates - Validation failed', {
+        validationErrors: error.errors,
+        invalidFields: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message,
+          code: e.code,
+          expected: (e as any).expected,
+          received: (e as any).received
+        })),
+        flattenedErrors: error.flatten()
+      });
+
       return NextResponse.json(
         { error: 'Invalid input', details: error.errors },
         { status: 400 }
       );
     }
 
-    logger.error('Error creating comment template', { error });
+    logger.error('Error creating comment template', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      errorType: error?.constructor?.name,
+      errorStack: error instanceof Error ? error.stack : undefined
+    });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

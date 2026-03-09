@@ -47,7 +47,7 @@ export async function GET(
     }
 
     // Step 3: Check user type - must be internal
-    const userType = session.user.userType || session.user.type;
+    const userType = session.user.userType;
     if (userType !== 'internal') {
       logger.warn('Non-internal user attempted to access fulfillment order endpoint', {
         userId: session.user.id,

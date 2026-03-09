@@ -1,11 +1,15 @@
 // /GlobalRX_v2/src/lib/vendorUtils.ts
 
+// BUG FIX (2026-03-08): Updated User interface to use 'userType' instead of 'type'
+// to match the actual session user object structure from NextAuth and auth.ts.
+// This interface was previously using 'type' which caused TypeScript type mismatches
+// and required workaround casts like 'as any' in vendor-related API routes.
 interface User {
   id: string;
-  type: string;
+  userType: string;
   vendorId?: string;
   customerId?: string;
-  permissions?: Record<string, any>;
+  permissions?: Record<string, boolean | string | string[]>;
 }
 
 interface Vendor {
@@ -30,12 +34,12 @@ export function canUserAccessVendorOrders(user: User | null, vendorId: string): 
   if (!user) return false;
 
   // Internal users can access all vendor orders
-  if (user.type === 'internal') {
+  if (user.userType === 'internal') {
     return true;
   }
 
   // Vendor users can only access their own vendor's orders
-  if (user.type === 'vendor') {
+  if (user.userType === 'vendor') {
     return user.vendorId === vendorId;
   }
 
@@ -57,8 +61,8 @@ export function canUserManageVendors(user: User | null): boolean {
     return false;
   }
 
-  // Check if user is internal type (handle both 'type' and 'userType' field names)
-  const userType = user.type || (user as any).userType;
+  // Check if user is internal type
+  const userType = user.userType;
   // If no type is set, check if they have admin-like permissions which implies internal user
   const isInternalUser = userType === 'internal' || userType === 'admin' || !userType;
 
@@ -186,7 +190,7 @@ export function getUserViewMode(user: User | null): {
   const hasWorkflowPermissions = user.permissions?.candidate_workflow === true;
 
   // Only internal users with proper permissions can access config view
-  const hasConfigPermissions = user.type === 'internal' && (hasGlobalConfig || hasCustomerConfig || hasUserAdmin);
+  const hasConfigPermissions = user.userType === 'internal' && (hasGlobalConfig || hasCustomerConfig || hasUserAdmin);
 
   const availableViews: string[] = [];
 
@@ -194,7 +198,7 @@ export function getUserViewMode(user: User | null): {
     availableViews.push('config');
     // Users with config permissions can also access orders view (for admin oversight)
     availableViews.push('orders');
-  } else if (hasWorkflowPermissions || user.type !== 'internal') {
+  } else if (hasWorkflowPermissions || user.userType !== 'internal') {
     availableViews.push('orders');
   }
 
@@ -205,7 +209,7 @@ export function getUserViewMode(user: User | null): {
   // - Only internal users can toggle
   // - global_config permission grants full access (can toggle without workflow permission)
   // - other config permissions require workflow permission to toggle
-  const canToggle = user.type === 'internal' && (hasGlobalConfig || (hasConfigPermissions && hasWorkflowPermissions));
+  const canToggle = user.userType === 'internal' && (hasGlobalConfig || (hasConfigPermissions && hasWorkflowPermissions));
 
   return {
     availableViews,
@@ -218,7 +222,7 @@ export function getUserViewMode(user: User | null): {
  * Checks if user can toggle between config and orders views
  */
 export function canUserToggleViews(user: User | null): boolean {
-  if (!user || user.type !== 'internal') {
+  if (!user || user.userType !== 'internal') {
     return false;
   }
 
@@ -245,12 +249,12 @@ export function filterOrdersByUserAccess(orders: Order[], user: User | null): Or
   }
 
   // Internal users see all orders
-  if (user.type === 'internal') {
+  if (user.userType === 'internal') {
     return orders;
   }
 
   // Vendor users see only orders assigned to their vendor
-  if (user.type === 'vendor') {
+  if (user.userType === 'vendor') {
     if (!user.vendorId) {
       return [];
     }
@@ -258,7 +262,7 @@ export function filterOrdersByUserAccess(orders: Order[], user: User | null): Or
   }
 
   // Customer users see only their own orders
-  if (user.type === 'customer') {
+  if (user.userType === 'customer') {
     if (!user.customerId) {
       return [];
     }
