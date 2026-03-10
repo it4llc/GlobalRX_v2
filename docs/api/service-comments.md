@@ -207,6 +207,8 @@ Deletes an existing comment. Only internal users can delete comments.
 
 Retrieves comments for all services in an order (bulk operation).
 
+**IMPORTANT BUG FIX:** This endpoint was updated (March 9, 2026) to fix an ID mismatch that prevented comments from displaying. The endpoint now properly handles the relationship between ServicesFulfillment IDs and OrderItem IDs.
+
 #### Parameters
 - `orderId` (path) - UUID of the order
 
@@ -214,17 +216,20 @@ Retrieves comments for all services in an order (bulk operation).
 - **200 OK** - Comments retrieved successfully
 ```json
 {
-  "serviceComments": {
-    "service-uuid-1": {
+  "commentsByService": {
+    "servicefulfillment-uuid-1": {
       "serviceName": "Background Check",
       "serviceStatus": "Processing",
       "comments": [
         {
           "id": "uuid",
-          "serviceId": "service-uuid-1",
+          "serviceId": "orderitem-uuid-1",
           "templateId": "uuid",
           "finalText": "string",
           "isInternalOnly": boolean,
+          "isStatusChange": false,
+          "statusChangedFrom": null,
+          "statusChangedTo": null,
           "createdBy": "uuid",
           "createdAt": "2026-03-06T10:00:00Z",
           "template": {
@@ -232,14 +237,18 @@ Retrieves comments for all services in an order (bulk operation).
             "longName": "string"
           },
           "createdByUser": {
-            "name": "string",
-            "email": "string"
-          }
+            "name": "string"
+          },
+          "createdByName": "John Smith",
+          "updatedByUser": {
+            "name": "string"
+          },
+          "updatedByName": "John Smith"
         }
       ],
       "total": 2
     },
-    "service-uuid-2": {
+    "servicefulfillment-uuid-2": {
       "serviceName": "Drug Test",
       "serviceStatus": "Completed",
       "comments": [],
@@ -248,6 +257,14 @@ Retrieves comments for all services in an order (bulk operation).
   }
 }
 ```
+
+#### Bug Fix Details (March 9, 2026)
+- **Response key changed:** `serviceComments` → `commentsByService`
+- **ID mapping fixed:** Response is now keyed by ServicesFulfillment.id (not OrderItem.id)
+- **Security enhancement:** Email addresses removed from response (only names included)
+- **Additional fields:** Added `isStatusChange`, `statusChangedFrom`, `statusChangedTo`, `createdByName`, `updatedByName`
+- **Database relation fixed:** Properly queries ServicesFulfillment → OrderItem → ServiceComment chain
+
 - **401 Unauthorized** - No authentication
 - **403 Forbidden** - No access to order
 

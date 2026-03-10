@@ -143,6 +143,8 @@
   "module.fulfillment.pageTitle": "Order Fulfillment",
   "module.fulfillment.pageDescription": "Manage and process orders assigned to your organization",
   "module.fulfillment.totalOrders": "Total Orders",
+  "module.fulfillment.totalServices": "Total Services",
+  "module.fulfillment.inProgress": "In Progress",
   "module.fulfillment.submitted": "Submitted",
   "module.fulfillment.processing": "Processing",
   "module.fulfillment.completed": "Completed",

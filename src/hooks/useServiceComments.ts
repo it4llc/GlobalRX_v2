@@ -98,8 +98,13 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
 
       setComments(sortedComments);
     } catch (err) {
-      clientLogger.error('Error fetching service comments', { error: err, serviceId });
-      setError('Failed to load comments');
+      const errorMessage = 'Failed to load comments';
+      clientLogger.error('Error fetching service comments', {
+        error: err,
+        serviceId,
+        errorMessage
+      });
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -127,20 +132,47 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
       const data = await response.json();
       const commentsMap = data.commentsByService || {};
 
+      clientLogger.info('Received comments data from API', {
+        orderId,
+        hasCommentsByService: !!data.commentsByService,
+        serviceIds: Object.keys(commentsMap),
+        services: Object.entries(commentsMap).map(([id, serviceData]) => ({
+          id,
+          hasComments: !!(serviceData as any).comments,
+          commentCount: (serviceData as any).comments?.length || 0
+        }))
+      });
+
+      // Log the first service's data structure for debugging
+      const firstServiceId = Object.keys(commentsMap)[0];
+      if (firstServiceId) {
+        clientLogger.info('Sample service data structure', {
+          serviceId: firstServiceId,
+          data: commentsMap[firstServiceId]
+        });
+      }
+
       setCommentsByService(commentsMap);
 
       // Flatten all comments for the comments array
       const allComments: ServiceCommentWithRelations[] = [];
-      Object.values(commentsMap).forEach((serviceComments: any) => {
-        if (Array.isArray(serviceComments)) {
-          allComments.push(...serviceComments);
+      Object.values(commentsMap).forEach((serviceData: any) => {
+        // The API returns { serviceName, serviceStatus, comments, total }
+        // We need to access the comments array inside this object
+        if (serviceData && Array.isArray(serviceData.comments)) {
+          allComments.push(...serviceData.comments);
         }
       });
 
       setComments(allComments);
     } catch (err) {
-      clientLogger.error('Error fetching order comments', { error: err, orderId });
-      setError('Failed to load comments');
+      const errorMessage = 'Failed to load comments';
+      clientLogger.error('Error fetching order comments', {
+        error: err,
+        orderId,
+        errorMessage
+      });
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

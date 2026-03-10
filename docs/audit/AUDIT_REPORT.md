@@ -131,6 +131,14 @@ Ratings: ✅ Enterprise Ready (8-10) | ⚠️ Needs Improvement (5-7) | 🔴 Cri
   - Bug fix: Removed the incorrect vendor filter so internal users see ALL orders (assigned and unassigned)
   - Added Section 9.10 to coding standards for "Database Query Filter Logic" to prevent similar logical filtering bugs
   - Added comprehensive code comments explaining the specific bug and fix for future developers
+- **Update**: ✅ Comment Display ID Mismatch Bug Fixed on March 9, 2026:
+  - Fixed comments not displaying in fulfillment view due to ID mismatch between ServiceFulfillment and OrderItem
+  - Root cause: Comments stored with orderItemId but UI components worked with serviceFulfillmentId, causing lookup failures
+  - Implemented "Dual ID Pattern" with proper relationship chain: ServicesFulfillment → OrderItem → ServiceComment
+  - Updated API response format (`serviceComments` → `commentsByService`) and keying strategy
+  - Security enhancement: Removed email addresses from API responses
+  - Added comprehensive ID mapping documentation for future developers (`docs/features/comment-display-id-mapping.md`)
+  - This fix improves the robustness of database relationship handling across the application
 
 ### 5. No Automated Backups - Data Loss Risk
 - **Finding**: Manual backup process only, no automation or remote storage
