@@ -14,6 +14,7 @@ import { ServiceCommentSection } from '@/components/services/ServiceCommentSecti
 import { useServiceComments } from '@/hooks/useServiceComments';
 import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
 import { UpdateServiceFulfillmentRequest } from '@/types/service-fulfillment';
+import clientLogger from '@/lib/client-logger';
 
 interface ServiceFulfillment {
   id: string;
@@ -209,48 +210,24 @@ export function ServiceFulfillmentTable({
     }
   }, [canManageFulfillment]);
 
-  // Fetch comment counts for all services
+  // Fetch comment counts for all services - disabled for now since we're using order-level fetching
   useEffect(() => {
-    const fetchCommentCounts = async () => {
-      if (process.env.NODE_ENV === 'test') {
-        // Set mock counts for testing
-        const mockCounts: Record<string, { total: number; internal: number }> = {};
-        services.forEach(service => {
-          mockCounts[service.id] = { total: 2, internal: 1 };
-        });
-        setCommentCounts(mockCounts);
-        return;
-      }
-
-      const counts: Record<string, { total: number; internal: number }> = {};
-
-      // Fetch comments for each service in parallel
-      await Promise.all(
-        services.map(async (service) => {
-          try {
-            const response = await fetch(`/api/services/${service.id}/comments`);
-            if (response.ok) {
-              const comments = await response.json();
-              const internalCount = comments.filter((c: { isInternalOnly?: boolean }) => c.isInternalOnly).length;
-              counts[service.id] = {
-                total: comments.length,
-                internal: internalCount
-              };
-            } else {
-              counts[service.id] = { total: 0, internal: 0 };
-            }
-          } catch {
-            counts[service.id] = { total: 0, internal: 0 };
-          }
-        })
-      );
-
-      setCommentCounts(counts);
-    };
-
-    if (services.length > 0) {
-      fetchCommentCounts();
+    if (process.env.NODE_ENV === 'test') {
+      // Set mock counts for testing
+      const mockCounts: Record<string, { total: number; internal: number }> = {};
+      services.forEach(service => {
+        mockCounts[service.id] = { total: 2, internal: 1 };
+      });
+      setCommentCounts(mockCounts);
+      return;
     }
+
+    // TODO: Implement comment counts using order-level API or remove this feature
+    const counts: Record<string, { total: number; internal: number }> = {};
+    services.forEach(service => {
+      counts[service.id] = { total: 0, internal: 0 };
+    });
+    setCommentCounts(counts);
   }, [services]);
 
   // Lock cleanup on unmount or navigation
@@ -267,13 +244,11 @@ export function ServiceFulfillmentTable({
             },
           });
         } catch (error) {
-          // Log error only in development to avoid exposing in production
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Failed to release lock for order:', {
-              orderId,
-              error: error instanceof Error ? error.message : 'Unknown error'
-            });
-          }
+          // Log error using structured logging
+          clientLogger.error('Failed to release lock for order', {
+            orderId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
         }
       });
       await Promise.all(releasePromises);
@@ -472,12 +447,10 @@ export function ServiceFulfillmentTable({
           });
         } catch (lockError) {
           // Log error only in development to avoid exposing in production
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Failed to release lock on status change error:', {
-              serviceId,
-              error: lockError instanceof Error ? lockError.message : 'Unknown error'
-            });
-          }
+          clientLogger.error('Failed to release lock on status change error', {
+            serviceId,
+            error: lockError instanceof Error ? lockError.message : 'Unknown error'
+          });
         }
       }
 
@@ -1024,11 +997,16 @@ export function ServiceFulfillmentTable({
                 {isExpanded && (
                   <tr data-testid={`comment-section-${service.id}`}>
                     <td colSpan={100} className="px-6 py-4 bg-gray-50">
+                      {/* DUAL ID PATTERN: Pass both IDs to handle comment operations correctly
+                          - serviceId (orderItemId): Used for creating/updating comments (comments table uses orderItemId)
+                          - serviceFulfillmentId: Used for fetching comments in order context (API keys results by this) */}
                       <ServiceCommentSection
                         serviceId={service.orderItemId}
+                        orderId={orderId}
                         serviceName={service.service.name}
                         serviceType={service.service.code || service.service.category || undefined}
                         serviceStatus={service.status.toUpperCase()}
+                        serviceFulfillmentId={service.id}
                       />
                     </td>
                   </tr>

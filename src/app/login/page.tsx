@@ -14,8 +14,9 @@ export default async function LoginPage() {
   // If the user is already logged in, redirect based on user type
   const session = await auth();
   if (session) {
+    // BUG FIX (March 9, 2026): All users now redirect to /fulfillment for unified dashboard
     if (session.user.userType === 'customer') {
-      redirect('/portal/dashboard');
+      redirect('/fulfillment');
     } else if (session.user.userType === 'vendor') {
       redirect('/fulfillment');
     } else {

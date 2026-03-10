@@ -38,10 +38,9 @@ export async function GET(request: Request) {
   // Step 2: Permission check
   const userType = session.user.userType;
 
-  // Customer users cannot access fulfillment services
-  if (userType === 'customer') {
-    return NextResponse.json({ error: 'Insufficient permissions to view services' }, { status: 403 });
-  }
+  // BUG FIX (March 9, 2026): Allow customers to view services for their own orders
+  // as part of unified dashboard implementation
+  const isCustomer = userType === 'customer';
 
   // Internal users need fulfillment permission
   if (userType === 'internal') {
@@ -86,6 +85,7 @@ export async function GET(request: Request) {
       {
         userType,
         vendorId: session.user.vendorId || undefined,
+        customerId: session.user.customerId || undefined,
         permissions: session.user.permissions
       },
       validation.data

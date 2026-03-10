@@ -79,10 +79,13 @@ export default function OrderDetailsPage() {
       return;
     }
 
-    // Check permissions
-    if (!checkPermission('fulfillment', '*') &&
-        !checkPermission('fulfillment', 'view') &&
-        !checkPermission('admin', '*')) {
+    // Check permissions - allow customers to view their own orders
+    const isCustomer = user?.userType === 'customer';
+    const hasFulfillmentPermission = checkPermission('fulfillment', '*') ||
+                                     checkPermission('fulfillment', 'view') ||
+                                     checkPermission('admin', '*');
+
+    if (!hasFulfillmentPermission && !isCustomer) {
       setError(t('module.fulfillment.permissionDenied'));
       setLoading(false);
       return;

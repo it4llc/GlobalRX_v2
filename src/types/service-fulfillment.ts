@@ -112,12 +112,14 @@ export interface ServiceUser {
   id: string;
   userType: string;
   vendorId?: string;
+  customerId?: string;
   permissions?: Record<string, unknown>;
 }
 
 export interface ServiceUserWithoutId {
   userType: string;
   vendorId?: string;
+  customerId?: string;
   permissions?: Record<string, unknown>;
 }
 
