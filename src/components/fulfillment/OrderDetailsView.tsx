@@ -9,13 +9,17 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, Edit, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { ServiceFulfillmentTable } from './ServiceFulfillmentTable';
+import { ActionDropdown } from '@/components/ui/action-dropdown';
 
 interface OrderDetailsViewProps {
-  order: {
+  order?: {
     id: string;
     orderNumber: string;
     statusCode: string;
@@ -57,9 +61,37 @@ interface OrderDetailsViewProps {
         completedAt: string | null;
       };
     }>;
+    statusHistory?: Array<{
+      id: string;
+      status?: string;
+      fromStatus?: string;
+      toStatus?: string;
+      changedAt?: string | Date;
+      createdAt?: string | Date;
+      notes?: string;
+      user?: {
+        firstName?: string;
+        lastName?: string;
+        email: string;
+      };
+    }>;
+    assignedVendor?: {
+      id: string;
+      name: string;
+    };
+    vendorNotes?: string;
+    internalNotes?: string;
+    user?: {
+      firstName?: string;
+      lastName?: string;
+      email: string;
+    };
     createdAt: Date | string;
     updatedAt: Date | string;
   };
+  error?: string | null;
+  loading?: boolean;
+  onRetry?: () => void;
 }
 
 // Format empty values with consistent "--" placeholder
@@ -107,17 +139,136 @@ const getStatusColorClass = (status: string): string => {
   return statusColors[status] || 'text-gray-600 bg-gray-50';
 };
 
-export function OrderDetailsView({ order }: OrderDetailsViewProps) {
+// Format user name for display
+const formatUserName = (user?: { firstName?: string; lastName?: string; email: string }, unknownText?: string): string => {
+  if (!user) return unknownText || 'Unknown';
+  if (user.firstName && user.lastName) {
+    return `${user.firstName} ${user.lastName}`;
+  }
+  if (user.firstName) return user.firstName;
+  if (user.lastName) return user.lastName;
+  return user.email;
+};
+
+export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetailsViewProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const router = useRouter();
+
+  // Check if current user is a customer - customers get read-only view
+  const isCustomer = user?.userType === 'customer';
+  const readOnly = isCustomer;
+
+  const handleRetry = () => {
+    if (onRetry) {
+      onRetry();
+    }
+  };
+
+  const handleBack = () => {
+    // Customers always go back to dashboard, others use browser back
+    if (user?.userType === 'customer') {
+      router.push('/portal/dashboard');
+    } else {
+      router.back();
+    }
+  };
+
+  // Handle error states
+  if (error) {
+    return (
+      <main className="order-details-view" role="main">
+        <div className="space-y-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4" role="alert">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              <div className="text-red-800 font-medium">{error}</div>
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={handleRetry}
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50"
+              >
+                <RotateCcw className="w-4 h-4 mr-1" />
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Handle loading state
+  if (loading || !order) {
+    return (
+      <main className="order-details-view" role="main">
+        <div className="space-y-6 animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+          <div className="space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   // Extract subject fields
   const subject = order.subject || {};
 
   return (
     <main className="order-details-view" role="main">
       <div className="space-y-6">
-        {/* Order Header */}
+        {/* Back Navigation and Header */}
         <div className="border-b pb-4">
-          <h1 className="text-2xl font-bold text-gray-900">{order.orderNumber}</h1>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleBack}
+                className="flex items-center text-gray-500 hover:text-gray-700"
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                {user?.userType === 'customer' ? 'Back to Dashboard' : 'Back'}
+              </button>
+              <h1 className="text-2xl font-bold text-gray-900">{order.orderNumber}</h1>
+            </div>
+
+            {/* Internal User Controls */}
+            {!isCustomer && (
+              <div className="flex items-center space-x-3">
+                <button
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50"
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  Edit
+                </button>
+
+                <div data-testid="action-dropdown">
+                  <ActionDropdown
+                    options={[
+                      { label: 'Assign Vendor', onClick: () => {} },
+                      { label: 'Update Status', onClick: () => {} },
+                      { label: 'Add Notes', onClick: () => {} },
+                      { label: 'View History', onClick: () => {} },
+                    ]}
+                  />
+                </div>
+
+                <select
+                  className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  defaultValue={order.statusCode}
+                  aria-label="Status"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="processing">Processing</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Order Information Section */}
@@ -223,6 +374,45 @@ export function OrderDetailsView({ order }: OrderDetailsViewProps) {
                   <dd className="mt-1 text-sm text-gray-900">{formatValue(order.customer.code)}</dd>
                 </div>
               )}
+
+              {/* Show vendor and internal information for internal users */}
+              {!isCustomer && (
+                <>
+                  {order.assignedVendor && (
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Assigned Vendor</dt>
+                      <dd className="mt-1 text-sm text-gray-900">{order.assignedVendor.name}</dd>
+                    </div>
+                  )}
+
+                  {order.vendorNotes && (
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Vendor Notes</dt>
+                      <dd className="mt-1 text-sm text-gray-900">{order.vendorNotes}</dd>
+                    </div>
+                  )}
+
+                  {order.internalNotes && (
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Internal Notes</dt>
+                      <dd className="mt-1 text-sm text-gray-900">{order.internalNotes}</dd>
+                    </div>
+                  )}
+
+                  {order.user && (
+                    <>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Order Creator</dt>
+                        <dd className="mt-1 text-sm text-gray-900">{formatUserName(order.user, 'Unknown')}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Creator Email</dt>
+                        <dd className="mt-1 text-sm text-gray-900">{order.user.email}</dd>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
             </dl>
           </div>
         </section>
@@ -267,8 +457,9 @@ export function OrderDetailsView({ order }: OrderDetailsViewProps) {
                   },
                   assignedVendor: null
                 }))}
-                readOnly={false}
-                showNotes={false}
+                readOnly={readOnly}
+                showNotes={!isCustomer}
+                isCustomer={isCustomer}
               />
             ) : (
               <div className="p-4 text-sm text-gray-500">{t('module.fulfillment.noServices')}</div>
@@ -286,13 +477,38 @@ export function OrderDetailsView({ order }: OrderDetailsViewProps) {
           </div>
         </section>
 
-        {/* Status History Section - Basic placeholder, full implementation in sidebar */}
+        {/* Status History Section */}
         <section>
           <h2 className="text-lg font-medium text-gray-900 mb-4">{t('module.fulfillment.statusHistory')}</h2>
           <div className="bg-white rounded-lg border p-4">
-            <div className="text-sm text-gray-500">
-              {t('module.fulfillment.seeStatusHistory')}
-            </div>
+            {order.statusHistory && order.statusHistory.length > 0 ? (
+              <div className="space-y-3">
+                {order.statusHistory.map((entry: any) => (
+                  <div key={entry.id} className="text-sm border-l-2 border-gray-200 pl-3">
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium">{entry.status || entry.fromStatus}</span>
+                      {entry.toStatus && (
+                        <>
+                          <span className="text-gray-400">→</span>
+                          <span className="font-medium">{entry.toStatus}</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {!isCustomer && entry.user && (
+                        <span>Changed by {formatUserName(entry.user, 'Unknown')}</span>
+                      )}
+                      <div>{formatValue(entry.changedAt || entry.createdAt)}</div>
+                    </div>
+                    {entry.notes && (
+                      <div className="text-xs text-gray-600 mt-1 italic">{entry.notes}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500">--</div>
+            )}
           </div>
         </section>
       </div>

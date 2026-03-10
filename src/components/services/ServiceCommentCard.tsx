@@ -26,6 +26,7 @@ export function ServiceCommentCard({ comment, onEdit, onDelete }: ServiceComment
   // Check user type
   const isInternalUser = user?.userType === 'internal';
   const isVendor = user?.userType === 'vendor';
+  const isCustomer = user?.userType === 'customer';
 
   // Status changes should never be editable or deletable
   // Regular comments: Vendors cannot edit or delete
@@ -100,9 +101,11 @@ export function ServiceCommentCard({ comment, onEdit, onDelete }: ServiceComment
         <div className="flex items-center gap-3 flex-wrap text-sm">
           {/* Author and timestamp */}
           <div className="flex items-center gap-2">
-            <span className="font-medium">
-              {comment.createdByName || comment.createdByUser?.name || 'Unknown User'}
-            </span>
+            {!isCustomer && (
+              <span className="font-medium">
+                {comment.createdByName || comment.createdByUser?.name || 'Unknown User'}
+              </span>
+            )}
             <span className="text-xs text-gray-500">
               {createdTimeAgo}
             </span>
@@ -131,9 +134,14 @@ export function ServiceCommentCard({ comment, onEdit, onDelete }: ServiceComment
           )}
 
           {/* Edit timestamp if exists */}
-          {updatedInfo && (
+          {updatedInfo && !isCustomer && (
             <span className="text-xs text-gray-500 italic">
               (edited by {updatedInfo.userName} {updatedInfo.timeAgo})
+            </span>
+          )}
+          {updatedInfo && isCustomer && (
+            <span className="text-xs text-gray-500 italic">
+              (edited {updatedInfo.timeAgo})
             </span>
           )}
         </div>
