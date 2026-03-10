@@ -16,20 +16,15 @@ export default function NewOrderPage() {
 
   // Handle next button navigation
   const handleNext = async () => {
-    console.log('handleNext called - before clientLogger');
-
     // Try using clientLogger here to see if it fails
     try {
       clientLogger.debug('handleNext called', {
         currentStep: orderForm.step
       });
     } catch (error) {
-      console.error('clientLogger.debug failed in handleNext:', error);
       alert('clientLogger error in handleNext: ' + String(error));
       return;
     }
-
-    console.log('handleNext - after clientLogger.debug');
 
     if (orderForm.step === 1) {
       const validation = orderForm.validation.validateStep1(orderForm.serviceCart.serviceItems);
@@ -357,7 +352,6 @@ export default function NewOrderPage() {
           <button
             type="button"
             onClick={() => {
-              console.log('Next button clicked - calling handleNext');
               handleNext();
             }}
             className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

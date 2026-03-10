@@ -135,7 +135,15 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
       // In single service mode, use serviceId directly
       // This prevents the "POST /api/services/null/comments 404" error
       const apiServiceId = orderId && serviceFulfillmentId ? serviceFulfillmentId : serviceId;
-      clientLogger.info('Creating comment with serviceId', { apiServiceId, serviceId, serviceFulfillmentId, orderId, data });
+
+      // Validate service ID before API call
+      if (!apiServiceId || apiServiceId === 'null' || apiServiceId === 'undefined') {
+        clientLogger.error('Invalid service ID for comment creation', { apiServiceId, serviceId, serviceFulfillmentId, orderId });
+        throw new Error('Cannot create comment: Invalid service ID');
+      }
+
+      // Log without PII (exclude data which contains comment text)
+      clientLogger.info('Creating comment', { apiServiceId, serviceId, serviceFulfillmentId, orderId });
       await createComment({ ...data, serviceId: apiServiceId });
       setIsCreateModalOpen(false);
     } catch (error) {
@@ -155,6 +163,13 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
       // In order mode, use serviceFulfillmentId for API call (API expects ServiceFulfillment ID)
       // In single service mode, use serviceId directly
       const apiServiceId = orderId && serviceFulfillmentId ? serviceFulfillmentId : serviceId;
+
+      // Validate service ID before API call
+      if (!apiServiceId || apiServiceId === 'null' || apiServiceId === 'undefined') {
+        clientLogger.error('Invalid service ID for comment update', { apiServiceId, serviceId, serviceFulfillmentId, orderId });
+        throw new Error('Cannot update comment: Invalid service ID');
+      }
+
       await updateComment(editingComment.id, { ...data, serviceId: apiServiceId });
       setEditingComment(null);
     } catch (error) {
@@ -175,18 +190,21 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
         // In order mode, use serviceFulfillmentId for API call (API expects ServiceFulfillment ID)
         // In single service mode, use serviceId directly
         const apiServiceId = orderId && serviceFulfillmentId ? serviceFulfillmentId : serviceId;
-        if (apiServiceId) {
-          // Use new signature with serviceId to avoid null ID issues
-          await deleteComment(apiServiceId, deleteConfirmId);
-        } else {
-          // Fall back to legacy signature (should not occur with proper ID handling)
-          await deleteComment(deleteConfirmId);
+
+        // Validate service ID before API call
+        if (!apiServiceId || apiServiceId === 'null' || apiServiceId === 'undefined') {
+          clientLogger.error('Invalid service ID for comment deletion', { apiServiceId, serviceId, serviceFulfillmentId, orderId });
+          throw new Error('Cannot delete comment: Invalid service ID');
         }
+
+        // Use new signature with serviceId to avoid null ID issues
+        await deleteComment(apiServiceId, deleteConfirmId);
         setDeleteConfirmId(null);
         setShowDeleteDialog(false);
       } catch (error) {
         clientLogger.error('Failed to delete comment', { error, commentId: deleteConfirmId });
-        // Don't throw here to avoid breaking UI
+        // Standardize error handling - throw error to be consistent with create/update
+        throw error;
       }
     }
   };
