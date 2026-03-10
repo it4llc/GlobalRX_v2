@@ -123,21 +123,39 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
     return serviceComments;
   }, [comments, commentsByService, isCustomer, orderId, serviceId]);
 
-  const handleCreateComment = async (data: any) => {
+  const handleCreateComment = async (data: {
+    templateId: string;
+    finalText: string;
+    isInternalOnly?: boolean;
+  }) => {
     try {
-      await createComment(data);
+      // CRITICAL BUG FIX (March 10, 2026): Correct ID type selection for API call
+      // Root cause: API expects ServiceFulfillment ID but frontend was passing OrderItem ID
+      // In order mode, use serviceFulfillmentId for API call (API expects ServiceFulfillment ID)
+      // In single service mode, use serviceId directly
+      // This prevents the "POST /api/services/null/comments 404" error
+      const apiServiceId = orderId && serviceFulfillmentId ? serviceFulfillmentId : serviceId;
+      clientLogger.info('Creating comment with serviceId', { apiServiceId, serviceId, serviceFulfillmentId, orderId, data });
+      await createComment({ ...data, serviceId: apiServiceId });
       setIsCreateModalOpen(false);
     } catch (error) {
-      clientLogger.error('Failed to create comment', { error });
+      clientLogger.error('Failed to create comment', { error, serviceId, serviceFulfillmentId });
       throw error;
     }
   };
 
-  const handleUpdateComment = async (data: any) => {
+  const handleUpdateComment = async (data: {
+    finalText: string;
+    isInternalOnly?: boolean;
+  }) => {
     if (!editingComment) return;
 
     try {
-      await updateComment(editingComment.id, data);
+      // CRITICAL BUG FIX (March 10, 2026): Use same ID resolution pattern as create
+      // In order mode, use serviceFulfillmentId for API call (API expects ServiceFulfillment ID)
+      // In single service mode, use serviceId directly
+      const apiServiceId = orderId && serviceFulfillmentId ? serviceFulfillmentId : serviceId;
+      await updateComment(editingComment.id, { ...data, serviceId: apiServiceId });
       setEditingComment(null);
     } catch (error) {
       clientLogger.error('Failed to update comment', { error, commentId: editingComment.id });
@@ -153,7 +171,17 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
   const confirmDelete = async () => {
     if (deleteConfirmId) {
       try {
-        await deleteComment(deleteConfirmId);
+        // CRITICAL BUG FIX (March 10, 2026): Use same ID resolution pattern as create/update
+        // In order mode, use serviceFulfillmentId for API call (API expects ServiceFulfillment ID)
+        // In single service mode, use serviceId directly
+        const apiServiceId = orderId && serviceFulfillmentId ? serviceFulfillmentId : serviceId;
+        if (apiServiceId) {
+          // Use new signature with serviceId to avoid null ID issues
+          await deleteComment(apiServiceId, deleteConfirmId);
+        } else {
+          // Fall back to legacy signature (should not occur with proper ID handling)
+          await deleteComment(deleteConfirmId);
+        }
         setDeleteConfirmId(null);
         setShowDeleteDialog(false);
       } catch (error) {
@@ -176,7 +204,7 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
-        <span className="ml-2 text-gray-500">Loading comments...</span>
+        <span className="ml-2 text-gray-500">{t('common.loading')}</span>
       </div>
     );
   }
@@ -233,23 +261,23 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
       {showDeleteDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-lg font-semibold mb-4">Delete Comment</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('common.delete')} {t('serviceComments.comment')}</h2>
             <p className="mb-6 text-gray-600">
-              Are you sure you want to delete this comment? This action cannot be undone.
+              {t('serviceComments.deleteConfirmation')}
             </p>
             <div className="flex gap-3 justify-end">
               <Button
                 variant="outline"
                 onClick={cancelDelete}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 variant="destructive"
                 onClick={confirmDelete}
-                aria-label="Confirm delete"
+                aria-label={t('common.confirmDelete')}
               >
-                Confirm Delete
+                {t('common.confirmDelete')}
               </Button>
             </div>
           </div>

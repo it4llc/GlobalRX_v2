@@ -1,3 +1,5 @@
+// /GlobalRX_v2/src/hooks/useServiceComments.ts
+
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import clientLogger from '@/lib/client-logger';
@@ -11,6 +13,25 @@ import {
   createServiceCommentSchema,
   updateServiceCommentSchema
 } from '@/lib/schemas/serviceCommentSchemas';
+
+// Type for comment templates
+interface CommentTemplate {
+  id: string;
+  name: string;
+  text: string;
+  category?: string;
+  serviceType?: string;
+  serviceStatus?: string;
+  isActive: boolean;
+}
+
+// Type for service data in commentsByService
+interface ServiceCommentData {
+  serviceName?: string;
+  serviceStatus?: string;
+  comments: ServiceCommentWithRelations[];
+  total?: number;
+}
 
 // Single service interface
 interface UseServiceCommentsProps {
@@ -26,24 +47,24 @@ interface UseServiceCommentsBulkProps {
 
 interface UseServiceCommentsReturn {
   comments: ServiceCommentWithRelations[];
-  commentsByService?: Record<string, ServiceCommentWithRelations[]>;
+  commentsByService?: Record<string, ServiceCommentData>;
   loading: boolean;
   error: string | null;
-  createComment: (data: CreateServiceCommentInput) => Promise<void>;
-  updateComment: (commentId: string, data: UpdateServiceCommentInput) => Promise<void>;
-  deleteComment: (commentId: string) => Promise<void>;
+  createComment: (data: CreateServiceCommentInput & { serviceId?: string }) => Promise<void>;
+  updateComment: (commentId: string, data: UpdateServiceCommentInput & { serviceId?: string }) => Promise<void>;
+  deleteComment: (serviceIdOrCommentId: string, commentId?: string) => Promise<void>;
   refetch: () => Promise<void>;
   getCommentCount: (serviceId: string) => number;
   checkVisibilityChangeWarning: (commentId: string, newVisibility: boolean) => Promise<string | null>;
   canCreateComment: () => boolean;
   canEditComment: (commentId: string) => boolean;
   canDeleteComment: (commentId: string) => boolean;
-  getAvailableTemplates: (serviceType: string, serviceStatus: string) => Promise<any[]>;
+  getAvailableTemplates: (serviceType: string, serviceStatus: string) => Promise<CommentTemplate[]>;
   applyTemplate: (templateId: string, placeholderValues: Record<string, string>) => string;
   extractPlaceholders: (templateText: string) => string[];
   getVisibleComments: () => ServiceCommentWithRelations[];
   getSortedComments: () => ServiceCommentWithRelations[];
-  availableTemplates: any[];
+  availableTemplates: CommentTemplate[];
   hasUnreplacedPlaceholders: (text: string) => boolean;
   requiresDeleteConfirmation: () => boolean;
 }
@@ -52,10 +73,10 @@ interface UseServiceCommentsReturn {
 export function useServiceComments(serviceId: string | null, orderId?: string, serviceType?: string, serviceStatus?: string): UseServiceCommentsReturn {
   const { user } = useAuth();
   const [comments, setComments] = useState<ServiceCommentWithRelations[]>([]);
-  const [commentsByService, setCommentsByService] = useState<Record<string, ServiceCommentWithRelations[]>>({});
+  const [commentsByService, setCommentsByService] = useState<Record<string, ServiceCommentData>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<CommentTemplate[]>([]);
 
   // Helper function to validate comment text
   const validateCommentText = (text: string): void => {
@@ -92,7 +113,7 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
 
       // Sort by newest first
       const sortedComments = (Array.isArray(validatedComments) ? validatedComments : [])
-        .sort((a: any, b: any) =>
+        .sort((a: ServiceCommentWithRelations, b: ServiceCommentWithRelations) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
@@ -138,8 +159,8 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
         serviceIds: Object.keys(commentsMap),
         services: Object.entries(commentsMap).map(([id, serviceData]) => ({
           id,
-          hasComments: !!(serviceData as any).comments,
-          commentCount: (serviceData as any).comments?.length || 0
+          hasComments: !!(serviceData as ServiceCommentData).comments,
+          commentCount: (serviceData as ServiceCommentData).comments?.length || 0
         }))
       });
 
@@ -156,7 +177,7 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
 
       // Flatten all comments for the comments array
       const allComments: ServiceCommentWithRelations[] = [];
-      Object.values(commentsMap).forEach((serviceData: any) => {
+      Object.values(commentsMap).forEach((serviceData: ServiceCommentData) => {
         // The API returns { serviceName, serviceStatus, comments, total }
         // We need to access the comments array inside this object
         if (serviceData && Array.isArray(serviceData.comments)) {
@@ -188,7 +209,11 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
   }, [serviceId, orderId, fetchServiceComments, fetchOrderComments]);
 
   // Create a new comment
-  const createComment = useCallback(async (data: CreateServiceCommentInput) => {
+  // CRITICAL FIX (March 10, 2026): Modified to accept serviceId parameter to fix ID mismatch bug
+  // Previously, this function relied on hook's serviceId which was null in order mode,
+  // causing API calls to /api/services/null/comments (404 error)
+  // Now accepts explicit serviceId parameter for proper API routing
+  const createComment = useCallback(async (data: CreateServiceCommentInput & { serviceId?: string }) => {
     // Check permissions
     if (user?.userType === 'customer') {
       throw new Error('Customers cannot create comments');
@@ -208,13 +233,24 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
       isInternalOnly: data.isInternalOnly !== undefined ? data.isInternalOnly : true
     };
 
+    // CRITICAL ID RESOLUTION (March 10, 2026): Use provided serviceId or fall back to hook's serviceId
+    // This fixes the null ID bug where order mode components pass serviceFulfillmentId
+    // but single service mode components rely on the hook's serviceId
+    const targetServiceId = data.serviceId || serviceId;
+    if (!targetServiceId) {
+      throw new Error('Service ID is required for creating comments');
+    }
+
+    // Remove serviceId from body data to avoid sending it in the request body
+    const { serviceId: _, ...bodyData } = commentData;
+
     try {
-      const response = await fetch(`/api/services/${serviceId}/comments`, {
+      const response = await fetch(`/api/services/${targetServiceId}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(commentData)
+        body: JSON.stringify(bodyData)
       });
 
       if (!response.ok) {
@@ -226,10 +262,32 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
 
       // Add the new comment to the list
       const newComment = result.comment || result;
-      setComments(prev => [newComment, ...prev].sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ));
-    } catch (err: any) {
+
+      // Update the appropriate state based on mode
+      if (orderId && data.serviceId) {
+        // In order mode, update commentsByService using the serviceFulfillmentId as key
+        setCommentsByService(prev => {
+          const serviceFulfillmentId = data.serviceId; // In order mode, this is actually serviceFulfillmentId
+          const serviceData = prev[serviceFulfillmentId] || { comments: [] };
+          const updatedComments = [newComment, ...(serviceData.comments || [])].sort((a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+
+          return {
+            ...prev,
+            [serviceFulfillmentId]: {
+              ...serviceData,
+              comments: updatedComments
+            }
+          };
+        });
+      } else {
+        // In single service mode, update comments array
+        setComments(prev => [newComment, ...prev].sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ));
+      }
+    } catch (err) {
       if (err.message.includes('cannot') || err.message.includes('required') || err.message.includes('must')) {
         throw err; // Re-throw validation errors
       }
@@ -238,7 +296,8 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
   }, [serviceId, user]);
 
   // Update an existing comment
-  const updateComment = useCallback(async (commentId: string, data: UpdateServiceCommentInput) => {
+  // CRITICAL FIX (March 10, 2026): Modified to accept serviceId parameter for consistency with createComment fix
+  const updateComment = useCallback(async (commentId: string, data: UpdateServiceCommentInput & { serviceId?: string }) => {
     // Check permissions
     if (user?.userType === 'vendor') {
       throw new Error('Vendors cannot edit comments');
@@ -250,13 +309,23 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
     // Validate text
     validateCommentText(data.finalText);
 
+    // CRITICAL ID RESOLUTION (March 10, 2026): Use provided serviceId or fall back to hook's serviceId
+    // This maintains consistency with createComment fix for ID handling
+    const targetServiceId = data.serviceId || serviceId;
+    if (!targetServiceId) {
+      throw new Error('Service ID is required for updating comments');
+    }
+
+    // Remove serviceId from body data to avoid sending it in the request body
+    const { serviceId: _, ...bodyData } = data;
+
     try {
-      const response = await fetch(`/api/services/${serviceId}/comments/${commentId}`, {
+      const response = await fetch(`/api/services/${targetServiceId}/comments/${commentId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(bodyData)
       });
 
       if (!response.ok) {
@@ -266,18 +335,45 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
         throw new Error('Failed to update comment');
       }
 
-      // Refetch to get updated data
-      await fetchComments();
-    } catch (err: any) {
+      const updatedComment = await response.json();
+      const newComment = updatedComment.comment || updatedComment;
+
+      // Update local state instead of refetching - more efficient
+      setComments(prev => prev.map(c =>
+        c.id === commentId ? { ...c, ...newComment } : c
+      ));
+
+      // Also update commentsByService if in order mode
+      if (orderId && targetServiceId) {
+        setCommentsByService(prev => {
+          const serviceFulfillmentId = targetServiceId; // In order mode, this is serviceFulfillmentId
+          const serviceData = prev[serviceFulfillmentId];
+          if (!serviceData) return prev;
+
+          return {
+            ...prev,
+            [serviceFulfillmentId]: {
+              ...serviceData,
+              comments: serviceData.comments.map(c =>
+                c.id === commentId ? { ...c, ...newComment } : c
+              )
+            }
+          };
+        });
+      }
+    } catch (err) {
       if (err.message.includes('cannot') || err.message.includes('permission')) {
         throw err; // Re-throw validation/permission errors
       }
       throw new Error('Failed to update comment');
     }
-  }, [serviceId, user, fetchComments]);
+  }, [serviceId, user, orderId]);
 
   // Delete a comment
-  const deleteComment = useCallback(async (commentId: string) => {
+  // CRITICAL FIX (March 10, 2026): Overloaded to accept either (commentId) or (serviceId, commentId) for compatibility
+  // This supports both the legacy single-parameter signature and new dual-parameter signature
+  // needed for the ID mismatch bug fix
+  const deleteComment = useCallback(async (serviceIdOrCommentId: string, commentId?: string) => {
     // Check permissions
     if (user?.userType === 'vendor') {
       throw new Error('Vendors cannot delete comments');
@@ -286,8 +382,26 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
       throw new Error('Customers cannot delete comments');
     }
 
+    // Handle both signatures: (commentId) and (serviceId, commentId)
+    let targetServiceId: string | null;
+    let targetCommentId: string;
+
+    if (commentId !== undefined) {
+      // New signature: (serviceId, commentId)
+      targetServiceId = serviceIdOrCommentId;
+      targetCommentId = commentId;
+    } else {
+      // Legacy signature: (commentId)
+      targetServiceId = serviceId;
+      targetCommentId = serviceIdOrCommentId;
+    }
+
+    if (!targetServiceId) {
+      throw new Error('Service ID is required for deleting comments');
+    }
+
     try {
-      const response = await fetch(`/api/services/${serviceId}/comments/${commentId}`, {
+      const response = await fetch(`/api/services/${targetServiceId}/comments/${targetCommentId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
@@ -301,9 +415,26 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
         throw new Error('Failed to delete comment');
       }
 
-      // Remove from local state
-      setComments(prev => prev.filter(c => c.id !== commentId));
-    } catch (err: any) {
+      // Remove from local state - handle both single service and order mode
+      setComments(prev => prev.filter(c => c.id !== targetCommentId));
+
+      // Also update commentsByService if in order mode
+      if (orderId && targetServiceId) {
+        setCommentsByService(prev => {
+          const serviceFulfillmentId = targetServiceId; // In order mode, this is serviceFulfillmentId
+          const serviceData = prev[serviceFulfillmentId];
+          if (!serviceData) return prev;
+
+          return {
+            ...prev,
+            [serviceFulfillmentId]: {
+              ...serviceData,
+              comments: serviceData.comments.filter(c => c.id !== targetCommentId)
+            }
+          };
+        });
+      }
+    } catch (err) {
       if (err.message.includes('cannot') || err.message.includes('permission')) {
         throw err;
       }
@@ -324,7 +455,7 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
     commentId: string,
     newVisibility: boolean
   ): Promise<string | null> => {
-    const comment = comments.find((c: any) => c.id === commentId);
+    const comment = comments.find((c: ServiceCommentWithRelations) => c.id === commentId);
     if (!comment) return null;
 
     // Warning when changing from internal to external (newVisibility false = external)
@@ -354,7 +485,7 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
   const getAvailableTemplates = useCallback(async (
     serviceType: string,
     serviceStatus: string
-  ): Promise<any[]> => {
+  ): Promise<CommentTemplate[]> => {
     try {
       const response = await fetch(
         `/api/comment-templates?serviceType=${serviceType}&serviceStatus=${serviceStatus}`,
