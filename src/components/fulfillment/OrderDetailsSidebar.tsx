@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import clientLogger from '@/lib/client-logger';
 import { useToast } from '@/hooks/useToast';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface OrderDetailsSidebarProps {
   order?: {
@@ -84,6 +85,10 @@ export function OrderDetailsSidebar({
 }: OrderDetailsSidebarProps) {
   const { toastError } = useToast();
   const { t } = useTranslation();
+  const { user } = useAuth();
+
+  // Check if current user is a customer - customers get read-only view
+  const isCustomer = user?.userType === 'customer';
 
   // Use either callback prop
   const handleStatusChange = onStatusChange || onStatusUpdate;
@@ -152,12 +157,20 @@ export function OrderDetailsSidebar({
         {/* Order Status Section */}
         <section>
           <h3 className="text-sm font-medium text-gray-500 mb-2">{t('common.status')}</h3>
-          <OrderStatusDropdown
-            orderId={order.id}
-            currentStatus={order.statusCode}
-            onStatusChange={handleStatusChange}
-            disabled={isLoading}
-          />
+          {isCustomer ? (
+            // For customers, show status as read-only text
+            <div className="text-sm font-medium text-gray-900">
+              {formatStatus(order.statusCode)}
+            </div>
+          ) : (
+            // For internal users, show status dropdown
+            <OrderStatusDropdown
+              orderId={order.id}
+              currentStatus={order.statusCode}
+              onStatusChange={handleStatusChange}
+              disabled={isLoading}
+            />
+          )}
         </section>
 
         {/* Customer Information */}
@@ -173,8 +186,8 @@ export function OrderDetailsSidebar({
           </div>
         </section>
 
-        {/* Created By */}
-        {order.user && (
+        {/* Created By - only for internal users */}
+        {order.user && !isCustomer && (
           <section>
             <h3 className="text-sm font-medium text-gray-500 mb-2">Created By</h3>
             <div className="text-sm">{formatUserName(order.user, 'Unknown')}</div>
@@ -192,28 +205,30 @@ export function OrderDetailsSidebar({
           <div className="text-sm">{formatTimestamp(order.updatedAt)}</div>
         </section>
 
-        {/* Actions */}
-        <section>
-          <h3 className="text-sm font-medium text-gray-500 mb-2">Actions</h3>
-          <div className="space-y-2">
-            <button
-              onClick={handlePrint}
-              disabled={isLoading}
-              className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
-            >
-              <Printer className="w-4 h-4 mr-2" />
-              Print
-            </button>
-            <button
-              onClick={handleExport}
-              disabled={isLoading}
-              className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </button>
-          </div>
-        </section>
+        {/* Actions - only for internal users */}
+        {!isCustomer && (
+          <section>
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Actions</h3>
+            <div className="space-y-2">
+              <button
+                onClick={handlePrint}
+                disabled={isLoading}
+                className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={isLoading}
+                className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* Quick Links */}
         <section>
@@ -249,7 +264,7 @@ export function OrderDetailsSidebar({
                     <span className="font-medium">{formatStatus(entry.toStatus)}</span>
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    <span>Changed by {formatUserName(entry.user, 'Unknown')}</span>
+                    {!isCustomer && <span>Changed by {formatUserName(entry.user, 'Unknown')}</span>}
                     <div>{formatTimestamp(entry.createdAt)}</div>
                   </div>
                   {entry.notes && (

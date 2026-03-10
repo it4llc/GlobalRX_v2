@@ -10,7 +10,7 @@ import {
   DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import OrderDetailsDialog from '@/components/portal/order-details-dialog';
+import { useRouter } from 'next/navigation';
 
 interface DashboardStats {
   total: number;
@@ -48,6 +48,7 @@ interface Order {
 
 export default function CustomerDashboard() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats>({
     total: 0,
     pending: 0,
@@ -61,8 +62,6 @@ export default function CustomerDashboard() {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>('all');
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10); // 10 items per page, same as My Orders
 
@@ -131,15 +130,10 @@ export default function CustomerDashboard() {
     setCurrentPage(page);
   };
 
-  // Dialog handlers
+  // Navigation handler
   const handleViewOrder = (orderId: string) => {
-    setSelectedOrderId(orderId);
-    setDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setSelectedOrderId(null);
+    // Navigate to the fulfillment order details page
+    router.push(`/fulfillment/orders/${orderId}`);
   };
 
   const getStatusColor = (status: string) => {
@@ -512,12 +506,6 @@ export default function CustomerDashboard() {
         )}
       </div>
 
-      {/* Order Details Dialog */}
-      <OrderDetailsDialog
-        orderId={selectedOrderId}
-        open={dialogOpen}
-        onClose={handleCloseDialog}
-      />
     </div>
   );
 }
