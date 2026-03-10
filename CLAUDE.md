@@ -58,6 +58,59 @@ If you're seeing "Forbidden" errors:
 
 ## Development Principles
 
+### CRITICAL: Pre-Implementation Discovery
+
+**⚠️ MANDATORY: Complete discovery BEFORE writing any code or tests**
+
+#### The 5-Minute Rule
+**"Test the actual user flow within 5 minutes of starting work"**
+
+If the current behavior doesn't match your assumptions, STOP and investigate.
+
+#### Discovery Checklist (Required for ALL user-facing changes)
+
+1. **Manual Testing First**
+   ```bash
+   # Log in as the target user type
+   # Navigate through the ACTUAL flow
+   # Document:
+   - Starting URL
+   - Each click/action taken
+   - Resulting URL changes
+   - Which components render
+   ```
+
+2. **Find the RIGHT Files**
+   ```bash
+   # Don't assume - VERIFY with multiple search patterns
+   grep -r "ComponentName\|buttonText\|onClick" --include="*.tsx"
+
+   # Find ALL instances, not just the first one
+   git grep -l "OrderDetails\|ViewOrder"
+
+   # Check component usage
+   grep -r "<ComponentName" --include="*.tsx"
+   ```
+
+3. **Verify Every Assumption**
+   - [ ] What page does the user ACTUALLY start from?
+   - [ ] What button/link do they ACTUALLY click?
+   - [ ] What file handles that interaction?
+   - [ ] Did I test this by clicking through it myself?
+   - [ ] Are there multiple paths to the same feature?
+
+4. **Common Discovery Failures to Avoid**
+   - ❌ Updating `/portal/orders` when users actually use `/portal/dashboard`
+   - ❌ Modifying a component that isn't actually rendered
+   - ❌ Assuming navigation flow without testing it
+   - ❌ Writing 80 tests before verifying you're in the right file
+
+#### When Discovery is Complete
+You should be able to answer:
+- "I clicked X button on Y page and it did Z"
+- "The code for this is in file A at line B"
+- "I verified this by actually doing it, not by reading code"
+
 ### Test-Driven Development (TDD)
 
 **ALWAYS follow TDD principles for new features and refactoring:**
@@ -74,6 +127,7 @@ If you're seeing "Forbidden" errors:
 - Run tests to confirm they ALL fail (should see RED in test output)
 - If any test passes before implementation, the test is likely wrong
 - Document what each test is testing and why it should fail
+- **⚠️ CRITICAL: Fix or remove failing tests before proceeding to GREEN phase**
 
 ##### 3. GREEN Phase (Minimal Implementation)
 - Write ONLY enough code to make one test pass at a time
@@ -87,12 +141,15 @@ If you're seeing "Forbidden" errors:
 - Improve code quality without changing behavior
 
 #### TDD Checklist (MUST complete in order)
+- [ ] Pre-implementation discovery completed?
 - [ ] Requirements confirmed with user?
 - [ ] Business logic clarified (no assumptions)?
 - [ ] Tests written first?
 - [ ] ALL tests failing initially (RED)?
+- [ ] ALL tests passing before moving to implementation?
 - [ ] Implementation done incrementally (one test at a time)?
 - [ ] Each test made green one at a time?
+- [ ] Feature manually tested before declaring complete?
 - [ ] Refactoring done only after all green?
 
 **Common TDD Mistakes to Avoid:**
