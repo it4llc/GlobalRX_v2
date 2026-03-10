@@ -6,6 +6,7 @@
 **Phase 2b Status:** ✅ Complete - Backend Implementation
 **Phase 2c Status:** ✅ Complete - Frontend UI Implementation
 **Phase 2d Status:** ✅ Complete - Service Status Change Capability
+**Bug Fixes:** ✅ Comment Display ID Mismatch Fixed (March 9, 2026)
 
 ---
 
@@ -628,6 +629,61 @@ export interface ServiceCommentResponse {
 - ServiceComment → CommentTemplate (template reference)
 - ServiceComment → User (creator/editor references)
 - ServicesFulfillment → Order → Customer (access hierarchy)
+
+---
+
+## Bug Fixes
+
+### Comment Display ID Mismatch (March 9, 2026)
+
+**Issue:** Comments were not displaying in the fulfillment view due to an ID mismatch between ServiceFulfillment IDs and OrderItem IDs.
+
+**Root Cause:**
+- Comments are stored with `orderItemId` (ServiceComment.orderItemId → OrderItem.id)
+- UI components work with `serviceFulfillmentId` (ServicesFulfillment.id)
+- API was trying to match these IDs directly, causing lookup failures
+
+**Solution Implemented:**
+1. **Backend Changes:**
+   - Modified `getOrderServiceComments()` to query through proper relationship chain: ServicesFulfillment → OrderItem → ServiceComment
+   - Updated API response to key results by ServicesFulfillment.id (not OrderItem.id)
+   - Added comprehensive ID mapping documentation in code
+
+2. **Frontend Changes:**
+   - Implemented **Dual ID Pattern** in ServiceCommentSection:
+     - `serviceId` (OrderItem.id): Used for comment CRUD operations
+     - `serviceFulfillmentId` (ServicesFulfillment.id): Used for fetching from order API
+   - Updated all UI components to pass both IDs correctly
+   - Fixed data extraction logic in useServiceComments hook
+
+3. **API Changes:**
+   - Response format changed: `serviceComments` → `commentsByService`
+   - Keys changed from OrderItem.id to ServicesFulfillment.id
+   - Security enhancement: Removed email addresses from response
+   - Added fields: `isStatusChange`, `statusChangedFrom`, `statusChangedTo`, `createdByName`, `updatedByName`
+
+**Technical Details:**
+- Database relationships: ServicesFulfillment.orderItemId → OrderItem.id → ServiceComment.orderItemId
+- Query chain implemented to bridge the ID systems properly
+- Comments CRUD still uses OrderItem.id (unchanged for compatibility)
+- Order-level comment fetching now uses ServicesFulfillment.id for response keys
+
+**Files Modified:**
+- `src/services/service-comment-service.ts` - Core service logic with ID mapping
+- `src/app/api/orders/[id]/services/comments/route.ts` - API endpoint response format
+- `src/components/services/ServiceCommentSection.tsx` - Dual ID pattern implementation
+- `src/components/fulfillment/ServiceFulfillmentTable.tsx` - ID passing logic
+- `src/components/fulfillment/OrderDetailsView.tsx` - ID mapping fix
+- `src/hooks/useServiceComments.ts` - Data extraction fix
+
+**Migration Notes:**
+- **Breaking Change:** Bulk order comments API response format changed
+- **Backward Compatible:** Individual service comment operations unchanged
+- **Security Enhancement:** Email addresses no longer exposed in API responses
+
+**Documentation Created:**
+- `docs/features/comment-display-id-mapping.md` - Technical guide for future developers
+- Updated API documentation with bug fix details
 
 ---
 

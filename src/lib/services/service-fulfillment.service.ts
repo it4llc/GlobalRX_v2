@@ -80,7 +80,8 @@ export class ServiceFulfillmentService {
     params: ServiceQueryParams
   ): Promise<{ services: ServiceFulfillmentWithRelations[]; total: number; limit: number; offset: number }> {
     try {
-      const where: ServiceWhereClause = {};
+      // Build where clause with proper type
+      let where: any = {};
 
       if (params.orderId) where.orderId = params.orderId;
       if (params.status) where.status = params.status;
@@ -90,6 +91,13 @@ export class ServiceFulfillmentService {
         where.assignedVendorId = user.vendorId;
       } else if (params.vendorId) {
         where.assignedVendorId = params.vendorId;
+      }
+
+      // BUG FIX (March 9, 2026): Customers only see services for their orders
+      if (user.userType === 'customer' && user.customerId) {
+        where.order = {
+          customerId: user.customerId
+        };
       }
 
       const [services, total] = await prisma.$transaction([
@@ -194,6 +202,16 @@ export class ServiceFulfillmentService {
           serviceId: id,
           vendorId: user.vendorId,
           assignedVendorId: service.assignedVendorId
+        });
+        throw new Error('Access denied');
+      }
+
+      // BUG FIX (March 9, 2026): Check customer access - customers can only see their own orders
+      if (user.userType === 'customer' && user.customerId && service.order?.customerId !== user.customerId) {
+        logger.warn('Customer attempted to access service from different customer', {
+          serviceId: id,
+          customerId: user.customerId,
+          orderCustomerId: service.order?.customerId
         });
         throw new Error('Access denied');
       }

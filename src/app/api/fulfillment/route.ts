@@ -21,19 +21,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Step 2: Permission check - user must have fulfillment permission
+    // Step 2: Permission check - user must have fulfillment permission OR be a customer
     const permissions = session.user.permissions || {};
+    const userType = session.user.userType;
     const hasFulfillmentPermission =
       permissions.fulfillment === true ||
       permissions.fulfillment === '*' ||
       (Array.isArray(permissions.fulfillment) && permissions.fulfillment.includes('*'));
 
-    if (!hasFulfillmentPermission) {
+    // Allow customer users to access their own orders
+    const isCustomerUser = userType === 'customer' && session.user.customerId;
+
+    if (!hasFulfillmentPermission && !isCustomerUser) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
     // Step 3: Build query based on user type
-    const userType = session.user.userType;
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status') || undefined;
     const search = searchParams.get('search') || undefined;
@@ -42,6 +45,7 @@ export async function GET(request: NextRequest) {
 
     interface OrderWhereClause {
       assignedVendorId?: string | { not: null };
+      customerId?: string;
       statusCode?: string;
       OR?: Array<{
         orderNumber?: { contains: string; mode: 'insensitive' };
@@ -51,8 +55,16 @@ export async function GET(request: NextRequest) {
 
     let whereClause: OrderWhereClause = {};
 
+    // Filter by customer for customer users
+    if (userType === 'customer' && session.user.customerId) {
+      whereClause.customerId = session.user.customerId;
+
+      logger.info('Customer user fetching fulfillment orders', {
+        userId: session.user.id,
+        customerId: session.user.customerId
+      });
     // Filter by vendor for vendor users
-    if (userType === 'vendor' && session.user.vendorId) {
+    } else if (userType === 'vendor' && session.user.vendorId) {
       whereClause.assignedVendorId = session.user.vendorId;
 
       logger.info('Vendor user fetching fulfillment orders', {
@@ -61,11 +73,24 @@ export async function GET(request: NextRequest) {
       });
     } else if (userType === 'internal' || userType === 'admin') {
       // Internal users can see all orders (both assigned and unassigned)
-      // Previously this incorrectly filtered with assignedVendorId: { not: null }
-      // which excluded unassigned orders that internal users need to manage.
-      // Bug Fix (March 9, 2026): Removed vendor filter so internal/admin users
-      // can see ALL orders including unassigned ones for proper fulfillment management.
-      // No vendor filter needed - they manage all fulfillment
+      //
+      // BUG FIX DOCUMENTATION (March 9, 2026):
+      // Original problem: Internal/admin users were incorrectly filtered to only see
+      // orders with `assignedVendorId: { not: null }`, which excluded unassigned orders.
+      //
+      // Business Impact: Internal users could NOT see unassigned orders in the fulfillment
+      // dashboard, preventing them from assigning orders to vendors - a critical workflow failure.
+      //
+      // Root Cause: Line filtering logic assumed internal users should only see assigned orders,
+      // but this breaks the fulfillment workflow where internal users MUST see unassigned
+      // orders to manage vendor assignments.
+      //
+      // Solution: Removed the vendor filter entirely for internal/admin users. They now see
+      // ALL orders (assigned and unassigned) which is the correct business requirement.
+      // Only vendor users should have their orders filtered by vendor assignment.
+      //
+      // Technical Details: Previously had `whereClause.assignedVendorId = { not: null }`
+      // which was logically incorrect for internal users who manage ALL fulfillment.
 
       logger.info('Internal user fetching fulfillment orders', {
         userId: session.user.id
@@ -122,11 +147,49 @@ export async function GET(request: NextRequest) {
       prisma.order.count({ where: whereClause }),
     ]);
 
+    // Calculate the 3 required dashboard stats
+    // BUG FIX: Dashboard stats now correctly reflect user-appropriate data
+    //
+    // Previous Issue: Dashboard showed wrong number of cards (5 for internal/vendor, 4 for customers)
+    // and inconsistent statistics across different user types.
+    //
+    // Business Requirement: ALL user types should see exactly 3 cards:
+    // 1. Total Orders - count of orders the user can see
+    // 2. Total Services - count of all order items across those orders
+    // 3. In Progress - orders not in terminal states (draft/completed/cancelled)
+    //
+    // We need to fetch ALL orders (without pagination) for accurate stats
+    const allOrders = await prisma.order.findMany({
+      where: whereClause,
+      include: {
+        items: true,
+      },
+    });
+
+    // 1. Total Orders - count of all orders visible to this user type
+    const totalOrders = allOrders.length;
+
+    // 2. Total Services - count of all OrderItems across all visible orders
+    const totalServices = allOrders.reduce((sum, order) => sum + order.items.length, 0);
+
+    // 3. In Progress - orders NOT in terminal states (Draft, Completed, or Cancelled)
+    // This matches the frontend filter logic for consistent user experience
+    const inProgress = allOrders.filter(
+      order => order.statusCode !== 'draft' &&
+               order.statusCode !== 'completed' &&
+               order.statusCode !== 'cancelled'
+    ).length;
+
     return NextResponse.json({
       orders,
       total,
       limit,
       offset,
+      stats: {
+        totalOrders,
+        totalServices,
+        inProgress,
+      },
     });
 
   } catch (error) {

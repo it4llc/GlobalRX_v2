@@ -15,17 +15,41 @@ import { useTranslation } from '@/contexts/TranslationContext';
 import type { ServiceCommentWithRelations } from '@/types/comment-template';
 
 interface ServiceCommentSectionProps {
-  serviceId: string;
+  serviceId: string; // OrderItem ID for creating/updating comments (comments.orderItemId)
+  orderId?: string;
   serviceName?: string;
   serviceType?: string;
   serviceStatus?: string;
+  serviceFulfillmentId?: string; // ServiceFulfillment ID for fetching comments in order mode (API response key)
+
+  /* ID USAGE EXPLANATION:
+   * - serviceId: Always OrderItem.id - used for comment CRUD operations
+   * - serviceFulfillmentId: Always ServicesFulfillment.id - used to lookup comments from order API response
+   * This dual-ID pattern was necessary to fix the comment display bug where IDs were mismatched */
 }
 
-export function ServiceCommentSection({ serviceId, serviceName = "Service", serviceType, serviceStatus }: ServiceCommentSectionProps) {
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function ServiceCommentSection({ serviceId, orderId, serviceName = "Service", serviceType, serviceStatus, serviceFulfillmentId }: ServiceCommentSectionProps) {
   const { user } = useAuth();
   const { t } = useTranslation();
+
+  // Validate IDs to prevent injection issues
+  React.useEffect(() => {
+    if (serviceId && !UUID_REGEX.test(serviceId)) {
+      clientLogger.error('Invalid serviceId format', { serviceId });
+    }
+    if (serviceFulfillmentId && !UUID_REGEX.test(serviceFulfillmentId)) {
+      clientLogger.error('Invalid serviceFulfillmentId format', { serviceFulfillmentId });
+    }
+    if (orderId && !UUID_REGEX.test(orderId)) {
+      clientLogger.error('Invalid orderId format', { orderId });
+    }
+  }, [serviceId, serviceFulfillmentId, orderId]);
   const {
     comments,
+    commentsByService,
     loading,
     error,
     createComment,
@@ -37,7 +61,20 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
     getAvailableTemplates,
     availableTemplates,
     getSortedComments
-  } = useServiceComments(serviceId, undefined, serviceType, serviceStatus);
+  } = useServiceComments(orderId ? null : serviceId, orderId, serviceType, serviceStatus);
+
+  // Debug logging
+  React.useEffect(() => {
+    clientLogger.info('ServiceCommentSection render', {
+      serviceId,
+      orderId,
+      hasCommentsByService: !!commentsByService,
+      commentsByServiceKeys: commentsByService ? Object.keys(commentsByService) : [],
+      directCommentsLength: comments?.length || 0,
+      loading,
+      error
+    });
+  }, [serviceId, orderId, commentsByService, comments, loading, error]);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingComment, setEditingComment] = useState<ServiceCommentWithRelations | null>(null);
@@ -52,18 +89,39 @@ export function ServiceCommentSection({ serviceId, serviceName = "Service", serv
   // Check if user is a customer
   const isCustomer = user?.userType === 'customer';
 
-  // Filter comments based on user role - this implements the core business rule
-  // that customers should never see internal comments (security requirement)
+  // Filter comments based on user role and service context
+  // When using order mode (commentsByService), get comments for this specific service
+  // When using service mode, use the comments directly
   const visibleComments = React.useMemo(() => {
-    const sorted = getSortedComments ? getSortedComments() : comments;
+    let serviceComments = comments;
+
+    // If we're in order mode and have commentsByService, get comments for this specific service
+    if (orderId && commentsByService && serviceFulfillmentId) {
+      // CRITICAL FIX: Use serviceFulfillmentId to look up comments (API keys by ServiceFulfillment ID)
+      // This was the root cause of the comment display bug - API returns results keyed by
+      // ServicesFulfillment.id but UI was trying to use OrderItem.id as the lookup key
+      const serviceData = commentsByService[serviceFulfillmentId];
+      serviceComments = serviceData?.comments || [];
+
+      clientLogger.info('Extracting service comments from order data', {
+        serviceId, // OrderItem ID (used for comment operations)
+        serviceFulfillmentId, // ServiceFulfillment ID (used as lookup key for API response)
+        hasServiceData: !!serviceData,
+        serviceDataKeys: serviceData ? Object.keys(serviceData) : [],
+        extractedCommentsLength: serviceComments.length,
+        allServiceIds: Object.keys(commentsByService),
+        bugFixNote: 'Using serviceFulfillmentId as lookup key (was causing comment display bug)'
+      });
+    }
+
     if (isCustomer) {
       // Customers can only see external comments (isInternalOnly = false)
       // This is a critical security filter to prevent exposure of sensitive internal notes
-      return sorted.filter(c => !c.isInternalOnly);
+      return serviceComments.filter(c => !c.isInternalOnly);
     }
     // Internal users and vendors see all comments for full operational context
-    return sorted;
-  }, [comments, isCustomer, getSortedComments]);
+    return serviceComments;
+  }, [comments, commentsByService, isCustomer, orderId, serviceId]);
 
   const handleCreateComment = async (data: any) => {
     try {

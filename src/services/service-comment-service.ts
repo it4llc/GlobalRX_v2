@@ -207,6 +207,17 @@ export class ServiceCommentService {
 
   /**
    * Get all comments for all services in an order
+   *
+   * CRITICAL ID MAPPING EXPLANATION:
+   * This method retrieves comments via a complex relationship:
+   * 1. ServicesFulfillment (what UI displays) → OrderItem (where comments are stored)
+   * 2. Comments are always stored/retrieved via OrderItem.id
+   * 3. But UI components need results keyed by ServicesFulfillment.id
+   * 4. This ID mismatch was the root cause of the comment display bug
+   *
+   * Database relationships:
+   * - ServicesFulfillment.orderItemId → OrderItem.id (1:1)
+   * - OrderItem.comments → ServiceComment[] (1:many via orderItemId)
    */
   async getOrderServiceComments(
     orderId: string,
@@ -214,23 +225,30 @@ export class ServiceCommentService {
     userId: string
   ) {
     // Get all services for the order with their comments
+    // This query follows: ServicesFulfillment → OrderItem → ServiceComment[]
     const services = await prisma.servicesFulfillment.findMany({
       where: { orderId: orderId },
       include: {
         service: true,
-        comments: {
-          where: userRole === 'customer' ? { isInternalOnly: false } : {},
-          orderBy: { createdAt: 'desc' },
+        orderItem: {
           include: {
-            template: true,
-            createdByUser: true,
-            updatedByUser: true
+            comments: {
+              where: userRole === 'customer' ? { isInternalOnly: false } : {},
+              orderBy: { createdAt: 'desc' },
+              include: {
+                template: true,
+                createdByUser: true,
+                updatedByUser: true
+              }
+            }
           }
         }
       }
     });
 
     // Transform into the expected response format
+    // IMPORTANT: Key by ServicesFulfillment ID since that's what the UI components use
+    // This mapping is critical - UI passes serviceFulfillmentId, not orderItemId
     const result: Record<string, {
       serviceName: string;
       serviceStatus: string;
@@ -239,11 +257,14 @@ export class ServiceCommentService {
     }> = {};
 
     for (const service of services) {
+      const comments = service.orderItem?.comments || [];
+      // Key by ServicesFulfillment ID (service.id) not OrderItem ID
+      // This ensures UI can find comments using the ID it has available
       result[service.id] = {
         serviceName: service.service.name,
         serviceStatus: service.status,
-        comments: service.comments,
-        total: service.comments.length
+        comments: comments,
+        total: comments.length
       };
     }
 
