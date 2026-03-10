@@ -1,4 +1,4 @@
-// src/components/modules/user-admin/user-form.tsx
+// /GlobalRX_v2/src/components/modules/user-admin/user-form.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -23,12 +23,12 @@ type User = {
     services?: string[];
     dsx?: string[];
     customers?: string[];
-    user_admin?: any;
-    global_config?: any;
-    customer_config?: any;
-    vendors?: any;
-    fulfillment?: any;
-    comment_management?: any;
+    user_admin?: boolean;
+    global_config?: boolean;
+    customer_config?: boolean | string[];
+    vendors?: boolean;
+    fulfillment?: boolean;
+    comment_management?: boolean;
   };
 };
 
@@ -59,8 +59,8 @@ type UserFormProps = {
 
 export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
   const [loading, setLoading] = useState(false);
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<Array<{id: string; name: string; isPrimary?: boolean}>>([]);
+  const [customers, setCustomers] = useState<Array<{id: string; name: string}>>([]);
   const [formValues, setFormValues] = useState<FormValues>({
     email: '',
     firstName: '',
@@ -84,7 +84,10 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
   useEffect(() => {
     fetch('/api/vendors')
       .then(res => res.json())
-      .then(data => setVendors(data))
+      // DEFENSIVE HANDLING: API can return either array or paginated response {data: [...], meta: {...}}
+      // This prevents "customers.map is not a function" error when API response format changes
+      // Bug fix: UserForm was crashing when APIs changed from plain arrays to paginated responses
+      .then(data => setVendors(Array.isArray(data) ? data : data?.data || []))
       .catch(() => {
         // Silently fail - vendors list will be empty
         setVendors([]);
@@ -92,7 +95,10 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
 
     fetch('/api/customers')
       .then(res => res.json())
-      .then(data => setCustomers(data))
+      // DEFENSIVE HANDLING: API can return either array or paginated response {data: [...], meta: {...}}
+      // This prevents "customers.map is not a function" error when API response format changes
+      // Bug fix: UserForm was crashing when APIs changed from plain arrays to paginated responses
+      .then(data => setCustomers(Array.isArray(data) ? data : data?.data || []))
       .catch(() => {
         // Silently fail - customers list will be empty
         setCustomers([]);

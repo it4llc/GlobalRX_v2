@@ -66,7 +66,22 @@ const mockVendors = [
   { id: 'vendor-456', name: 'Primary Vendor', isPrimary: true }
 ];
 
-const mockCustomers = [
+// CORRECT PAGINATED STRUCTURE for customers API response
+const mockCustomersPaginatedResponse = {
+  data: [
+    { id: 'customer-123', name: 'Test Customer' },
+    { id: 'customer-456', name: 'Another Customer' }
+  ],
+  meta: {
+    total: 2,
+    page: 1,
+    pageSize: 10,
+    hasMore: false
+  }
+};
+
+// Old incorrect format (for backward compatibility test)
+const mockCustomersArrayResponse = [
   { id: 'customer-123', name: 'Test Customer' },
   { id: 'customer-456', name: 'Another Customer' }
 ];
@@ -78,7 +93,7 @@ describe('UserForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock API calls for vendors and customers
+    // Default mock - use the CORRECT paginated structure
     mockFetch.mockImplementation((url) => {
       if (url.includes('/api/vendors')) {
         return Promise.resolve({
@@ -87,14 +102,430 @@ describe('UserForm', () => {
         });
       }
       if (url.includes('/api/customers')) {
+        // RETURN PAGINATED STRUCTURE - this is what the real API returns
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(mockCustomers)
+          json: () => Promise.resolve(mockCustomersPaginatedResponse)
         });
       }
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({})
+      });
+    });
+  });
+
+  describe('Customer API Response Handling', () => {
+    // Bug fix verification - This test ensures the component handles paginated API responses
+    it('handles paginated API response correctly (bug fix verification)', async () => {
+      // This test verifies the bug fix works - the component correctly handles
+      // the paginated response structure from the API
+
+      // Mock the API to return the actual paginated structure
+      mockFetch.mockImplementation((url) => {
+        if (url.includes('/api/vendors')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockVendors)
+          });
+        }
+        if (url.includes('/api/customers')) {
+          // This is the ACTUAL response structure from the API
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              data: [
+                { id: 'customer-123', name: 'Test Customer' },
+                { id: 'customer-456', name: 'Another Customer' }
+              ],
+              meta: {
+                total: 2,
+                page: 1,
+                pageSize: 10,
+                hasMore: false
+              }
+            })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({})
+        });
+      });
+
+      // Attempt to render the form
+      const { rerender } = render(
+        <UserForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+      );
+
+      // Wait for the API call to complete
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/customers');
+      });
+
+      // Now try to select customer type - this should work correctly after the fix
+      // The component now properly extracts the array from data.data
+
+      await waitFor(() => {
+        const userTypeButton = screen.getByRole('combobox', { name: /user type/i });
+        fireEvent.click(userTypeButton);
+      });
+
+      const customerOption = screen.getByRole('option', { name: 'Customer' });
+      fireEvent.click(customerOption);
+
+      // After the fix, the component should correctly handle the paginated response
+      // and display the Customer Organization dropdown without errors
+      await waitFor(() => {
+        expect(screen.getByText('Customer Organization')).toBeInTheDocument();
+      });
+
+      // Verify that the customer dropdown is rendered with the correct options
+      const customerDropdown = screen.getByRole('combobox', { name: /customer organization/i });
+      expect(customerDropdown).toBeInTheDocument();
+    });
+
+    // Test that verifies the fix works correctly
+    it('should handle paginated customer API response correctly after fix', async () => {
+      // NOTE: This test will only pass AFTER the fix is implemented
+      // The fix should extract the array from data.data
+
+      mockFetch.mockImplementation((url) => {
+        if (url.includes('/api/vendors')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockVendors)
+          });
+        }
+        if (url.includes('/api/customers')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              data: [
+                { id: 'customer-123', name: 'Test Customer' },
+                { id: 'customer-456', name: 'Another Customer' }
+              ],
+              meta: {
+                total: 2,
+                page: 1,
+                pageSize: 10,
+                hasMore: false
+              }
+            })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({})
+        });
+      });
+
+      render(
+        <UserForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+      );
+
+      // Wait for API calls to complete
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/customers');
+      });
+
+      // Select customer type
+      await waitFor(() => {
+        const userTypeButton = screen.getByRole('combobox', { name: /user type/i });
+        fireEvent.click(userTypeButton);
+      });
+
+      const customerOption = screen.getByRole('option', { name: 'Customer' });
+      fireEvent.click(customerOption);
+
+      // After fix, this should work and show the customer dropdown
+      await waitFor(() => {
+        expect(screen.getByText('Customer Organization')).toBeInTheDocument();
+      });
+
+      // Verify we can open the dropdown and see customer options
+      const customerDropdown = screen.getByRole('combobox', { name: /customer organization/i });
+      fireEvent.click(customerDropdown);
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: 'Test Customer' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Another Customer' })).toBeInTheDocument();
+      });
+    });
+
+    // Edge case: API returns null data
+    it('should handle null data in paginated response', async () => {
+      mockFetch.mockImplementation((url) => {
+        if (url.includes('/api/vendors')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockVendors)
+          });
+        }
+        if (url.includes('/api/customers')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              data: null,
+              meta: {
+                total: 0,
+                page: 1,
+                pageSize: 10,
+                hasMore: false
+              }
+            })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({})
+        });
+      });
+
+      render(
+        <UserForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+      );
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/customers');
+      });
+
+      // Select customer type
+      await waitFor(() => {
+        const userTypeButton = screen.getByRole('combobox', { name: /user type/i });
+        fireEvent.click(userTypeButton);
+      });
+
+      const customerOption = screen.getByRole('option', { name: 'Customer' });
+      fireEvent.click(customerOption);
+
+      // Should show the dropdown but with no options
+      await waitFor(() => {
+        expect(screen.getByText('Customer Organization')).toBeInTheDocument();
+      });
+
+      const customerDropdown = screen.getByRole('combobox', { name: /customer organization/i });
+      fireEvent.click(customerDropdown);
+
+      // Should show empty state or placeholder, not crash
+      await waitFor(() => {
+        expect(screen.getByText('Select customer organization')).toBeInTheDocument();
+      });
+    });
+
+    // Edge case: API returns undefined data
+    it('should handle undefined data in paginated response', async () => {
+      mockFetch.mockImplementation((url) => {
+        if (url.includes('/api/vendors')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockVendors)
+          });
+        }
+        if (url.includes('/api/customers')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              data: undefined,
+              meta: {
+                total: 0,
+                page: 1,
+                pageSize: 10,
+                hasMore: false
+              }
+            })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({})
+        });
+      });
+
+      render(
+        <UserForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+      );
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/customers');
+      });
+
+      // Select customer type
+      await waitFor(() => {
+        const userTypeButton = screen.getByRole('combobox', { name: /user type/i });
+        fireEvent.click(userTypeButton);
+      });
+
+      const customerOption = screen.getByRole('option', { name: 'Customer' });
+      fireEvent.click(customerOption);
+
+      // Should show the dropdown but with no options
+      await waitFor(() => {
+        expect(screen.getByText('Customer Organization')).toBeInTheDocument();
+      });
+    });
+
+    // Edge case: API returns empty array
+    it('should handle empty customer array in paginated response', async () => {
+      mockFetch.mockImplementation((url) => {
+        if (url.includes('/api/vendors')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockVendors)
+          });
+        }
+        if (url.includes('/api/customers')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              data: [],
+              meta: {
+                total: 0,
+                page: 1,
+                pageSize: 10,
+                hasMore: false
+              }
+            })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({})
+        });
+      });
+
+      render(
+        <UserForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+      );
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/customers');
+      });
+
+      // Select customer type
+      await waitFor(() => {
+        const userTypeButton = screen.getByRole('combobox', { name: /user type/i });
+        fireEvent.click(userTypeButton);
+      });
+
+      const customerOption = screen.getByRole('option', { name: 'Customer' });
+      fireEvent.click(customerOption);
+
+      // Should show the dropdown but with no options
+      await waitFor(() => {
+        expect(screen.getByText('Customer Organization')).toBeInTheDocument();
+      });
+
+      const customerDropdown = screen.getByRole('combobox', { name: /customer organization/i });
+      fireEvent.click(customerDropdown);
+
+      // Should show placeholder with no customer options
+      await waitFor(() => {
+        expect(screen.getByText('Select customer organization')).toBeInTheDocument();
+        // Verify no customer options are shown
+        expect(screen.queryByRole('option', { name: 'Test Customer' })).not.toBeInTheDocument();
+      });
+    });
+
+    // Test backward compatibility if API returns old array format
+    it('should still work if API returns array format (backward compatibility)', async () => {
+      mockFetch.mockImplementation((url) => {
+        if (url.includes('/api/vendors')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockVendors)
+          });
+        }
+        if (url.includes('/api/customers')) {
+          // Old format - just an array
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([
+              { id: 'customer-123', name: 'Test Customer' },
+              { id: 'customer-456', name: 'Another Customer' }
+            ])
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({})
+        });
+      });
+
+      render(
+        <UserForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+      );
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/customers');
+      });
+
+      // Select customer type
+      await waitFor(() => {
+        const userTypeButton = screen.getByRole('combobox', { name: /user type/i });
+        fireEvent.click(userTypeButton);
+      });
+
+      const customerOption = screen.getByRole('option', { name: 'Customer' });
+      fireEvent.click(customerOption);
+
+      // Should work with the old format too
+      await waitFor(() => {
+        expect(screen.getByText('Customer Organization')).toBeInTheDocument();
+      });
+
+      const customerDropdown = screen.getByRole('combobox', { name: /customer organization/i });
+      fireEvent.click(customerDropdown);
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: 'Test Customer' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Another Customer' })).toBeInTheDocument();
+      });
+    });
+
+    // Verify internal and vendor user types are not affected
+    it('should not affect internal user type (no customer dropdown)', async () => {
+      render(
+        <UserForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+      );
+
+      // Select internal type
+      await waitFor(() => {
+        const userTypeButton = screen.getByRole('combobox', { name: /user type/i });
+        fireEvent.click(userTypeButton);
+      });
+
+      const internalOption = screen.getByRole('option', { name: 'Internal' });
+      fireEvent.click(internalOption);
+
+      // Should NOT show customer dropdown for internal users
+      await waitFor(() => {
+        expect(screen.queryByText('Customer Organization')).not.toBeInTheDocument();
+      });
+
+      // Verify other fields are present
+      expect(screen.getByRole('textbox', { name: /email/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /first name/i })).toBeInTheDocument();
+    });
+
+    it('should not affect vendor user type (no customer dropdown)', async () => {
+      render(
+        <UserForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+      );
+
+      // Select vendor type
+      await waitFor(() => {
+        const userTypeButton = screen.getByRole('combobox', { name: /user type/i });
+        fireEvent.click(userTypeButton);
+      });
+
+      const vendorOption = screen.getByRole('option', { name: 'Vendor' });
+      fireEvent.click(vendorOption);
+
+      // Should show vendor dropdown, NOT customer dropdown
+      await waitFor(() => {
+        expect(screen.getByText('Vendor Organization')).toBeInTheDocument();
+        expect(screen.queryByText('Customer Organization')).not.toBeInTheDocument();
       });
     });
   });
@@ -137,7 +568,8 @@ describe('UserForm', () => {
       });
     });
 
-    it('should show customer dropdown when customer type is selected', async () => {
+    it('should show customer dropdown when customer type is selected (with fix)', async () => {
+      // This test assumes the fix is in place
       render(
         <UserForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
       );
@@ -297,7 +729,7 @@ describe('UserForm', () => {
       });
     });
 
-    it('should load existing customer user data correctly', async () => {
+    it('should load existing customer user data correctly (with fix)', async () => {
       render(
         <UserForm
           user={mockCustomerUser}
@@ -335,7 +767,7 @@ describe('UserForm', () => {
         if (url.includes('/api/customers')) {
           return Promise.resolve({
             ok: true,
-            json: () => Promise.resolve(mockCustomers)
+            json: () => Promise.resolve(mockCustomersPaginatedResponse)
           });
         }
         if (url === '/api/users') {

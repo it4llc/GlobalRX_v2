@@ -811,6 +811,67 @@ if (userType === 'vendor') {
 - Over-filtering data that users with broader permissions should see
 - Not considering the "unassigned" workflow state in business logic
 
+### 9.11 API Response Format Handling Standard
+
+**CRITICAL:** Always handle API responses defensively to prevent crashes when response format changes from arrays to paginated responses.
+
+**Common API Response Bug:**
+Frontend code assumes APIs return plain arrays, but APIs can be updated to return paginated responses with `{ data: [...], meta: {...} }` format. This causes "map is not a function" errors when the array methods are called on the paginated object.
+
+**Bug Pattern Example:**
+```typescript
+// ❌ WRONG - Assumes API always returns an array
+fetch('/api/customers')
+  .then(res => res.json())
+  .then(data => setCustomers(data)) // Breaks if API returns {data: [...], meta: {...}}
+  .then(() => customers.map(...))  // "customers.map is not a function" error
+```
+
+**Correct Defensive Pattern:**
+```typescript
+// ✅ CORRECT - Handles both array and paginated response formats
+fetch('/api/customers')
+  .then(res => res.json())
+  .then(data => {
+    // Defensive handling: Support both formats
+    const customersArray = Array.isArray(data) ? data : data?.data || [];
+    setCustomers(customersArray);
+  })
+```
+
+**Prevention Guidelines:**
+- Always use defensive handling when consuming API responses
+- Extract arrays from paginated responses using `data?.data || []` fallback
+- Test with both response formats when possible
+- Comment the defensive handling to explain why it's necessary
+- Consider standardizing API response formats to prevent inconsistency
+
+**Common Locations Requiring Defensive Handling:**
+- Customer lists in forms and dropdowns
+- Vendor lists in assignment components
+- Service lists in configuration pages
+- Order lists in fulfillment dashboards
+- Any API endpoint that could be paginated in the future
+
+**Standard Defensive Pattern:**
+```typescript
+// Standard pattern for API array responses
+const handleApiResponse = (data: unknown) => {
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (data && typeof data === 'object' && 'data' in data) {
+    return Array.isArray(data.data) ? data.data : [];
+  }
+  return [];
+};
+
+// Usage in components
+fetch('/api/endpoint')
+  .then(res => res.json())
+  .then(data => setItems(handleApiResponse(data)))
+```
+
 ### 9.6 No Secrets in Code
 
 Database URLs, API keys, passwords, and other secrets must only exist in
