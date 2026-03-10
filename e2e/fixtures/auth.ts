@@ -11,16 +11,15 @@ export const test = base.extend<AuthFixtures>({
     // Navigate to login page
     await page.goto('/login');
 
-    // Fill in login credentials
-    // You'll need to adjust these based on your test data
-    await page.fill('input[name="email"]', process.env.TEST_USER_EMAIL || 'test@example.com');
-    await page.fill('input[name="password"]', process.env.TEST_USER_PASSWORD || 'testpassword123');
+    // Fill in login credentials using the seeded test data
+    await page.fill('input[name="email"]', 'customer@acmecorp.com');
+    await page.fill('input[name="password"]', 'password123');
 
     // Click login button
     await page.click('button[type="submit"]');
 
-    // Wait for navigation to complete
-    await page.waitForURL('**/dashboard', { timeout: 10000 });
+    // Wait for navigation to complete - customers go to portal/dashboard, others to dashboard/fulfillment
+    await page.waitForURL(/\/(portal\/dashboard|dashboard|fulfillment)/, { timeout: 10000 });
 
     // Use the authenticated page in tests
     await use(page);
