@@ -324,7 +324,10 @@ export function useOrderFormState() {
     } finally {
       setIsLoadingOrder(false);
     }
-  }, [session, router, serviceCart, requirementsHook]);
+  }, [session, router]);  // BUG FIX: Removed serviceCart and requirementsHook from dependencies to prevent infinite loop
+  // The functions we use (serviceCart.setCart and requirementsHook.fetchRequirementsForEdit) are already
+  // memoized with empty dependency arrays in their respective hooks (useServiceCart and useOrderRequirements),
+  // making them stable references that don't change across renders
 
   /**
    * Initialize form state on mount
