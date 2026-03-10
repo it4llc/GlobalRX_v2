@@ -198,7 +198,10 @@ export function ServiceFulfillmentTable({
         const response = await fetch('/api/vendors');
         if (response.ok) {
           const data = await response.json();
-          setVendors(data);
+          // DEFENSIVE HANDLING: API can return either array or paginated response {data: [...], meta: {...}}
+          // This prevents "vendors.map is not a function" error when API response format changes
+          // Bug fix: Components were crashing when APIs changed from plain arrays to paginated responses
+          setVendors(Array.isArray(data) ? data : data?.data || []);
         }
       } catch (error) {
         // Error fetching vendors - keep initial state
