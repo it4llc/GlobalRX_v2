@@ -1,3 +1,4 @@
+// /GlobalRX_v2/src/app/customer-configs/packages/page.tsx
 'use client';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
@@ -41,14 +42,16 @@ export default function CustomerPackagesPage() {
         
         const data = await response.json();
         
-        // Check if data is an array and filter out disabled customers
+        // DEFENSIVE HANDLING: API can return either array or paginated response {data: [...], meta: {...}}
+        // This prevents "customers.map is not a function" error when API response format changes
+        // Bug fix: Page was crashing when APIs changed from plain arrays to paginated responses
         if (Array.isArray(data)) {
           const activeCustomers = data.filter((customer: Customer) => !customer.disabled);
           setCustomers(activeCustomers);
         } else if (data && typeof data === 'object') {
-          // If data is an object with customers property
-          const customersData = data.customers || [];
-          const activeCustomers = Array.isArray(customersData) 
+          // Handle paginated response format { data: [...], meta: {...} }
+          const customersData = data.data || data.customers || [];
+          const activeCustomers = Array.isArray(customersData)
             ? customersData.filter((customer: Customer) => !customer.disabled)
             : [];
           setCustomers(activeCustomers);
@@ -146,12 +149,12 @@ export default function CustomerPackagesPage() {
       </div>
       
       <div className="space-y-8">
-        {letterGroups.map((letter: any) => (
+        {letterGroups.map((letter: string) => (
           <div key={letter} className="space-y-4">
             <h3 className="text-lg font-semibold border-b border-gray-200 pb-2">{letter}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {groupedCustomers[letter].map((customer: any) => (
+              {groupedCustomers[letter].map((customer: Customer) => (
                 <Link href={`/customer-configs/${customer.id}/packages`} key={customer.id}>
                   <Card className="cursor-pointer hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
