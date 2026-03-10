@@ -46,6 +46,16 @@ interface OrderDetailsViewProps {
         fieldValue: string;
         fieldType?: string | null;
       }>;
+      serviceFulfillment?: {
+        id: string;
+        status: string;
+        assignedVendorId: string | null;
+        vendorNotes: string | null;
+        internalNotes: string | null;
+        assignedAt: string | null;
+        assignedBy: string | null;
+        completedAt: string | null;
+      };
     }>;
     createdAt: Date | string;
     updatedAt: Date | string;
@@ -224,23 +234,37 @@ export function OrderDetailsView({ order }: OrderDetailsViewProps) {
             {order.items && order.items.length > 0 ? (
               <ServiceFulfillmentTable
                 orderId={order.id}
-                services={order.items.map(item => ({
-                  id: item.id,
+                services={order.items
+                  .filter(item => item.id) // Ensure item has a valid ID
+                  .map(item => ({
+                  // ID MAPPING FIX: Use ServiceFulfillment ID if available, otherwise fall back to OrderItem ID
+                  // This ensures ServiceFulfillmentTable gets the correct ID for comment lookups
+                  // ServiceFulfillment.id is what comments API keys results by
+                  id: item.serviceFulfillment?.id || item.id,
                   orderId: order.id,
                   orderItemId: item.id,
                   serviceId: item.service?.id || '',
                   locationId: item.location?.id || '',
-                  status: item.status || 'pending',
-                  assignedVendorId: null,
-                  vendorNotes: null,
-                  internalNotes: null,
-                  assignedAt: null,
-                  assignedBy: null,
-                  completedAt: null,
+                  status: item.serviceFulfillment?.status || item.status || 'pending',
+                  assignedVendorId: item.serviceFulfillment?.assignedVendorId || null,
+                  vendorNotes: item.serviceFulfillment?.vendorNotes || null,
+                  internalNotes: item.serviceFulfillment?.internalNotes || null,
+                  assignedAt: item.serviceFulfillment?.assignedAt || null,
+                  assignedBy: item.serviceFulfillment?.assignedBy || null,
+                  completedAt: item.serviceFulfillment?.completedAt || null,
                   createdAt: order.createdAt.toString(),
                   updatedAt: order.updatedAt.toString(),
-                  service: item.service || { id: '', name: 'Unknown Service', code: undefined, category: null },
-                  location: item.location || { id: '', name: 'Unknown Location', code2: null },
+                  service: item.service || {
+                    id: item.service?.id || `service-${item.id}`,
+                    name: item.service?.name || 'Unknown Service',
+                    code: item.service?.code || undefined,
+                    category: item.service?.category || null
+                  },
+                  location: item.location || {
+                    id: item.location?.id || `location-${item.id}`,
+                    name: item.location?.name || 'Unknown Location',
+                    code2: item.location?.code2 || null
+                  },
                   assignedVendor: null
                 }))}
                 readOnly={false}

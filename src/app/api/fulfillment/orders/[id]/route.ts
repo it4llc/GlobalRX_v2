@@ -10,23 +10,24 @@ import logger from '@/lib/logger';
 /**
  * GET /api/fulfillment/orders/[id]
  *
- * Retrieves full order details for internal users with fulfillment or candidate_workflow permissions
+ * Retrieves full order details for all user types with appropriate filtering
  *
- * BUG FIX: This endpoint was created to fix a 401 error where internal users with fulfillment
- * permission couldn't view order details from the fulfillment page. The root cause was that
- * the fulfillment page incorrectly used /api/portal/orders/[id] which only allows customer
- * users. This endpoint allows internal users to access full order details including customer
- * information that portal users cannot see.
+ * BUG FIX (March 9, 2026): Extended to support customer and vendor users as part of
+ * unified dashboard implementation. All user types now use /fulfillment page and this
+ * endpoint with appropriate security filtering.
  *
- * Required permissions: internal user type AND (fulfillment OR candidate_workflow OR admin)
+ * Access control:
+ *   - Internal users: Need fulfillment, candidate_workflow, or admin permissions - can view any order
+ *   - Customer users: Can only view their own orders (filtered by customerId)
+ *   - Vendor users: Can only view orders assigned to them (filtered by assignedVendorId)
  *
- * Returns: Full order details including customer information
+ * Returns: Full order details with appropriate filtering based on user type
  *
  * Errors:
  *   - 400: Order ID is required
  *   - 401: Not authenticated
- *   - 403: Insufficient permissions (not internal user or lacks required permissions)
- *   - 404: Order not found
+ *   - 403: Insufficient permissions
+ *   - 404: Order not found or access denied
  *   - 500: Server error
  */
 export async function GET(
@@ -46,23 +47,29 @@ export async function GET(
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
 
-    // Step 3: Check user type - must be internal
+    // Step 3: Check user type - allow internal, vendor, and customer users
     const userType = session.user.userType;
-    if (userType !== 'internal') {
-      logger.warn('Non-internal user attempted to access fulfillment order endpoint', {
+    const isCustomer = userType === 'customer';
+    const isVendor = userType === 'vendor';
+    const isInternal = userType === 'internal';
+
+    // Customers and vendors can access this endpoint (with appropriate filtering later)
+    if (!isInternal && !isCustomer && !isVendor) {
+      logger.warn('Invalid user type attempted to access fulfillment order endpoint', {
         userId: session.user.id,
         userType,
         orderId,
-        actualUserType: userType,
-        sessionUser: JSON.stringify(session.user)
+        actualUserType: userType
       });
       return NextResponse.json(
-        { error: 'This endpoint is for internal users only' },
+        { error: 'Invalid user type for this endpoint' },
         { status: 403 }
       );
     }
 
-    // Step 4: Check permissions - must have fulfillment, candidate_workflow, or admin
+    // Step 4: Check permissions
+    // Customers can always view their own orders (will be filtered below)
+    // Vendors and internal users need specific permissions
     const permissions = session.user.permissions || {};
 
     logger.info('Checking fulfillment order access', {
@@ -72,39 +79,42 @@ export async function GET(
       orderId
     });
 
-    // Check for required permissions using different permission formats
-    const hasFulfillmentPermission =
-      permissions.fulfillment === true ||
-      permissions.fulfillment === '*' ||  // Handle wildcard permission
-      permissions.fulfillment?.view === true ||
-      (typeof permissions.fulfillment === 'object' && permissions.fulfillment !== null) ||
-      (Array.isArray(permissions) && permissions.includes('fulfillment')) ||
-      (Array.isArray(permissions.fulfillment) && permissions.fulfillment.includes('*')) ||
-      (typeof permissions === 'string' && permissions === 'fulfillment');
+    if (!isCustomer) {
+      // Check for required permissions using different permission formats
+      const hasFulfillmentPermission =
+        permissions.fulfillment === true ||
+        permissions.fulfillment === '*' ||  // Handle wildcard permission
+        permissions.fulfillment?.view === true ||
+        (typeof permissions.fulfillment === 'object' && permissions.fulfillment !== null) ||
+        (Array.isArray(permissions) && permissions.includes('fulfillment')) ||
+        (Array.isArray(permissions.fulfillment) && permissions.fulfillment.includes('*')) ||
+        (typeof permissions === 'string' && permissions === 'fulfillment');
 
-    const hasCandidateWorkflowPermission =
-      permissions.candidate_workflow === true ||
-      permissions.candidate_workflow === '*' ||  // Handle wildcard permission
-      permissions.candidate_workflow?.view === true ||
-      (typeof permissions.candidate_workflow === 'object' && permissions.candidate_workflow !== null) ||
-      (Array.isArray(permissions) && permissions.includes('candidate_workflow')) ||
-      (Array.isArray(permissions.candidate_workflow) && permissions.candidate_workflow.includes('*')) ||
-      (typeof permissions === 'string' && permissions === 'candidate_workflow');
+      const hasCandidateWorkflowPermission =
+        permissions.candidate_workflow === true ||
+        permissions.candidate_workflow === '*' ||  // Handle wildcard permission
+        permissions.candidate_workflow?.view === true ||
+        (typeof permissions.candidate_workflow === 'object' && permissions.candidate_workflow !== null) ||
+        (Array.isArray(permissions) && permissions.includes('candidate_workflow')) ||
+        (Array.isArray(permissions.candidate_workflow) && permissions.candidate_workflow.includes('*')) ||
+        (typeof permissions === 'string' && permissions === 'candidate_workflow');
 
-    const hasAdminPermission =
-      permissions.admin === true ||
-      session.user.role === 'superadmin';
+      const hasAdminPermission =
+        permissions.admin === true ||
+        session.user.role === 'superadmin';
 
-    if (!hasFulfillmentPermission && !hasCandidateWorkflowPermission && !hasAdminPermission) {
-      logger.warn('Internal user lacks required permissions for fulfillment order access', {
-        userId: session.user.id,
-        permissions,
-        orderId
-      });
-      return NextResponse.json(
-        { error: 'Insufficient permissions to view order details' },
-        { status: 403 }
-      );
+      if (!hasFulfillmentPermission && !hasCandidateWorkflowPermission && !hasAdminPermission) {
+        logger.warn('User lacks required permissions for fulfillment order access', {
+          userId: session.user.id,
+          userType,
+          permissions,
+          orderId
+        });
+        return NextResponse.json(
+          { error: 'Insufficient permissions to view order details' },
+          { status: 403 }
+        );
+      }
     }
 
     // Step 5: Fetch order details
@@ -154,6 +164,18 @@ export async function GET(
             },
             data: true,
             documents: true,
+            serviceFulfillment: {
+              select: {
+                id: true,
+                status: true,
+                assignedVendorId: true,
+                vendorNotes: true,
+                internalNotes: true,
+                assignedAt: true,
+                assignedBy: true,
+                completedAt: true,
+              },
+            },
           },
         },
         statusHistory: {
@@ -174,6 +196,32 @@ export async function GET(
     if (!order) {
       logger.warn('Order not found', { orderId, userId: session.user.id });
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    // Step 6: Security check - customers can only view their own orders
+    if (isCustomer) {
+      if (order.customerId !== session.user.customerId) {
+        logger.warn('Customer attempted to view order from different customer', {
+          userId: session.user.id,
+          customerId: session.user.customerId,
+          orderCustomerId: order.customerId,
+          orderId
+        });
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      }
+    }
+
+    // Vendors can only view orders assigned to them
+    if (isVendor) {
+      if (order.assignedVendorId !== session.user.vendorId) {
+        logger.warn('Vendor attempted to view unassigned order', {
+          userId: session.user.id,
+          vendorId: session.user.vendorId,
+          orderVendorId: order.assignedVendorId,
+          orderId
+        });
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      }
     }
 
     logger.info('Successfully fetched order', { orderId, userId: session.user.id });

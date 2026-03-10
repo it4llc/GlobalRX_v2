@@ -6,10 +6,11 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    // If user is a customer and trying to access admin areas, redirect to portal
+    // If user is a customer and trying to access admin areas, redirect to fulfillment
+    // BUG FIX (March 9, 2026): Customers now use /fulfillment dashboard like all other users
     if (token?.userType === 'customer') {
-      if (!path.startsWith('/portal') && !path.startsWith('/api')) {
-        return NextResponse.redirect(new URL('/portal/dashboard', req.url));
+      if (!path.startsWith('/portal') && !path.startsWith('/api') && !path.startsWith('/fulfillment')) {
+        return NextResponse.redirect(new URL('/fulfillment', req.url));
       }
     }
 

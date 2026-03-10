@@ -75,14 +75,6 @@ interface Order {
   totalPrice?: number | null;
 }
 
-interface Stats {
-  total: number;
-  submitted: number;
-  processing: number;
-  completed: number;
-  cancelled: number;
-  moreInfoNeeded: number;
-}
 
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800',
@@ -101,13 +93,10 @@ export default function FulfillmentPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<Stats>({
-    total: 0,
-    submitted: 0,
-    processing: 0,
-    completed: 0,
-    cancelled: 0,
-    moreInfoNeeded: 0,
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    totalServices: 0,
+    inProgress: 0,
   });
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -117,9 +106,14 @@ export default function FulfillmentPage() {
   const [limit] = useState(10);
 
   useEffect(() => {
-    // Check if user has fulfillment permission
-    if (session && auth && !auth.checkPermission('fulfillment')) {
-      router.push('/');
+    // Check if user has fulfillment permission OR is a customer user
+    if (session && auth) {
+      const isCustomer = session.user?.userType === 'customer';
+      const hasFulfillmentPermission = auth.checkPermission('fulfillment');
+
+      if (!hasFulfillmentPermission && !isCustomer) {
+        router.push('/');
+      }
     }
   }, [session, auth, router]);
 
@@ -145,16 +139,10 @@ export default function FulfillmentPage() {
       const data = await response.json();
       setOrders(data.orders);
 
-      // Calculate stats
-      const newStats = {
-        total: data.orders.length,
-        submitted: data.orders.filter((o: Order) => o.statusCode === 'submitted').length,
-        processing: data.orders.filter((o: Order) => o.statusCode === 'processing').length,
-        completed: data.orders.filter((o: Order) => o.statusCode === 'completed').length,
-        cancelled: data.orders.filter((o: Order) => o.statusCode === 'cancelled').length,
-        moreInfoNeeded: data.orders.filter((o: Order) => o.statusCode === 'more_info_needed').length,
-      };
-      setStats(newStats);
+      // Use stats from API response
+      if (data.stats) {
+        setStats(data.stats);
+      }
     } catch (error) {
       // Error already logged by API layer, no need to log again
     } finally {
@@ -167,7 +155,16 @@ export default function FulfillmentPage() {
 
     // Apply status filter
     if (statusFilter && statusFilter !== 'all') {
-      filtered = filtered.filter(order => order.statusCode === statusFilter);
+      if (statusFilter === 'in_progress') {
+        // In Progress = orders NOT in Draft, Completed, or Cancelled status
+        filtered = filtered.filter(order =>
+          order.statusCode !== 'draft' &&
+          order.statusCode !== 'completed' &&
+          order.statusCode !== 'cancelled'
+        );
+      } else {
+        filtered = filtered.filter(order => order.statusCode === statusFilter);
+      }
     }
 
     // Apply search filter
@@ -246,8 +243,11 @@ export default function FulfillmentPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Stats Cards - Only 3 cards as per requirements */}
+      {/* BUG FIX (March 9, 2026): Dashboard now shows consistent 3 cards for ALL user types
+          Previously showed 5 cards for internal/vendor users, 4 for customers.
+          Business Requirement: Unified experience with Total Orders, Total Services, In Progress */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <button
           onClick={() => setStatusFilter('all')}
           className={`bg-white rounded-lg shadow p-6 transition-all hover:shadow-md ${
@@ -260,32 +260,27 @@ export default function FulfillmentPage() {
             </div>
             <div className="ml-4 text-left">
               <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.totalOrders')}</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.totalOrders}</p>
             </div>
           </div>
         </button>
 
-        <button
-          onClick={() => setStatusFilter('submitted')}
-          className={`bg-white rounded-lg shadow p-6 transition-all hover:shadow-md ${
-            statusFilter === 'submitted' ? 'ring-2 ring-blue-500 bg-blue-50' : ''
-          }`}
-        >
+        <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <ClockIcon className="h-8 w-8 text-blue-500" />
+              <DocumentTextIcon className="h-8 w-8 text-purple-500" />
             </div>
             <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.submitted')}</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.submitted}</p>
+              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.totalServices')}</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.totalServices}</p>
             </div>
           </div>
-        </button>
+        </div>
 
         <button
-          onClick={() => setStatusFilter('processing')}
+          onClick={() => setStatusFilter('in_progress')}
           className={`bg-white rounded-lg shadow p-6 transition-all hover:shadow-md ${
-            statusFilter === 'processing' ? 'ring-2 ring-yellow-500 bg-yellow-50' : ''
+            statusFilter === 'in_progress' ? 'ring-2 ring-yellow-500 bg-yellow-50' : ''
           }`}
         >
           <div className="flex items-center">
@@ -293,42 +288,8 @@ export default function FulfillmentPage() {
               <ClockIcon className="h-8 w-8 text-yellow-500" />
             </div>
             <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.processing')}</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.processing}</p>
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => setStatusFilter('completed')}
-          className={`bg-white rounded-lg shadow p-6 transition-all hover:shadow-md ${
-            statusFilter === 'completed' ? 'ring-2 ring-green-500 bg-green-50' : ''
-          }`}
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <CheckCircleIcon className="h-8 w-8 text-green-500" />
-            </div>
-            <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.completed')}</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.completed}</p>
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => setStatusFilter('cancelled')}
-          className={`bg-white rounded-lg shadow p-6 transition-all hover:shadow-md ${
-            statusFilter === 'cancelled' ? 'ring-2 ring-red-500 bg-red-50' : ''
-          }`}
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <XCircleIcon className="h-8 w-8 text-red-500" />
-            </div>
-            <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.cancelled')}</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.cancelled}</p>
+              <p className="text-sm font-medium text-gray-600">{t('module.fulfillment.inProgress')}</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.inProgress}</p>
             </div>
           </div>
         </button>

@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { ServiceCommentService } from '@/services/service-comment-service';
 import { createServiceCommentSchema } from '@/lib/validations/service-comment';
+import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 
 /**
@@ -54,8 +55,19 @@ export async function POST(
       return NextResponse.json({ error: 'User type not configured. Please contact support.' }, { status: 403 });
     }
 
+    // BUG FIX (March 9, 2026): Map ServiceFulfillment ID to OrderItem ID for validation
+    // The params.id is a ServiceFulfillment ID, but validateUserAccess expects an OrderItem ID
+    const serviceFulfillment = await prisma.servicesFulfillment.findUnique({
+      where: { id: params.id },
+      select: { orderItemId: true }
+    });
+
+    if (!serviceFulfillment) {
+      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+    }
+
     const hasAccess = await service.validateUserAccess(
-      params.id,
+      serviceFulfillment.orderItemId,
       session.user.id,
       session.user.userType
     );
@@ -95,9 +107,9 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // Step 5: Create the comment
+    // Step 5: Create the comment using the OrderItem ID
     const comment = await service.createComment(
-      params.id,
+      serviceFulfillment.orderItemId,
       validation.data,
       session.user.id
     );
@@ -145,123 +157,6 @@ export async function POST(
     }
 
     logger.error('Error creating service comment', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      serviceId: params.id
-    });
-
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-/**
- * GET /api/services/[serviceId]/comments
- *
- * Retrieves filtered comments for a service
- *
- * Required permissions: Must have access to view the service
- *
- * Returns: { comments: ServiceComment[], total: number }
- *
- * Visibility Filtering:
- * - Internal users: See all comments
- * - Vendor users: See all comments
- * - Customers: See only comments where isInternalOnly = false
- *
- * Errors:
- *   401: Not authenticated
- *   403: No access to service
- *   500: Server error
- */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // Step 1: Authentication check
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Step 2: Check fulfillment permission (same as POST)
-    const userPermissions = session.user.permissions || {};
-    const hasFulfillmentPermission =
-      userPermissions.fulfillment === true ||
-      (Array.isArray(userPermissions.fulfillment) && userPermissions.fulfillment.includes('*')) ||
-      (userPermissions.fulfillment && typeof userPermissions.fulfillment === 'object');
-
-    if (!hasFulfillmentPermission) {
-      return NextResponse.json({ error: 'You do not have permission to view comments' }, { status: 403 });
-    }
-
-    // Step 3: Validate user has access to the service
-    const service = new ServiceCommentService();
-    // User type must be explicitly set - do not default
-    if (!session.user.userType) {
-      logger.error('User type not set for user', { userId: session.user.id });
-      return NextResponse.json({ error: 'User type not configured. Please contact support.' }, { status: 403 });
-    }
-
-    const userType = session.user.userType;
-    const hasAccess = await service.validateUserAccess(
-      params.id,
-      session.user.id,
-      userType
-    );
-
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'You do not have access to view this service' }, { status: 403 });
-    }
-
-    // Step 4: Get comments with visibility filtering
-    const comments = await service.getServiceComments(
-      params.id,
-      userType,
-      session.user.id
-    );
-
-    // Transform the response to match expected format
-    const transformedComments = comments.map(comment => ({
-      id: comment.id,
-      orderItemId: comment.orderItemId,
-      templateId: comment.templateId,
-      finalText: comment.finalText,
-      isInternalOnly: comment.isInternalOnly,
-      createdBy: comment.createdBy,
-      createdAt: comment.createdAt.toISOString(),
-      updatedBy: comment.updatedBy,
-      updatedAt: comment.updatedAt ? comment.updatedAt.toISOString() : null,
-      // Include status change fields
-      isStatusChange: comment.isStatusChange || false,
-      statusChangedFrom: comment.statusChangedFrom,
-      statusChangedTo: comment.statusChangedTo,
-      comment: comment.comment,
-      template: {
-        shortName: comment.template.shortName,
-        longName: comment.template.longName
-      },
-      createdByUser: {
-        id: comment.createdByUser.id,
-        name: `${comment.createdByUser.firstName || ''} ${comment.createdByUser.lastName || ''}`.trim() || comment.createdByUser.email,
-        email: comment.createdByUser.email,
-        userType: comment.createdByUser.userType
-      },
-      ...(comment.updatedByUser && {
-        updatedByUser: {
-          id: comment.updatedByUser.id,
-          name: `${comment.updatedByUser.firstName || ''} ${comment.updatedByUser.lastName || ''}`.trim() || comment.updatedByUser.email,
-          email: comment.updatedByUser.email,
-          userType: comment.updatedByUser.userType
-        }
-      })
-    }));
-
-    return NextResponse.json({
-      comments: transformedComments,
-      total: transformedComments.length
-    }, { status: 200 });
-  } catch (error) {
-    logger.error('Error retrieving service comments', {
       error: error instanceof Error ? error.message : 'Unknown error',
       serviceId: params.id
     });
