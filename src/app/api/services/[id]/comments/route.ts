@@ -11,7 +11,18 @@ import logger from '@/lib/logger';
 /**
  * POST /api/services/[id]/comments
  *
- * Creates a new comment for a service
+ * Creates a new comment for an ordered service (OrderItem)
+ *
+ * IMPORTANT: Despite the path name, the [id] parameter is an OrderItem ID, not a Service ID.
+ * Comments are attached to specific instances of ordered services (OrderItems), not to the
+ * service catalog definitions. The path uses "services" to align with user mental models -
+ * users think of commenting on "services" not "order items".
+ *
+ * Database Context:
+ * - Service: Catalog definition (e.g., "Background Check")
+ * - OrderItem: Specific instance of that service in an order (e.g., "Background Check for John Doe")
+ * - ServiceComment: Comments attached to the OrderItem, tracking fulfillment communication
+ * - The [id] refers to OrderItem.id
  *
  * Required permissions: fulfillment
  *

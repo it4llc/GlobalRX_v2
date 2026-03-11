@@ -1,6 +1,6 @@
 # Architecture Cleanup Plan - Updated
 **Last Updated:** March 11, 2026
-**Status:** Phase 1 Complete
+**Status:** ALL PHASES COMPLETE ✅
 
 ## Architecture Shift Context
 
@@ -35,7 +35,7 @@ The system shifted from order-based fulfillment to service-based fulfillment:
 
 ---
 
-### ⏳ PHASE 2: PENDING (Separate Branch Recommended)
+### ✅ PHASE 2: COMPLETED (Branch: refactor/toggle-status-to-toggle-available)
 
 #### 2. Confusing API Endpoints
 
@@ -43,14 +43,14 @@ The system shifted from order-based fulfillment to service-based fulfillment:
 - Purpose: Toggles Service.disabled field (controls customer availability)
 - Problem: Name "toggle-status" suggests it changes fulfillment status
 - Solution: "toggle-available" clearly indicates it controls availability to customers
-- Status: **NOT STARTED** - Should be separate branch
-- Files to update:
-  - src/app/api/services/[id]/toggle-status/ → toggle-available/
-  - src/app/api/customers/[id]/toggle-status/ → toggle-available/
-  - src/app/api/locations/[id]/toggle-status/ → toggle-available/
-  - src/app/api/data-rx/documents/[id]/toggle-status/ → toggle-available/
-  - src/app/api/data-rx/fields/[id]/toggle-status/ → toggle-available/
-  - Update all frontend references
+- Status: **COMPLETED ✅**
+- Files updated:
+  - ✅ src/app/api/services/[id]/toggle-available/
+  - ✅ src/app/api/customers/[id]/toggle-available/
+  - ✅ src/app/api/locations/[id]/toggle-available/
+  - ✅ src/app/api/data-rx/documents/[id]/toggle-available/
+  - ✅ src/app/api/data-rx/fields/[id]/toggle-available/
+  - ✅ All frontend references updated
 
 **b. INVESTIGATE: /api/services/[id]/status**
 - **New Finding:** This endpoint updates OrderItem.status (correct behavior)
@@ -63,15 +63,25 @@ The system shifted from order-based fulfillment to service-based fulfillment:
 
 ---
 
-### ⏳ PHASE 3: API PATH REFACTORING (Breaking Changes)
+### ✅ PHASE 3: API DOCUMENTATION (No Breaking Changes)
 
-#### 3. Comment Endpoint Confusion
+#### 3. API Endpoint Clarification - COMPLETED ✅
 
-**REFACTOR: /api/services/[id]/comments → /api/order-items/[id]/comments**
-- Comments are on OrderItems, not Services
-- The [id] is actually an OrderItem ID
-- Status: **NOT STARTED** - Requires frontend updates
-- Impact: High - Many frontend references
+**DECISION: Keep existing paths, add comprehensive documentation**
+- Rationale: Users understand "Services" terminology in the UI
+- Risk Level: Zero - no code changes, no runtime risk
+- Solution: Added detailed JSDoc comments explaining OrderItem relationship
+
+**Documentation added to:**
+- ✅ `/api/services/[id]/status` - Clarified [id] is OrderItem ID
+- ✅ `/api/services/[id]/comments` - Clarified comments are on OrderItems
+- ✅ `/api/services/[id]/comments/[commentId]` - Updated PUT and DELETE endpoints
+
+**Key Documentation Points:**
+- Explained Service vs OrderItem distinction
+- Clarified why path uses "services" (user mental model)
+- Added database context to understand relationships
+- No changes to frontend or API behavior
 
 ---
 
@@ -111,20 +121,19 @@ The system shifted from order-based fulfillment to service-based fulfillment:
 ## 📊 Progress Summary
 
 **Completed:**
-- ✅ Database cleanup (ServicesFulfillment.status removed)
-- ✅ API fixes (order details 500 error resolved)
-- ✅ Documentation (migration guide created)
-- ✅ Code comments (clarified status management)
+- ✅ Phase 1: Database cleanup (ServicesFulfillment.status removed)
+- ✅ Phase 1: API fixes (order details 500 error resolved)
+- ✅ Phase 1: Documentation (migration guide created)
+- ✅ Phase 2: API endpoint renames (toggle-status → toggle-available)
+- ✅ Phase 3: API documentation (clarified OrderItem relationships)
 
 **Remaining:**
-- ⏳ API endpoint renames (toggle-status → toggle-available)
-- ⏳ Comment endpoint refactoring
-- ⏳ Architecture decision record
+- ⏳ Architecture decision record (optional)
 
 **Risk Assessment:**
 - Phase 1 (COMPLETE): Low risk, backward compatible
-- Phase 2 (PENDING): Low-medium risk, simple renames
-- Phase 3 (FUTURE): High risk, breaking changes
+- Phase 2 (COMPLETE): Low risk, simple renames
+- Phase 3 (COMPLETE): Zero risk, documentation only
 
 ---
 

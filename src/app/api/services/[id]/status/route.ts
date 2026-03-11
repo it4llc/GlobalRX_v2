@@ -1,7 +1,17 @@
 /**
  * PUT /api/services/[id]/status
  *
- * Updates the status of a service (Phase 2d - Service Status Change Feature)
+ * Updates the fulfillment status of an ordered service (OrderItem)
+ *
+ * IMPORTANT: Despite the path name, the [id] parameter is an OrderItem ID, not a Service ID.
+ * This endpoint updates the status of a specific service within an order (OrderItem.status).
+ * The path uses "services" to align with user mental models - users think of updating
+ * "service status" not "order item status".
+ *
+ * Database Context:
+ * - Service: Catalog definition of what can be ordered
+ * - OrderItem: Instance of a service that was ordered (has status, assigned vendor, etc.)
+ * - The [id] refers to OrderItem.id which tracks fulfillment of that specific service
  *
  * This endpoint allows internal GlobalRx users to change the status of individual services
  * within orders. It implements order-level locking to prevent concurrent modifications
