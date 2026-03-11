@@ -304,7 +304,7 @@ describe('useDataRxTab', () => {
       });
 
       expect(mockFetchWithAuth).toHaveBeenCalledWith(
-        '/api/data-rx/fields/field-id/toggle-status',
+        '/api/data-rx/fields/field-id/toggle-available',
         expect.objectContaining({
           method: 'PATCH',
         })
@@ -368,7 +368,7 @@ describe('useDataRxTab', () => {
       });
 
       expect(mockFetchWithAuth).toHaveBeenCalledWith(
-        '/api/data-rx/documents/doc-id/toggle-status',
+        '/api/data-rx/documents/doc-id/toggle-available',
         expect.objectContaining({
           method: 'PATCH',
         })

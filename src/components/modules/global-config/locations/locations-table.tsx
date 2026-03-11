@@ -134,7 +134,7 @@ export function LocationsTable({ locations, isLoading, error, onRefresh }) {
     try {
       clientLogger.info("Toggling status for location:", location);
       // Use fetchWithAuth instead of regular fetch
-      const response = await fetchWithAuth(`/api/locations/${location.id}/toggle-status`, {
+      const response = await fetchWithAuth(`/api/locations/${location.id}/toggle-available`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

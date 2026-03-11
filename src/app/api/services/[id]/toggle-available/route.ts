@@ -1,4 +1,4 @@
-// src/app/api/services/[id]/toggle-status/route.ts
+// src/app/api/services/[id]/toggle-available/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import logger from '@/lib/logger';
 import { getServerSession } from "next-auth";
