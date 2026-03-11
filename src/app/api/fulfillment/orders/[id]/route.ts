@@ -204,7 +204,6 @@ export async function GET(
             serviceFulfillment: {
               select: {
                 id: true,
-                status: true,
                 assignedVendorId: true,
                 vendorNotes: true,
                 internalNotes: true,

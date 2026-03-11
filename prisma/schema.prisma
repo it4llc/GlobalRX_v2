@@ -575,7 +575,6 @@ model ServicesFulfillment {
   serviceId        String
   locationId       String
   assignedVendorId String?
-  status           String              @default("pending")
   vendorNotes      String?
   internalNotes    String?
   assignedAt       DateTime?
@@ -594,7 +593,6 @@ model ServicesFulfillment {
   @@index([orderId])
   @@index([orderItemId])
   @@index([assignedVendorId])
-  @@index([status])
   @@map("services_fulfillment")
 }
 
