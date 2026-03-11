@@ -57,6 +57,7 @@ interface ServiceFulfillmentTableProps {
   readOnly?: boolean;
   isLoading?: boolean;
   showNotes?: boolean;
+  isCustomer?: boolean;
 }
 
 interface Vendor {
@@ -127,7 +128,8 @@ export function ServiceFulfillmentTable({
   onVendorAssign,
   readOnly = false,
   isLoading = false,
-  showNotes = false
+  showNotes = false,
+  isCustomer: isCustomerProp = false
 }: ServiceFulfillmentTableProps) {
   const { user } = useAuth();
   const router = useRouter();
@@ -182,6 +184,7 @@ export function ServiceFulfillmentTable({
   // Permission checks
   const canEdit = user?.userType === 'internal' || user?.userType === 'admin';
   const isVendor = user?.userType === 'vendor';
+  const isCustomer = isCustomerProp || user?.userType === 'customer';
   const canManageFulfillment = canEdit && user?.permissions &&
     (user.permissions.fulfillment?.manage === true ||
      user.permissions.fulfillment === '*');
@@ -699,24 +702,26 @@ export function ServiceFulfillmentTable({
           </select>
         </div>
 
-        <div>
-          <label htmlFor="vendor-filter" className="block text-sm font-medium text-gray-700">
-            Filter by Vendor
-          </label>
-          <select
-            id="vendor-filter"
-            aria-label="Filter by Vendor"
-            value={vendorFilter}
-            onChange={(e) => setVendorFilter(e.target.value)}
-            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-          >
-            <option value="all">All Vendors</option>
-            <option value="unassigned">Unassigned</option>
-            {uniqueVendors.map(vendor => (
-              <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
-            ))}
-          </select>
-        </div>
+        {!isCustomer && (
+          <div>
+            <label htmlFor="vendor-filter" className="block text-sm font-medium text-gray-700">
+              Filter by Vendor
+            </label>
+            <select
+              id="vendor-filter"
+              aria-label="Filter by Vendor"
+              value={vendorFilter}
+              onChange={(e) => setVendorFilter(e.target.value)}
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+            >
+              <option value="all">All Vendors</option>
+              <option value="unassigned">Unassigned</option>
+              {uniqueVendors.map(vendor => (
+                <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Bulk Actions Bar */}
@@ -782,9 +787,11 @@ export function ServiceFulfillmentTable({
                   )}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Assigned Vendor
-              </th>
+              {!isCustomer && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Assigned Vendor
+                </th>
+              )}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Assigned
               </th>
@@ -799,7 +806,7 @@ export function ServiceFulfillmentTable({
                   Notes
                 </th>
               )}
-              {!readOnly && (
+              {!readOnly && !isCustomer && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -887,38 +894,40 @@ export function ServiceFulfillmentTable({
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {service.assignedVendor ? (
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <div>{service.assignedVendor.name}</div>
-                          {service.assignedVendor.disabled && (
-                            <span className="text-xs text-red-600">(Deactivated)</span>
+                  {!isCustomer && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {service.assignedVendor ? (
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <div>{service.assignedVendor.name}</div>
+                            {service.assignedVendor.disabled && (
+                              <span className="text-xs text-red-600">(Deactivated)</span>
+                            )}
+                          </div>
+                          {!readOnly && canManageFulfillment && !service.assignedVendor.disabled && (
+                            <button
+                              onClick={() => handleOpenAssignDialog(service)}
+                              className="text-sm text-indigo-600 hover:text-indigo-900"
+                            >
+                              Reassign
+                            </button>
                           )}
                         </div>
-                        {!readOnly && canManageFulfillment && !service.assignedVendor.disabled && (
-                          <button
-                            onClick={() => handleOpenAssignDialog(service)}
-                            className="text-sm text-indigo-600 hover:text-indigo-900"
-                          >
-                            Reassign
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500">Not Assigned</span>
-                        {!readOnly && canManageFulfillment && (
-                          <button
-                            onClick={() => handleOpenAssignDialog(service)}
-                            className="text-sm text-indigo-600 hover:text-indigo-900"
-                          >
-                            Assign
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </td>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500">Not Assigned</span>
+                          {!readOnly && canManageFulfillment && (
+                            <button
+                              onClick={() => handleOpenAssignDialog(service)}
+                              className="text-sm text-indigo-600 hover:text-indigo-900"
+                            >
+                              Assign
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(service.assignedAt)}
                   </td>
@@ -932,8 +941,8 @@ export function ServiceFulfillmentTable({
                       data-testid={`comment-badge-${service.id}`}
                     >
                       <MessageSquare className="w-3 h-3" />
-                      {commentCount.total} {commentCount.total === 1 ? 'comment' : 'comments'}
-                      {hasInternalComments && (
+                      {isCustomer ? commentCount.total - commentCount.internal : commentCount.total} {(isCustomer ? commentCount.total - commentCount.internal : commentCount.total) === 1 ? 'comment' : 'comments'}
+                      {hasInternalComments && !isCustomer && (
                         <Lock className="w-3 h-3 ml-1" title="Has internal comments" />
                       )}
                     </button>
@@ -956,7 +965,7 @@ export function ServiceFulfillmentTable({
                       </div>
                     </td>
                   )}
-                  {!readOnly && (
+                  {!readOnly && !isCustomer && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button
                         onClick={() => setOpenDropdown(openDropdown === service.id ? null : service.id)}
@@ -1010,6 +1019,7 @@ export function ServiceFulfillmentTable({
                         serviceType={service.service.code || service.service.category || undefined}
                         serviceStatus={service.status.toUpperCase()}
                         serviceFulfillmentId={service.id}
+                        isCustomer={isCustomer}
                       />
                     </td>
                   </tr>

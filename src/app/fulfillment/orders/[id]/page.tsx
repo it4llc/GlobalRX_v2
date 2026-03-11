@@ -160,10 +160,10 @@ export default function OrderDetailsPage() {
             <div className="text-red-800 font-medium">{error}</div>
             <div className="mt-4 space-x-4">
               <Link
-                href="/fulfillment/orders"
+                href={user?.userType === 'customer' ? '/portal/dashboard' : '/fulfillment/orders'}
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
-                Back to Orders
+                {user?.userType === 'customer' ? 'Back to Dashboard' : 'Back to Orders'}
               </Link>
               <button
                 onClick={fetchOrderDetails}
@@ -197,11 +197,11 @@ export default function OrderDetailsPage() {
           <div className="py-4">
             <nav className="flex items-center space-x-2 text-sm">
               <Link
-                href="/fulfillment/orders"
+                href={user?.userType === 'customer' ? '/portal/dashboard' : '/fulfillment/orders'}
                 className="flex items-center text-gray-500 hover:text-gray-700"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
-                Back to Fulfillment
+                {user?.userType === 'customer' ? 'Back to Dashboard' : 'Back to Fulfillment'}
               </Link>
               <span className="text-gray-400">/</span>
               <span className="text-gray-700 font-medium">{order.orderNumber}</span>

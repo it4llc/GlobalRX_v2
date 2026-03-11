@@ -4,8 +4,8 @@ import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
-import OrderDetailsDialog from '@/components/portal/order-details-dialog';
 
 interface OrderItem {
   id: string;
@@ -60,6 +60,7 @@ const formatStatus = (statusCode: string): string => {
 
 export default function OrdersPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,8 +69,6 @@ export default function OrdersPage() {
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const fetchOrders = async (searchTerm = search, status = statusFilter, page = currentPage) => {
     try {
@@ -125,13 +124,8 @@ export default function OrdersPage() {
   const totalPages = Math.ceil(total / limit);
 
   const handleViewOrder = (orderId: string) => {
-    setSelectedOrderId(orderId);
-    setDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setSelectedOrderId(null);
+    // Navigate to the fulfillment order details page instead of opening a dialog
+    router.push(`/fulfillment/orders/${orderId}`);
   };
 
   if (!session) {
@@ -410,13 +404,6 @@ export default function OrdersPage() {
           </>
         )}
       </div>
-
-      {/* Order Details Dialog */}
-      <OrderDetailsDialog
-        orderId={selectedOrderId}
-        open={dialogOpen}
-        onClose={handleCloseDialog}
-      />
     </div>
   );
 }

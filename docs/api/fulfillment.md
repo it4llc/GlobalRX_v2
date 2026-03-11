@@ -167,3 +167,240 @@ Authorization: Bearer {session-token}
 - `PUT /api/fulfillment` - Update order status for fulfillment
 - `GET /api/fulfillment/orders/[id]` - Get specific order details
 - `POST /api/fulfillment/services/bulk-assign` - Bulk assign services to vendors
+
+---
+
+## GET /api/fulfillment/orders/[id]
+
+Retrieves detailed order information for all user types with appropriate data filtering based on user permissions. This endpoint supports the customer order view-only feature by allowing customers to view their orders on the same fulfillment interface as internal users.
+
+### Authentication
+**Required:** Yes - Valid session with appropriate permissions
+
+### Permissions Required
+- **Internal/Admin Users:** `fulfillment.*` or `candidate_workflow.*` permissions
+- **Vendor Users:** Order must be assigned to user's vendor
+- **Customer Users:** Order must belong to user's customer account
+
+### User Type Access Patterns
+
+#### Customer Users (`userType: 'customer'`)
+- **Access Rule:** Can only view orders where `order.customerId = session.user.customerId`
+- **Data Filtering:** All sensitive internal information is filtered out:
+  - Vendor names and assignments removed
+  - Internal notes and vendor notes hidden
+  - Pricing information excluded
+  - User identity information anonymized
+  - Internal comments filtered out (only external comments visible)
+  - Status history shows timestamps but no user information
+
+#### Internal/Admin Users
+- **Access Rule:** Can view any order with appropriate fulfillment permissions
+- **Data Filtering:** No filtering - sees all data including vendor details, internal notes, and all comments
+
+#### Vendor Users
+- **Access Rule:** Can only view orders assigned to their vendor
+- **Data Filtering:** Internal notes filtered out, but vendor information preserved
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Order ID to retrieve |
+
+### Request Example
+
+```http
+GET /api/fulfillment/orders/123e4567-e89b-12d3-a456-426614174000
+Authorization: Bearer {session-token}
+```
+
+### Response Format
+
+The response structure varies based on user type:
+
+#### For Internal/Admin Users (Full Data)
+```typescript
+{
+  id: string,
+  orderNumber: string,
+  customerId: string,
+  statusCode: string,
+  subject: {
+    firstName: string,
+    lastName: string,
+    email?: string,
+    // ... other subject fields
+  },
+  customer: {
+    id: string,
+    name: string,
+    code?: string
+  },
+  assignedVendor?: {
+    id: string,
+    name: string
+  },
+  vendorNotes?: string,
+  internalNotes?: string,
+  user: {
+    firstName: string,
+    lastName: string,
+    email: string
+  },
+  items: Array<{
+    id: string,
+    service: {
+      id: string,
+      name: string,
+      category?: string
+    },
+    location: {
+      id: string,
+      name: string,
+      code2?: string
+    },
+    serviceFulfillment: {
+      id: string,
+      status: string,
+      assignedVendorId?: string,
+      vendorNotes?: string,
+      internalNotes?: string,
+      assignedAt?: string,
+      completedAt?: string
+    }
+  }>,
+  statusHistory: Array<{
+    id: string,
+    fromStatus?: string,
+    toStatus: string,
+    createdAt: string,
+    user: {
+      firstName: string,
+      lastName: string,
+      email: string
+    }
+  }>,
+  comments: Array<{
+    id: string,
+    finalText: string,
+    isInternalOnly: boolean,
+    createdAt: string,
+    createdByName: string
+  }>,
+  commentCount: number,
+  serviceFulfillments: Array<{
+    // Full service fulfillment data
+  }>,
+  createdAt: string,
+  updatedAt: string
+}
+```
+
+#### For Customer Users (Filtered Data)
+```typescript
+{
+  id: string,
+  orderNumber: string,
+  customerId: string,
+  statusCode: string,
+  subject: {
+    firstName: string,
+    lastName: string,
+    email?: string,
+    // ... other subject fields (no SSN masking changes)
+  },
+  customer: {
+    id: string,
+    name: string,
+    code?: string
+  },
+  // NO vendor information
+  // NO internal/vendor notes
+  // NO pricing information
+  // NO user identity fields
+  items: Array<{
+    id: string,
+    service: {
+      id: string,
+      name: string,
+      category?: string
+    },
+    location: {
+      id: string,
+      name: string,
+      code2?: string
+    },
+    serviceFulfillment: {
+      id: string,
+      status: string,
+      assignedAt?: string,
+      completedAt?: string
+      // NO vendor assignments
+      // NO internal/vendor notes
+    }
+  }>,
+  statusHistory: Array<{
+    id: string,
+    fromStatus?: string,
+    toStatus: string,
+    createdAt: string
+    // NO user information
+  }>,
+  comments: Array<{
+    id: string,
+    finalText: string,
+    // Only external comments (isInternalOnly = false)
+    createdAt: string
+    // NO author information
+  }>,
+  commentCount: number, // Only external comments counted
+  serviceFulfillments: Array<{
+    // Filtered service fulfillment data
+  }>,
+  createdAt: string,
+  updatedAt: string
+}
+```
+
+### Status Codes
+
+- **200 OK:** Success with order details (filtered based on user type)
+- **400 Bad Request:** Invalid order ID format
+- **401 Unauthorized:** Missing or invalid authentication
+- **403 Forbidden:** Insufficient permissions or access denied
+- **404 Not Found:** Order not found or user lacks access
+- **500 Internal Server Error:** Database or server error
+
+### Error Response Format
+
+```typescript
+{
+  error: string  // Error message describing the issue
+}
+```
+
+### Business Rules
+
+1. **Customer Access Control:** Customers can only access orders belonging to their customer account
+2. **Data Security:** Sensitive vendor and internal information is filtered out for customers
+3. **Comment Filtering:** Customers see only external comments (isInternalOnly = false)
+4. **Status History:** Customers see status changes but not who made them
+5. **Vendor Assignment:** Vendor information is completely hidden from customers
+6. **Audit Trail:** All access attempts are logged for security monitoring
+
+### Implementation Notes
+
+- Uses utility functions from `@/lib/utils/customer-order-permissions` for data filtering
+- Implements comprehensive security filtering to prevent information leakage
+- Maintains backward compatibility with existing internal/vendor access patterns
+- Cache prevention headers set for sensitive data
+- Structured logging includes user context for audit trails
+
+### Security Features
+
+1. **Access Validation:** Multi-layer permission checking before data access
+2. **Data Filtering:** Comprehensive removal of sensitive information for customers
+3. **Comment Security:** Internal comments completely filtered out from customer view
+4. **Identity Protection:** User identity information anonymized in customer responses
+5. **Vendor Privacy:** All vendor-related information hidden from customers
