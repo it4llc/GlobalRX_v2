@@ -10,7 +10,15 @@ import logger from '@/lib/logger';
 /**
  * PUT /api/services/[id]/comments/[commentId]
  *
- * Updates an existing comment (internal users only)
+ * Updates an existing comment on an ordered service (OrderItem)
+ *
+ * IMPORTANT: The [id] parameter is an OrderItem ID, not a Service ID.
+ * Comments are attached to specific instances of ordered services (OrderItems).
+ * The path uses "services" to align with user mental models.
+ *
+ * Path Parameters:
+ * - [id]: OrderItem ID (the specific ordered service)
+ * - [commentId]: ServiceComment ID (the comment to update)
  *
  * Required permissions: Must be an internal user with access to the service
  *
@@ -139,7 +147,14 @@ export async function PUT(
 /**
  * DELETE /api/services/[id]/comments/[commentId]
  *
- * Deletes an existing comment (internal users only)
+ * Deletes an existing comment on an ordered service (OrderItem)
+ *
+ * IMPORTANT: The [id] parameter is an OrderItem ID, not a Service ID.
+ * Comments are attached to specific instances of ordered services (OrderItems).
+ *
+ * Path Parameters:
+ * - [id]: OrderItem ID (the specific ordered service)
+ * - [commentId]: ServiceComment ID (the comment to delete)
  *
  * Required permissions: Must be an internal user with access to the service
  *
