@@ -46,7 +46,6 @@ export class ServiceFulfillmentService {
         orderItemId: item.id,
         serviceId: item.serviceId,
         locationId: item.locationId,
-        status: 'pending' as const,
         createdAt: new Date()
       }));
 
@@ -84,7 +83,12 @@ export class ServiceFulfillmentService {
       let where: any = {};
 
       if (params.orderId) where.orderId = params.orderId;
-      if (params.status) where.status = params.status;
+      // Status now comes from OrderItem, not ServicesFulfillment
+      if (params.status) {
+        where.orderItem = {
+          status: params.status
+        };
+      }
 
       // Vendors only see their assigned services
       if (user.userType === 'vendor' && user.vendorId) {
@@ -292,22 +296,14 @@ export class ServiceFulfillmentService {
       const updateData: ServiceUpdateData = {};
       const auditChanges: AuditChange[] = [];
 
-      // Track status changes
-      if (updates.status && updates.status !== currentService.status) {
-        updateData.status = updates.status;
-        auditChanges.push({
-          changeType: 'status_change',
-          fieldName: 'status',
-          oldValue: currentService.status,
-          newValue: updates.status
+      // Note: Status changes are now handled on OrderItem via /api/services/[id]/status
+      // ServicesFulfillment no longer maintains its own status field
+      if (updates.status) {
+        logger.warn('Status update attempted on ServicesFulfillment - should use OrderItem', {
+          serviceId: id,
+          attemptedStatus: updates.status
         });
-
-        // Set completedAt for terminal statuses - business rule enforcement
-        // Once a service reaches completed or cancelled status, it cannot be changed again.
-        // This timestamp is critical for order closure logic and audit compliance.
-        if (updates.status === 'completed' || updates.status === 'cancelled') {
-          updateData.completedAt = new Date();
-        }
+        // Ignore status updates here - they should go through OrderItem
       }
 
       // Track vendor assignment changes (already validated above)
