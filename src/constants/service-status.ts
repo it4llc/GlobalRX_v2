@@ -5,8 +5,7 @@
  *
  * These statuses are used for tracking the lifecycle of services in the fulfillment process.
  * They are used in:
- * - OrderItem.status (database)
- * - ServicesFulfillment.status (database)
+ * - OrderItem.status (database) - Single source of truth for service status
  * - Comment Template availability filtering
  * - Service fulfillment UI
  */

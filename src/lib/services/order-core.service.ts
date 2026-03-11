@@ -412,7 +412,8 @@ export class OrderCoreService {
 
     // Create ServicesFulfillment records when order is submitted
     // This is the critical transition point where order-level processing becomes service-level fulfillment.
-    // Each OrderItem gets its own ServicesFulfillment record for independent tracking, vendor assignment, and status management.
+    // Each OrderItem gets its own ServicesFulfillment record for independent tracking and vendor assignment.
+    // Status is managed on OrderItem, not ServicesFulfillment, to maintain a single source of truth.
     // This transformation enables granular fulfillment control where different services can have different vendors and timelines.
     if (newStatus === 'submitted' && order.statusCode === 'draft') {
       try {
