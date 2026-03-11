@@ -78,7 +78,7 @@ export function LocationsTab() {
     try {
       clientLogger.info('Toggling status for location:', location);
 
-      const response = await fetchWithAuth(`/api/locations/${location.id}/toggle-status`, {
+      const response = await fetchWithAuth(`/api/locations/${location.id}/toggle-available`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
       });

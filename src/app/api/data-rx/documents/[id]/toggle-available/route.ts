@@ -1,4 +1,4 @@
-// src/app/api/data-rx/fields/[id]/toggle-status/route.ts
+// src/app/api/data-rx/documents/[id]/toggle-available/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import logger from '@/lib/logger';
@@ -8,19 +8,19 @@ import { authOptions } from '@/lib/auth';
 import { canAccessDataRx } from '@/lib/auth-utils';
 
 /**
- * PATCH /api/data-rx/fields/[id]/toggle-status
+ * PATCH /api/data-rx/documents/[id]/toggle-available
  *
- * Toggles the disabled status of a field requirement
+ * Toggles the availability of a document requirement
  *
  * Required permissions: global_config (internal users only)
  *
  * Path params:
- *   - id: string - Field requirement ID
+ *   - id: string - Document requirement ID
  *
  * Returns: { success: true, isDisabled: boolean }
  *
  * Business logic: This endpoint toggles the disabled state stored in
- * the fieldData.disabled field, allowing fields to be temporarily
+ * the documentData.disabled field, allowing documents to be temporarily
  * disabled without losing configuration.
  *
  * Security improvement: Removed development mode bypasses.
@@ -32,8 +32,8 @@ import { canAccessDataRx } from '@/lib/auth-utils';
  * Errors:
  *   - 401: Not authenticated
  *   - 403: Insufficient permissions (requires global_config)
- *   - 404: Field not found
- *   - 400: Missing field ID
+ *   - 404: Document not found
+ *   - 400: Missing document ID
  */
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -50,7 +50,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     const { id } = params;
     if (!id) {
-      return NextResponse.json({ error: "Field ID is required" }, { status: 400 });
+      return NextResponse.json({ error: "Document ID is required" }, { status: 400 });
     }
 
     try {
@@ -60,18 +60,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       });
 
       if (!requirement) {
-        return NextResponse.json({ error: "Field not found" }, { status: 404 });
+        return NextResponse.json({ error: "Document not found" }, { status: 404 });
       }
 
-      // Get the current field data
-      const fieldData = requirement.fieldData as any || {};
+      // Get the current document data
+      const documentData = requirement.documentData as any || {};
       
       // Toggle the disabled state
-      const isDisabled = fieldData.disabled === true;
+      const isDisabled = documentData.disabled === true;
       
-      // Update the field data with the new disabled state
-      const updatedFieldData = {
-        ...fieldData,
+      // Update the document data with the new disabled state
+      const updatedDocumentData = {
+        ...documentData,
         disabled: !isDisabled
       };
       
@@ -79,7 +79,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       const updatedRequirement = await prisma.dSXRequirement.update({
         where: { id },
         data: {
-          fieldData: updatedFieldData
+          documentData: updatedDocumentData
         }
       });
 
@@ -88,14 +88,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         isDisabled: !isDisabled
       });
     } catch (dbError: unknown) {
-      logger.error('Database error in PATCH /api/data-rx/fields/[id]/toggle-status:', dbError);
+      logger.error('Database error in PATCH /api/data-rx/documents/[id]/toggle-available:', dbError);
       return NextResponse.json(
-        { error: "Database error while toggling field status", details: dbError instanceof Error ? dbError.message : String(dbError) },
+        { error: "Database error while toggling document status", details: dbError instanceof Error ? dbError.message : String(dbError) },
         { status: 500 }
       );
     }
   } catch (error: unknown) {
-    logger.error('Error in PATCH /api/data-rx/fields/[id]/toggle-status:', error);
+    logger.error('Error in PATCH /api/data-rx/documents/[id]/toggle-available:', error);
     return NextResponse.json(
       { error: "An error occurred while processing your request", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
