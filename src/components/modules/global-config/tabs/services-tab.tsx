@@ -161,7 +161,7 @@ export function ServicesTab() {
     if (!serviceToToggle) return;
     
     try {
-      const response = await fetch(`/api/services/${serviceToToggle.id}/toggle-status`, {
+      const response = await fetch(`/api/services/${serviceToToggle.id}/toggle-available`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

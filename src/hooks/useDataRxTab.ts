@@ -314,7 +314,7 @@ export function useDataRxTab() {
     try {
       setIsLoading(true);
 
-      const response = await fetchWithAuth(`/api/data-rx/documents/${documentId}/toggle-status`, {
+      const response = await fetchWithAuth(`/api/data-rx/documents/${documentId}/toggle-available`, {
         method: 'PATCH',
       });
 
@@ -337,7 +337,7 @@ export function useDataRxTab() {
     try {
       setIsLoading(true);
 
-      const response = await fetchWithAuth(`/api/data-rx/fields/${fieldId}/toggle-status`, {
+      const response = await fetchWithAuth(`/api/data-rx/fields/${fieldId}/toggle-available`, {
         method: 'PATCH',
       });
 

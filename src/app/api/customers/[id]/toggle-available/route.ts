@@ -1,4 +1,4 @@
-// src/app/api/customers/[id]/toggle-status/route.ts
+// src/app/api/customers/[id]/toggle-available/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
@@ -6,8 +6,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 /**
- * @route PATCH /api/customers/[id]/toggle-status
- * @desc Toggle the disabled status of a customer
+ * @route PATCH /api/customers/[id]/toggle-available
+ * @desc Toggle the availability of a customer
  * @access Private - Requires customers.edit permission
  */
 export async function PATCH(
@@ -52,7 +52,7 @@ export async function PATCH(
       disabled: updatedCustomer.disabled
     });
   } catch (error: unknown) {
-    logger.error(`Error in PATCH /api/customers/${params.id}/toggle-status:`, error);
+    logger.error(`Error in PATCH /api/customers/${params.id}/toggle-available:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
