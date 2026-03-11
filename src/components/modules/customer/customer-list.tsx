@@ -190,7 +190,7 @@ export default function CustomerList() {
   // Handle customer status toggle
   const handleToggleStatus = async (customerId: string) => {
     try {
-      const response = await fetchWithAuth(`/api/customers/${customerId}/toggle-status`, {
+      const response = await fetchWithAuth(`/api/customers/${customerId}/toggle-available`, {
         method: 'PATCH'
       });
       

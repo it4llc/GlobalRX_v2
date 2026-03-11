@@ -1,4 +1,4 @@
-// src/app/api/locations/[id]/toggle-status/route.ts
+// src/app/api/locations/[id]/toggle-available/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import logger from '@/lib/logger';
 import { prisma } from "@/lib/prisma";
@@ -11,7 +11,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    logger.info(`API: PATCH /api/locations/${params.id}/toggle-status called`);
+    logger.info(`API: PATCH /api/locations/${params.id}/toggle-available called`);
     
     // Check authentication
     const session = await getServerSession(authOptions);
