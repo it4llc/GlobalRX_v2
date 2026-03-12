@@ -1,4 +1,19 @@
 // /GlobalRX_v2/src/components/fulfillment/OrderDetailsSidebar.tsx
+// Left sidebar component for order details page - Layout Redesign
+//
+// LAYOUT CHANGES (feature/order-details-layout):
+// - Moved from right side to left side of page for improved information hierarchy
+// - Consolidated all order metadata, customer info, and status management in one place
+// - Added permission-based Quick Links section for customer details access
+// - Improved typography consistency with text-xs font-semibold labels and text-base data
+// - Enhanced user-type restrictions (customers see read-only view, vendors have limited access)
+// - Status History section moved from main content to sidebar for better organization
+// - Translation keys added for better internationalization support
+//
+// SECURITY IMPROVEMENTS:
+// - Permission checks for customer details link (requires 'customers.view' permission)
+// - User-type restrictions: Hides Quick Links from customers and vendors
+// - Safe status change handling with proper permission validation
 
 'use client';
 
@@ -77,6 +92,37 @@ const formatUserName = (user?: { firstName?: string; lastName?: string; email: s
   return user.email;
 };
 
+/**
+ * Order Details Sidebar Component - Redesigned Layout
+ *
+ * Left sidebar containing comprehensive order metadata and actions.
+ * Consolidated from the previous scattered layout to improve information architecture.
+ *
+ * SECTIONS INCLUDED:
+ * - Order Information: Order number and basic details
+ * - Status Management: Read-only for customers, dropdown for internal users
+ * - Customer Information: Customer name and code
+ * - Timestamps: Created and last updated dates
+ * - Actions: Print and export functionality (internal users only)
+ * - Quick Links: Customer details access (permission-based)
+ * - Status History: Complete audit trail of status changes
+ *
+ * SECURITY FEATURES:
+ * - Permission checks for customer details access (requires 'customers.view')
+ * - User-type restrictions: Customers see read-only view, vendors have limited access
+ * - Safe export functionality with error handling
+ *
+ * ACCESSIBILITY:
+ * - Proper ARIA labels and semantic HTML structure
+ * - Keyboard navigation support for interactive elements
+ * - Screen reader friendly content organization
+ *
+ * @param order - Order data object
+ * @param onStatusChange - Callback for status change events
+ * @param onStatusUpdate - Alternative callback for backward compatibility
+ * @param isLoading - Loading state indicator
+ * @returns JSX.Element The sidebar component with order metadata and actions
+ */
 export function OrderDetailsSidebar({
   order,
   onStatusChange,
@@ -85,10 +131,16 @@ export function OrderDetailsSidebar({
 }: OrderDetailsSidebarProps) {
   const { toastError } = useToast();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, checkPermission } = useAuth();
 
   // Check if current user is a customer - customers get read-only view
   const isCustomer = user?.userType === 'customer';
+  const isVendor = user?.userType === 'vendor';
+
+  // Check if user has permission to view customer configurations
+  const canViewCustomerConfigs = checkPermission('customers', 'view') ||
+                                  checkPermission('customers', '*') ||
+                                  checkPermission('admin', '*');
 
   // Use either callback prop
   const handleStatusChange = onStatusChange || onStatusUpdate;
@@ -114,6 +166,13 @@ export function OrderDetailsSidebar({
     window.print();
   };
 
+  /**
+   * Handles order data export functionality
+   * Creates a JSON file with basic order information for download
+   *
+   * Security consideration: Only exports non-sensitive order metadata,
+   * excludes personal subject information and internal notes
+   */
   const handleExport = async () => {
     try {
       // Create a blob with order data
@@ -150,16 +209,16 @@ export function OrderDetailsSidebar({
       <div className="space-y-6">
         {/* Order Header */}
         <section>
-          <h2 className="text-lg font-semibold">Order Information</h2>
+          <h2 className="text-lg font-semibold">{t('module.fulfillment.orderInformation')}</h2>
           <div className="order-number-display mt-2 text-xl font-bold text-gray-900">{order.orderNumber}</div>
         </section>
 
         {/* Order Status Section */}
         <section>
-          <h3 className="text-sm font-medium text-gray-500 mb-2">{t('common.status')}</h3>
+          <h3 className="text-xs font-semibold text-gray-500 mb-2">{t('common.status')}:</h3>
           {isCustomer ? (
             // For customers, show status as read-only text
-            <div className="text-sm font-medium text-gray-900">
+            <div className="text-base text-black">
               {formatStatus(order.statusCode)}
             </div>
           ) : (
@@ -175,9 +234,9 @@ export function OrderDetailsSidebar({
 
         {/* Customer Information */}
         <section className="customer-info" data-testid="customer-info">
-          <h3 className="text-sm font-medium text-gray-500 mb-2">Customer</h3>
+          <h3 className="text-xs font-semibold text-gray-500 mb-2">{t('module.fulfillment.customer')}:</h3>
           <div className="space-y-1">
-            <div className="font-medium">
+            <div className="text-base text-black">
               {order.customer.name}
               {order.customer.code && (
                 <span className="ml-1 text-gray-600">({order.customer.code})</span>
@@ -189,26 +248,26 @@ export function OrderDetailsSidebar({
         {/* Created By - only for internal users */}
         {order.user && !isCustomer && (
           <section>
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Created By</h3>
-            <div className="text-sm">{formatUserName(order.user, 'Unknown')}</div>
+            <h3 className="text-xs font-semibold text-gray-500 mb-2">{t('module.fulfillment.createdBy')}:</h3>
+            <div className="text-base text-black">{formatUserName(order.user, 'Unknown')}</div>
           </section>
         )}
 
         {/* Timestamps */}
         <section>
-          <h3 className="text-sm font-medium text-gray-500 mb-2">Created</h3>
-          <div className="text-sm">{formatTimestamp(order.createdAt)}</div>
+          <h3 className="text-xs font-semibold text-gray-500 mb-2">{t('module.fulfillment.created')}:</h3>
+          <div className="text-base text-black">{formatTimestamp(order.createdAt)}</div>
         </section>
 
         <section>
-          <h3 className="text-sm font-medium text-gray-500 mb-2">Last Updated</h3>
-          <div className="text-sm">{formatTimestamp(order.updatedAt)}</div>
+          <h3 className="text-xs font-semibold text-gray-500 mb-2">{t('module.fulfillment.lastUpdated')}:</h3>
+          <div className="text-base text-black">{formatTimestamp(order.updatedAt)}</div>
         </section>
 
         {/* Actions - only for internal users */}
         {!isCustomer && (
           <section>
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Actions</h3>
+            <h3 className="text-xs font-semibold text-gray-500 mb-2">{t('module.fulfillment.actions')}:</h3>
             <div className="space-y-2">
               <button
                 onClick={handlePrint}
@@ -216,7 +275,7 @@ export function OrderDetailsSidebar({
                 className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
               >
                 <Printer className="w-4 h-4 mr-2" />
-                Print
+                {t('common.print')}
               </button>
               <button
                 onClick={handleExport}
@@ -224,32 +283,29 @@ export function OrderDetailsSidebar({
                 className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
               >
                 <Download className="w-4 h-4 mr-2" />
-                Export
+                {t('common.export')}
               </button>
             </div>
           </section>
         )}
 
-        {/* Quick Links */}
-        <section>
-          <h3 className="text-sm font-medium text-gray-500 mb-2">Quick Links</h3>
-          <div className="space-y-2">
-            <Link
-              href={`/customers/${order.customer.id}`}
-              className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-            >
-              View Customer Details
-              <ExternalLink className="w-3 h-3 ml-1" />
-            </Link>
-            <Link
-              href={`/fulfillment/orders?customerId=${order.customer.id}`}
-              className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-            >
-              Order History
-              <ExternalLink className="w-3 h-3 ml-1" />
-            </Link>
-          </div>
-        </section>
+        {/* Quick Links - only for users with customer configuration permissions */}
+        {!isCustomer && !isVendor && canViewCustomerConfigs && (
+          <section>
+            <h3 className="text-xs font-semibold text-gray-500 mb-2">{t('module.fulfillment.quickLinks')}:</h3>
+            <div className="space-y-2">
+              <Link
+                href={`/customer-configs/${order.customer.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+              >
+                {t('module.fulfillment.viewCustomerDetails')}
+                <ExternalLink className="w-3 h-3 ml-1" />
+              </Link>
+            </div>
+          </section>
+        )}
 
         {/* Status History */}
         <section className="status-history-section">
