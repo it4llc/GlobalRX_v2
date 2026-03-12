@@ -455,3 +455,12 @@
 }
 
 /* Rest of the CSS remains unchanged */
+
+/* Multi-line text utilities for service requirements display */
+.whitespace-pre-line {
+  white-space: pre-line;
+}
+
+.whitespace-pre-wrap {
+  white-space: pre-wrap;
+}
