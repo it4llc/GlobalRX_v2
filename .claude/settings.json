@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm run dev:*)",
+      "Bash(cd:*)",
+      "SlashCommand(/build-feature:*)",
+      "Bash(* pnpm test *)",
+      "Bash(cd * && pnpm test * 2>&1)",
+      "Bash(cd * && pnpm test*)",
+      "Bash(pnpm test)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm run test *)",
+      "Bash(cd * && pnpm test *)"
+    ],
+    "deny": []
+  }
+}
