@@ -10,19 +10,25 @@ The Order Fulfillment Details Page provides a dedicated workspace for fulfillers
 2. Click the "View" button on any order row
 3. Order details open in a new tab at `/fulfillment/orders/[id]`
 
-### Page Layout
-- **Single column main content**: Displays all order information in organized sections
-- **Right sidebar**: Contains actions and quick reference information
+### Page Layout (Updated: Layout Redesign)
+- **Left sidebar**: Contains order metadata, customer info, status management, actions, quick links, and status history
+- **Main content area**: Streamlined to focus on Subject Information and Services table only
 - **Breadcrumb navigation**: Easy return to fulfillment list
+- **Mobile responsive**: Sidebar stacks below content on mobile devices
 
-### Order Information Sections
-1. **Order Header**: Order number and primary identification
-2. **Order Information**: Basic order metadata (status, dates)
-3. **Subject Information**: Candidate personal details
-4. **Customer Details**: Customer name and code
-5. **Services**: Ordered services with locations and status
-6. **Notes**: Order-level notes and comments
-7. **Status History**: Placeholder for future status tracking
+### Order Information Sections (Reorganized: Layout Redesign)
+
+#### Left Sidebar Sections:
+1. **Order Information**: Order number, status management
+2. **Customer Information**: Customer name and code
+3. **Timestamps**: Created and last updated dates
+4. **Actions**: Print and export functionality (internal users only)
+5. **Quick Links**: Customer details access (permission-based)
+6. **Status History**: Complete audit trail of status changes
+
+#### Main Content Sections:
+1. **Subject Information**: Personal details with enhanced 3-column layout and security masking
+2. **Services**: Service fulfillment table with status management
 
 ### Status Management
 - Status dropdown in sidebar allows changing order status
@@ -30,9 +36,15 @@ The Order Fulfillment Details Page provides a dedicated workspace for fulfillers
 - Success notifications confirm status changes
 - Changes are logged for audit trail
 
-### Key Features
+### Key Features (Enhanced: Layout Redesign)
+- **Security enhancements**: SSN masking (XXX-XX-#### format) for PII protection
+- **Permission-based access**: Customer details link requires 'customers.view' permission
+- **User-type restrictions**: Customers see read-only views, vendors have limited access
+- **Improved typography**: Clear distinction between labels (text-xs font-semibold) and data (text-base text-black)
+- **Compact subject layout**: 3-column grid for efficient space utilization
+- **Streamlined UX**: Removed non-functional UI elements (Edit button, Actions dropdown)
 - **Empty value handling**: All empty fields display as "--" for consistency
-- **Mobile responsive**: Layout adapts to smaller screens
+- **Mobile responsive**: Sidebar stacks below content on smaller screens
 - **New tab navigation**: Keeps fulfillment list accessible
 - **Color-coded status badges**: Quick visual status identification
 - **Full internationalization**: All user-facing text uses translation keys for multi-language support
