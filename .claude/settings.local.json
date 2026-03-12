@@ -3,7 +3,8 @@
     "allow": [
       "Bash(pnpm run dev:*)",
       "Bash(cd:*)",
-      "SlashCommand(/build-feature:*)"
+      "SlashCommand(/build-feature:*)",
+      "Bash(* pnpm test *)"
     ],
     "deny": []
   }

@@ -5,12 +5,13 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { MoreVertical, CheckCircle, XCircle, Clock, AlertCircle, ChevronUp, ChevronDown, ChevronRight, MessageSquare, Lock } from 'lucide-react';
+import { MoreVertical, CheckCircle, XCircle, Clock, AlertCircle, ChevronUp, ChevronDown, ChevronRight, MessageSquare, Lock, FileText, Paperclip } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/useToast';
 import { ModalDialog, DialogFooter } from '@/components/ui/modal-dialog';
 import type { DialogRef } from '@/components/ui/modal-dialog';
 import { ServiceCommentSection } from '@/components/services/ServiceCommentSection';
+import { ServiceResultsSection } from '@/components/services/ServiceResultsSection';
 import { useServiceComments } from '@/hooks/useServiceComments';
 import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
 import { UpdateServiceFulfillmentRequest } from '@/types/service-fulfillment';
@@ -31,6 +32,13 @@ interface ServiceFulfillment {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  // Service results fields
+  results?: string | null;
+  resultsAddedBy?: number | null;
+  resultsAddedAt?: string | null;
+  resultsLastModifiedBy?: number | null;
+  resultsLastModifiedAt?: string | null;
+  attachmentsCount?: number;
   service: {
     id: string;
     name: string;
@@ -74,6 +82,26 @@ interface HistoryEntry {
   newValue: string | null;
   createdAt: string;
   user?: { email: string };
+}
+
+// API response interfaces for comment fetching
+interface ServiceComment {
+  id: string;
+  comment: string;
+  isInternalOnly: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ServiceCommentData {
+  serviceName: string;
+  serviceStatus: string;
+  comments: ServiceComment[];
+  total: number;
+}
+
+interface OrderCommentsResponse {
+  commentsByService: Record<string, ServiceCommentData>;
 }
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -216,7 +244,7 @@ export function ServiceFulfillmentTable({
     }
   }, [canManageFulfillment]);
 
-  // Fetch comment counts for all services - disabled for now since we're using order-level fetching
+  // Fetch comment counts for all services using order-level API
   useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
       // Set mock counts for testing
@@ -228,13 +256,78 @@ export function ServiceFulfillmentTable({
       return;
     }
 
-    // TODO: Implement comment counts using order-level API or remove this feature
-    const counts: Record<string, { total: number; internal: number }> = {};
-    services.forEach(service => {
-      counts[service.id] = { total: 0, internal: 0 };
-    });
-    setCommentCounts(counts);
-  }, [services]);
+    // Fetch comment counts from order-level API
+    // This replaced a TODO and implements proper comment count tracking for service fulfillment UI
+    const fetchCommentCounts = async () => {
+      if (!orderId) {
+        // Edge case: If no orderId is provided, gracefully default to zero counts
+        // This prevents UI errors when component is used in contexts without order data
+        const counts: Record<string, { total: number; internal: number }> = {};
+        services.forEach(service => {
+          counts[service.id] = { total: 0, internal: 0 };
+        });
+        setCommentCounts(counts);
+        return;
+      }
+
+      try {
+        // Fetch all comments for this order in a single efficient API call
+        // This avoids N+1 query issues that would occur if we fetched per-service
+        const response = await fetch(`/api/orders/${orderId}/services/comments`, {
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data: OrderCommentsResponse = await response.json();
+          const counts: Record<string, { total: number; internal: number }> = {};
+
+          // Transform API response: The API returns commentsByService keyed by serviceFulfillmentId
+          // We calculate both total and internal-only comment counts for proper user role filtering
+          Object.entries(data.commentsByService || {}).forEach(([serviceFulfillmentId, serviceData]) => {
+            const totalComments = serviceData.comments?.length || 0;
+            const internalComments = serviceData.comments?.filter(c => c.isInternalOnly).length || 0;
+            counts[serviceFulfillmentId] = {
+              total: totalComments,
+              internal: internalComments
+            };
+          });
+
+          setCommentCounts(counts);
+        } else {
+          // Detailed error logging for API failure diagnosis
+          // This helps distinguish between auth issues (401/403) vs server errors (500)
+          clientLogger.error('Failed to fetch comment counts - API returned non-OK status', {
+            orderId,
+            status: response.status,
+            statusText: response.statusText
+          });
+          // Graceful degradation: Show zero counts rather than breaking the UI
+          const counts: Record<string, { total: number; internal: number }> = {};
+          services.forEach(service => {
+            counts[service.id] = { total: 0, internal: 0 };
+          });
+          setCommentCounts(counts);
+        }
+      } catch (error) {
+        // Comprehensive error logging for network/parsing failures
+        // The additional error details help diagnose connection vs JSON parsing issues
+        clientLogger.error('Failed to fetch comment counts - network or parsing error', {
+          orderId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          errorType: error instanceof Error ? error.name : 'Unknown',
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        // Graceful degradation ensures the UI remains functional even when comment loading fails
+        const counts: Record<string, { total: number; internal: number }> = {};
+        services.forEach(service => {
+          counts[service.id] = { total: 0, internal: 0 };
+        });
+        setCommentCounts(counts);
+      }
+    };
+
+    fetchCommentCounts();
+  }, [services, orderId]);
 
   // Lock cleanup on unmount or navigation
   useEffect(() => {
@@ -854,9 +947,32 @@ export function ServiceFulfillmentTable({
                         >
                           <ChevronRight className={`w-4 h-4 text-gray-500 transform transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                         </button>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {service.service.name}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900">
+                              {service.service.name}
+                            </span>
+                            {/* Visual indicators for results and attachments */}
+                            {service.results && (
+                              <span
+                                data-testid="has-results-indicator"
+                                title="Has search results"
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                <FileText className="w-3 h-3 mr-0.5" />
+                                Results
+                              </span>
+                            )}
+                            {service.attachmentsCount && service.attachmentsCount > 0 && (
+                              <span
+                                data-testid="attachment-badge"
+                                title={`${service.attachmentsCount} attachment${service.attachmentsCount > 1 ? 's' : ''}`}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800"
+                              >
+                                <Paperclip className="w-3 h-3 mr-0.5" />
+                                {service.attachmentsCount} {service.attachmentsCount === 1 ? 'attachment' : 'attachments'}
+                              </span>
+                            )}
                           </div>
                           {service.service.category && (
                             <div className="text-sm text-gray-500">
@@ -1005,22 +1121,38 @@ export function ServiceFulfillmentTable({
                     </td>
                   )}
                 </tr>
-                {/* Expandable Comment Section */}
+                {/* Expandable Comment and Results Section */}
                 {isExpanded && (
                   <tr data-testid={`comment-section-${service.id}`}>
                     <td colSpan={100} className="px-6 py-4 bg-gray-50">
-                      {/* DUAL ID PATTERN: Pass both IDs to handle comment operations correctly
-                          - serviceId (orderItemId): Used for creating/updating comments (comments table uses orderItemId)
-                          - serviceFulfillmentId: Used for fetching comments in order context (API keys results by this) */}
-                      <ServiceCommentSection
-                        serviceId={service.orderItemId}
-                        orderId={orderId}
-                        serviceName={service.service.name}
-                        serviceType={service.service.code || service.service.category || undefined}
-                        serviceStatus={service.status.toUpperCase()}
-                        serviceFulfillmentId={service.id}
-                        isCustomer={isCustomer}
-                      />
+                      <div className="expanded-content-container space-y-6">
+                        {/* Results Section */}
+                        <ServiceResultsSection
+                          serviceId={service.orderItemId}
+                          serviceFulfillmentId={service.id}
+                          serviceName={service.service.name}
+                          serviceStatus={service.status.toUpperCase()}
+                          orderId={orderId || ''}
+                          isCustomer={isCustomer}
+                        />
+
+                        {/* Divider */}
+                        <hr className="border-gray-200" />
+
+                        {/* Comments Section */}
+                        {/* DUAL ID PATTERN: Pass both IDs to handle comment operations correctly
+                            - serviceId (orderItemId): Used for creating/updating comments (comments table uses orderItemId)
+                            - serviceFulfillmentId: Used for fetching comments in order context (API keys results by this) */}
+                        <ServiceCommentSection
+                          serviceId={service.orderItemId}
+                          orderId={orderId}
+                          serviceName={service.service.name}
+                          serviceType={service.service.code || service.service.category || undefined}
+                          serviceStatus={service.status.toUpperCase()}
+                          serviceFulfillmentId={service.id}
+                          isCustomer={isCustomer}
+                        />
+                      </div>
                     </td>
                   </tr>
                 )}
