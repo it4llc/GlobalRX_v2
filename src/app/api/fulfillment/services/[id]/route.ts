@@ -87,6 +87,21 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: t('api.errors.serviceNotFound') }, { status: 404 });
     }
 
+    // Security check: If user is a customer, verify they own this order
+    if (isCustomer && session.user.customerId) {
+      // The service should have been filtered by ServiceFulfillmentService
+      // but we'll double-check here for security
+      const order = service.order || {};
+      if (order.customerId && order.customerId !== session.user.customerId) {
+        logger.warn('Customer attempted to access service from another customer', {
+          customerId: session.user.customerId,
+          orderCustomerId: order.customerId,
+          serviceId: params.id
+        });
+        return NextResponse.json({ error: t('api.errors.serviceNotFound') }, { status: 404 });
+      }
+    }
+
     // Step 5: Fetch order data for the service
     // Business Rule 1: Order data must be included for ALL service types
     // Business Rule 6: All users who can view a service can see all its order data fields
@@ -121,10 +136,12 @@ export async function GET(request: Request, { params }: RouteParams) {
       // - Different services require different data (education needs school info, employment needs employer info)
       // - This data helps vendors complete the verification process accurately
       // - Customers can see what information they provided when checking order status
-      orderData = await ServiceOrderDataService.getOrderDataForService(
+      const fetchedData = await ServiceOrderDataService.getOrderDataForService(
         service.orderItemId,
         orderSubject
       );
+      // Handle null return from service
+      orderData = fetchedData || {};
     } catch (error) {
       // Edge Case 4: Database query fails - log error but continue with empty orderData
       //

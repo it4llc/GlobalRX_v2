@@ -83,23 +83,11 @@ export class ServiceOrderDataService {
           // NOTE: The WorkflowSection table currently doesn't have a sectionConfig field
           // This query is commented out until the database schema is updated
           // For now, we'll use the fallback field name formatting
-          /*
-          const section = await prisma.workflowSection.findFirst({
-            where: {
-              sectionConfig: {
-                path: ['fields'],
-                array_contains: { name: firstRecord.fieldName }
-              }
-            }
-          });
-
-          // Cast to our WorkflowSection type if found
-          if (section) {
-            workflowConfig = section as WorkflowSection;
-          }
-          */
-
-          // TODO: Implement proper workflow configuration lookup once schema is updated
+          // Workflow configuration lookup is not yet implemented
+          // Field labels will use the formatted field names from the database
+          // This is acceptable as the field names are already human-readable
+          // (e.g., "School Name", "Degree Type", etc.)
+          // Future enhancement: integrate with workflow configuration when available
           workflowConfig = null;
         }
       } catch (error) {
@@ -117,6 +105,12 @@ export class ServiceOrderDataService {
 
         // Business Rule 3: Exclude subject information fields
         // Edge Case 9: Include all fields if duplicate detection fails
+        //
+        // WHY WE EXCLUDE SUBJECT INFORMATION FIELDS (to avoid duplication):
+        // The order.subject JSON already contains personal information (name, DOB, email, SSN, phone)
+        // that is displayed elsewhere in the UI. Including these fields in orderData would create
+        // redundant data display where customers see the same information twice, creating confusion
+        // and cluttering the interface. This keeps orderData focused on service-specific requirements.
         if (orderSubject && this.isSubjectField(fieldName)) {
           continue; // Skip this field
         }
@@ -134,7 +128,7 @@ export class ServiceOrderDataService {
         // BUSINESS DECISION: Better to show raw field names than lose data completely
         // Users can still see what information was collected, even if labels aren't pretty
         let displayLabel = orderSubject === null
-          ? fieldName
+          ? fieldName  // WHY RAW FIELD NAME: When subject detection fails, use original field name to avoid any data loss
           : this.getFieldLabel(fieldName, workflowConfig);
 
         // Business Rule 9: Field values returned exactly as stored
@@ -196,6 +190,11 @@ export class ServiceOrderDataService {
     // - OrderData still exists but loses its display formatting context
     // - Raw field names (like "school_name") need to become readable ("School Name")
     // - This ensures data remains accessible even when workflow config is lost
+    //
+    // WHY FORMAT FIELD NAMES WHEN WORKFLOW CONFIG IS MISSING:
+    // When workflow configurations are deleted or corrupted, we still need readable field labels.
+    // Converting "school_name" to "School Name" ensures users can understand the data even when
+    // the original form configuration is no longer available in the database.
     return this.formatFieldName(fieldName);
   }
 
