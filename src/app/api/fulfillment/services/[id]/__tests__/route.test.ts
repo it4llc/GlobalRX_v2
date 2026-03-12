@@ -18,6 +18,12 @@ vi.mock('@/lib/services/service-fulfillment.service', () => ({
   }
 }));
 
+vi.mock('@/lib/services/service-order-data.service', () => ({
+  ServiceOrderDataService: {
+    getOrderDataForService: vi.fn().mockResolvedValue({})
+  }
+}));
+
 vi.mock('@/lib/auth', () => ({
   authOptions: {}
 }));
@@ -36,6 +42,31 @@ vi.mock('@/lib/prisma', () => ({
       findUnique: vi.fn()
     }
   }
+}));
+
+vi.mock('@/lib/i18n/server-translations', () => ({
+  getServerTranslations: vi.fn().mockResolvedValue((key: string) => {
+    // Return the key itself for testing (simulates translation keys being used as fallback)
+    const translations: Record<string, string> = {
+      'api.errors.unauthorized': 'Unauthorized',
+      'api.errors.serviceIdRequired': 'Service ID is required',
+      'api.errors.forbidden': 'Forbidden',
+      'api.errors.insufficientPermissions': 'Insufficient permissions',
+      'api.errors.serviceNotFound': 'Service not found',
+      'api.errors.accessDenied': 'Access denied',
+      'api.errors.failedToFetchService': 'Failed to fetch service',
+      'api.errors.invalidJsonBody': 'Invalid JSON body',
+      'api.errors.requestBodyEmpty': 'Request body cannot be empty',
+      'api.errors.invalidInput': 'Invalid input',
+      'api.errors.vendorsCannotUpdateInternalNotes': 'Vendors cannot update internal notes',
+      'api.errors.insufficientPermissionsToAssignVendors': 'Insufficient permissions to assign vendors',
+      'api.errors.vendorNotFound': 'Vendor not found',
+      'api.errors.cannotAssignToDeactivatedVendor': 'Cannot assign to deactivated vendor',
+      'api.errors.failedToValidateVendor': 'Failed to validate vendor',
+      'api.errors.internalServerError': 'Internal server error'
+    };
+    return translations[key] || key;
+  })
 }));
 
 describe('GET /api/fulfillment/services/[id]', () => {
@@ -71,7 +102,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       const mockService = {
         id: 'service-123',
         orderId: 'order-456',
-        status: 'processing',
+        status: 'Processing',
         assignedVendorId: 'vendor-789'
       };
 
@@ -84,7 +115,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toEqual(mockService);
+      expect(data).toEqual({ ...mockService, orderData: {} });
     });
 
     it('should allow vendor users to see their assigned services', async () => {
@@ -100,7 +131,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       const mockService = {
         id: 'service-123',
         assignedVendorId: 'vendor-123',
-        status: 'submitted'
+        status: 'Submitted'
       };
 
       vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(mockService);
@@ -112,7 +143,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toEqual(mockService);
+      expect(data).toEqual({ ...mockService, orderData: {} });
     });
 
     it('should return 403 when vendor tries to access unassigned service', async () => {
@@ -139,7 +170,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       expect(data).toHaveProperty('error', 'Access denied');
     });
 
-    it('should return 403 for customer users', async () => {
+    it('should return 404 when customer tries to access service not belonging to them', async () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: 'customer-user',
@@ -149,19 +180,23 @@ describe('GET /api/fulfillment/services/[id]', () => {
         }
       });
 
+      // Service returns null when customer doesn't have access
+      vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(null);
+
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123');
       const params = { params: { id: 'service-123' } };
 
       const response = await GET(request, params);
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(404);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Insufficient permissions');
+      expect(data).toHaveProperty('error', 'Service not found');
     });
   });
 
   describe('business logic', () => {
     beforeEach(() => {
+      vi.clearAllMocks();
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: 'user-123',
@@ -202,7 +237,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
         orderItemId: 'item-789',
         serviceId: 'service-type-1',
         locationId: 'location-1',
-        status: 'processing',
+        status: 'Processing',
         assignedVendorId: 'vendor-123',
         vendorNotes: 'Working on verification',
         internalNotes: 'Rush order',
@@ -229,11 +264,12 @@ describe('GET /api/fulfillment/services/[id]', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toEqual(fullServiceDetails);
+      expect(data).toEqual({ ...fullServiceDetails, orderData: {} });
       expect(data).toHaveProperty('order');
       expect(data).toHaveProperty('service');
       expect(data).toHaveProperty('location');
       expect(data).toHaveProperty('assignedVendor');
+      expect(data).toHaveProperty('orderData');
     });
   });
 
@@ -277,7 +313,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'processing' })
+        body: JSON.stringify({ status: 'Processing' })
       });
       const params = { params: { id: 'service-123' } };
 
@@ -301,7 +337,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
       const updatedService = {
         id: 'service-123',
-        status: 'processing'
+        status: 'Processing'
       };
 
       vi.mocked(ServiceFulfillmentService.updateService).mockResolvedValueOnce(updatedService);
@@ -313,11 +349,18 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
           'x-forwarded-for': '192.168.1.1',
           'user-agent': 'Test Browser'
         },
-        body: JSON.stringify({ status: 'processing' })
+        body: JSON.stringify({ status: 'Processing' })
       });
       const params = { params: { id: 'service-123' } };
 
       const response = await PATCH(request, params);
+
+      // Debug: Log response if not 200
+      if (response.status !== 200) {
+        const errorData = await response.json();
+        console.log('PATCH error response for internal user:', response.status, errorData);
+      }
+
       expect(response.status).toBe(200);
 
       const data = await response.json();
@@ -325,7 +368,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
       expect(ServiceFulfillmentService.updateService).toHaveBeenCalledWith(
         'service-123',
-        { status: 'processing' },
+        { status: 'Processing' },
         expect.objectContaining({
           id: 'user-123',
           userType: 'internal',
@@ -351,7 +394,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const updatedService = {
         id: 'service-123',
         assignedVendorId: 'vendor-123',
-        status: 'processing',
+        status: 'Processing',
         vendorNotes: 'Updated notes'
       };
 
@@ -361,7 +404,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'processing',
+          status: 'Processing',
           vendorNotes: 'Updated notes'
         })
       });
@@ -440,7 +483,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'processing' })
+        body: JSON.stringify({ status: 'Processing' })
       });
       const params = { params: { id: 'service-123' } };
 
@@ -454,6 +497,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
   describe('validation', () => {
     beforeEach(() => {
+      vi.clearAllMocks();
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: 'user-123',
@@ -514,7 +558,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const request = new Request('http://localhost:3000/api/fulfillment/services/', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'processing' })
+        body: JSON.stringify({ status: 'Processing' })
       });
       const params = { params: { id: '' } };
 
@@ -543,6 +587,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
   describe('business logic', () => {
     beforeEach(() => {
+      vi.clearAllMocks();
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: 'user-123',
@@ -553,18 +598,27 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
     });
 
     it('should return 404 when service does not exist', async () => {
-      vi.mocked(ServiceFulfillmentService.updateService).mockRejectedValueOnce(
-        new Error('Service with ID non-existent not found')
+      vi.mocked(ServiceFulfillmentService.updateService).mockImplementationOnce(() =>
+        Promise.reject(new Error('Service with ID non-existent not found'))
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/non-existent', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'processing' })
+        body: JSON.stringify({ status: 'Processing' })
       });
       const params = { params: { id: 'non-existent' } };
 
       const response = await PATCH(request, params);
+
+      // Debug if not 404
+      if (response.status !== 404) {
+        const errorData = await response.json();
+        console.log('Service not found test error:', response.status, errorData);
+        // Check if the mock was even called
+        console.log('Mock called:', vi.mocked(ServiceFulfillmentService.updateService).mock.calls.length);
+      }
+
       expect(response.status).toBe(404);
 
       const data = await response.json();
@@ -606,19 +660,21 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
     it('should allow multiple field updates in single request', async () => {
       const updatedService = {
         id: 'service-123',
-        status: 'completed',
+        status: 'Completed',
         vendorNotes: 'All checks passed',
         internalNotes: 'Approved for hire',
         completedAt: new Date().toISOString()
       };
 
+      // Clear any existing mocks and set up fresh
+      vi.mocked(ServiceFulfillmentService.updateService).mockReset();
       vi.mocked(ServiceFulfillmentService.updateService).mockResolvedValueOnce(updatedService);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'completed',
+          status: 'Completed',
           vendorNotes: 'All checks passed',
           internalNotes: 'Approved for hire'
         })
@@ -626,11 +682,18 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const params = { params: { id: 'service-123' } };
 
       const response = await PATCH(request, params);
+
+      // Debug if not 200
+      if (response.status !== 200) {
+        const errorData = await response.json();
+        console.log('Multiple update test error:', response.status, errorData);
+      }
+
       expect(response.status).toBe(200);
 
       const data = await response.json();
       expect(data).toEqual(updatedService);
-      expect(data.status).toBe('completed');
+      expect(data.status).toBe('Completed');
       expect(data.completedAt).toBeDefined();
     });
 
@@ -651,6 +714,8 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         assignedBy: null
       };
 
+      // Clear any existing mocks and set up fresh
+      vi.mocked(ServiceFulfillmentService.updateService).mockReset();
       vi.mocked(ServiceFulfillmentService.updateService).mockResolvedValueOnce(updatedService);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
@@ -669,6 +734,10 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
   });
 
   describe('audit context', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
     it('should pass IP address and user agent to service', async () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
@@ -680,7 +749,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
       vi.mocked(ServiceFulfillmentService.updateService).mockResolvedValueOnce({
         id: 'service-123',
-        status: 'processing'
+        status: 'Processing'
       });
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
@@ -691,7 +760,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
           'x-real-ip': '192.168.1.1',
           'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
         },
-        body: JSON.stringify({ status: 'processing' })
+        body: JSON.stringify({ status: 'Processing' })
       });
       const params = { params: { id: 'service-123' } };
 
@@ -699,7 +768,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
       expect(ServiceFulfillmentService.updateService).toHaveBeenCalledWith(
         'service-123',
-        { status: 'processing' },
+        { status: 'Processing' },
         expect.any(Object),
         expect.objectContaining({
           ipAddress: '10.0.0.1',
@@ -710,6 +779,10 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
   });
 
   describe('error handling', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
     it('should return 500 when service throws an unexpected error', async () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
@@ -719,6 +792,8 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         }
       });
 
+      // Clear any existing mocks and set up fresh
+      vi.mocked(ServiceFulfillmentService.updateService).mockReset();
       vi.mocked(ServiceFulfillmentService.updateService).mockRejectedValueOnce(
         new Error('Database connection failed')
       );
@@ -726,7 +801,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'processing' })
+        body: JSON.stringify({ status: 'Processing' })
       });
       const params = { params: { id: 'service-123' } };
 
@@ -734,7 +809,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       expect(response.status).toBe(500);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Failed to update service');
+      expect(data).toHaveProperty('error', 'Internal server error');
     });
 
     it('should handle malformed JSON body', async () => {
