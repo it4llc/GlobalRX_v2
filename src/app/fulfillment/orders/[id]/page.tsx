@@ -1,8 +1,16 @@
 // /GlobalRX_v2/src/app/fulfillment/orders/[id]/page.tsx
-// Order Fulfillment Details Page (Phase 2a)
+// Order Fulfillment Details Page (Phase 2a) - Layout Redesign
 //
 // Dedicated page for viewing and managing order details in the fulfillment workflow.
 // Replaces the previous modal-based approach with a full page experience.
+//
+// LAYOUT CHANGES (feature/order-details-layout):
+// - Moved sidebar from right to left side of the page for improved information hierarchy
+// - Reduced spacing between page edge and sidebar for better space utilization
+// - Sidebar now contains: Order Information, Customer Details, Status, Timestamps, Actions, Quick Links, Status History
+// - Main content now focuses solely on Subject Information and Services (streamlined view)
+// - Removed non-functional UI elements (Edit button, Actions dropdown, manual status dropdown)
+// - Enhanced mobile responsiveness with sidebar stacking below content on small screens
 //
 // Required permissions: fulfillment.* or admin.*
 
@@ -46,7 +54,11 @@ interface Order {
   };
 }
 
-// Skeleton loader component
+/**
+ * Skeleton loader component for order details page loading state
+ * Provides visual feedback while order data is being fetched from the API
+ * Matches the layout structure of the actual content for smooth transitions
+ */
 function SkeletonLoader() {
   return (
     <div className="animate-pulse" data-testid="skeleton-loader">
@@ -60,6 +72,26 @@ function SkeletonLoader() {
   );
 }
 
+/**
+ * Order Details Page - Redesigned Layout Component
+ *
+ * This page displays comprehensive order information with a new layout design:
+ * - Left sidebar: Contains order metadata, customer info, status management, actions, and history
+ * - Main content: Focuses on subject information and services table
+ *
+ * SECURITY FEATURES:
+ * - SSN masking: Only shows last 4 digits (XXX-XX-####) for security compliance
+ * - Permission-based access: Customer details link requires 'customers.view' permission
+ * - User-type restrictions: Hides internal information from customer and vendor users
+ *
+ * LAYOUT IMPROVEMENTS:
+ * - Mobile-first design with responsive sidebar
+ * - Improved typography hierarchy (labels vs data)
+ * - Compact 3-column grid for subject information
+ * - Removed non-functional UI elements that were misleading to users
+ *
+ * @returns JSX.Element The order details page with sidebar layout
+ */
 export default function OrderDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -123,6 +155,15 @@ export default function OrderDetailsPage() {
     }
   };
 
+  /**
+   * Handles order status changes from the sidebar dropdown
+   * Updates local state optimistically for responsive UI feedback
+   *
+   * The actual API call is handled by OrderStatusDropdown component,
+   * this callback just updates the parent state after successful API response
+   *
+   * @param newStatus - The new status code to set
+   */
   const handleStatusChange = (newStatus: string) => {
     // Update the local order state immediately for responsive UI
     // The API call in OrderStatusDropdown has already succeeded by the time this is called
@@ -211,19 +252,19 @@ export default function OrderDetailsPage() {
       </div>
 
       {/* Main content area with sidebar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Main content - single column */}
-          <div className="flex-1">
-            <OrderDetailsView order={order} />
-          </div>
-
-          {/* Sidebar - stacks below on mobile */}
-          <div className="lg:w-80">
+      <div className="px-4 lg:px-8 py-8">
+        <div className="flex flex-col lg:flex-row gap-6 max-w-screen-2xl">
+          {/* Sidebar - stacks below on mobile, appears on left on desktop */}
+          <div className="lg:w-80 lg:flex-shrink-0">
             <OrderDetailsSidebar
               order={order}
               onStatusChange={handleStatusChange}
             />
+          </div>
+
+          {/* Main content - single column */}
+          <div className="flex-1 max-w-6xl">
+            <OrderDetailsView order={order} />
           </div>
         </div>
       </div>

@@ -1,6 +1,16 @@
 // /GlobalRX_v2/src/components/fulfillment/OrderDetailsView.tsx
 // Main content component for displaying order information in fulfillment workflow.
 //
+// LAYOUT REDESIGN CHANGES (feature/order-details-layout):
+// - Removed Order Information, Customer Details, Notes, and Status History sections
+// - These sections moved to left sidebar for better information architecture
+// - Main content now focuses only on Subject Information and Services
+// - Subject Information redesigned with compact 3-column grid layout
+// - Typography improvements: labels use text-xs font-semibold with colons, data uses text-base text-black
+// - SSN field now masked for security (shows XXX-XX-#### format)
+// - Removed non-functional UI elements (Edit button, Actions dropdown, manual status dropdown)
+// - Enhanced mobile responsiveness
+//
 // Key design decisions:
 // - Empty values display as "--" for consistency
 // - Status badges use color coding for quick visual scanning
@@ -12,11 +22,10 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Edit, AlertTriangle, RotateCcw } from 'lucide-react';
+import { ChevronLeft, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ServiceFulfillmentTable } from './ServiceFulfillmentTable';
-import { ActionDropdown } from '@/components/ui/action-dropdown';
 
 interface OrderDetailsViewProps {
   order?: {
@@ -150,6 +159,30 @@ const formatUserName = (user?: { firstName?: string; lastName?: string; email: s
   return user.email;
 };
 
+/**
+ * Order Details View Component - Streamlined Main Content
+ *
+ * Displays the main content area of the order details page, focusing on:
+ * - Subject Information (personal details with security masking)
+ * - Services table (with fulfillment status and actions)
+ *
+ * SECURITY FEATURES:
+ * - SSN masking: Displays only last 4 digits in XXX-XX-#### format
+ * - Permission-based rendering: Hides sensitive data from customers/vendors
+ * - Safe error handling with retry capability
+ *
+ * LAYOUT IMPROVEMENTS:
+ * - Compact 3-column grid for subject information
+ * - Improved typography distinction between labels and data
+ * - Consistent "--" placeholder for empty values
+ * - Mobile-responsive design with grid column adjustments
+ *
+ * @param order - Order data object with subject and services information
+ * @param error - Error message to display if data loading failed
+ * @param loading - Loading state indicator
+ * @param onRetry - Callback function to retry failed data loading
+ * @returns JSX.Element The main content view for order details
+ */
 export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetailsViewProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -230,192 +263,76 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                 className="flex items-center text-gray-500 hover:text-gray-700"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
-                {user?.userType === 'customer' ? 'Back to Dashboard' : 'Back'}
+                {user?.userType === 'customer' ? t('common.backToDashboard') : t('common.back')}
               </button>
               <h1 className="text-2xl font-bold text-gray-900">{order.orderNumber}</h1>
             </div>
 
-            {/* Internal User Controls */}
-            {!isCustomer && (
-              <div className="flex items-center space-x-3">
-                <button
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50"
-                >
-                  <Edit className="w-4 h-4 mr-1" />
-                  Edit
-                </button>
-
-                <div data-testid="action-dropdown">
-                  <ActionDropdown
-                    options={[
-                      { label: 'Assign Vendor', onClick: () => {} },
-                      { label: 'Update Status', onClick: () => {} },
-                      { label: 'Add Notes', onClick: () => {} },
-                      { label: 'View History', onClick: () => {} },
-                    ]}
-                  />
-                </div>
-
-                <select
-                  className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  defaultValue={order.statusCode}
-                  aria-label="Status"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="processing">Processing</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Order Information Section */}
-        <section>
-          <h2 className="text-lg font-medium text-gray-900 mb-4">{t('module.fulfillment.orderInformation')}</h2>
-          <div className="bg-white rounded-lg border p-4">
-            <dl className="grid grid-cols-2 gap-4">
-              <div>
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.orderNumber')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(order.orderNumber)}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">{t('common.status')}</dt>
-                <dd className="mt-1">
-                  <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColorClass(order.statusCode)}`}>
-                    {formatStatus(order.statusCode)}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.created')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(order.createdAt)}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">{t('common.updated')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(order.updatedAt)}</dd>
-              </div>
-            </dl>
-          </div>
-        </section>
 
         {/* Subject Information Section */}
         <section>
-          <h2 className="text-lg font-medium text-gray-900 mb-4">{t('module.fulfillment.subjectInformation')}</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-3">{t('module.fulfillment.subjectInformation')}</h2>
           <div className="bg-white rounded-lg border p-4">
-            <dl className="grid grid-cols-2 gap-4">
+            <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
               <div>
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.firstName')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.firstName)}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.lastName')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.lastName)}</dd>
+                <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.firstName')}:</dt>
+                <dd className="mt-0.5 text-base text-black">{formatValue(subject.firstName)}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.middleName')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.middleName)}</dd>
+                <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.lastName')}:</dt>
+                <dd className="mt-0.5 text-base text-black">{formatValue(subject.lastName)}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.dateOfBirth')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.dateOfBirth)}</dd>
+                <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.middleName')}:</dt>
+                <dd className="mt-0.5 text-base text-black">{formatValue(subject.middleName)}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.email')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.email)}</dd>
+                <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.dateOfBirth')}:</dt>
+                <dd className="mt-0.5 text-base text-black">{formatValue(subject.dateOfBirth)}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.phone')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.phone)}</dd>
+                <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.email')}:</dt>
+                <dd className="mt-0.5 text-base text-black">{formatValue(subject.email)}</dd>
               </div>
-              <div className="col-span-2">
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.ssn')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.ssn)}</dd>
+              <div>
+                <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.phone')}:</dt>
+                <dd className="mt-0.5 text-base text-black">{formatValue(subject.phone)}</dd>
               </div>
-              <div className="col-span-2">
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.address')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.address)}</dd>
+              <div>
+                <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.ssn')}:</dt>
+                <dd className="mt-0.5 text-base text-black">
+                  {subject.ssn ? `XXX-XX-${String(subject.ssn).slice(-4)}` : '--'}
+                </dd>
+              </div>
+              <div className="md:col-span-2">
+                <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.address')}:</dt>
+                <dd className="mt-0.5 text-base text-black">{formatValue(subject.address)}</dd>
               </div>
               {subject.city && (
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.city')}</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.city)}</dd>
+                  <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.city')}:</dt>
+                  <dd className="mt-0.5 text-base text-black">{formatValue(subject.city)}</dd>
                 </div>
               )}
               {subject.state && (
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.state')}</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.state)}</dd>
+                  <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.state')}:</dt>
+                  <dd className="mt-0.5 text-base text-black">{formatValue(subject.state)}</dd>
                 </div>
               )}
               {subject.zipCode && (
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.zipCode')}</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{formatValue(subject.zipCode)}</dd>
+                  <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.zipCode')}:</dt>
+                  <dd className="mt-0.5 text-base text-black">{formatValue(subject.zipCode)}</dd>
                 </div>
               )}
             </dl>
           </div>
         </section>
 
-        {/* Customer Details Section */}
-        <section>
-          <h2 className="text-lg font-medium text-gray-900 mb-4">{t('module.fulfillment.customerDetails')}</h2>
-          <div className="bg-white rounded-lg border p-4">
-            <dl className="space-y-2">
-              <div>
-                <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.customerName')}</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatValue(order.customer.name)}</dd>
-              </div>
-              {order.customer.code && (
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">{t('module.fulfillment.customerCode')}</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{formatValue(order.customer.code)}</dd>
-                </div>
-              )}
-
-              {/* Show vendor and internal information for internal users */}
-              {!isCustomer && (
-                <>
-                  {order.assignedVendor && (
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Assigned Vendor</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{order.assignedVendor.name}</dd>
-                    </div>
-                  )}
-
-                  {order.vendorNotes && (
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Vendor Notes</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{order.vendorNotes}</dd>
-                    </div>
-                  )}
-
-                  {order.internalNotes && (
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Internal Notes</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{order.internalNotes}</dd>
-                    </div>
-                  )}
-
-                  {order.user && (
-                    <>
-                      <div>
-                        <dt className="text-sm font-medium text-gray-500">Order Creator</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{formatUserName(order.user, 'Unknown')}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-gray-500">Creator Email</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{order.user.email}</dd>
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-            </dl>
-          </div>
-        </section>
 
         {/* Services Section */}
         <section>
@@ -467,50 +384,6 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
           </div>
         </section>
 
-        {/* Notes Section */}
-        <section>
-          <h2 className="text-lg font-medium text-gray-900 mb-4">{t('module.fulfillment.notes')}</h2>
-          <div className="bg-white rounded-lg border p-4">
-            <div className="text-sm text-gray-900 whitespace-pre-wrap">
-              {formatValue(order.notes)}
-            </div>
-          </div>
-        </section>
-
-        {/* Status History Section */}
-        <section>
-          <h2 className="text-lg font-medium text-gray-900 mb-4">{t('module.fulfillment.statusHistory')}</h2>
-          <div className="bg-white rounded-lg border p-4">
-            {order.statusHistory && order.statusHistory.length > 0 ? (
-              <div className="space-y-3">
-                {order.statusHistory.map((entry: any) => (
-                  <div key={entry.id} className="text-sm border-l-2 border-gray-200 pl-3">
-                    <div className="flex items-center space-x-1">
-                      <span className="font-medium">{entry.status || entry.fromStatus}</span>
-                      {entry.toStatus && (
-                        <>
-                          <span className="text-gray-400">→</span>
-                          <span className="font-medium">{entry.toStatus}</span>
-                        </>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {!isCustomer && entry.user && (
-                        <span>Changed by {formatUserName(entry.user, 'Unknown')}</span>
-                      )}
-                      <div>{formatValue(entry.changedAt || entry.createdAt)}</div>
-                    </div>
-                    {entry.notes && (
-                      <div className="text-xs text-gray-600 mt-1 italic">{entry.notes}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-sm text-gray-500">--</div>
-            )}
-          </div>
-        </section>
       </div>
     </main>
   );
