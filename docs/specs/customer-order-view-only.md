@@ -80,7 +80,7 @@ This feature enables customers to view the detailed status and progress of their
 | Service Category | service.category | string | No | From service record | null |
 | Location Name | location.name | string | Yes | From location record | N/A |
 | Location Code | location.code2 | string | No | From location record | null |
-| Service Status | serviceFulfillment.status | string | Yes | Valid service status | pending |
+| Service Status | orderItem.status | string | Yes | Valid service status (Note: serviceFulfillment.status was removed in Phase 1 cleanup) | pending |
 | Assigned Date | serviceFulfillment.assignedAt | datetime | No | ISO 8601 format | null |
 | Completed Date | serviceFulfillment.completedAt | datetime | No | ISO 8601 format | null |
 | Comment Text | comment.finalText | string | Yes | Max 1000 chars | N/A |

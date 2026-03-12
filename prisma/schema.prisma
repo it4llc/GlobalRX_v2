@@ -9,6 +9,7 @@ datasource db {
 
 model User {
   id                     String                @id @default(uuid())
+  userId                 Int                   @unique @default(autoincrement())
   email                  String                @unique
   password               String
   firstName              String?
@@ -37,6 +38,9 @@ model User {
   servicesCreated        Service[]             @relation("ServiceCreatedBy")
   servicesUpdated        Service[]             @relation("ServiceUpdatedBy")
   servicesAssigned       ServicesFulfillment[] @relation("ServiceAssignedBy")
+  resultsAddedFor        ServicesFulfillment[] @relation("ResultsAddedBy")
+  resultsModifiedFor     ServicesFulfillment[] @relation("ResultsModifiedBy")
+  attachmentsUploaded    ServiceAttachment[]   @relation("AttachmentUploadedBy")
   customer               Customer?             @relation("CustomerUserRelation", fields: [customerId], references: [id])
   vendor                 VendorOrganization?   @relation("VendorUserRelation", fields: [vendorId], references: [id])
   workflowsCreated       Workflow[]            @relation("WorkflowCreatedBy")
@@ -569,26 +573,34 @@ model CommentTemplateAvailability {
 }
 
 model ServicesFulfillment {
-  id               String              @id @default(uuid())
-  orderId          String
-  orderItemId      String              @unique
-  serviceId        String
-  locationId       String
-  assignedVendorId String?
-  vendorNotes      String?
-  internalNotes    String?
-  assignedAt       DateTime?
-  assignedBy       String?
-  completedAt      DateTime?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  auditLogs        ServiceAuditLog[]
-  assignedByUser   User?               @relation("ServiceAssignedBy", fields: [assignedBy], references: [id])
-  assignedVendor   VendorOrganization? @relation("ServiceVendorAssignment", fields: [assignedVendorId], references: [id])
-  location         Country             @relation(fields: [locationId], references: [id])
-  order            Order               @relation(fields: [orderId], references: [id])
-  orderItem        OrderItem           @relation(fields: [orderItemId], references: [id])
-  service          Service             @relation(fields: [serviceId], references: [id])
+  id                     String               @id @default(uuid())
+  orderId                String
+  orderItemId            String               @unique
+  serviceId              String
+  locationId             String
+  assignedVendorId       String?
+  vendorNotes            String?
+  internalNotes          String?
+  assignedAt             DateTime?
+  assignedBy             String?
+  completedAt            DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  results                String?              @db.Text
+  resultsAddedBy         Int?
+  resultsAddedAt         DateTime?
+  resultsLastModifiedBy  Int?
+  resultsLastModifiedAt  DateTime?
+  auditLogs              ServiceAuditLog[]
+  attachments            ServiceAttachment[]
+  assignedByUser         User?                @relation("ServiceAssignedBy", fields: [assignedBy], references: [id])
+  assignedVendor         VendorOrganization?  @relation("ServiceVendorAssignment", fields: [assignedVendorId], references: [id])
+  location               Country              @relation(fields: [locationId], references: [id])
+  order                  Order                @relation(fields: [orderId], references: [id])
+  orderItem              OrderItem            @relation(fields: [orderItemId], references: [id])
+  service                Service              @relation(fields: [serviceId], references: [id])
+  resultsAddedByUser     User?                @relation("ResultsAddedBy", fields: [resultsAddedBy], references: [userId])
+  resultsModifiedByUser  User?                @relation("ResultsModifiedBy", fields: [resultsLastModifiedBy], references: [userId])
 
   @@index([orderId])
   @@index([orderItemId])
@@ -657,4 +669,20 @@ model OrderLock {
   @@index([lockedBy])
   @@index([lockExpires])
   @@map("order_locks")
+}
+
+model ServiceAttachment {
+  id                   Int                  @id @default(autoincrement())
+  serviceFulfillmentId String
+  fileName             String               @db.VarChar(255)
+  filePath             String               @db.VarChar(500)
+  fileSize             Int
+  uploadedBy           Int
+  uploadedAt           DateTime             @default(now())
+  serviceFulfillment   ServicesFulfillment  @relation(fields: [serviceFulfillmentId], references: [id], onDelete: Cascade)
+  uploadedByUser       User                 @relation("AttachmentUploadedBy", fields: [uploadedBy], references: [userId])
+
+  @@index([serviceFulfillmentId])
+  @@index([uploadedAt])
+  @@map("service_attachments")
 }
