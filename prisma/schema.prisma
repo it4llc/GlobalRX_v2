@@ -394,15 +394,17 @@ model Order {
 }
 
 model OrderStatusHistory {
-  id         String   @id @default(uuid())
-  orderId    String
-  fromStatus String?
-  toStatus   String
-  changedBy  String
-  reason     String?
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [changedBy], references: [id])
-  order      Order    @relation(fields: [orderId], references: [id])
+  id          String   @id @default(uuid())
+  orderId     String
+  fromStatus  String?
+  toStatus    String
+  changedBy   String
+  reason      String?
+  notes       String?
+  isAutomatic Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [changedBy], references: [id])
+  order       Order    @relation(fields: [orderId], references: [id])
 
   @@index([orderId])
   @@map("order_status_history")

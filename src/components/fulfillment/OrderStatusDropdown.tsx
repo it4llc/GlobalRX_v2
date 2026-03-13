@@ -14,7 +14,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
-import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
+import { ORDER_STATUS_VALUES, type OrderStatus } from '@/lib/schemas/orderStatusSchemas';
 
 export interface StatusOption {
   value: string;
@@ -29,20 +29,35 @@ interface OrderStatusDropdownProps {
   options?: StatusOption[];
 }
 
-// Default status options using the new service status values
-const defaultStatusOptions: StatusOption[] = [
-  { value: SERVICE_STATUSES.DRAFT, label: SERVICE_STATUSES.DRAFT },
-  { value: SERVICE_STATUSES.SUBMITTED, label: SERVICE_STATUSES.SUBMITTED },
-  { value: SERVICE_STATUSES.PROCESSING, label: SERVICE_STATUSES.PROCESSING },
-  { value: SERVICE_STATUSES.MISSING_INFO, label: SERVICE_STATUSES.MISSING_INFO },
-  { value: SERVICE_STATUSES.COMPLETED, label: SERVICE_STATUSES.COMPLETED },
-  { value: SERVICE_STATUSES.CANCELLED, label: SERVICE_STATUSES.CANCELLED },
-  { value: SERVICE_STATUSES.CANCELLED_DNB, label: SERVICE_STATUSES.CANCELLED_DNB },
-];
+// Map order status values to display labels
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  submitted: 'Submitted',
+  processing: 'Processing',
+  missing_info: 'Missing Information',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+  cancelled_dnb: 'Cancelled-DNB'
+};
+
+// Default status options using the seven standardized order status values
+const defaultStatusOptions: StatusOption[] = ORDER_STATUS_VALUES.map(value => ({
+  value,
+  label: STATUS_LABELS[value] || value
+}));
 
 // Format status for display
 const formatStatusLabel = (status: string, options: StatusOption[]): string => {
-  const option = options.find(opt => opt.value === status);
+  // Normalize status to lowercase for matching
+  const normalizedStatus = status.toLowerCase().replace(/\s+/g, '_');
+
+  // Check if we have a label for this status
+  if (STATUS_LABELS[normalizedStatus]) {
+    return STATUS_LABELS[normalizedStatus];
+  }
+
+  // Check in provided options
+  const option = options.find(opt => opt.value === normalizedStatus);
   if (option) return option.label;
 
   // Fallback formatting
@@ -54,16 +69,23 @@ const formatStatusLabel = (status: string, options: StatusOption[]): string => {
 
 // Get status color class
 const getStatusColorClass = (status: string): string => {
+  // Normalize status to lowercase for matching
+  const normalizedStatus = status.toLowerCase().replace(/\s+/g, '_');
+
   const statusColors: Record<string, string> = {
-    [SERVICE_STATUSES.DRAFT]: 'status-draft',
-    [SERVICE_STATUSES.SUBMITTED]: 'status-submitted',
-    [SERVICE_STATUSES.PROCESSING]: 'status-processing',
-    [SERVICE_STATUSES.MISSING_INFO]: 'status-warning',
-    [SERVICE_STATUSES.COMPLETED]: 'status-completed',
-    [SERVICE_STATUSES.CANCELLED]: 'status-cancelled',
-    [SERVICE_STATUSES.CANCELLED_DNB]: 'status-cancelled',
+    draft: 'bg-gray-100 text-gray-800 border-gray-300',
+    submitted: 'bg-blue-100 text-blue-800 border-blue-300',
+    processing: 'bg-blue-100 text-blue-800 border-blue-300',
+    missing_info: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    completed: 'bg-green-100 text-green-800 border-green-300',
+    cancelled: 'bg-red-100 text-red-800 border-red-300',
+    cancelled_dnb: 'bg-red-100 text-red-800 border-red-300',
+    // Legacy statuses for backward compatibility
+    pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    on_hold: 'bg-gray-100 text-gray-800 border-gray-300',
+    closed: 'bg-gray-100 text-gray-800 border-gray-300'
   };
-  return statusColors[status] || '';
+  return statusColors[normalizedStatus] || '';
 };
 
 export function OrderStatusDropdown({

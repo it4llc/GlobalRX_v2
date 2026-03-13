@@ -19,24 +19,12 @@ import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import logger from '@/lib/logger';
 import { ServiceFulfillmentService } from '@/lib/services/service-fulfillment.service';
+import { orderStatusUpdateSchema, ORDER_STATUS_VALUES } from '@/lib/schemas/orderStatusSchemas';
 
 // Define the validation schema for incoming data
+// Support both new standardized values and 'closed' for backward compatibility
 const updateStatusSchema = z.object({
-  status: z.enum([
-    'pending',
-    'processing',
-    'completed',
-    'cancelled',
-    'on_hold',
-    'failed',
-    'submitted',
-    'in_review',
-    'approved',
-    'rejected',
-    'draft',
-    'more_info_needed',
-    'closed'
-  ]),
+  status: z.enum([...ORDER_STATUS_VALUES, 'closed'] as const),
   notes: z.string().optional(),
   comments: z.string().min(1).max(5000).optional(), // For order closure
 });
@@ -263,6 +251,7 @@ export async function PATCH(
           changedBy: session.user!.id,
           notes: notes || null,
           reason: newStatus === 'closed' && comments ? `Closure Comments: ${comments}` : (notes || null),
+          isAutomatic: false  // Manual status changes are not automatic
         },
       });
 
