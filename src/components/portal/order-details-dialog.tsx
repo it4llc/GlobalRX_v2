@@ -1,7 +1,7 @@
 // /GlobalRX_v2/src/components/portal/order-details-dialog.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SubjectInfo } from '@/components/portal/orders/types';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 import {
