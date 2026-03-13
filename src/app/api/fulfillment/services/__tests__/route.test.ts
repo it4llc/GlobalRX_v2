@@ -128,7 +128,8 @@ describe('GET /api/fulfillment/services', () => {
       );
     });
 
-    it('should return 403 for customer users', async () => {
+    it('should allow customer users to view services for their orders', async () => {
+      // BUG FIX (March 9, 2026): Customers can now view services for their orders
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: 'customer-user',
@@ -138,13 +139,26 @@ describe('GET /api/fulfillment/services', () => {
         }
       });
 
+      vi.mocked(ServiceFulfillmentService.getServices).mockResolvedValueOnce({
+        services: [],
+        total: 0,
+        limit: 50,
+        offset: 0
+      });
+
       const request = new Request('http://localhost:3000/api/fulfillment/services');
 
       const response = await GET(request);
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
 
-      const data = await response.json();
-      expect(data).toHaveProperty('error', 'Insufficient permissions to view services');
+      // Verify customer ID is passed to service
+      expect(ServiceFulfillmentService.getServices).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userType: 'customer',
+          customerId: 'customer-123'
+        }),
+        expect.any(Object)
+      );
     });
 
     it('should return 403 for internal users without fulfillment permission', async () => {
@@ -200,6 +214,14 @@ describe('GET /api/fulfillment/services', () => {
     });
 
     it('should pass status filter to service', async () => {
+      vi.mocked(getServerSession).mockResolvedValueOnce({
+        user: {
+          id: 'user-456',
+          userType: 'internal',
+          permissions: { fulfillment: true }
+        }
+      });
+
       const request = new Request('http://localhost:3000/api/fulfillment/services?status=completed');
 
       vi.mocked(ServiceFulfillmentService.getServices).mockResolvedValueOnce({
@@ -262,6 +284,14 @@ describe('GET /api/fulfillment/services', () => {
     });
 
     it('should handle multiple filters together', async () => {
+      vi.mocked(getServerSession).mockResolvedValueOnce({
+        user: {
+          id: 'user-456',
+          userType: 'internal',
+          permissions: { fulfillment: true }
+        }
+      });
+
       const request = new Request(
         'http://localhost:3000/api/fulfillment/services?orderId=c47d9b2a-4e3f-4a8b-9c6d-1e2f3a4b5c6d&status=processing&limit=10'
       );
@@ -340,6 +370,14 @@ describe('GET /api/fulfillment/services', () => {
     });
 
     it('should return services with full details for internal users', async () => {
+      vi.mocked(getServerSession).mockResolvedValueOnce({
+        user: {
+          id: 'user-456',
+          userType: 'internal',
+          permissions: { fulfillment: true }
+        }
+      });
+
       const fullServices = {
         services: [
           {
@@ -428,6 +466,14 @@ describe('GET /api/fulfillment/services', () => {
     });
 
     it('should include pagination metadata in response', async () => {
+      vi.mocked(getServerSession).mockResolvedValueOnce({
+        user: {
+          id: 'user-456',
+          userType: 'internal',
+          permissions: { fulfillment: true }
+        }
+      });
+
       const paginatedServices = {
         services: [],
         total: 150,

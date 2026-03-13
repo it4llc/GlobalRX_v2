@@ -5,7 +5,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { ServiceFulfillmentService } from '@/lib/services/service-fulfillment.service';
 import { ServiceAuditService } from '@/lib/services/service-audit.service';
+import { ServiceOrderDataService } from '@/lib/services/service-order-data.service';
 import { updateServiceFulfillmentSchema } from '@/lib/schemas/service-fulfillment.schemas';
+import { getServerTranslations } from '@/lib/i18n/server-translations';
 import logger from '@/lib/logger';
 
 interface RouteParams {
@@ -17,11 +19,13 @@ interface RouteParams {
 /**
  * GET /api/fulfillment/services/[id]
  *
- * Get single service detail with history
+ * Get single service detail with history and order data
  *
  * Required permissions: fulfillment.view or assigned vendor
  *
- * Returns: ServiceFulfillmentWithRelations
+ * Returns: ServiceFulfillmentWithRelations with orderData field containing
+ *          all form fields collected during order submission (excludes subject
+ *          information fields that duplicate order.subject)
  *
  * Errors:
  *   401: Not authenticated
@@ -29,15 +33,18 @@ interface RouteParams {
  *   404: Service not found
  */
 export async function GET(request: Request, { params }: RouteParams) {
+  // Get translation function
+  const t = await getServerTranslations(request);
+
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: t('api.errors.unauthorized') }, { status: 401 });
   }
 
   // Step 2: Check if service ID is provided
   if (!params.id) {
-    return NextResponse.json({ error: 'Service ID is required' }, { status: 400 });
+    return NextResponse.json({ error: t('api.errors.serviceIdRequired') }, { status: 400 });
   }
 
   // Step 3: Permission check
@@ -59,7 +66,7 @@ export async function GET(request: Request, { params }: RouteParams) {
        session.user.permissions.fulfillment.includes('*'));
 
     if (!hasFulfillmentPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: t('api.errors.forbidden') }, { status: 403 });
     }
   }
 
@@ -77,16 +84,93 @@ export async function GET(request: Request, { params }: RouteParams) {
     );
 
     if (!service) {
-      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+      return NextResponse.json({ error: t('api.errors.serviceNotFound') }, { status: 404 });
     }
 
-    return NextResponse.json(service, { status: 200 });
+    // Security check: If user is a customer, verify they own this order
+    if (isCustomer && session.user.customerId) {
+      // The service should have been filtered by ServiceFulfillmentService
+      // but we'll double-check here for security
+      const order = service.order || {};
+      if (order.customerId && order.customerId !== session.user.customerId) {
+        logger.warn('Customer attempted to access service from another customer', {
+          customerId: session.user.customerId,
+          orderCustomerId: order.customerId,
+          serviceId: params.id
+        });
+        return NextResponse.json({ error: t('api.errors.serviceNotFound') }, { status: 404 });
+      }
+    }
+
+    // Step 5: Fetch order data for the service
+    // Business Rule 1: Order data must be included for ALL service types
+    // Business Rule 6: All users who can view a service can see all its order data fields
+    let orderData = {};
+    try {
+      // Need to get the order subject for duplicate detection
+      // Check if it's already included in the service response
+      let orderSubject = null;
+
+      if (service.order?.subject) {
+        // Subject is already included in the service response
+        orderSubject = service.order.subject;
+      } else if (service.order?.id) {
+        // Subject not included, need to fetch it separately
+        //
+        // WHY WE NEED ORDER SUBJECT:
+        // The ServiceOrderDataService needs order.subject to filter out duplicate fields
+        // For example: if OrderData contains "firstName" field but order.subject also has firstName,
+        // we don't want to show the same information twice in the UI
+        // This extra query is only needed when the service response doesn't include order.subject
+        const { prisma } = await import('@/lib/prisma');
+        const order = await prisma.order.findUnique({
+          where: { id: service.order.id },
+          select: { subject: true }
+        });
+        orderSubject = order?.subject;
+      }
+
+      // Business Rule 7: Order data returned as part of existing service response
+      // WHY WE INCLUDE ORDER DATA:
+      // - Fulfillment teams need to see exactly what information was collected for each service
+      // - Different services require different data (education needs school info, employment needs employer info)
+      // - This data helps vendors complete the verification process accurately
+      // - Customers can see what information they provided when checking order status
+      const fetchedData = await ServiceOrderDataService.getOrderDataForService(
+        service.orderItemId,
+        orderSubject
+      );
+      // Handle null return from service
+      orderData = fetchedData || {};
+    } catch (error) {
+      // Edge Case 4: Database query fails - log error but continue with empty orderData
+      //
+      // WHY WE CONTINUE ON ERROR:
+      // Service details page is still useful without order data
+      // Users can still see service status, vendor assignment, comments, and other key information
+      // Order data is supplementary - its absence shouldn't break the entire fulfillment workflow
+      logger.error('Error fetching order data for service', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        serviceId: params.id,
+        orderItemId: service.orderItemId
+      });
+      // Business Rule 8: If no order data exists, orderData should be empty object
+      orderData = {};
+    }
+
+    // Include orderData in the response
+    const responseData = {
+      ...service,
+      orderData
+    };
+
+    return NextResponse.json(responseData, { status: 200 });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
     // Handle vendor access denied
     if (errorMessage.includes('Access denied')) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      return NextResponse.json({ error: t('api.errors.accessDenied') }, { status: 403 });
     }
 
     logger.error('Error fetching service', {
@@ -95,7 +179,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       userId: session.user.id
     });
     return NextResponse.json(
-      { error: 'Failed to fetch service' },
+      { error: t('api.errors.failedToFetchService') },
       { status: 500 }
     );
   }
@@ -124,15 +208,18 @@ export async function GET(request: Request, { params }: RouteParams) {
  *   400: Invalid input
  */
 export async function PATCH(request: Request, { params }: RouteParams) {
+  // Get translation function
+  const t = await getServerTranslations(request);
+
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: t('api.errors.unauthorized') }, { status: 401 });
   }
 
   // Step 2: Check if service ID is provided
   if (!params.id) {
-    return NextResponse.json({ error: 'Service ID is required' }, { status: 400 });
+    return NextResponse.json({ error: t('api.errors.serviceIdRequired') }, { status: 400 });
   }
 
   // Step 3: Permission check
@@ -140,7 +227,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   // Customer users cannot update fulfillment services
   if (userType === 'customer') {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    return NextResponse.json({ error: t('api.errors.insufficientPermissions') }, { status: 403 });
   }
 
   // Step 4: Parse and validate input
@@ -149,7 +236,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     body = await request.json();
   } catch (error) {
     return NextResponse.json(
-      { error: 'Invalid JSON body' },
+      { error: t('api.errors.invalidJsonBody') },
       { status: 400 }
     );
   }
@@ -157,14 +244,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   // Check for empty body
   if (!body || Object.keys(body).length === 0) {
     return NextResponse.json(
-      { error: 'Request body cannot be empty' },
+      { error: t('api.errors.requestBodyEmpty') },
       { status: 400 }
     );
   }
   const validation = updateServiceFulfillmentSchema.safeParse(body);
   if (!validation.success) {
     return NextResponse.json(
-      { error: 'Invalid input', details: validation.error.errors },
+      { error: t('api.errors.invalidInput'), details: validation.error.errors },
       { status: 400 }
     );
   }
@@ -178,7 +265,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     // Vendors cannot update internal notes
     if ('internalNotes' in body) {
       return NextResponse.json(
-        { error: 'Vendors cannot update internal notes' },
+        { error: t('api.errors.vendorsCannotUpdateInternalNotes') },
         { status: 403 }
       );
     }
@@ -187,7 +274,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     // Check if vendor assignment requires manage permission
     if ('assignedVendorId' in body) {
       return NextResponse.json(
-        { error: 'Insufficient permissions to assign vendors' },
+        { error: t('api.errors.insufficientPermissionsToAssignVendors') },
         { status: 403 }
       );
     }
@@ -208,7 +295,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     if (!hasManagePermission) {
       return NextResponse.json(
-        { error: 'Insufficient permissions to assign vendors' },
+        { error: t('api.errors.insufficientPermissionsToAssignVendors') },
         { status: 403 }
       );
     }
@@ -225,14 +312,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
       if (!vendor) {
         return NextResponse.json(
-          { error: 'Vendor not found' },
+          { error: t('api.errors.vendorNotFound') },
           { status: 404 }
         );
       }
 
       if (vendor.deactivated) {
         return NextResponse.json(
-          { error: 'Cannot assign to deactivated vendor' },
+          { error: t('api.errors.cannotAssignToDeactivatedVendor') },
           { status: 400 }
         );
       }
@@ -242,7 +329,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         vendorId: updates.assignedVendorId
       });
       return NextResponse.json(
-        { error: 'Failed to validate vendor' },
+        { error: t('api.errors.failedToValidateVendor') },
         { status: 500 }
       );
     }
@@ -272,12 +359,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    if (errorMessage.includes('not found')) {
-      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+    if (errorMessage.toLowerCase().includes('not found')) {
+      return NextResponse.json({ error: t('api.errors.serviceNotFound') }, { status: 404 });
     }
 
     if (errorMessage.includes('Forbidden')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: t('api.errors.forbidden') }, { status: 403 });
     }
 
     logger.error('Error updating service', {
@@ -287,7 +374,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     });
 
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: t('api.errors.internalServerError') },
       { status: 500 }
     );
   }

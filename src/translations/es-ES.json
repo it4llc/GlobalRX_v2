@@ -225,5 +225,21 @@
   "module.fulfillment.commentPlaceholder": "Enter your comment here...",
   "module.fulfillment.commentCharacterLimit": "1000 characters maximum",
   "module.fulfillment.commentRequired": "Comment text is required",
-  "module.fulfillment.templateRequired": "Please select a comment template"
+  "module.fulfillment.templateRequired": "Please select a comment template",
+  "api.errors.unauthorized": "No autorizado",
+  "api.errors.serviceIdRequired": "Se requiere ID de servicio",
+  "api.errors.forbidden": "Prohibido",
+  "api.errors.insufficientPermissions": "Permisos insuficientes",
+  "api.errors.serviceNotFound": "Servicio no encontrado",
+  "api.errors.accessDenied": "Acceso denegado",
+  "api.errors.failedToFetchService": "Error al obtener el servicio",
+  "api.errors.invalidJsonBody": "Cuerpo JSON no válido",
+  "api.errors.requestBodyEmpty": "El cuerpo de la solicitud no puede estar vacío",
+  "api.errors.invalidInput": "Entrada no válida",
+  "api.errors.vendorsCannotUpdateInternalNotes": "Los proveedores no pueden actualizar notas internas",
+  "api.errors.insufficientPermissionsToAssignVendors": "Permisos insuficientes para asignar proveedores",
+  "api.errors.vendorNotFound": "Proveedor no encontrado",
+  "api.errors.cannotAssignToDeactivatedVendor": "No se puede asignar a un proveedor desactivado",
+  "api.errors.failedToValidateVendor": "Error al validar el proveedor",
+  "api.errors.internalServerError": "Error interno del servidor"
 }

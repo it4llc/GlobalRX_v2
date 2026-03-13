@@ -153,7 +153,15 @@ test('shows error when required fields are missing', async ({ page }) => {
 
 ### Step 5: Produce a test summary
 
-After writing all tests, produce a summary:
+Before writing the summary, you MUST run the following bash commands to get the real test counts from the actual files. Never estimate or recall from memory — only use the numbers these commands return:
+```bash
+# Count all it() and test() blocks across all test files you created
+grep -rh "^\s*it(\|^\s*test(" --include="*.test.ts" --include="*.test.tsx" --include="*.spec.ts" [list each file path you created] | wc -l
+```
+
+Run this command once for each category (unit, API, e2e) by passing only the relevant file paths, so you get a count per category. Then run it across all files combined to get the total.
+
+After running the commands and confirming the real numbers, produce the summary:
 
 ```
 # Test Summary: [Feature Name]
