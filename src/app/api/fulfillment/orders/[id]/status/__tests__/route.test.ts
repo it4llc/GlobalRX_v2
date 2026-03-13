@@ -233,11 +233,10 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
     });
 
     it('should successfully update order status and create history entry', async () => {
-      // THIS TEST WILL FAIL because the route doesn't exist yet
       const mockOrder = {
         id: 'order-123',
         orderNumber: '20240301-ABC-0001',
-        statusCode: 'pending',
+        statusCode: 'draft',
         customerId: 'customer-456'
       };
 
@@ -255,11 +254,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
       vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
         id: 'history-1',
         orderId: 'order-123',
-        fromStatus: 'pending',
+        fromStatus: 'draft',
         toStatus: 'processing',
         changedBy: 'user-123',
         changedAt: new Date(),
-        notes: null
+        notes: null,
+        isAutomatic: false
       });
 
       const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
@@ -286,17 +286,19 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
           statusCode: 'processing',
           updatedAt: expect.any(Date)
         },
-        include: expect.any(Object)
+        select: expect.any(Object)
       });
 
       // Verify history entry was created
       expect(prisma.orderStatusHistory.create).toHaveBeenCalledWith({
         data: {
           orderId: 'order-123',
-          fromStatus: 'pending',
+          fromStatus: 'draft',
           toStatus: 'processing',
           changedBy: 'user-123',
-          notes: 'Starting processing'
+          notes: 'Starting processing',
+          reason: 'Starting processing',
+          isAutomatic: false
         }
       });
     });
@@ -331,11 +333,10 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
     });
 
     it('should allow unrestricted status changes per specification', async () => {
-      // THIS TEST WILL FAIL because the route doesn't exist yet
       // Per spec: "No restrictions on status changes—any status can change to any other status"
       const testCases = [
-        { from: 'pending', to: 'completed' },
-        { from: 'completed', to: 'pending' },
+        { from: 'draft', to: 'completed' },
+        { from: 'completed', to: 'draft' },
         { from: 'processing', to: 'cancelled' },
         { from: 'cancelled', to: 'processing' }
       ];
@@ -390,10 +391,9 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
     });
 
     it('should return 500 when database error occurs during update', async () => {
-      // THIS TEST WILL FAIL because the route doesn't exist yet
       const mockOrder = {
         id: 'order-123',
-        statusCode: 'pending'
+        statusCode: 'draft'
       };
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
@@ -415,10 +415,9 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
     });
 
     it('should handle transaction rollback on failure', async () => {
-      // THIS TEST WILL FAIL because the route doesn't exist yet
       const mockOrder = {
         id: 'order-123',
-        statusCode: 'pending'
+        statusCode: 'draft'
       };
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
@@ -450,18 +449,15 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
 
   describe('valid status values', () => {
     it('should accept all valid order status codes', async () => {
-      // THIS TEST WILL FAIL because the route doesn't exist yet
+      // Test the seven standardized order status values
       const validStatuses = [
-        'pending',
+        'draft',
+        'submitted',
         'processing',
+        'missing_info',
         'completed',
         'cancelled',
-        'on_hold',
-        'failed',
-        'submitted',
-        'in_review',
-        'approved',
-        'rejected'
+        'cancelled_dnb'
       ];
 
       for (const status of validStatuses) {
@@ -477,7 +473,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
 
         const mockOrder = {
           id: 'order-123',
-          statusCode: 'pending'
+          statusCode: 'draft'
         };
 
         vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
