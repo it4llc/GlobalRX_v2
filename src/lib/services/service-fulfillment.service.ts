@@ -80,7 +80,17 @@ export class ServiceFulfillmentService {
   ): Promise<{ services: ServiceFulfillmentWithRelations[]; total: number; limit: number; offset: number }> {
     try {
       // Build where clause with proper type
-      let where: any = {};
+      interface ServiceWhereClause {
+        orderId?: string;
+        assignedVendorId?: string;
+        orderItem?: {
+          status: string;
+        };
+        order?: {
+          customerId: string;
+        };
+      }
+      let where: ServiceWhereClause = {};
 
       if (params.orderId) where.orderId = params.orderId;
       // Status now comes from OrderItem, not ServicesFulfillment
@@ -223,10 +233,16 @@ export class ServiceFulfillmentService {
       // Remove sensitive customer details for vendor users
       if (user.userType === 'vendor' && service.order) {
         // Keep only essential order info for vendors, remove PII
-        (service as any).order = {
-          id: service.order.id,
-          orderNumber: service.order.orderNumber
+        // Create a new object with filtered order data to maintain type safety
+        const sanitizedService: ServiceFulfillmentWithRelations = {
+          ...service,
+          order: {
+            id: service.order.id,
+            orderNumber: service.order.orderNumber,
+            customerId: '' // Empty string to satisfy type but not expose real customerId
+          }
         };
+        return sanitizedService;
       }
 
       return service as ServiceFulfillmentWithRelations;
@@ -590,6 +606,34 @@ export class ServiceFulfillmentService {
         orderId
       });
       throw error;
+    }
+  }
+
+  /**
+   * Check if all services (OrderItems) in an order have "submitted" status
+   * Used for automatic order status progression from "draft" to "submitted"
+   */
+  static async checkAllServicesSubmitted(orderId: string): Promise<boolean> {
+    try {
+      const orderItems = await prisma.orderItem.findMany({
+        where: { orderId },
+        select: { status: true }
+      });
+
+      // If no order items, return false (can't progress empty order)
+      if (orderItems.length === 0) {
+        return false;
+      }
+
+      // Check if all items have "Submitted" status
+      // Normalize to lowercase for comparison to handle case differences
+      return orderItems.every(item => item.status?.toLowerCase() === 'submitted');
+    } catch (error) {
+      logger.error('Error checking if all services are submitted', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        orderId
+      });
+      return false; // Safe default - don't auto-progress on error
     }
   }
 

@@ -164,10 +164,71 @@ Authorization: Bearer {session-token}
 
 ### Related Endpoints
 
-- `PUT /api/fulfillment` - Update order status for fulfillment
+- `PATCH /api/fulfillment/orders/[id]/status` - Update order status (NEW: Order Status Management)
+- `PUT /api/fulfillment` - Update order status for fulfillment (legacy)
 - `GET /api/fulfillment/orders/[id]` - Get specific order details
 - `GET /api/fulfillment/services/[id]` - Get individual service details with order data
+- `PUT /api/services/[id]/status` - Update individual service status with automatic order progression
 - `POST /api/fulfillment/services/bulk-assign` - Bulk assign services to vendors
+
+---
+
+## PATCH /api/fulfillment/orders/[id]/status
+
+Updates order status with comprehensive audit trails and automatic progression logic.
+
+### Authentication
+**Required:** Yes - Valid session with fulfillment permissions
+
+### Permissions Required
+- **Internal Users Only:** `fulfillment.*` or `admin.*` permissions required
+- **Vendors/Customers:** Cannot change order status (403 Forbidden)
+
+### Business Rules
+
+1. **Standardized Status Values:** Uses seven consistent values matching service statuses
+2. **No Transition Restrictions:** Any status can change to any other (Phase 2a design)
+3. **Audit Trail Creation:** Every change logged in OrderStatusHistory table
+4. **Automatic Progression:** Integration with service status changes for workflow automation
+
+### Request Body
+
+```typescript
+{
+  status: 'draft' | 'submitted' | 'processing' | 'missing_info' | 'completed' | 'cancelled' | 'cancelled_dnb',
+  notes?: string
+}
+```
+
+### Response Example
+
+```typescript
+{
+  id: "order-123",
+  orderNumber: "20260313-ABC-0001",
+  statusCode: "processing",
+  customerId: "customer-456",
+  customer: {
+    id: "customer-456",
+    name: "Acme Corporation"
+  },
+  items: [...],
+  message: "Order status updated successfully"
+}
+```
+
+### Integration with Service Status Changes
+
+When individual services are updated via `PUT /api/services/[id]/status`, the system automatically:
+
+1. **Checks Service Status:** Monitors all services in the order
+2. **Triggers Progression:** If ALL services become "submitted" and order is "draft"
+3. **Auto-Updates Order:** Changes order status to "submitted" automatically
+4. **Creates Audit Trail:** Logs automatic change with system attribution
+
+This prevents orders from remaining in draft when all services are ready for processing.
+
+**See:** [Order Status Management API Documentation](./order-status-management.md) for complete details.
 
 ---
 
