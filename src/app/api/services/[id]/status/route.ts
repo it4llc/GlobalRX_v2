@@ -372,6 +372,65 @@ export async function PUT(
       hasComment: !!comment
     });
 
+    // Check for automatic order status progression when service becomes "Submitted"
+    if (newStatus === 'Submitted' && orderId) {
+      try {
+        // Import the service here to avoid circular dependencies
+        const { ServiceFulfillmentService } = await import('@/lib/services/service-fulfillment.service');
+
+        // Check if all services in the order are now submitted
+        const allSubmitted = await ServiceFulfillmentService.checkAllServicesSubmitted(orderId);
+
+        if (allSubmitted) {
+          // Check current order status
+          const order = await prisma.order.findUnique({
+            where: { id: orderId },
+            select: { statusCode: true }
+          });
+
+          // Only progress from draft to submitted automatically
+          if (order && order.statusCode === 'draft') {
+            // Update order status to submitted
+            await prisma.$transaction(async (tx) => {
+              await tx.order.update({
+                where: { id: orderId },
+                data: {
+                  statusCode: 'submitted',
+                  submittedAt: new Date(),
+                  updatedAt: new Date()
+                }
+              });
+
+              // Create automatic status change history
+              await tx.orderStatusHistory.create({
+                data: {
+                  orderId: orderId,
+                  fromStatus: 'draft',
+                  toStatus: 'submitted',
+                  changedBy: userId, // Use the actual user who triggered the change
+                  isAutomatic: true, // This flag indicates it was automatic
+                  notes: `Automatically updated - all services submitted (triggered by user action on service ${serviceId})`
+                }
+              });
+            });
+
+            logger.info('Order status automatically progressed to submitted', {
+              orderId,
+              triggeredByService: serviceId,
+              userId
+            });
+          }
+        }
+      } catch (autoProgressError) {
+        // Log error but don't fail the service status update
+        logger.error('Failed to check/update order status automatically', {
+          error: autoProgressError instanceof Error ? autoProgressError.message : 'Unknown error',
+          orderId,
+          serviceId
+        });
+      }
+    }
+
     return NextResponse.json(result, { status: 200 });
 
   } catch (error) {
