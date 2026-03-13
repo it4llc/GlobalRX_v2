@@ -311,19 +311,19 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                 <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.address')}:</dt>
                 <dd className="mt-0.5 text-base text-black">{formatValue(subject.address)}</dd>
               </div>
-              {subject.city && (
+              {subject.city !== undefined && subject.city !== null && subject.city !== '' && (
                 <div>
                   <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.city')}:</dt>
                   <dd className="mt-0.5 text-base text-black">{formatValue(subject.city)}</dd>
                 </div>
               )}
-              {subject.state && (
+              {subject.state !== undefined && subject.state !== null && subject.state !== '' && (
                 <div>
                   <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.state')}:</dt>
                   <dd className="mt-0.5 text-base text-black">{formatValue(subject.state)}</dd>
                 </div>
               )}
-              {subject.zipCode && (
+              {subject.zipCode !== undefined && subject.zipCode !== null && subject.zipCode !== '' && (
                 <div>
                   <dt className="text-xs font-semibold text-gray-500">{t('module.fulfillment.zipCode')}:</dt>
                   <dd className="mt-0.5 text-base text-black">{formatValue(subject.zipCode)}</dd>
@@ -343,37 +343,58 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                 orderId={order.id}
                 services={order.items
                   .filter(item => item.id) // Ensure item has a valid ID
-                  .map(item => ({
-                  // ID MAPPING FIX: Use ServiceFulfillment ID if available, otherwise fall back to OrderItem ID
-                  // This ensures ServiceFulfillmentTable gets the correct ID for comment lookups
-                  // ServiceFulfillment.id is what comments API keys results by
-                  id: item.serviceFulfillment?.id || item.id,
-                  orderId: order.id,
-                  orderItemId: item.id,
-                  serviceId: item.service?.id || '',
-                  locationId: item.location?.id || '',
-                  status: item.serviceFulfillment?.status || item.status || 'pending',
-                  assignedVendorId: item.serviceFulfillment?.assignedVendorId || null,
-                  vendorNotes: item.serviceFulfillment?.vendorNotes || null,
-                  internalNotes: item.serviceFulfillment?.internalNotes || null,
-                  assignedAt: item.serviceFulfillment?.assignedAt || null,
-                  assignedBy: item.serviceFulfillment?.assignedBy || null,
-                  completedAt: item.serviceFulfillment?.completedAt || null,
-                  createdAt: order.createdAt.toString(),
-                  updatedAt: order.updatedAt.toString(),
-                  service: item.service || {
-                    id: item.service?.id || `service-${item.id}`,
-                    name: item.service?.name || 'Unknown Service',
-                    code: item.service?.code || undefined,
-                    category: item.service?.category || null
-                  },
-                  location: item.location || {
-                    id: item.location?.id || `location-${item.id}`,
-                    name: item.location?.name || 'Unknown Location',
-                    code2: item.location?.code2 || null
-                  },
-                  assignedVendor: null
-                }))}
+                  .map(item => {
+                    // Convert data array to orderData object
+                    // The data field contains field-value pairs that represent service-specific requirements
+                    const orderData = item.data?.reduce((acc, dataItem) => {
+                      if (dataItem.fieldName && dataItem.fieldValue) {
+                        acc[dataItem.fieldName] = dataItem.fieldValue;
+                      }
+                      return acc;
+                    }, {} as Record<string, any>) || null;
+
+                    return {
+                      // ID MAPPING FIX: Use ServiceFulfillment ID if available, otherwise fall back to OrderItem ID
+                      // This ensures ServiceFulfillmentTable gets the correct ID for comment lookups
+                      // ServiceFulfillment.id is what comments API keys results by
+                      id: item.serviceFulfillment?.id || item.id,
+                      orderId: order.id,
+                      orderItemId: item.id,
+                      serviceId: item.service?.id || '',
+                      locationId: item.location?.id || '',
+                      status: item.serviceFulfillment?.status || item.status || 'pending',
+                      assignedVendorId: item.serviceFulfillment?.assignedVendorId || null,
+                      vendorNotes: item.serviceFulfillment?.vendorNotes || null,
+                      internalNotes: item.serviceFulfillment?.internalNotes || null,
+                      assignedAt: item.serviceFulfillment?.assignedAt || null,
+                      assignedBy: item.serviceFulfillment?.assignedBy || null,
+                      completedAt: item.serviceFulfillment?.completedAt || null,
+                      createdAt: order.createdAt.toString(),
+                      updatedAt: order.updatedAt.toString(),
+                      orderData,  // Include the orderData field for requirements display
+                      service: item.service ? {
+                        id: item.service.id,
+                        name: item.service.name,
+                        code: item.service.code,
+                        category: item.service.category || null
+                      } : {
+                        id: `service-${item.id}`,
+                        name: 'Unknown Service',
+                        code: undefined,
+                        category: null
+                      },
+                      location: item.location ? {
+                        id: item.location.id,
+                        name: item.location.name,
+                        code2: item.location.code2 || null
+                      } : {
+                        id: `location-${item.id}`,
+                        name: 'Unknown Location',
+                        code2: null
+                      },
+                      assignedVendor: null
+                    };
+                  })}
                 readOnly={readOnly}
                 showNotes={!isCustomer}
                 isCustomer={isCustomer}

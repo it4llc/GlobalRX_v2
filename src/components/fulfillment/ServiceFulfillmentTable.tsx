@@ -12,6 +12,7 @@ import { ModalDialog, DialogFooter } from '@/components/ui/modal-dialog';
 import type { DialogRef } from '@/components/ui/modal-dialog';
 import { ServiceCommentSection } from '@/components/services/ServiceCommentSection';
 import { ServiceResultsSection } from '@/components/services/ServiceResultsSection';
+import { ServiceRequirementsDisplay } from '@/components/services/ServiceRequirementsDisplay';
 import { useServiceComments } from '@/hooks/useServiceComments';
 import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
 import { UpdateServiceFulfillmentRequest } from '@/types/service-fulfillment';
@@ -39,6 +40,8 @@ interface ServiceFulfillment {
   resultsLastModifiedBy?: number | null;
   resultsLastModifiedAt?: string | null;
   attachmentsCount?: number;
+  // Order data fields (service-specific requirements)
+  orderData?: Record<string, string> | null; // OrderData from API is Record<string, string>
   service: {
     id: string;
     name: string;
@@ -1126,6 +1129,12 @@ export function ServiceFulfillmentTable({
                   <tr data-testid={`comment-section-${service.id}`}>
                     <td colSpan={100} className="px-6 py-4 bg-gray-50">
                       <div className="expanded-content-container space-y-6">
+                        {/* Requirements Section - Business Rule 1: Must be shown above results and comments */}
+                        <ServiceRequirementsDisplay orderData={service.orderData} />
+
+                        {/* Divider */}
+                        <hr className="border-gray-200" />
+
                         {/* Results Section */}
                         <ServiceResultsSection
                           serviceId={service.orderItemId}

@@ -375,5 +375,21 @@
   "services.indicators.hasResults": "Has search results",
   "services.indicators.results": "Results",
   "services.indicators.attachment": "attachment",
-  "services.indicators.attachments": "attachments"
+  "services.indicators.attachments": "attachments",
+  "api.errors.unauthorized": "Unauthorized",
+  "api.errors.serviceIdRequired": "Service ID is required",
+  "api.errors.forbidden": "Forbidden",
+  "api.errors.insufficientPermissions": "Insufficient permissions",
+  "api.errors.serviceNotFound": "Service not found",
+  "api.errors.accessDenied": "Access denied",
+  "api.errors.failedToFetchService": "Failed to fetch service",
+  "api.errors.invalidJsonBody": "Invalid JSON body",
+  "api.errors.requestBodyEmpty": "Request body cannot be empty",
+  "api.errors.invalidInput": "Invalid input",
+  "api.errors.vendorsCannotUpdateInternalNotes": "Vendors cannot update internal notes",
+  "api.errors.insufficientPermissionsToAssignVendors": "Insufficient permissions to assign vendors",
+  "api.errors.vendorNotFound": "Vendor not found",
+  "api.errors.cannotAssignToDeactivatedVendor": "Cannot assign to deactivated vendor",
+  "api.errors.failedToValidateVendor": "Failed to validate vendor",
+  "api.errors.internalServerError": "Internal server error"
 }

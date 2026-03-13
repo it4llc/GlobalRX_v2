@@ -234,5 +234,21 @@
   "module.fulfillment.commentPlaceholder": "Enter your comment here...",
   "module.fulfillment.commentCharacterLimit": "1000 characters maximum",
   "module.fulfillment.commentRequired": "Comment text is required",
-  "module.fulfillment.templateRequired": "Please select a comment template"
+  "module.fulfillment.templateRequired": "Please select a comment template",
+  "api.errors.unauthorized": "認証されていません",
+  "api.errors.serviceIdRequired": "サービスIDが必要です",
+  "api.errors.forbidden": "禁止されています",
+  "api.errors.insufficientPermissions": "権限が不足しています",
+  "api.errors.serviceNotFound": "サービスが見つかりません",
+  "api.errors.accessDenied": "アクセスが拒否されました",
+  "api.errors.failedToFetchService": "サービスの取得に失敗しました",
+  "api.errors.invalidJsonBody": "無効なJSONボディ",
+  "api.errors.requestBodyEmpty": "リクエストボディは空にできません",
+  "api.errors.invalidInput": "無効な入力",
+  "api.errors.vendorsCannotUpdateInternalNotes": "ベンダーは内部メモを更新できません",
+  "api.errors.insufficientPermissionsToAssignVendors": "ベンダーを割り当てる権限が不足しています",
+  "api.errors.vendorNotFound": "ベンダーが見つかりません",
+  "api.errors.cannotAssignToDeactivatedVendor": "無効化されたベンダーに割り当てることはできません",
+  "api.errors.failedToValidateVendor": "ベンダーの検証に失敗しました",
+  "api.errors.internalServerError": "内部サーバーエラー"
 }

@@ -166,7 +166,168 @@ Authorization: Bearer {session-token}
 
 - `PUT /api/fulfillment` - Update order status for fulfillment
 - `GET /api/fulfillment/orders/[id]` - Get specific order details
+- `GET /api/fulfillment/services/[id]` - Get individual service details with order data
 - `POST /api/fulfillment/services/bulk-assign` - Bulk assign services to vendors
+
+---
+
+## GET /api/fulfillment/services/[id]
+
+Retrieves detailed information about a specific service fulfillment record, including all order data collected during the original order submission process.
+
+### Authentication
+**Required:** Yes - Valid session with fulfillment permissions
+
+### Permissions Required
+- **Internal Users:** `fulfillment.view` or `fulfillment.*`
+- **Vendor Users:** Service must be assigned to user's vendor
+- **Customer Users:** Service must belong to user's customer
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (UUID) | Yes | Service fulfillment ID |
+
+### Request Example
+
+```http
+GET /api/fulfillment/services/srv_123e4567-e89b-12d3-a456-426614174000
+Authorization: Bearer {session-token}
+```
+
+### Response Format
+
+```typescript
+{
+  id: string,
+  orderItemId: string,
+  serviceId: string,
+  locationId: string,
+  status: 'pending' | 'submitted' | 'processing' | 'completed' | 'cancelled',
+  assignedVendorId?: string | null,
+  vendorNotes?: string | null,
+  internalNotes?: string | null,
+  assignedAt?: Date | null,
+  assignedBy?: string | null,
+  completedAt?: Date | null,
+  createdAt: Date,
+  updatedAt: Date,
+
+  // Related data
+  order: {
+    id: string,
+    orderNumber: string,
+    subject: {
+      firstName: string,
+      lastName: string,
+      // ... other subject fields
+    }
+  },
+  orderItem: {
+    id: string,
+    service: {
+      id: string,
+      name: string,
+      category: string
+    },
+    location: {
+      id: string,
+      name: string,
+      code_2: string
+    }
+  },
+
+  // NEW: Order data collected during order submission
+  orderData: {
+    [fieldLabel: string]: string | null
+    // Example:
+    // "School Name": "University of Michigan",
+    // "Degree Type": "Bachelor's",
+    // "Graduation Date": "2020-05-15",
+    // "Major/Field of Study": "Computer Science"
+  }
+}
+```
+
+### Order Data Field
+
+The `orderData` object contains all form fields that were collected when the customer originally submitted their order, formatted as key-value pairs with human-readable labels.
+
+#### Field Characteristics:
+- **Keys:** Human-readable field labels (e.g., "School Name", "Degree Type")
+- **Values:** Exact data as entered by customer (strings, may be null)
+- **Excluded:** Personal information that duplicates `order.subject` (firstName, lastName, email, DOB, SSN, phone)
+- **Fallback:** If workflow configuration is deleted, raw field names are used with underscore-to-space conversion
+
+#### Example Order Data by Service Type:
+
+**Education Verification:**
+```json
+{
+  "School Name": "University of Michigan",
+  "Degree Type": "Bachelor's Degree",
+  "Major/Field of Study": "Computer Science",
+  "Graduation Date": "2020-05-15",
+  "Student ID": "123456789",
+  "Additional Instructions": "Contact registrar directly"
+}
+```
+
+**Employment Verification:**
+```json
+{
+  "Company Name": "Tech Solutions Inc",
+  "Job Title": "Software Engineer",
+  "Employment Start Date": "2020-06-01",
+  "Employment End Date": "2024-01-15",
+  "Supervisor Name": "Jane Smith",
+  "HR Contact Phone": "(555) 123-4567"
+}
+```
+
+**Criminal Background Check:**
+```json
+{
+  "Search Scope": "County and Federal",
+  "Additional Counties": "Wayne County, MI; Cook County, IL",
+  "Years to Search": "7 years"
+}
+```
+
+### Business Rules
+
+1. **Data Inclusion:** Order data is included for ALL service types without exception
+2. **Field Filtering:** Personal information fields are excluded to prevent duplication with `order.subject`
+3. **Access Control:** All users who can view a service can see all its order data fields
+4. **Error Handling:** If order data cannot be retrieved, an empty object is returned (service details still load)
+5. **Label Formatting:** Field labels come from original workflow configuration when available
+6. **Fallback Display:** If workflow is deleted, raw field names are formatted (underscores become spaces)
+
+### Status Codes
+
+- **200 OK:** Success with service details and order data
+- **400 Bad Request:** Invalid service ID format
+- **401 Unauthorized:** Missing or invalid authentication
+- **403 Forbidden:** Access denied - user cannot view this service
+- **404 Not Found:** Service not found
+- **500 Internal Server Error:** Database or server error
+
+### Error Response Format
+
+```typescript
+{
+  error: string  // Error message describing the issue
+}
+```
+
+### Implementation Notes
+
+- Uses `ServiceOrderDataService` for consistent order data formatting
+- Handles missing workflow configurations gracefully
+- Logs all database errors while maintaining service availability
+- Includes duplicate field detection to prevent information redundancy
+- Supports graceful degradation - service details work even if order data fails
 
 ---
 
