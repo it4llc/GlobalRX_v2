@@ -1,9 +1,0 @@
-# migration.toml
-
-# This is an empty migration
-  
-# This migration applies to the following datasources
-datasource_types = ["postgresql"]
-
-# Checksum of the migration (will be updated by Prisma automatically)
-checksum = "f8c16d8d7de38ce2ce773a5ea1d9de3c1a30bf7f5f7dd9be36c2dd0c50a9b5a0"
