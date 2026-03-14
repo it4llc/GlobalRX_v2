@@ -188,6 +188,12 @@ import { FormTable, FormRow, FormActions } from '@/components/ui/form';
 - Show a loading state on the submit button while the form is submitting
 - Display error messages beneath the relevant input field
 
+**Required field asterisk rules:**
+- **Only show red asterisks (*) on input form fields** — never on read-only summary displays
+- **Complex components**: For components with sub-fields (like address blocks), only show asterisks when BOTH the parent field AND the individual sub-field are required
+- **Summary views**: Order summaries, review pages, and read-only displays should never show asterisks
+- **Bug prevention**: Test form vs. summary views separately to ensure asterisks only appear where users can take action
+
 ### 3.3 Tables
 
 All data tables MUST use the Shadcn UI table components with consistent class names.

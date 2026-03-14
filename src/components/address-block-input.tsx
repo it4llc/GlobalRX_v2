@@ -1,7 +1,7 @@
-// src/components/address-block-input.tsx
+// /GlobalRX_v2/src/components/address-block-input.tsx
 'use client';
 
-import { FC, useState, useEffect } from 'react';
+import React, { FC, useState, useEffect } from 'react';
 import { AddressBlockConfig } from './modules/global-config/tabs/address-block-configurator';
 import clientLogger from '@/lib/client-logger';
 
@@ -26,6 +26,7 @@ interface AddressBlockInputProps {
   locations?: { states: any[]; counties: any[] };
   countryId?: string; // Country context for filtering states
   fieldRequired?: boolean; // Whether the field itself is required (from DSX mapping)
+  required?: boolean; // Alternative prop name for backward compatibility
 }
 
 export const AddressBlockInput: FC<AddressBlockInputProps> = ({
@@ -35,8 +36,14 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
   error,
   locations,
   countryId,
-  fieldRequired = false
+  fieldRequired = false,
+  required
 }) => {
+  // BUG FIX: Address block asterisk display logic (March 14, 2026)
+  // Use required prop if provided, otherwise use fieldRequired
+  // This ensures proper backward compatibility with both prop naming conventions
+  const isParentRequired = required !== undefined ? required : fieldRequired;
+
   const [addressData, setAddressData] = useState<AddressData>(value || {});
   const [loading, setLoading] = useState(false);
   const [stateOptions, setStateOptions] = useState<{ id: string; name: string; code?: string }[]>([]);
@@ -162,9 +169,22 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
 
   const renderField = (
     field: keyof AddressData,
-    componentConfig: { enabled: boolean; label: string; required: boolean }
+    componentConfig: { enabled?: boolean; label: string; required: boolean }
   ) => {
-    if (!componentConfig.enabled) return null;
+    // If config is null/undefined or explicitly disabled, don't render
+    if (!componentConfig || (componentConfig.enabled !== undefined && !componentConfig.enabled)) return null;
+
+    // BUG FIX EXPLANATION (March 14, 2026):
+    // The asterisk logic below was fixed to check BOTH conditions:
+    // 1. componentConfig.required (the individual field must be required)
+    // 2. isParentRequired (the parent address block itself must be required)
+    //
+    // BEFORE: Only checked if the parent field was required (fieldRequired/required prop)
+    // AFTER: Checks if BOTH the parent AND the individual sub-field are required
+    //
+    // This prevents optional sub-fields like "Street Address 2" from showing
+    // red asterisks when they shouldn't (when the address block is required
+    // but the individual sub-field is optional).
 
     const fieldValue = addressData[field] || '';
 
@@ -174,7 +194,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         <div key={field}>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {componentConfig.label}
-            {fieldRequired && <span className="text-red-500 ml-1">*</span>}
+            {componentConfig.required && isParentRequired && <span className="text-red-500 ml-1">*</span>}
           </label>
           <select
             value={addressData.stateId || ''} // Use stateId for the select value
@@ -201,7 +221,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         <div key={field}>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {componentConfig.label}
-            {fieldRequired && <span className="text-red-500 ml-1">*</span>}
+            {componentConfig.required && isParentRequired && <span className="text-red-500 ml-1">*</span>}
           </label>
           <select
             value={addressData.countyId || ''} // Use countyId for the select value
@@ -228,7 +248,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
         <div key={field} className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {componentConfig.label}
-            {fieldRequired && <span className="text-red-500 ml-1">*</span>}
+            {componentConfig.required && isParentRequired && <span className="text-red-500 ml-1">*</span>}
           </label>
           <input
             type="text"
@@ -263,7 +283,7 @@ export const AddressBlockInput: FC<AddressBlockInputProps> = ({
       <div key={field}>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {componentConfig.label}
-          {fieldRequired && <span className="text-red-500 ml-1">*</span>}
+          {componentConfig.required && isParentRequired && <span className="text-red-500 ml-1">*</span>}
         </label>
         <input
           type="text"

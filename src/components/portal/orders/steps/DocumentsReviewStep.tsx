@@ -1,4 +1,7 @@
+// /GlobalRX_v2/src/components/portal/orders/steps/DocumentsReviewStep.tsx
 'use client';
+
+import React from 'react';
 
 interface DocumentsReviewStepProps {
   requirements: any;
@@ -7,7 +10,7 @@ interface DocumentsReviewStepProps {
   searchFieldValues: Record<string, Record<string, any>>;
   uploadedDocuments: Record<string, File>;
   onDocumentUpload: (documentId: string, file: File) => void;
-  checkMissingRequirements: () => {
+  checkMissingRequirements?: () => {
     isValid: boolean;
     missing: {
       subjectFields: Array<{ fieldName: string; serviceLocation: string }>;
@@ -96,18 +99,9 @@ export function DocumentsReviewStep({
       <div className="bg-gray-50 rounded-lg p-6">
         <h4 className="text-md font-medium text-gray-900 mb-4">Order Summary</h4>
 
-        {/* Service Items */}
-        <div className="mb-4">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">Services ({serviceItems.length})</h5>
-          <div className="space-y-2">
-            {serviceItems.map((item: any) => (
-              <div key={item.itemId} className="flex justify-between text-sm">
-                <span>{item.serviceName}: <span className="font-medium text-blue-700">{item.locationName}</span></span>
-                <span className="text-gray-400">Search</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* BUG FIX: Section ordering corrected (March 14, 2026)
+            Subject Information now appears BEFORE Services section
+            Previously Services appeared first, which was incorrect UX flow */}
 
         {/* Subject Fields Summary */}
         {requirements.subjectFields.length > 0 && (
@@ -127,10 +121,12 @@ export function DocumentsReviewStep({
 
                 return (
                   <div key={field.id} className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      {field.name}:
-                      {field.required && <span className="text-red-500 ml-1">*</span>}
-                    </span>
+                    {/* BUG FIX: Removed asterisks from field names in order summary (March 14, 2026)
+                        Order summary is a read-only display, not an input form.
+                        Asterisks are only appropriate for form inputs, not summary displays.
+                        BEFORE: {field.name}: {field.required && <span className="text-red-500 ml-1">*</span>}
+                        AFTER: {field.name}: (no asterisk) */}
+                    <span className="text-gray-600">{field.name}:</span>
                     <span className={((!value || isEmptyAddressBlock) && field.required) ? 'text-red-600 font-medium' : 'font-medium'}>
                       {!value || isEmptyAddressBlock ? (
                         field.required ? 'Missing' : 'Not provided'
@@ -154,6 +150,19 @@ export function DocumentsReviewStep({
           </div>
         )}
 
+        {/* Service Items */}
+        <div className="mb-4">
+          <h5 className="text-sm font-medium text-gray-700 mb-2">Services ({serviceItems.length})</h5>
+          <div className="space-y-2">
+            {serviceItems.map((item: any) => (
+              <div key={item.itemId} className="flex justify-between text-sm">
+                <span>{item.serviceName}: <span className="font-medium text-blue-700">{item.locationName}</span></span>
+                <span className="text-gray-400">Search</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Documents Summary */}
         {requirements.documents.length > 0 && (
           <div className="mb-4">
@@ -163,10 +172,9 @@ export function DocumentsReviewStep({
                 const file = uploadedDocuments[document.id];
                 return (
                   <div key={document.id} className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      {document.name}:
-                      {document.required && <span className="text-red-500 ml-1">*</span>}
-                    </span>
+                    {/* BUG FIX: Removed asterisks from document names in order summary (March 14, 2026)
+                        Same reasoning as field names - this is a read-only summary display */}
+                    <span className="text-gray-600">{document.name}:</span>
                     <span className={file ? 'text-green-600' : (document.required ? 'text-red-600 font-medium' : 'text-gray-400')}>
                       {file ? file.name : (document.required ? 'Missing (Required)' : 'Not uploaded')}
                     </span>
@@ -178,7 +186,7 @@ export function DocumentsReviewStep({
         )}
 
         {/* Missing Requirements Summary */}
-        {(() => {
+        {checkMissingRequirements && (() => {
           const { isValid, missing } = checkMissingRequirements();
           const totalMissing =
             missing.subjectFields.length +

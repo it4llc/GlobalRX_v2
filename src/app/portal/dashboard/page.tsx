@@ -1,3 +1,4 @@
+// /GlobalRX_v2/src/app/portal/dashboard/page.tsx
 'use client';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
