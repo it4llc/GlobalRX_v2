@@ -222,7 +222,7 @@ export default function CustomerDashboard() {
               <ClockIcon className="h-8 w-8 text-yellow-500" />
             </div>
             <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">Pending</p>
+              <p className="text-sm font-medium text-gray-600">Pending Orders</p>
               <p className="text-2xl font-semibold text-gray-900">
                 {stats.pending}
               </p>
@@ -241,7 +241,7 @@ export default function CustomerDashboard() {
               <CheckCircleIcon className="h-8 w-8 text-green-500" />
             </div>
             <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">Completed</p>
+              <p className="text-sm font-medium text-gray-600">Completed Orders</p>
               <p className="text-2xl font-semibold text-gray-900">
                 {stats.completed}
               </p>
@@ -260,7 +260,7 @@ export default function CustomerDashboard() {
               <ShoppingCartIcon className="h-8 w-8 text-gray-400" />
             </div>
             <div className="ml-4 text-left">
-              <p className="text-sm font-medium text-gray-600">Drafts</p>
+              <p className="text-sm font-medium text-gray-600">Draft Orders</p>
               <p className="text-2xl font-semibold text-gray-900">
                 {stats.draft}
               </p>
