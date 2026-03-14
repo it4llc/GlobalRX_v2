@@ -136,6 +136,14 @@ export async function GET(request: NextRequest) {
               service: true,
               location: true,
             },
+            // CRITICAL: Always order by service name then creation time to prevent
+            // services from changing display order when their status is updated.
+            // Without explicit ordering, Prisma returns results in undefined order
+            // which caused UI instability when services moved around after status updates.
+            orderBy: [
+              { service: { name: 'asc' } },
+              { createdAt: 'asc' }
+            ],
           },
         },
         orderBy: {
