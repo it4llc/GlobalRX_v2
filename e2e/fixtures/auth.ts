@@ -8,8 +8,8 @@ type AuthFixtures = {
 export const test = base.extend<AuthFixtures>({
   // Add authenticated page fixture
   authenticatedPage: async ({ page }, use) => {
-    // Navigate to login page
-    await page.goto('/login');
+    // Navigate to NextAuth signin page
+    await page.goto('/api/auth/signin');
 
     // Fill in login credentials using the seeded test data
     await page.fill('input[name="email"]', 'customer@acmecorp.com');
