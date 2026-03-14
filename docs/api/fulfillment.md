@@ -94,7 +94,7 @@ Authorization: Bearer {session-token}
       code?: string    // Country code for display preference
     },
     status: string     // Service status for ServiceStatusList component
-  }>,
+  }>,    // Items are always ordered by service name (asc), then creation date (asc) for consistent display
   createdAt: string,
   updatedAt: string,
   notes?: string | null
@@ -157,6 +157,16 @@ Authorization: Bearer {session-token}
 - Consistent user experience across all user types
 - Simplified dashboard layout and maintenance
 - Unified business metrics reporting
+
+#### March 14, 2026: Order Items Display Order Stability Fix
+**Problem:** Services within an order were changing display order when their status was updated because there was no explicit orderBy clause when fetching order items.
+
+**Solution:** Added explicit ordering `orderBy: [{ service: { name: 'asc' } }, { createdAt: 'asc' }]` to all order item queries.
+
+**Impact:**
+- Services now always display in consistent alphabetical order by service name
+- UI stability improved - services no longer "jump around" after status updates
+- Consistent ordering across all fulfillment endpoints
 
 ### Implementation Notes
 
