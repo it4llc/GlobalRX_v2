@@ -878,6 +878,83 @@ fetch('/api/endpoint')
   .then(data => setItems(handleApiResponse(data)))
 ```
 
+### 9.12 Database Query Ordering Standard
+
+**CRITICAL:** Always include explicit `orderBy` clauses in Prisma queries that return multiple records to ensure consistent display order across operations.
+
+**Common Ordering Bug:**
+Prisma queries without explicit `orderBy` clauses return records in undefined order. This causes UI instability when records appear to "jump around" or change positions after updates, even though the data itself is correct.
+
+**Real-World Bug Example (Fixed March 14, 2026):**
+Services within an order were changing display order when their status was updated because there was no explicit orderBy clause when fetching order items. This caused the database to return them in an undefined order, making services appear to "jump around" in the UI after status updates.
+
+**Bug Pattern Example:**
+```typescript
+// ❌ WRONG - No orderBy specified, results returned in undefined order
+const items = await prisma.orderItem.findMany({
+  where: { orderId },
+  include: {
+    service: true,
+    location: true
+  }
+  // Missing orderBy - order can change between queries
+});
+```
+
+**Correct Ordering Pattern:**
+```typescript
+// ✅ CORRECT - Explicit ordering prevents UI instability
+const items = await prisma.orderItem.findMany({
+  where: { orderId },
+  include: {
+    service: true,
+    location: true
+  },
+  // CRITICAL: Always order by service name then creation time to prevent
+  // services from changing display order when their status is updated.
+  // Without explicit ordering, Prisma returns results in undefined order
+  // which caused UI instability when services moved around after status updates.
+  orderBy: [
+    { service: { name: 'asc' } },
+    { createdAt: 'asc' }
+  ]
+});
+```
+
+**Prevention Guidelines:**
+- Include explicit `orderBy` in every query that returns multiple records
+- Use meaningful sort orders (alphabetical for user-facing lists, chronological for logs)
+- Use multi-level sorting for consistent ordering when primary field has duplicates
+- Document the ordering choice in comments if the business logic is not obvious
+- Test UI stability by performing updates and verifying records don't move unexpectedly
+
+**Common Ordering Requirements:**
+- **Order items:** Sort by service name for consistent display
+- **Service lists:** Sort by name for easy scanning
+- **Status history:** Sort by date (newest first) for chronological order
+- **User lists:** Sort by last name then first name
+- **Document lists:** Sort by upload date or document type
+
+**Standard Patterns:**
+```typescript
+// For user-facing lists - alphabetical
+orderBy: { name: 'asc' }
+
+// For audit trails - chronological (newest first)
+orderBy: { createdAt: 'desc' }
+
+// For complex relationships - multi-level sorting
+orderBy: [
+  { service: { name: 'asc' } },
+  { createdAt: 'asc' }
+]
+```
+
+**Files Fixed (March 14, 2026):**
+- `/src/lib/services/order-core.service.ts` (lines 505-508, 567-570)
+- `/src/app/api/fulfillment/route.ts` (lines 143-146)
+- `/src/app/api/fulfillment/orders/[id]/route.ts` (lines 220-223)
+
 ### 9.6 No Secrets in Code
 
 Database URLs, API keys, passwords, and other secrets must only exist in

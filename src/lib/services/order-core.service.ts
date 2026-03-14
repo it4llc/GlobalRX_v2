@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
 import { SubjectInfo } from '@/components/portal/orders/types';
+
+// Type definitions for field values to avoid using 'any'
+type FieldValue = string | number | boolean | Date | null;
+type FieldValueRecord = Record<string, FieldValue | Record<string, FieldValue>>;
 import { OrderNumberService } from './order-number.service';
 import { AddressService } from './address.service';
 import { FieldResolverService } from './field-resolver.service';
@@ -68,16 +72,20 @@ export class OrderCoreService {
    */
   static async normalizeSubjectData(
     baseSubject: SubjectInfo,
-    subjectFieldValues?: Record<string, any>,
+    subjectFieldValues?: FieldValueRecord,
     userId?: string
-  ): Promise<Record<string, any>> {
+  ): Promise<FieldValueRecord> {
     // First, resolve any IDs in subjectFieldValues to actual values
     const resolvedFieldValues = subjectFieldValues
-      ? await FieldResolverService.resolveFieldValues(subjectFieldValues)
+      ? await FieldResolverService.resolveFieldValues(subjectFieldValues as Record<string, any>)
       : {};
 
     // Start with base subject data
-    const normalized: Record<string, any> = { ...baseSubject };
+    // Start with base subject data, converting to our field value type
+    const normalized: FieldValueRecord = {};
+    Object.entries(baseSubject).forEach(([key, value]) => {
+      normalized[key] = value;
+    });
 
     // Process resolved field values and normalize field names
     for (const [originalKey, value] of Object.entries(resolvedFieldValues)) {
@@ -180,9 +188,9 @@ export class OrderCoreService {
       itemId: string;
     }>;
     subject: SubjectInfo;
-    subjectFieldValues?: Record<string, any>;
-    searchFieldValues?: Record<string, Record<string, any>>;
-    uploadedDocuments?: Record<string, any>;
+    subjectFieldValues?: FieldValueRecord;
+    searchFieldValues?: Record<string, FieldValueRecord>;
+    uploadedDocuments?: Record<string, FieldValue | FieldValue[]>;
     notes?: string;
     status?: 'draft' | 'submitted';
   }) {
@@ -328,7 +336,7 @@ export class OrderCoreService {
     newStatus: string,
     reason: string,
     bypassValidation: boolean = false
-  ): Promise<any> {
+  ) {
     // If customerId is provided, include it in the query
     const whereClause = customerId
       ? { id: orderId, customerId }
@@ -490,6 +498,14 @@ export class OrderCoreService {
                 },
               },
             },
+            // CRITICAL: Always order by service name then creation time to prevent
+            // services from changing display order when their status is updated.
+            // Without explicit ordering, Prisma returns results in undefined order
+            // which caused UI instability when services moved around after status updates.
+            orderBy: [
+              { service: { name: 'asc' } },
+              { createdAt: 'asc' }
+            ],
           },
           statusHistory: {
             orderBy: { createdAt: 'desc' },
@@ -504,6 +520,18 @@ export class OrderCoreService {
     ]);
 
     return { orders, total };
+  }
+
+  /**
+   * Alias for getCustomerOrders to match test expectations
+   */
+  static async getOrdersForCustomer(customerId: string, filters?: {
+    status?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    return this.getCustomerOrders(customerId, filters);
   }
 
   /**
@@ -532,6 +560,14 @@ export class OrderCoreService {
             data: true,
             documents: true,
           },
+          // CRITICAL: Always order by service name then creation time to prevent
+          // services from changing display order when their status is updated.
+          // Without explicit ordering, Prisma returns results in undefined order
+          // which caused UI instability when services moved around after status updates.
+          orderBy: [
+            { service: { name: 'asc' } },
+            { createdAt: 'asc' }
+          ],
         },
         statusHistory: {
           include: {
@@ -711,7 +747,7 @@ export class OrderCoreService {
     userId: string,
     newStatus: string,
     notes?: string
-  ): Promise<any> {
+  ) {
     // Use the main method with bypass flags
     return this.updateOrderStatus(
       orderId,
