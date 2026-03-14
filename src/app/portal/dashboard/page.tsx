@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ServiceStatusList } from '@/components/orders/ServiceStatusList';
 
 interface DashboardStats {
   total: number;
@@ -31,7 +32,9 @@ interface OrderItem {
   location: {
     id: string;
     name: string;
+    code?: string;
   };
+  status: string;
 }
 
 interface Order {
@@ -386,25 +389,10 @@ export default function CustomerDashboard() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {order.items && order.items.length > 0 ? (
-                          <div className="space-y-1">
-                            {order.items.slice(0, 2).map((item, idx) => (
-                              <div key={item.id}>
-                                <span className="font-medium">{item.service.name}:</span>{' '}
-                                <span className="text-blue-600">{item.location.name}</span>
-                              </div>
-                            ))}
-                            {order.items.length > 2 && (
-                              <div className="text-gray-500 text-xs">
-                                +{order.items.length - 2} more
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-500">No services</span>
-                        )}
-                      </div>
+                      {/* ServiceStatusList component displays each service in its own row
+                          IMPORTANT: Initially this was missed and dashboard showed raw service data
+                          Fixed to maintain consistency with other portal pages */}
+                      <ServiceStatusList items={order.items} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.statusCode)}`}>

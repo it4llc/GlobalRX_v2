@@ -90,14 +90,18 @@ Authorization: Bearer {session-token}
     },
     location: {
       id: string,
-      name: string
-    }
+      name: string,
+      code?: string    // Country code for display preference
+    },
+    status: string     // Service status for ServiceStatusList component
   }>,
   createdAt: string,
   updatedAt: string,
   notes?: string | null
 }
 ```
+
+**Note:** The `items` array is consumed by the `ServiceStatusList` component to display individual services within orders tables. Each item includes service name, location data (with optional country code), and status for consistent display across portal pages.
 
 #### Statistics Object
 ```typescript

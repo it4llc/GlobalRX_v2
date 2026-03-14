@@ -1,11 +1,15 @@
+// /GlobalRX_v2/src/app/portal/orders/page.tsx
+
 'use client';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useSession } from 'next-auth/react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { ServiceStatusList } from '@/components/orders/ServiceStatusList';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface OrderItem {
   id: string;
@@ -16,14 +20,16 @@ interface OrderItem {
   location: {
     id: string;
     name: string;
+    code?: string;
   };
+  status: string;
 }
 
 interface Order {
   id: string;
   orderNumber: string;
   statusCode: string;
-  subject: any;
+  subject: Record<string, string | number | boolean | null> | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -54,13 +60,11 @@ const getStatusColor = (statusCode: string): string => {
   }
 };
 
-const formatStatus = (statusCode: string): string => {
-  return statusCode.charAt(0).toUpperCase() + statusCode.slice(1);
-};
 
 export default function OrdersPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,7 +133,7 @@ export default function OrdersPage() {
   };
 
   if (!session) {
-    return <div>Loading...</div>;
+    return <div>{t('common.loading')}</div>;
   }
 
   return (
@@ -137,13 +141,13 @@ export default function OrdersPage() {
       {/* Header */}
       <div className="bg-white rounded-lg shadow px-6 py-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">My Orders</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t('portal.orders.title')}</h2>
           <Link
             href="/portal/orders/new"
             className="inline-flex items-center rounded-md bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
           >
             <PlusIcon className="h-5 w-5 mr-2" />
-            New Order
+            {t('portal.orders.newOrder')}
           </Link>
         </div>
       </div>
@@ -156,7 +160,7 @@ export default function OrdersPage() {
               <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search orders..."
+                placeholder={t('portal.orders.searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -170,18 +174,18 @@ export default function OrdersPage() {
               onChange={(e) => handleStatusFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="submitted">Submitted</option>
-              <option value="processing">Processing</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="">{t('portal.orders.allStatus')}</option>
+              <option value="draft">{t('services.status.draft')}</option>
+              <option value="submitted">{t('services.status.submitted')}</option>
+              <option value="processing">{t('services.status.processing')}</option>
+              <option value="completed">{t('services.status.completed')}</option>
+              <option value="cancelled">{t('services.status.cancelled')}</option>
             </select>
             <button
               onClick={handleSearch}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
-              Search
+              {t('common.search')}
             </button>
           </div>
         </div>
@@ -192,7 +196,7 @@ export default function OrdersPage() {
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Loading orders...</span>
+            <span className="ml-2 text-gray-600">{t('portal.orders.loadingOrders')}</span>
           </div>
         ) : error ? (
           <div className="text-center py-12">
@@ -201,18 +205,18 @@ export default function OrdersPage() {
               onClick={() => fetchOrders()}
               className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
-              Retry
+              {t('common.retry')}
             </button>
           </div>
         ) : orders.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">No orders found.</p>
+            <p className="text-gray-500 mb-4">{t('portal.orders.noOrdersFound')}</p>
             <Link
               href="/portal/orders/new"
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               <PlusIcon className="h-4 w-4 mr-2" />
-              Create Your First Order
+              {t('portal.orders.createFirstOrder')}
             </Link>
           </div>
         ) : (
@@ -222,19 +226,19 @@ export default function OrdersPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order
+                      {t('portal.orders.order')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Services
+                      {t('portal.orders.services')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
+                      {t('common.status')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created
+                      {t('portal.orders.created')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
+                      {t('portal.orders.actions')}
                     </th>
                   </tr>
                 </thead>
@@ -277,36 +281,20 @@ export default function OrdersPage() {
                                   )
                                   .map(([key, value]) => value);
 
-                                return nameFields.length > 0 ? nameFields.join(' ') : 'No subject';
+                                return nameFields.length > 0 ? nameFields.join(' ') : t('portal.orders.noSubject');
                               }
                             })()}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          {order.items.length > 0 ? (
-                            <div className="space-y-1">
-                              {order.items.slice(0, 2).map((item, idx) => (
-                                <div key={item.id}>
-                                  <span className="font-medium">{item.service.name}:</span>{' '}
-                                  <span className="text-blue-600">{item.location.name}</span>
-                                </div>
-                              ))}
-                              {order.items.length > 2 && (
-                                <div className="text-gray-500 text-xs">
-                                  +{order.items.length - 2} more
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-gray-500">No services</span>
-                          )}
-                        </div>
+                        {/* ServiceStatusList component displays each service in its own row
+                            Critical for customer portal where users need clear service status visibility */}
+                        <ServiceStatusList items={order.items} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.statusCode)}`}>
-                          {formatStatus(order.statusCode)}
+                          {t(`services.status.${order.statusCode}`)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -317,14 +305,14 @@ export default function OrdersPage() {
                           onClick={() => handleViewOrder(order.id)}
                           className="text-blue-600 hover:text-blue-900 mr-3 cursor-pointer"
                         >
-                          View
+                          {t('common.view')}
                         </button>
                         {order.statusCode === 'draft' && (
                           <Link
                             href={`/portal/orders/${order.id}/edit`}
                             className="text-gray-600 hover:text-gray-900"
                           >
-                            Edit
+                            {t('common.edit')}
                           </Link>
                         )}
                       </td>
@@ -344,26 +332,26 @@ export default function OrdersPage() {
                       disabled={currentPage === 1}
                       className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Previous
+                      {t('common.previous')}
                     </button>
                     <button
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
                       className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Next
+                      {t('common.next')}
                     </button>
                   </div>
                   <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm text-gray-700">
-                        Showing{' '}
+                        {t('portal.orders.showing')}{' '}
                         <span className="font-medium">{(currentPage - 1) * limit + 1}</span>{' '}
-                        to{' '}
+                        {t('portal.orders.to')}{' '}
                         <span className="font-medium">
                           {Math.min(currentPage * limit, total)}
                         </span>{' '}
-                        of <span className="font-medium">{total}</span> results
+                        {t('portal.orders.of')} <span className="font-medium">{total}</span> {t('portal.orders.results')}
                       </p>
                     </div>
                     <div>
@@ -373,7 +361,7 @@ export default function OrdersPage() {
                           disabled={currentPage === 1}
                           className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Previous
+                          {t('common.previous')}
                         </button>
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                           <button
@@ -393,7 +381,7 @@ export default function OrdersPage() {
                           disabled={currentPage === totalPages}
                           className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Next
+                          {t('common.next')}
                         </button>
                       </nav>
                     </div>
