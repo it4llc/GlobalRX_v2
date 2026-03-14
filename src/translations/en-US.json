@@ -98,6 +98,8 @@
   "common.error": "Error",
   "common.loading": "Loading...",
   "common.search": "Search",
+  "common.enter": "Enter",
+  "common.select": "Select",
   "common.filter": "Filter",
   "common.retry": "Retry",
   "common.sort": "Sort",

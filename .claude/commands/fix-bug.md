@@ -25,9 +25,9 @@ Only continue below if $ARGUMENTS contains a real bug description.
 
 The bug to fix is: **$ARGUMENTS**
 
-Work through each stage in strict order. Do not move to the next stage until
-the current one is complete and confirmed. Pass the full output from each
-stage to the next so no context is lost.
+Work through each stage in strict order. Each stage ends with a hard stop.
+You MUST NOT begin the next stage until Andy types CONTINUE.
+Pass the full output from each stage to the next so no context is lost.
 
 ---
 
@@ -41,15 +41,27 @@ Find the root cause — not just the symptom. Read all relevant files, check
 recent git history, assess the impact, and produce a full investigation report
 with a proposed fix approach. Do not modify any files."
 
-⏸ PAUSE after this stage and show Andy the investigation report.
+When the agent completes, present the full investigation report to Andy.
 
-Ask Andy:
-- Does this root cause analysis look correct?
+Then display this message exactly and STOP — do not run Stage 2, do not
+take any further action, do not continue for any reason:
+
+---
+## ⏸ STAGE 1 COMPLETE — REVIEW REQUIRED
+
+Please review the investigation report above and consider:
+- Does the root cause analysis look correct?
 - Is the proposed fix approach the right one?
 - Are there any other related areas that should be checked?
 
-Wait for confirmation before proceeding. If the root cause seems wrong,
-return to the bug-investigator with Andy's additional context.
+If the root cause seems wrong, tell me what is missing and I will return
+to the bug-investigator with your additional context.
+
+**Type CONTINUE to proceed to Stage 2 (Test Writing), or give feedback to re-investigate.**
+---
+
+Do not proceed until Andy types CONTINUE. Typing anything other than CONTINUE
+means Andy has feedback — address it before moving on.
 
 ---
 
@@ -71,9 +83,22 @@ After the agent completes, run the tests to confirm the bug-proving test fails:
 pnpm test
 ```
 
-⏸ PAUSE and show Andy the test summary.
-Confirm the key test is failing (proving the bug exists).
-Do not proceed until confirmed.
+Present the test results to Andy.
+
+Then display this message exactly and STOP — do not run Stage 3, do not
+take any further action, do not continue for any reason:
+
+---
+## ⏸ STAGE 2 COMPLETE — REVIEW REQUIRED
+
+Please review the test results above and confirm:
+- The key bug-proving test is currently FAILING (this is expected and correct)
+- The tests cover the scenarios described in the investigation report
+
+**Type CONTINUE to proceed to Stage 3 (Implementation), or give feedback to revise the tests.**
+---
+
+Do not proceed until Andy types CONTINUE.
 
 ---
 
@@ -99,14 +124,25 @@ After the agent completes, run the full test suite:
 pnpm test
 ```
 
-⏸ PAUSE and show Andy the results.
-Confirm:
-- The bug-proving test is now passing
-- All previously passing tests are still passing
-- No new failures were introduced
+Present the full test results to Andy. If any previously passing tests are
+now failing, return to the implementer before presenting results — the fix
+may have broken something.
 
-If any previously passing tests are now failing, return to the implementer
-before proceeding — the fix may have broken something.
+Then display this message exactly and STOP — do not run Stage 4, do not
+take any further action, do not continue for any reason:
+
+---
+## ⏸ STAGE 3 COMPLETE — REVIEW REQUIRED
+
+Please review the results above and confirm:
+- The bug-proving test is now PASSING
+- All previously passing tests are still passing
+- No new test failures were introduced
+
+**Type CONTINUE to proceed to Stage 4 (Code Review), or give feedback to revise the fix.**
+---
+
+Do not proceed until Andy types CONTINUE.
 
 ---
 
@@ -123,9 +159,23 @@ Tell the agent: "Review the bug fix. Focus on:
 
 Reference the bug investigation report when reviewing."
 
-⏸ PAUSE and show Andy the code review report.
-If the verdict is ❌ Requires rework, return to the implementer.
-If ✅ Approved or ⚠️ Approved with conditions, proceed.
+Present the full code review report to Andy.
+
+Then display this message exactly and STOP — do not run Stage 5, do not
+take any further action, do not continue for any reason:
+
+---
+## ⏸ STAGE 4 COMPLETE — REVIEW REQUIRED
+
+Please review the code review report above.
+
+- If the verdict is ❌ Requires rework — tell me what needs to change and I will return to the implementer.
+- If the verdict is ✅ Approved or ⚠️ Approved with conditions — type CONTINUE to proceed.
+
+**Type CONTINUE to proceed to Stage 5 (Standards Check), or give feedback to revise the fix.**
+---
+
+Do not proceed until Andy types CONTINUE.
 
 ---
 
@@ -136,9 +186,23 @@ Use the **standards-checker** agent to verify the fix follows coding standards.
 Tell the agent: "Check all files changed in this bug fix against
 docs/standards/CODING_STANDARDS.md. Produce a full checklist report."
 
-⏸ PAUSE and show Andy the standards report.
-If violations are found, return to the implementer with the specific issues.
-Re-run the standards-checker after fixes before proceeding.
+Present the full standards report to Andy.
+
+Then display this message exactly and STOP — do not run Stage 6, do not
+take any further action, do not continue for any reason:
+
+---
+## ⏸ STAGE 5 COMPLETE — REVIEW REQUIRED
+
+Please review the standards report above.
+
+- If violations were found — tell me what needs to change and I will return to the implementer, then re-run the standards check before proceeding.
+- If all standards are met — type CONTINUE to proceed.
+
+**Type CONTINUE to proceed to Stage 6 (Documentation), or give feedback to fix standards violations.**
+---
+
+Do not proceed until Andy types CONTINUE.
 
 ---
 
