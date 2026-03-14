@@ -33,6 +33,8 @@
   "common.required": "Obligatorio",
   "common.save": "Guardar",
   "common.search": "Buscar",
+  "common.enter": "Introducir",
+  "common.select": "Seleccionar",
   "common.retry": "Reintentar",
   "common.sort": "Ordenar",
   "common.status": "Estado",

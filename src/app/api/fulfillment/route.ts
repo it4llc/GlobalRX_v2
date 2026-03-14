@@ -138,8 +138,11 @@ export async function GET(request: NextRequest) {
             },
             // CRITICAL: Always order by service name then creation time to prevent
             // services from changing display order when their status is updated.
-            // Without explicit ordering, Prisma returns results in undefined order
-            // which caused UI instability when services moved around after status updates.
+            //
+            // BUG FIX (March 14, 2026): Services were appearing to "jump around" in order
+            // lists after status updates because Prisma returns results in undefined order
+            // when no explicit orderBy is specified. This fix ensures consistent ordering
+            // in the fulfillment dashboard where service stability is crucial for vendor workflow.
             orderBy: [
               { service: { name: 'asc' } },
               { createdAt: 'asc' }
