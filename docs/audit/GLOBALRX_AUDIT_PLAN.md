@@ -51,7 +51,9 @@ The platform has four modules:
 1. User Admin — manage internal users and permissions
 2. Global Configurations — locations, services, DSX (data requirements), translations
 3. Customer Configurations — customer accounts and service scopes
-4. Candidate Workflow — application forms and multilingual support
+4. Candidate Workflow — application forms and multilingual support (not currently implemented)
+5. Vendor Administration
+6. Fulfillment
 
 The platform was built incrementally without a formal testing strategy. The goal of this
 audit is to understand how enterprise-ready it is, and to provide a clear prioritized
