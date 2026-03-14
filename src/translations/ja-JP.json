@@ -33,6 +33,8 @@
   "common.required": "必須",
   "common.save": "保存",
   "common.search": "検索",
+  "common.enter": "入力",
+  "common.select": "選択",
   "common.retry": "再試行",
   "common.sort": "並べ替え",
   "common.status": "ステータス",

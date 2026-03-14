@@ -33,6 +33,8 @@
   "common.required": "Required",
   "common.save": "Save",
   "common.search": "Search",
+  "common.enter": "Enter",
+  "common.select": "Select",
   "common.retry": "Retry",
   "common.sort": "Sort",
   "common.status": "Status",

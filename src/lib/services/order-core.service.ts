@@ -562,8 +562,22 @@ export class OrderCoreService {
           },
           // CRITICAL: Always order by service name then creation time to prevent
           // services from changing display order when their status is updated.
-          // Without explicit ordering, Prisma returns results in undefined order
-          // which caused UI instability when services moved around after status updates.
+          //
+          // BUG FIX (March 14, 2026): Services were appearing to "jump around" in order
+          // lists after status updates because Prisma returns results in undefined order
+          // when no explicit orderBy is specified. This caused significant UI instability
+          // where the same services would appear in different positions after any database
+          // operation, creating a poor user experience.
+          //
+          // BUSINESS IMPACT: Users reported confusion when services changed positions
+          // after status updates, making it difficult to track progress on multi-service orders.
+          //
+          // ROOT CAUSE: Missing orderBy clauses in all order item queries meant that
+          // PostgreSQL returned results in whatever order was most efficient for the query,
+          // which could vary based on database state, indexing, and query execution plan.
+          //
+          // SOLUTION: Explicit alphabetical ordering by service name (primary) and creation
+          // time (secondary) ensures consistent display order regardless of status changes.
           orderBy: [
             { service: { name: 'asc' } },
             { createdAt: 'asc' }
