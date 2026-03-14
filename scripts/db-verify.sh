@@ -14,20 +14,19 @@ NC='\033[0m' # No Color
 
 # Load environment variables
 if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 echo -e "${GREEN}=== GlobalRx Database Verification ===${NC}"
 echo ""
 
-# Function to extract database connection info
-parse_database_url() {
+# Function to clean database URL
+clean_database_url() {
     local DB_URL=$1
-    if [[ $DB_URL =~ postgresql://([^:]+):([^@]+)@([^:]+):([^/]+)/(.+) ]]; then
-        echo "${BASH_REMATCH[1]}|${BASH_REMATCH[2]}|${BASH_REMATCH[3]}|${BASH_REMATCH[4]}|${BASH_REMATCH[5]}"
-    else
-        return 1
-    fi
+    # Remove query parameters
+    echo "$DB_URL" | sed 's/?.*$//'
 }
 
 # Function to check database connection and get stats
@@ -42,33 +41,37 @@ check_database() {
 
     echo -e "${BLUE}Checking ${ENV_NAME} database...${NC}"
 
-    IFS='|' read -r DB_USER DB_PASS DB_HOST DB_PORT DB_DATABASE <<< $(parse_database_url "$DB_URL")
+    # Clean the URL
+    DB_URL_CLEAN=$(clean_database_url "$DB_URL")
+
+    # Extract database name from URL for size query
+    DB_NAME=$(echo "$DB_URL_CLEAN" | sed 's/.*\///')
 
     # Test connection
-    if PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_DATABASE" -c '\q' 2>/dev/null; then
+    if psql "$DB_URL_CLEAN" -c 'SELECT 1;' >/dev/null 2>&1; then
         echo -e "${GREEN}✓ Connection successful${NC}"
 
         # Get database size
-        SIZE=$(PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_DATABASE" -t -c "SELECT pg_size_pretty(pg_database_size('$DB_DATABASE'));" | tr -d ' ')
+        SIZE=$(psql "$DB_URL_CLEAN" -t -c "SELECT pg_size_pretty(pg_database_size('$DB_NAME'));" | tr -d ' ')
         echo "  Database size: $SIZE"
 
         # Get table count
-        TABLE_COUNT=$(PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_DATABASE" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" | tr -d ' ')
+        TABLE_COUNT=$(psql "$DB_URL_CLEAN" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" | tr -d ' ')
         echo "  Tables: $TABLE_COUNT"
 
         # Get row counts for main tables
         echo "  Row counts:"
         for table in users customers orders products services package_recipients; do
-            COUNT=$(PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_DATABASE" -t -c "SELECT COUNT(*) FROM $table;" 2>/dev/null | tr -d ' ' || echo "N/A")
+            COUNT=$(psql "$DB_URL_CLEAN" -t -c "SELECT COUNT(*) FROM $table;" 2>/dev/null | tr -d ' ' || echo "N/A")
             printf "    %-20s %s\n" "$table:" "$COUNT"
         done
 
         # Check for active connections
-        ACTIVE_CONNS=$(PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_DATABASE" -t -c "SELECT COUNT(*) FROM pg_stat_activity WHERE datname = '$DB_DATABASE' AND state = 'active';" | tr -d ' ')
+        ACTIVE_CONNS=$(psql "$DB_URL_CLEAN" -t -c "SELECT COUNT(*) FROM pg_stat_activity WHERE datname = '$DB_NAME' AND state = 'active';" | tr -d ' ')
         echo "  Active connections: $ACTIVE_CONNS"
 
         # Get last migration
-        LAST_MIGRATION=$(PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_DATABASE" -t -c "SELECT migration_name FROM _prisma_migrations ORDER BY finished_at DESC LIMIT 1;" 2>/dev/null | tr -d ' ' || echo "Unknown")
+        LAST_MIGRATION=$(psql "$DB_URL_CLEAN" -t -c "SELECT migration_name FROM _prisma_migrations ORDER BY finished_at DESC LIMIT 1;" 2>/dev/null | tr -d ' ' || echo "Unknown")
         echo "  Last migration: $LAST_MIGRATION"
 
     else
@@ -91,12 +94,13 @@ compare_databases() {
         return
     fi
 
-    IFS='|' read -r DB1_USER DB1_PASS DB1_HOST DB1_PORT DB1_DATABASE <<< $(parse_database_url "$ENV1_URL")
-    IFS='|' read -r DB2_USER DB2_PASS DB2_HOST DB2_PORT DB2_DATABASE <<< $(parse_database_url "$ENV2_URL")
+    # Clean URLs
+    URL1_CLEAN=$(clean_database_url "$ENV1_URL")
+    URL2_CLEAN=$(clean_database_url "$ENV2_URL")
 
     # Compare table lists
-    TABLES1=$(PGPASSWORD="$DB1_PASS" psql -h "$DB1_HOST" -p "$DB1_PORT" -U "$DB1_USER" -d "$DB1_DATABASE" -t -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;" | tr -d ' ')
-    TABLES2=$(PGPASSWORD="$DB2_PASS" psql -h "$DB2_HOST" -p "$DB2_PORT" -U "$DB2_USER" -d "$DB2_DATABASE" -t -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;" | tr -d ' ')
+    TABLES1=$(psql "$URL1_CLEAN" -t -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;" | tr -d ' ')
+    TABLES2=$(psql "$URL2_CLEAN" -t -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;" | tr -d ' ')
 
     if [ "$TABLES1" = "$TABLES2" ]; then
         echo -e "${GREEN}✓ Table structures match${NC}"
@@ -109,8 +113,8 @@ compare_databases() {
     fi
 
     # Compare migration counts
-    MIGRATIONS1=$(PGPASSWORD="$DB1_PASS" psql -h "$DB1_HOST" -p "$DB1_PORT" -U "$DB1_USER" -d "$DB1_DATABASE" -t -c "SELECT COUNT(*) FROM _prisma_migrations;" 2>/dev/null | tr -d ' ')
-    MIGRATIONS2=$(PGPASSWORD="$DB2_PASS" psql -h "$DB2_HOST" -p "$DB2_PORT" -U "$DB2_USER" -d "$DB2_DATABASE" -t -c "SELECT COUNT(*) FROM _prisma_migrations;" 2>/dev/null | tr -d ' ')
+    MIGRATIONS1=$(psql "$URL1_CLEAN" -t -c "SELECT COUNT(*) FROM _prisma_migrations;" 2>/dev/null | tr -d ' ')
+    MIGRATIONS2=$(psql "$URL2_CLEAN" -t -c "SELECT COUNT(*) FROM _prisma_migrations;" 2>/dev/null | tr -d ' ')
 
     if [ "$MIGRATIONS1" = "$MIGRATIONS2" ]; then
         echo -e "${GREEN}✓ Migration counts match ($MIGRATIONS1)${NC}"

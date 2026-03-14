@@ -20,7 +20,9 @@ TEMP_DIR="/tmp/globalrx_db_sync_${TIMESTAMP}"
 
 # Load environment variables
 if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 echo -e "${GREEN}=== GlobalRx Database Sync ===${NC}"
@@ -98,14 +100,11 @@ fi
 mkdir -p "$TEMP_DIR"
 mkdir -p "$BACKUP_DIR"
 
-# Function to extract database connection info
-parse_database_url() {
+# Function to clean database URL
+clean_database_url() {
     local DB_URL=$1
-    if [[ $DB_URL =~ postgresql://([^:]+):([^@]+)@([^:]+):([^/]+)/(.+) ]]; then
-        echo "${BASH_REMATCH[1]}|${BASH_REMATCH[2]}|${BASH_REMATCH[3]}|${BASH_REMATCH[4]}|${BASH_REMATCH[5]}"
-    else
-        return 1
-    fi
+    # Remove query parameters
+    echo "$DB_URL" | sed 's/?.*$//'
 }
 
 # Function to backup a database
@@ -116,13 +115,10 @@ backup_database() {
 
     echo -e "${YELLOW}Backing up ${DB_NAME} database...${NC}"
 
-    IFS='|' read -r DB_USER DB_PASS DB_HOST DB_PORT DB_DATABASE <<< $(parse_database_url "$DB_URL")
+    # Clean URL and create backup
+    DB_URL_CLEAN=$(clean_database_url "$DB_URL")
 
-    PGPASSWORD="$DB_PASS" pg_dump \
-        -h "$DB_HOST" \
-        -p "$DB_PORT" \
-        -U "$DB_USER" \
-        -d "$DB_DATABASE" \
+    pg_dump "$DB_URL_CLEAN" \
         --no-owner \
         --no-privileges \
         --verbose \
@@ -153,28 +149,18 @@ sync_database() {
         echo -e "${YELLOW}⚠️  Skipping backup (--skip-backup flag used)${NC}"
     fi
 
-    # Parse target database connection
-    IFS='|' read -r TARGET_USER TARGET_PASS TARGET_HOST TARGET_PORT TARGET_DATABASE <<< $(parse_database_url "$TARGET_URL")
+    # Clean target URL
+    TARGET_URL_CLEAN=$(clean_database_url "$TARGET_URL")
 
     echo -e "${YELLOW}Dropping and recreating ${TARGET_NAME} database...${NC}"
 
     # Drop all tables in target database (safer than DROP DATABASE on managed services)
-    PGPASSWORD="$TARGET_PASS" psql \
-        -h "$TARGET_HOST" \
-        -p "$TARGET_PORT" \
-        -U "$TARGET_USER" \
-        -d "$TARGET_DATABASE" \
-        -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+    psql "$TARGET_URL_CLEAN" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 
     echo -e "${YELLOW}Restoring dev database to ${TARGET_NAME}...${NC}"
 
     # Restore the dump to target
-    PGPASSWORD="$TARGET_PASS" psql \
-        -h "$TARGET_HOST" \
-        -p "$TARGET_PORT" \
-        -U "$TARGET_USER" \
-        -d "$TARGET_DATABASE" \
-        < "$SOURCE_DUMP"
+    psql "$TARGET_URL_CLEAN" < "$SOURCE_DUMP"
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Successfully synced dev → ${TARGET_NAME}${NC}"
@@ -234,13 +220,9 @@ fi
 
 # Create dump of dev database
 echo -e "${YELLOW}Creating dump of dev database...${NC}"
-IFS='|' read -r DEV_USER DEV_PASS DEV_HOST DEV_PORT DEV_DATABASE <<< $(parse_database_url "$DATABASE_URL")
+DEV_URL_CLEAN=$(clean_database_url "$DATABASE_URL")
 
-PGPASSWORD="$DEV_PASS" pg_dump \
-    -h "$DEV_HOST" \
-    -p "$DEV_PORT" \
-    -U "$DEV_USER" \
-    -d "$DEV_DATABASE" \
+pg_dump "$DEV_URL_CLEAN" \
     --no-owner \
     --no-privileges \
     --verbose \

@@ -17,7 +17,9 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 # Load environment variables
 if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 echo -e "${GREEN}=== GlobalRx Database Backup ===${NC}"
@@ -40,37 +42,23 @@ backup_database() {
         return 1
     fi
 
-    # Extract connection details from DATABASE_URL
-    # Format: postgresql://user:password@host:port/database
-    if [[ $DB_URL =~ postgresql://([^:]+):([^@]+)@([^:]+):([^/]+)/(.+) ]]; then
-        DB_USER="${BASH_REMATCH[1]}"
-        DB_PASS="${BASH_REMATCH[2]}"
-        DB_HOST="${BASH_REMATCH[3]}"
-        DB_PORT="${BASH_REMATCH[4]}"
-        DB_DATABASE="${BASH_REMATCH[5]}"
+    # Remove query parameters from DATABASE_URL if present
+    DB_URL_CLEAN=$(echo "$DB_URL" | sed 's/?.*$//')
 
-        # Create backup using pg_dump
-        PGPASSWORD="$DB_PASS" pg_dump \
-            -h "$DB_HOST" \
-            -p "$DB_PORT" \
-            -U "$DB_USER" \
-            -d "$DB_DATABASE" \
-            --no-owner \
-            --no-privileges \
-            --verbose \
-            > "$BACKUP_FILE"
+    # Create backup using pg_dump with the full URL
+    pg_dump "$DB_URL_CLEAN" \
+        --no-owner \
+        --no-privileges \
+        --verbose \
+        > "$BACKUP_FILE"
 
-        if [ $? -eq 0 ]; then
-            # Compress the backup
-            gzip "$BACKUP_FILE"
-            echo -e "${GREEN}✓ Backup saved: ${BACKUP_FILE}.gz${NC}"
-            echo -e "  Size: $(ls -lh ${BACKUP_FILE}.gz | awk '{print $5}')"
-        else
-            echo -e "${RED}✗ Backup failed for ${DB_NAME}${NC}"
-            return 1
-        fi
+    if [ $? -eq 0 ]; then
+        # Compress the backup
+        gzip "$BACKUP_FILE"
+        echo -e "${GREEN}✓ Backup saved: ${BACKUP_FILE}.gz${NC}"
+        echo -e "  Size: $(ls -lh ${BACKUP_FILE}.gz | awk '{print $5}')"
     else
-        echo -e "${RED}Error: Invalid database URL format for ${DB_NAME}${NC}"
+        echo -e "${RED}✗ Backup failed for ${DB_NAME}${NC}"
         return 1
     fi
 }
