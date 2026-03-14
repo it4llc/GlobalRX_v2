@@ -12,12 +12,13 @@
 // Required permissions: fulfillment.* or admin.*
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SubjectInfo } from '@/components/portal/orders/types';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { ServiceStatusList } from '@/components/orders/ServiceStatusList';
 import {
   Table,
   TableBody,
@@ -68,7 +69,9 @@ interface Order {
     location: {
       id: string;
       name: string;
+      code?: string;
     };
+    status: string;
   }>;
   createdAt: string;
   updatedAt: string;
@@ -81,8 +84,10 @@ const statusColors: Record<string, string> = {
   submitted: 'bg-blue-100 text-blue-800',
   processing: 'bg-yellow-100 text-yellow-800',
   more_info_needed: 'bg-orange-100 text-orange-800',
+  missing_info: 'bg-orange-100 text-orange-800',
   completed: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
+  cancelled_dnb: 'bg-red-100 text-red-800',
 };
 
 export default function FulfillmentPage() {
@@ -358,18 +363,8 @@ export default function FulfillmentPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {order.items.length > 0 ? (
-                            <div className="text-sm">
-                              {order.items.map((item, idx) => (
-                                <div key={item.id}>
-                                  {idx > 0 && ', '}
-                                  {item.service.name}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            t('module.fulfillment.noServices')
-                          )}
+                          {/* ServiceStatusList provides consistent service display across all order tables */}
+                          <ServiceStatusList items={order.items} />
                         </TableCell>
                         <TableCell>{formatDate(order.createdAt)}</TableCell>
                         <TableCell>
