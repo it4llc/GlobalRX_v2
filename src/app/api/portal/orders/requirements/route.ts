@@ -157,7 +157,9 @@ export async function POST(request: NextRequest) {
           scope,
           required: isRequired,
           serviceId,
-          locationId
+          locationId,
+          // Include the full documentData so frontend can access PDF template info
+          documentData: JSON.stringify(documentData)
         };
 
         // Deduplicate documents based on scope

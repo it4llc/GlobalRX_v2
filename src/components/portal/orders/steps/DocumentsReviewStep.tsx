@@ -2,12 +2,43 @@
 'use client';
 
 import React from 'react';
+import { DocumentTemplateButton } from '../DocumentTemplateButton';
+import { clientLogger } from '@/lib/client-logger';
+
+// Types for order requirements and service items
+interface DocumentRequirement {
+  id: string;
+  name: string;
+  required: boolean;
+  scope: 'per_case' | 'per_service';
+  instructions?: string;
+  documentData?: string | object;
+}
+
+interface SubjectField {
+  id: string;
+  name: string;
+  required: boolean;
+  dataType: string;
+}
+
+interface ServiceItem {
+  itemId: string;
+  serviceName: string;
+  locationName: string;
+}
+
+interface OrderRequirements {
+  documents: DocumentRequirement[];
+  subjectFields: SubjectField[];
+  searchFields: unknown[]; // Specific type depends on implementation
+}
 
 interface DocumentsReviewStepProps {
-  requirements: any;
-  serviceItems: any[];
-  subjectFieldValues: Record<string, any>;
-  searchFieldValues: Record<string, Record<string, any>>;
+  requirements: OrderRequirements;
+  serviceItems: ServiceItem[];
+  subjectFieldValues: Record<string, unknown>;
+  searchFieldValues: Record<string, Record<string, unknown>>;
   uploadedDocuments: Record<string, File>;
   onDocumentUpload: (documentId: string, file: File) => void;
   checkMissingRequirements?: () => {
@@ -37,7 +68,7 @@ export function DocumentsReviewStep({
       <p className="text-gray-600 mb-4">
         Upload any required documents and review your order before submitting.
       </p>
-      {requirements.documents.some((d: any) => d.required) && (
+      {requirements.documents.some((d) => d.required) && (
         <p className="text-sm text-gray-500 mb-6">
           <span className="text-red-500">*</span> Required documents must be uploaded before submission
         </p>
@@ -48,23 +79,67 @@ export function DocumentsReviewStep({
         <div className="mb-8">
           <h4 className="text-md font-medium text-gray-900 mb-4">Required Documents</h4>
           <div className="space-y-4">
-            {requirements.documents.map((document: any) => (
-              <div key={document.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h5 className="text-sm font-medium text-gray-900">
-                      {document.name}
-                      {document.required && <span className="text-red-500 ml-1">*</span>}
-                    </h5>
-                    {document.instructions && (
-                      <p className="text-xs text-gray-500 mt-1">{document.instructions}</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-1">
-                      Scope: {document.scope === 'per_case' ? 'Once per order' : 'Per service'}
-                      {document.required && <span className="text-red-600 ml-2">(Required)</span>}
-                    </p>
-                  </div>
-                  <div>
+            {requirements.documents.map((document) => {
+              // Parse documentData to check for PDF template
+              let documentData: Record<string, unknown> = {};
+              try {
+                if (document.documentData) {
+                  // Handle both string and object formats
+                  if (typeof document.documentData === 'string') {
+                    documentData = JSON.parse(document.documentData);
+                    // If it's still a string after parsing, parse again (double-stringified)
+                    if (typeof documentData === 'string') {
+                      documentData = JSON.parse(documentData);
+                    }
+                  } else {
+                    documentData = document.documentData;
+                  }
+                }
+              } catch (e) {
+                clientLogger.warn('Failed to parse documentData', {
+                  error: e instanceof Error ? e.message : String(e),
+                  documentId: document.id,
+                  documentName: document.name
+                });
+                documentData = {};
+              }
+
+              const hasTemplate = !!documentData.pdfPath && documentData.pdfPath.trim() !== '';
+
+              // Remove debug logging - no longer needed
+
+              return (
+                <div key={document.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h5 className="text-sm font-medium text-gray-900">
+                        {document.name}
+                        {document.required && <span className="text-red-500 ml-1">*</span>}
+                      </h5>
+                      <div className="flex items-center gap-4 mt-1">
+                        <div className="flex-1">
+                          {(document.instructions || documentData.instructions) && (
+                            <p className="text-xs text-gray-500">{document.instructions || documentData.instructions}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1">
+                            Scope: {document.scope === 'per_case' ? 'Once per order' : 'Per service'}
+                            {document.required && <span className="text-red-600 ml-2">(Required)</span>}
+                          </p>
+                        </div>
+                        {hasTemplate && (
+                          <div className="flex-shrink-0">
+                            <DocumentTemplateButton
+                              documentId={document.id}
+                              hasTemplate={hasTemplate}
+                              pdfPath={documentData.pdfPath}
+                              filename={documentData.pdfFilename || documentData.filename}
+                              fileSize={documentData.pdfFileSize || documentData.fileSize}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
                     <input
                       type="file"
                       id={`doc-${document.id}`}
@@ -90,7 +165,8 @@ export function DocumentsReviewStep({
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -108,7 +184,7 @@ export function DocumentsReviewStep({
           <div className="mb-4">
             <h5 className="text-sm font-medium text-gray-700 mb-2">Subject Information</h5>
             <div className="space-y-1">
-              {requirements.subjectFields.map((field: any) => {
+              {requirements.subjectFields.map((field) => {
                 const value = subjectFieldValues[field.id];
 
                 // Check if it's an empty address block
@@ -154,7 +230,7 @@ export function DocumentsReviewStep({
         <div className="mb-4">
           <h5 className="text-sm font-medium text-gray-700 mb-2">Services ({serviceItems.length})</h5>
           <div className="space-y-2">
-            {serviceItems.map((item: any) => (
+            {serviceItems.map((item) => (
               <div key={item.itemId} className="flex justify-between text-sm">
                 <span>{item.serviceName}: <span className="font-medium text-blue-700">{item.locationName}</span></span>
                 <span className="text-gray-400">Search</span>
@@ -168,7 +244,7 @@ export function DocumentsReviewStep({
           <div className="mb-4">
             <h5 className="text-sm font-medium text-gray-700 mb-2">Documents</h5>
             <div className="space-y-1">
-              {requirements.documents.map((document: any) => {
+              {requirements.documents.map((document) => {
                 const file = uploadedDocuments[document.id];
                 return (
                   <div key={document.id} className="flex justify-between text-sm">

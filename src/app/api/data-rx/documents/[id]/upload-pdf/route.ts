@@ -61,15 +61,29 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
 
-    // Check if the document exists
-    const document = await prisma.document.findUnique({
+    // Check if the document requirement exists
+    const document = await prisma.dSXRequirement.findUnique({
       where: { id: params.id },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        documentData: true,
+        disabled: true
+      }
     });
 
-    if (!document) {
+    if (!document || document.type !== 'document') {
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
+      );
+    }
+
+    if (document.disabled) {
+      return NextResponse.json(
+        { error: 'Document is disabled' },
+        { status: 400 }
       );
     }
 
@@ -108,43 +122,64 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     await mkdir(uploadDir, { recursive: true });
     
     // Generate a unique filename
-    const filename = `${params.id}_${Date.now()}.pdf`;
+    const timestamp = Date.now();
+    const filename = `${params.id}_${timestamp}.pdf`;
     const filePath = join(uploadDir, filename);
-    
+
     // Save the file
     await writeFile(filePath, Buffer.from(fileBuffer));
+
+    // Parse existing documentData
+    let documentData: any = {};
+    try {
+      if (document.documentData) {
+        documentData = typeof document.documentData === 'string'
+          ? JSON.parse(document.documentData)
+          : document.documentData;
+      }
+    } catch (e) {
+      logger.warn('Failed to parse existing documentData', { documentId: params.id });
+    }
     
-    // Update the document record with file information
-    await prisma.document.update({
+    // Update documentData with PDF metadata
+    const updatedDocumentData = {
+      ...documentData,
+      pdfPath: `/uploads/documents/${filename}`, // Store relative path
+      pdfFilename: pdfFile.name,
+      pdfFileSize: pdfFile.size
+    };
+
+    // Update the DSXRequirement record with PDF information in documentData
+    await prisma.dSXRequirement.update({
       where: { id: params.id },
       data: {
-        pdfPath: filePath,
-        hasFile: true,
+        documentData: JSON.stringify(updatedDocumentData),
         updatedAt: new Date(),
-        updatedBy: session.user.email || 'unknown',
       },
     });
 
-    // Create a version record
-    await prisma.documentVersion.create({
-      data: {
-        documentId: params.id,
-        changes: {
-          pdfFile: { 
-            from: document.hasFile ? 'existing-file' : null, 
-            to: 'updated-file'
-          }
-        },
-        timestamp: new Date(),
-        modifiedBy: session.user.email || 'unknown',
-      },
+    logger.info('PDF template uploaded successfully', {
+      documentId: params.id,
+      filename: filename,
+      fileSize: pdfFile.size,
+      originalName: pdfFile.name,
+      userId: session.user.id
     });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     logger.error('Error uploading PDF file:', error);
+
+    // Return more detailed error for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error && 'cause' in error ? error.cause : undefined;
+
     return NextResponse.json(
-      { error: 'Failed to upload PDF file' },
+      {
+        error: 'Failed to upload PDF file',
+        message: errorMessage,
+        details: errorDetails
+      },
       { status: 500 }
     );
   }
