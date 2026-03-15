@@ -77,7 +77,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Add default headers
       const headers = new Headers(options.headers || {});
       
-      if (!headers.has('Content-Type') && options.method !== 'GET' && options.body) {
+      // Only set Content-Type for JSON bodies, not FormData
+      // FormData needs to set its own Content-Type with boundary
+      if (!headers.has('Content-Type') && options.method !== 'GET' && options.body && !(options.body instanceof FormData)) {
         headers.set('Content-Type', 'application/json');
       }
 
