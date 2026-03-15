@@ -17,6 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { EditDocumentModal, DocumentData } from './edit-document-modal';
+import { clientLogger } from '@/lib/client-logger';
 
 interface DocumentsTableProps {
   documents: any[];
@@ -176,16 +177,27 @@ export function DocumentsTable({ documents, isLoading, onToggleStatus, onRefresh
       
       // If there's a new PDF file, upload it
       if (updatedDocument.pdfFile) {
+        console.log('Uploading PDF file for document:', updatedDocument.id);
         const formData = new FormData();
         formData.append('pdfFile', updatedDocument.pdfFile);
-        
+
         const fileResponse = await fetchWithAuth(`/api/data-rx/documents/${updatedDocument.id}/upload-pdf`, {
           method: 'POST',
           body: formData,
         });
-        
+
         if (!fileResponse.ok) {
-          throw new Error('Failed to upload PDF file');
+          const errorData = await fileResponse.json().catch(() => ({}));
+          console.error('PDF upload failed:', errorData);
+          console.error('Error details:', {
+            status: fileResponse.status,
+            statusText: fileResponse.statusText,
+            message: errorData.message,
+            details: errorData.details
+          });
+          throw new Error(errorData.error || 'Failed to upload PDF file');
+        } else {
+          console.log('PDF uploaded successfully');
         }
       }
       

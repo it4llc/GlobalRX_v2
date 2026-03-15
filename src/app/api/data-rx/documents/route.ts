@@ -202,19 +202,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Document name is required" }, { status: 400 });
     }
 
-    // Prepare document data object
-    const documentData = {
-      instructions: instructions || "",
-      scope: scope || "",
-      retentionHandling: retentionHandling || "no_delete"
-    };
-
     logger.info('Creating document', { documentName: documentNameToUse });
 
     try {
       let document;
+      let documentData;
 
       if (id) {
+        // Fetch existing document to preserve PDF metadata
+        const existingDocument = await prisma.dSXRequirement.findUnique({
+          where: { id },
+          select: { documentData: true }
+        });
+
+        // Parse existing documentData to preserve PDF fields
+        let existingData: any = {};
+        if (existingDocument?.documentData) {
+          try {
+            existingData = typeof existingDocument.documentData === 'string'
+              ? JSON.parse(existingDocument.documentData)
+              : existingDocument.documentData;
+          } catch (e) {
+            logger.warn('Failed to parse existing documentData', { documentId: id });
+          }
+        }
+
+        // Merge new data while preserving PDF fields
+        documentData = {
+          ...existingData, // Preserve existing fields like pdfPath, pdfFilename, pdfFileSize
+          instructions: instructions || "",
+          scope: scope || "",
+          retentionHandling: retentionHandling || "no_delete"
+        };
+
         // Update existing document
         document = await prisma.dSXRequirement.update({
           where: { id },
@@ -228,6 +248,13 @@ export async function POST(request: NextRequest) {
         
         logger.info('Updated existing document', { documentId: document.id, documentName: documentNameToUse });
       } else {
+        // For new documents, create documentData without PDF fields
+        documentData = {
+          instructions: instructions || "",
+          scope: scope || "",
+          retentionHandling: retentionHandling || "no_delete"
+        };
+
         // Create new document
         document = await prisma.dSXRequirement.create({
           data: {
