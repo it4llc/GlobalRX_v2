@@ -1,2 +1,0 @@
--- This is a placeholder for a migration that was already applied to the database
--- This file is just to mark the migration as resolved in Prisma Migrate's history

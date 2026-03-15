@@ -27,8 +27,8 @@ fi
 # Remove query parameters from DATABASE_URL (PostgreSQL 17 doesn't like them)
 DATABASE_URL=$(echo "$DATABASE_URL" | sed 's/\?.*//')
 
-# Create export directory
-EXPORT_DIR="database-exports/$(date +%Y%m%d_%H%M%S)"
+# Create export directory in consolidated backup location
+EXPORT_DIR="db-backups/exports/$(date +%Y%m%d_%H%M%S)"
 mkdir -p $EXPORT_DIR
 
 echo "📁 Export directory: $EXPORT_DIR"

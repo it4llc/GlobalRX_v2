@@ -68,3 +68,6 @@ _archive/
 # Playwright test results
 test-results/
 playwright-report/
+
+# Database backups
+db-backups/
