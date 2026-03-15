@@ -955,6 +955,58 @@ orderBy: [
 - `/src/app/api/fulfillment/route.ts` (lines 143-146)
 - `/src/app/api/fulfillment/orders/[id]/route.ts` (lines 220-223)
 
+### 9.13 Checkbox/Toggle UI Logic Standard
+
+**CRITICAL:** When building checkbox or toggle interfaces that control database records, ensure that "unchecked" means "optional" or "disabled", NOT "deleted".
+
+**Common Checkbox Logic Bug:**
+Many developers implement checkbox UIs by creating database records when checked and deleting records when unchecked. This causes data to disappear entirely rather than becoming optional, which breaks user expectations and can cause data loss.
+
+**Real-World Bug Example (Fixed March 15, 2026):**
+DSX matrix checkboxes were deleting DSXMapping records when unchecked, causing requirement fields to disappear entirely instead of becoming optional. Users expected unchecked fields to remain visible but optional.
+
+**Bug Pattern Example:**
+```typescript
+// ❌ WRONG - Deletes records when unchecked, fields disappear
+if (isChecked) {
+  await prisma.mapping.create({ /* data */ });
+} else {
+  await prisma.mapping.delete({ /* where */ }); // Field disappears!
+}
+```
+
+**Correct Checkbox Pattern:**
+```typescript
+// ✅ CORRECT - Updates boolean flag, preserves records
+await prisma.mapping.upsert({
+  where: { /* unique key */ },
+  create: {
+    /* data */,
+    isRequired: isChecked
+  },
+  update: {
+    isRequired: isChecked  // Checked = required, unchecked = optional
+  }
+});
+```
+
+**Prevention Guidelines:**
+- Use boolean flags (`isRequired`, `isEnabled`, `isActive`) instead of presence/absence of records
+- Preserve database records even when checkboxes are unchecked
+- "Unchecked" should mean "disabled/optional", not "deleted/non-existent"
+- Test the complete user flow: check → uncheck → check again
+- Verify that unchecked items remain in the UI as optional/disabled
+- Document the expected behavior clearly in code comments
+
+**User Expectation Rules:**
+- **Checked checkbox** = "This field is required/enabled"
+- **Unchecked checkbox** = "This field is optional/disabled"
+- **Missing checkbox** = "This field doesn't exist" (avoid this pattern)
+
+**Files Fixed (March 15, 2026):**
+- `/src/app/api/dsx/route.ts` (lines 291-305) - DSX matrix checkbox logic
+- `/src/app/api/dsx/__tests__/dsx-required-fields.test.ts` - Tests verifying correct behavior
+
 ### 9.6 No Secrets in Code
 
 Database URLs, API keys, passwords, and other secrets must only exist in

@@ -30,7 +30,7 @@ async function filterValidLocationIds(locationIds: string[]): Promise<string[]> 
     });
     
     // Extract just the IDs
-    const validIds = existingLocations.map((loc: any) => loc.id);
+    const validIds = existingLocations.map((loc) => loc.id);
     
     // Find any rejected IDs for debugging
     const rejectedIds = locationIds.filter(id => !validIds.includes(id));
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
       });
 
       // Extract requirements with display order
-      const requirements = serviceRequirements.map((sr: any) => {
+      const requirements = serviceRequirements.map((sr) => {
         const req = {
           ...sr.requirement,
           displayOrder: sr.displayOrder
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
       logger.info('Requirements fetched', {
         count: requirements.length,
         serviceId,
-        requirements: requirements.length > 0 ? requirements.map((r: any) => ({
+        requirements: requirements.length > 0 ? requirements.map((r) => ({
           name: r.name,
           displayOrder: r.displayOrder,
           id: r.id
@@ -216,9 +216,185 @@ export async function POST(request: NextRequest) {
     }
     
     // Extract data from the request
-    const { serviceId, type, data } = rawBody;
-    
-    // Process based on request type
+    const { serviceId, type, data, associatedRequirements, locationRequirements } = rawBody;
+
+    // Check if this is the new format with associatedRequirements and locationRequirements
+    if (associatedRequirements && locationRequirements) {
+      // Handle the new format for DSX matrix saving
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          // First verify the service exists
+          const service = await tx.dSXService.findUnique({
+            where: { id: serviceId }
+          });
+
+          if (!service) {
+            throw new Error('Service not found');
+          }
+
+          // Validate that all associated requirements exist
+          if (associatedRequirements.length > 0) {
+            const requirements = await tx.requirement.findMany({
+              where: {
+                id: { in: associatedRequirements }
+              },
+              select: { id: true }
+            });
+
+            const foundIds = new Set(requirements.map(r => r.id));
+            const invalidIds = associatedRequirements.filter(id => !foundIds.has(id));
+
+            if (invalidIds.length > 0) {
+              throw new Error(`Invalid requirement IDs: ${invalidIds.join(', ')}`);
+            }
+          }
+
+          // Get existing mappings to track what needs to be updated vs created
+          const existingMappings = await tx.dSXMapping.findMany({
+            where: { serviceId },
+            select: {
+              id: true,
+              locationId: true,
+              requirementId: true,
+              isRequired: true
+            }
+          });
+
+          // Create a map for quick lookup
+          const existingMap = new Map();
+          existingMappings.forEach(mapping => {
+            const key = `${mapping.locationId}_${mapping.requirementId}`;
+            existingMap.set(key, mapping);
+          });
+
+          // Track operations
+          const toUpdate = [];
+          const toCreate = [];
+          const processedKeys = new Set();
+
+          // Process each location
+          for (const [locationId, checkedRequirementIds] of Object.entries(locationRequirements)) {
+            // Skip if not an array (might be type issues)
+            if (!Array.isArray(checkedRequirementIds)) {
+              continue;
+            }
+
+            // Validate the location exists
+            const validLocationIds = await filterValidLocationIds([locationId]);
+            if (validLocationIds.length === 0) {
+              continue;
+            }
+
+            // Create a set of checked requirement IDs for this location
+            const checkedSet = new Set(checkedRequirementIds);
+
+            // CRITICAL BUG FIX: Process ALL associated requirements for this location
+            // This logic was previously DELETING mappings when checkboxes were unchecked,
+            // causing fields to disappear entirely instead of becoming optional.
+            //
+            // CORRECT BEHAVIOR:
+            // - CHECKED checkbox = isRequired: true (field is required)
+            // - UNCHECKED checkbox = isRequired: false (field is optional)
+            // - ALL associated requirements ALWAYS have DSXMapping records
+            //
+            // WRONG BEHAVIOR (previous bug):
+            // - CHECKED checkbox = create DSXMapping
+            // - UNCHECKED checkbox = delete DSXMapping (field disappears)
+            //
+            // This ensures that unchecking a DSX matrix checkbox makes a field optional,
+            // not removes it entirely from the system. Users expect unchecked = optional.
+            for (const requirementId of associatedRequirements) {
+              const key = `${locationId}_${requirementId}`;
+              processedKeys.add(key);
+              const isRequired = checkedSet.has(requirementId);
+              const existing = existingMap.get(key);
+
+              if (existing) {
+                // Update only if the isRequired value has changed
+                if (existing.isRequired !== isRequired) {
+                  toUpdate.push({
+                    where: { id: existing.id },
+                    data: { isRequired }
+                  });
+                }
+              } else {
+                // Create new mapping
+                toCreate.push({
+                  serviceId,
+                  locationId,
+                  requirementId,
+                  isRequired
+                });
+              }
+            }
+          }
+
+          // Delete mappings that are no longer needed (not in associatedRequirements)
+          const toDelete = [];
+          for (const mapping of existingMappings) {
+            const key = `${mapping.locationId}_${mapping.requirementId}`;
+            if (!processedKeys.has(key)) {
+              toDelete.push(mapping.id);
+            }
+          }
+
+          // Execute operations
+          let updatedCount = 0;
+          let createdCount = 0;
+          let deletedCount = 0;
+
+          // Perform updates
+          for (const update of toUpdate) {
+            await tx.dSXMapping.update(update);
+            updatedCount++;
+          }
+
+          // Perform bulk creates
+          if (toCreate.length > 0) {
+            const BATCH_SIZE = 100;
+            for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
+              const batch = toCreate.slice(i, i + BATCH_SIZE);
+              const result = await tx.dSXMapping.createMany({
+                data: batch,
+                skipDuplicates: true
+              });
+              createdCount += result.count;
+            }
+          }
+
+          // Delete obsolete mappings
+          if (toDelete.length > 0) {
+            const deleteResult = await tx.dSXMapping.deleteMany({
+              where: {
+                id: { in: toDelete }
+              }
+            });
+            deletedCount = deleteResult.count;
+          }
+
+          return {
+            success: true,
+            createdCount,
+            updatedCount,
+            deletedCount,
+            message: 'DSX mappings saved successfully'
+          };
+        });
+
+        return NextResponse.json(result);
+      } catch (error: unknown) {
+        logger.error('Error saving DSX mappings', {
+          error: error instanceof Error ? error.message : String(error),
+          serviceId
+        });
+        return NextResponse.json({
+          error: 'Failed to save DSX mappings',
+          details: error instanceof Error ? error.message : String(error)
+        }, { status: 500 });
+      }
+    }
+
+    // Process based on request type (original logic)
     try {
       if ((type === 'requirement' || type === 'requirements') && data) {
         // Handle array of requirements
