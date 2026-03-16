@@ -179,17 +179,17 @@ describe('OrderDetailsView', () => {
 
       render(<OrderDetailsView order={orderWithEmptyFields} />);
 
-      // Email and phone should show "--"
-      // Use translated text, not translation keys
-      const emailLabel = screen.getByText('Email');
+      // Check that the values show "--" for empty fields
+      // The labels include colons as per the component implementation
+      const emailLabel = screen.getByText('Email:');
       const emailValue = emailLabel.parentElement?.querySelector('dd');
       expect(emailValue).toHaveTextContent('--');
 
-      const phoneLabel = screen.getByText('Phone');
+      const phoneLabel = screen.getByText('Phone:');
       const phoneValue = phoneLabel.parentElement?.querySelector('dd');
       expect(phoneValue).toHaveTextContent('--');
 
-      const ssnLabel = screen.getByText('SSN');
+      const ssnLabel = screen.getByText('SSN:');
       const ssnValue = ssnLabel.parentElement?.querySelector('dd');
       expect(ssnValue).toHaveTextContent('--');
     });
@@ -205,16 +205,9 @@ describe('OrderDetailsView', () => {
       expect(screen.getByText('Previous Employer')).toBeInTheDocument();
     });
 
-    it('should display item status badges', () => {
-      render(<OrderDetailsView order={mockOrder} />);
-
-      // Status badges show formatted text, not raw status
-      const pendingBadge = screen.getByText('Pending');
-      expect(pendingBadge).toHaveClass('text-yellow-600');
-
-      const completedBadge = screen.getByText('Completed');
-      expect(completedBadge).toHaveClass('text-green-600');
-    });
+    // Status badges are now rendered within ServiceFulfillmentTable component,
+    // not directly in OrderDetailsView. These tests have been moved to
+    // ServiceFulfillmentTable.test.tsx
 
     it('should display "--" for items without location', () => {
       const orderWithNoLocation = {
@@ -241,53 +234,13 @@ describe('OrderDetailsView', () => {
     });
   });
 
-  describe('customer information display', () => {
-    it('should display customer details', () => {
-      render(<OrderDetailsView order={mockOrder} />);
-
-      expect(screen.getByText('ACME Corporation')).toBeInTheDocument();
-      expect(screen.getByText('ACME')).toBeInTheDocument();
-    });
-
-    it('should display "--" when customer code is missing', () => {
-      const orderWithoutCustomerCode = {
-        ...mockOrder,
-        customer: {
-          ...mockOrder.customer,
-          code: null
-        }
-      };
-
-      render(<OrderDetailsView order={orderWithoutCustomerCode} />);
-
-      // Customer code is conditionally rendered, so it won't appear when null
-      expect(screen.getByText('ACME Corporation')).toBeInTheDocument();
-      expect(screen.queryByText('module.fulfillment.customerCode')).not.toBeInTheDocument();
-    });
-  });
+  // Customer information display has been moved to OrderDetailsSidebar component
+  // as part of the layout redesign (feature/order-details-layout)
 
   // Vendor assignment is displayed in the OrderDetailsSidebar, not in OrderDetailsView
 
-  describe('notes display', () => {
-    it('should display order notes', () => {
-      render(<OrderDetailsView order={mockOrder} />);
-
-      expect(screen.getByText('Urgent processing required')).toBeInTheDocument();
-    });
-
-    it('should display "--" when notes are empty', () => {
-      const orderWithoutNotes = {
-        ...mockOrder,
-        notes: null
-      };
-
-      render(<OrderDetailsView order={orderWithoutNotes} />);
-
-      // Notes section shows formatted value directly
-      expect(screen.getByText('module.fulfillment.notes')).toBeInTheDocument();
-      expect(screen.getByText('--')).toBeInTheDocument();
-    });
-  });
+  // Notes display has been moved to OrderDetailsSidebar component
+  // as part of the layout redesign (feature/order-details-layout)
 
   // Metadata (createdBy, timestamps) is displayed in OrderDetailsSidebar
   // Responsive behavior is handled by the parent page component
