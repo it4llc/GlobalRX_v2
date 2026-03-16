@@ -56,7 +56,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: []
         })
       });
@@ -98,7 +98,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: [
             { id: 'req-1', type: 'data-field' }
           ]
@@ -152,7 +152,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       // Mock create operation
       vi.mocked(prisma.serviceRequirement.create).mockResolvedValueOnce({
         id: 'sr-1',
-        serviceId: 'service-123',
+        serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         requirementId: 'req-1',
         displayOrder: 30,
         createdAt: new Date(),
@@ -162,7 +162,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: [
             { id: 'req-1', type: 'data-field' }
           ]
@@ -193,7 +193,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: [{ id: 'req-1' }]
         })
       });
@@ -220,7 +220,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: []
         })
       });
@@ -261,7 +261,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123'
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479'
         })
       });
 
@@ -275,7 +275,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: 'not-an-array'
         })
       });
@@ -290,7 +290,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: []
         })
       });
@@ -331,7 +331,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       vi.mocked(prisma.serviceRequirement.create)
         .mockResolvedValueOnce({
           id: 'sr-1',
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementId: 'req-1',
           displayOrder: 100,  // Preserved
           createdAt: new Date(),
@@ -339,7 +339,7 @@ describe('POST /api/dsx/associate-requirements', () => {
         })
         .mockResolvedValueOnce({
           id: 'sr-2',
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementId: 'req-2',
           displayOrder: 200,  // Preserved
           createdAt: new Date(),
@@ -347,7 +347,7 @@ describe('POST /api/dsx/associate-requirements', () => {
         })
         .mockResolvedValueOnce({
           id: 'sr-4',
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementId: 'req-4',
           displayOrder: 310,  // New requirement gets new order
           createdAt: new Date(),
@@ -357,7 +357,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: [
             { id: 'req-1', type: 'data-field' },  // Existing
             { id: 'req-2', type: 'document' },    // Existing
@@ -407,7 +407,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       vi.mocked(prisma.serviceRequirement.create)
         .mockResolvedValueOnce({
           id: 'sr-1',
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementId: 'req-1',
           displayOrder: 10,
           createdAt: new Date(),
@@ -415,7 +415,7 @@ describe('POST /api/dsx/associate-requirements', () => {
         })
         .mockResolvedValueOnce({
           id: 'sr-2',
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementId: 'req-2',
           displayOrder: 20,
           createdAt: new Date(),
@@ -425,7 +425,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: [
             { id: 'req-1', type: 'data-field' },
             { id: 'req-2', type: 'document' }
@@ -440,7 +440,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       // Verify DSX mappings were deleted for removed requirement
       expect(prisma.dSXMapping.deleteMany).toHaveBeenCalledWith({
         where: {
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementId: {
             in: ['req-3']  // The removed requirement
           }
@@ -458,7 +458,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       vi.mocked(prisma.serviceRequirement.create)
         .mockResolvedValueOnce({
           id: 'sr-1',
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementId: 'req-1',
           displayOrder: 10,  // First new requirement gets 10
           createdAt: new Date(),
@@ -466,7 +466,7 @@ describe('POST /api/dsx/associate-requirements', () => {
         })
         .mockResolvedValueOnce({
           id: 'sr-2',
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementId: 'req-2',
           displayOrder: 20,  // Second gets 20
           createdAt: new Date(),
@@ -476,7 +476,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: [
             { id: 'req-1', type: 'data-field' },
             { id: 'req-2', type: 'document' }
@@ -517,7 +517,7 @@ describe('POST /api/dsx/associate-requirements', () => {
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirements: [
             { id: 'req-1', type: 'data-field' }
           ]

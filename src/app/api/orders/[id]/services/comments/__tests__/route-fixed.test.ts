@@ -55,13 +55,13 @@ describe('GET /api/orders/[id]/services/comments - Fixed Response', () => {
     // Mock service response with all fields
     mockValidateOrderAccess.mockResolvedValue(true);
     mockGetOrderServiceComments.mockResolvedValue({
-      'service-fulfillment-1': {
+      '123e4567-e89b-12d3-a456-426614174001': {
         serviceName: 'Criminal History',
         serviceStatus: 'PROCESSING',
         comments: [
           {
             id: 'comment-1',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             orderItemId: 'order-item-1',
             templateId: 'template-1',
             finalText: 'Processing the background check',
@@ -88,7 +88,7 @@ describe('GET /api/orders/[id]/services/comments - Fixed Response', () => {
           },
           {
             id: 'comment-2',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             orderItemId: 'order-item-1',
             templateId: 'template-2',
             finalText: 'Status changed to Completed',
@@ -128,9 +128,9 @@ describe('GET /api/orders/[id]/services/comments - Fixed Response', () => {
     // Verify response structure
     expect(response.status).toBe(200);
     expect(data.commentsByService).toBeDefined();
-    expect(data.commentsByService['service-fulfillment-1']).toBeDefined();
+    expect(data.commentsByService['123e4567-e89b-12d3-a456-426614174001']).toBeDefined();
 
-    const comments = data.commentsByService['service-fulfillment-1'].comments;
+    const comments = data.commentsByService['123e4567-e89b-12d3-a456-426614174001'].comments;
     expect(comments).toHaveLength(2);
 
     // Verify regular comment has all fields
@@ -188,13 +188,13 @@ describe('GET /api/orders/[id]/services/comments - Fixed Response', () => {
 
     mockValidateOrderAccess.mockResolvedValue(true);
     mockGetOrderServiceComments.mockResolvedValue({
-      'service-1': {
+      'f47ac10b-58cc-4372-a567-0e02b2c3d479': {
         serviceName: 'Test Service',
         serviceStatus: 'PROCESSING',
         comments: [
           {
             id: 'comment-1',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             orderItemId: 'order-item-1',
             templateId: 'template-1',
             finalText: 'Updated comment text',
@@ -233,7 +233,7 @@ describe('GET /api/orders/[id]/services/comments - Fixed Response', () => {
     const response = await GET(request, { params: { id: mockOrderId } });
     const data = await response.json();
 
-    const comment = data.commentsByService['service-1'].comments[0];
+    const comment = data.commentsByService['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments[0];
 
     // Verify both created and updated user names are included
     expect(comment.createdByName).toBe('Original Author');
@@ -255,13 +255,13 @@ describe('GET /api/orders/[id]/services/comments - Fixed Response', () => {
 
     mockValidateOrderAccess.mockResolvedValue(true);
     mockGetOrderServiceComments.mockResolvedValue({
-      'service-1': {
+      'f47ac10b-58cc-4372-a567-0e02b2c3d479': {
         serviceName: 'Test Service',
         serviceStatus: 'DRAFT',
         comments: [
           {
             id: 'comment-1',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             orderItemId: 'order-item-1',
             templateId: 'template-1',
             finalText: 'Comment from user with no name',
@@ -295,7 +295,7 @@ describe('GET /api/orders/[id]/services/comments - Fixed Response', () => {
     const response = await GET(request, { params: { id: mockOrderId } });
     const data = await response.json();
 
-    const comment = data.commentsByService['service-1'].comments[0];
+    const comment = data.commentsByService['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments[0];
 
     // Should fall back to email when name is empty
     expect(comment.createdByName).toBe('noname@example.com');

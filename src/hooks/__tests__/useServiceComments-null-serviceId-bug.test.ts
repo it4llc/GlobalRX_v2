@@ -51,7 +51,7 @@ describe('useServiceComments - null serviceId bug fix', () => {
      * to construct API paths, resulting in calls to /api/services/null/comments
      */
     it('should FAIL: createComment calls API with null serviceId in order mode (CURRENT BUG)', async () => {
-      const mockOrderId = 'order-123';
+      const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
 
       // Mock successful API response for initial fetch
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -122,7 +122,7 @@ describe('useServiceComments - null serviceId bug fix', () => {
     });
 
     it('should FAIL: updateComment calls API with null serviceId in order mode (CURRENT BUG)', async () => {
-      const mockOrderId = 'order-123';
+      const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
       const mockCommentId = 'comment-456';
 
       // Mock successful API response for initial fetch
@@ -184,7 +184,7 @@ describe('useServiceComments - null serviceId bug fix', () => {
     });
 
     it('should FAIL: deleteComment calls API with null serviceId in order mode (CURRENT BUG)', async () => {
-      const mockOrderId = 'order-123';
+      const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
       const mockCommentId = 'comment-789';
 
       // Mock successful API response for initial fetch
@@ -247,8 +247,8 @@ describe('useServiceComments - null serviceId bug fix', () => {
      */
 
     it('should PASS: createComment accepts serviceId parameter for order mode (AFTER FIX)', async () => {
-      const mockOrderId = 'order-123';
-      const actualServiceId = 'service-456'; // The actual OrderItem ID
+      const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
+      const actualServiceId = 'd47ac10b-58cc-4372-a567-0e02b2c3d479'; // The actual OrderItem ID
 
       // Initial fetch for order comments
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -304,8 +304,8 @@ describe('useServiceComments - null serviceId bug fix', () => {
     });
 
     it('should PASS: updateComment accepts serviceId parameter for order mode (AFTER FIX)', async () => {
-      const mockOrderId = 'order-123';
-      const actualServiceId = 'service-456';
+      const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
+      const actualServiceId = 'd47ac10b-58cc-4372-a567-0e02b2c3d479';
       const mockCommentId = 'comment-789';
 
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -350,8 +350,8 @@ describe('useServiceComments - null serviceId bug fix', () => {
     });
 
     it('should PASS: deleteComment accepts serviceId parameter for order mode (AFTER FIX)', async () => {
-      const mockOrderId = 'order-123';
-      const actualServiceId = 'service-456';
+      const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
+      const actualServiceId = 'd47ac10b-58cc-4372-a567-0e02b2c3d479';
       const mockCommentId = 'comment-789';
 
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -394,7 +394,7 @@ describe('useServiceComments - null serviceId bug fix', () => {
 
   describe('Single service mode should continue working (no regression)', () => {
     it('should work correctly when serviceId is provided (single service mode)', async () => {
-      const mockServiceId = 'service-123';
+      const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
 
       // Mock fetch for initial load
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -505,7 +505,7 @@ describe('useServiceComments - null serviceId bug fix', () => {
     });
 
     it('should handle network errors during CRUD operations', async () => {
-      const mockServiceId = 'service-123';
+      const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
@@ -543,7 +543,7 @@ describe('useServiceComments - null serviceId bug fix', () => {
       } as any);
 
       const { result } = renderHook(() =>
-        useServiceComments(null, 'order-123')
+        useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001')
       );
 
       await expect(
@@ -562,7 +562,7 @@ describe('useServiceComments - null serviceId bug fix', () => {
       } as any);
 
       const { result: vendorResult } = renderHook(() =>
-        useServiceComments(null, 'order-123')
+        useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001')
       );
 
       await expect(

@@ -64,7 +64,7 @@ describe('canCustomerViewOrder', () => {
 
 describe('filterDataForCustomer', () => {
   const fullOrderData = {
-    id: 'order-123',
+    id: '550e8400-e29b-41d4-a716-446655440001',
     orderNumber: '20240310-ABC-0001',
     statusCode: 'processing',
     customerId: 'cust-123',
@@ -129,7 +129,7 @@ describe('filterDataForCustomer', () => {
     it('should keep essential order information', () => {
       const filtered = filterDataForCustomer(fullOrderData);
 
-      expect(filtered.id).toBe('order-123');
+      expect(filtered.id).toBe('550e8400-e29b-41d4-a716-446655440001');
       expect(filtered.orderNumber).toBe('20240310-ABC-0001');
       expect(filtered.statusCode).toBe('processing');
       expect(filtered.customerId).toBe('cust-123');
@@ -154,7 +154,7 @@ describe('filterDataForCustomer', () => {
         ...fullOrderData,
         services: [
           {
-            id: 'service-1',
+            id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             name: 'Background Check',
             status: 'processing',
             assignedVendor: {

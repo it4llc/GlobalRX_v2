@@ -53,7 +53,7 @@ vi.mock('@/lib/services/order-lock.service', () => ({
 }));
 
 describe('Order Lock API Routes', () => {
-  const mockOrderId = 'order-123';
+  const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
   const mockUserId = 'user-456';
   const mockSession = {
     user: {
@@ -73,7 +73,7 @@ describe('Order Lock API Routes', () => {
       it('should return 401 when not authenticated', async () => {
         (getServerSession as any).mockResolvedValue(null);
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'POST'
         });
 
@@ -96,7 +96,7 @@ describe('Order Lock API Routes', () => {
 
         (getServerSession as any).mockResolvedValue(noPermissionSession);
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'POST'
         });
 
@@ -126,7 +126,7 @@ describe('Order Lock API Routes', () => {
           lock
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'POST'
         });
 
@@ -146,7 +146,7 @@ describe('Order Lock API Routes', () => {
           lockedBy: 'other-user-id'
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'POST'
         });
 
@@ -171,7 +171,7 @@ describe('Order Lock API Routes', () => {
           lock: extendedLock
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'POST'
         });
 
@@ -185,7 +185,7 @@ describe('Order Lock API Routes', () => {
       it('should handle database errors', async () => {
         mockAcquireLock.mockRejectedValue(new Error('Database error'));
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'POST'
         });
 
@@ -203,7 +203,7 @@ describe('Order Lock API Routes', () => {
       it('should return 401 when not authenticated', async () => {
         (getServerSession as any).mockResolvedValue(null);
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'DELETE'
         });
 
@@ -225,7 +225,7 @@ describe('Order Lock API Routes', () => {
           success: true
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'DELETE'
         });
 
@@ -243,7 +243,7 @@ describe('Order Lock API Routes', () => {
           error: 'No lock exists for this order'
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'DELETE'
         });
 
@@ -260,7 +260,7 @@ describe('Order Lock API Routes', () => {
           error: 'You are not authorized to release this lock'
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'DELETE'
         });
 
@@ -287,7 +287,7 @@ describe('Order Lock API Routes', () => {
           success: true
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock?force=true', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock?force=true', {
           method: 'DELETE'
         });
 
@@ -306,7 +306,7 @@ describe('Order Lock API Routes', () => {
       it('should handle database errors', async () => {
         mockReleaseLock.mockRejectedValue(new Error('Database error'));
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'DELETE'
         });
 
@@ -324,7 +324,7 @@ describe('Order Lock API Routes', () => {
       it('should return 401 when not authenticated', async () => {
         (getServerSession as any).mockResolvedValue(null);
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'GET'
         });
 
@@ -355,7 +355,7 @@ describe('Order Lock API Routes', () => {
           canEdit: false
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'GET'
         });
 
@@ -383,7 +383,7 @@ describe('Order Lock API Routes', () => {
           canEdit: true
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'GET'
         });
 
@@ -403,7 +403,7 @@ describe('Order Lock API Routes', () => {
           canEdit: true
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'GET'
         });
 
@@ -423,7 +423,7 @@ describe('Order Lock API Routes', () => {
           canEdit: true
         });
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'GET'
         });
 
@@ -438,7 +438,7 @@ describe('Order Lock API Routes', () => {
       it('should handle database errors', async () => {
         mockCheckLock.mockRejectedValue(new Error('Database error'));
 
-        const request = new Request('http://localhost/api/orders/order-123/lock', {
+        const request = new Request('http://localhost/api/orders/550e8400-e29b-41d4-a716-446655440001/lock', {
           method: 'GET'
         });
 

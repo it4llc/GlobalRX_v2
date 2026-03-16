@@ -48,9 +48,9 @@ vi.mock('@/lib/prisma', () => ({
 }));
 
 describe('GET /api/fulfillment/services/[id] - Order Data Integration', () => {
-  const mockServiceId = 'service-123';
+  const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
   const mockOrderItemId = 'order-item-456';
-  const mockOrderId = 'order-789';
+  const mockOrderId = '550e8400-e29b-41d4-a716-446655440003';
 
   const mockService = {
     id: mockServiceId,

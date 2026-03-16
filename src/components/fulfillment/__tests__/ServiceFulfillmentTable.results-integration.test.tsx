@@ -65,9 +65,9 @@ if (typeof HTMLDialogElement === 'undefined') {
 describe('ServiceFulfillmentTable - Results Integration', () => {
   const mockServices = [
     {
-      id: 'service-1',
-      orderId: 'order-123',
-      orderItemId: 'item-1',
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      orderId: '550e8400-e29b-41d4-a716-446655440001',
+      orderItemId: '660e8400-e29b-41d4-a716-446655440001',
       serviceId: 'service-type-1',
       locationId: 'location-1',
       status: 'Processing',
@@ -100,9 +100,9 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
       attachmentsCount: 2
     },
     {
-      id: 'service-2',
-      orderId: 'order-123',
-      orderItemId: 'item-2',
+      id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
+      orderId: '550e8400-e29b-41d4-a716-446655440001',
+      orderItemId: '660e8400-e29b-41d4-a716-446655440002',
       serviceId: 'service-type-2',
       locationId: 'location-2',
       status: 'Submitted',
@@ -152,7 +152,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={false}
         />
@@ -181,7 +181,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={false}
         />
@@ -194,11 +194,11 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
       await waitFor(() => {
         expect(mockServiceResultsSection).toHaveBeenCalledWith(
           expect.objectContaining({
-            serviceId: 'item-1',
-            serviceFulfillmentId: 'service-1',
+            serviceId: '660e8400-e29b-41d4-a716-446655440001',
+            serviceFulfillmentId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             serviceName: 'Criminal Background Check',
             serviceStatus: 'PROCESSING',
-            orderId: 'order-123',
+            orderId: '550e8400-e29b-41d4-a716-446655440001',
             isCustomer: false
           }),
           expect.anything()
@@ -222,7 +222,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={true}
           isCustomer={true}
@@ -254,7 +254,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={false}
         />
@@ -277,7 +277,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={false}
         />
@@ -300,7 +300,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={false}
         />
@@ -332,7 +332,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       const { rerender } = render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={servicesWithoutResults}
           readOnly={false}
         />
@@ -353,7 +353,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       rerender(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={servicesWithResults}
           readOnly={false}
         />
@@ -374,7 +374,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={false}
         />
@@ -404,7 +404,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={false}
         />
@@ -437,7 +437,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       const { rerender } = render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={false}
         />
@@ -452,14 +452,14 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       // Update services data (simulating results being saved)
       const updatedServices = mockServices.map(s =>
-        s.id === 'service-1'
+        s.id === 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
           ? { ...s, results: 'Updated results', resultsLastModifiedAt: new Date().toISOString() }
           : s
       );
 
       rerender(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={updatedServices}
           readOnly={false}
         />
@@ -480,7 +480,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={false}
         />
@@ -520,7 +520,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={servicesWithCommentsAndAttachments}
           readOnly={false}
         />
@@ -548,7 +548,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={true}
           isCustomer={true}
@@ -577,7 +577,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
 
       render(
         <ServiceFulfillmentTable
-          orderId="order-123"
+          orderId="550e8400-e29b-41d4-a716-446655440001"
           services={mockServices}
           readOnly={false}
         />

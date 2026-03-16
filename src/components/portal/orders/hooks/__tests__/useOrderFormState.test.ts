@@ -96,7 +96,7 @@ describe('useOrderFormState - Infinite Loop Bug', () => {
   describe('Bug Proof: loadOrderForEdit Infinite Loop', () => {
     it('should call loadOrderForEdit exactly once in edit mode (bug regression test)', async () => {
       // Setup: Mock search params with edit order ID
-      const editOrderId = 'order-123';
+      const editOrderId = '550e8400-e29b-41d4-a716-446655440001';
       mockSearchParams = new URLSearchParams(`?edit=${editOrderId}`);
       mockSearchParams.get = vi.fn((key: string) => key === 'edit' ? editOrderId : null);
       (useSearchParams as any).mockReturnValue(mockSearchParams);
@@ -109,7 +109,7 @@ describe('useOrderFormState - Infinite Loop Bug', () => {
           statusCode: 'draft',
           items: [
             {
-              service: { id: 'service-1', name: 'Background Check' },
+              service: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', name: 'Background Check' },
               location: { id: 'loc-1', name: 'United States' }
             }
           ],
@@ -161,7 +161,7 @@ describe('useOrderFormState - Infinite Loop Bug', () => {
 
     it('should have stable loadOrderForEdit reference across renders (bug regression test)', async () => {
       // Setup: Mock search params with edit order ID
-      const editOrderId = 'order-456';
+      const editOrderId = '550e8400-e29b-41d4-a716-446655440002';
       mockSearchParams = new URLSearchParams(`?edit=${editOrderId}`);
       mockSearchParams.get = vi.fn((key: string) => key === 'edit' ? editOrderId : null);
       (useSearchParams as any).mockReturnValue(mockSearchParams);
@@ -193,7 +193,7 @@ describe('useOrderFormState - Infinite Loop Bug', () => {
   describe('Expected Behavior (After Fix)', () => {
     it('should call loadOrderForEdit exactly once when editing an order', async () => {
       // Setup: Mock search params with edit order ID
-      const editOrderId = 'order-789';
+      const editOrderId = '550e8400-e29b-41d4-a716-446655440003';
       mockSearchParams = new URLSearchParams(`?edit=${editOrderId}`);
       mockSearchParams.get = vi.fn((key: string) => key === 'edit' ? editOrderId : null);
       (useSearchParams as any).mockReturnValue(mockSearchParams);

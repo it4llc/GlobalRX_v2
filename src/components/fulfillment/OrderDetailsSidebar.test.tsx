@@ -64,7 +64,7 @@ vi.mock('./OrderStatusDropdown', () => ({
 
 describe('OrderDetailsSidebar', () => {
   const mockOrder = {
-    id: 'order-123',
+    id: '550e8400-e29b-41d4-a716-446655440001',
     orderNumber: '20240301-ABC-0001',
     statusCode: 'processing',
     createdAt: '2024-03-01T10:00:00Z',

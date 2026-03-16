@@ -225,7 +225,7 @@ test.describe('Service Status Change', () => {
 
       // Navigate to same order
       await newPage.getByRole('link', { name: /orders/i }).click();
-      await newPage.getByRole('row').filter({ hasText: orderId }).first().click();
+      await newPage.getByRole('row').filter({ hasText: orderId || '' }).first().click();
 
       // Lock indicator should be visible for second user
       const lockIndicator = newPage.getByTestId('lock-indicator');
@@ -443,7 +443,7 @@ test.describe('Service Status Change', () => {
       await page.getByRole('option', { name: 'Completed' }).click();
 
       // Order status should remain unchanged
-      await expect(orderStatus).toContainText(initialOrderStatus);
+      await expect(orderStatus).toContainText(initialOrderStatus || '');
 
       // Change another service to Cancelled
       await page.getByRole('tab').nth(1).click();
@@ -452,7 +452,7 @@ test.describe('Service Status Change', () => {
       await page.getByRole('option', { name: 'Cancelled' }).click();
 
       // Order status should still be unchanged
-      await expect(orderStatus).toContainText(initialOrderStatus);
+      await expect(orderStatus).toContainText(initialOrderStatus || '');
     });
 
     test('no notifications or assignments triggered on status change', async ({ page }) => {
@@ -480,7 +480,7 @@ test.describe('Service Status Change', () => {
       await page.waitForTimeout(1000);
 
       // Assignment should be unchanged
-      await expect(assignmentInfo).toContainText(originalAssignment);
+      await expect(assignmentInfo).toContainText(originalAssignment || '');
     });
   });
 });

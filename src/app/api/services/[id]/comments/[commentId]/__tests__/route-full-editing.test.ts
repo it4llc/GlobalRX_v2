@@ -29,7 +29,7 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 describe('PUT /api/services/[id]/comments/[commentId] - Full Text Editing', () => {
-  const mockServiceId = 'service-123';
+  const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
   const mockCommentId = 'comment-456';
   const mockUserId = 'user-789';
   const mockSession = {

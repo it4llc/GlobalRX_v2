@@ -47,7 +47,7 @@ vi.mock('@/services/service-comment-service', () => ({
 }));
 
 describe('POST /api/services/[id]/comments - Full Text Editing', () => {
-  const mockServiceId = 'service-123';
+  const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
   const mockUserId = 'user-456';
   const mockSession = {
     user: {

@@ -46,12 +46,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       // THIS TEST WILL FAIL - route doesn't exist yet
       vi.mocked(getServerSession).mockResolvedValueOnce(null);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(401);
@@ -66,12 +66,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         expires: '2024-12-31'
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(401);
@@ -93,12 +93,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);
@@ -118,12 +118,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);
@@ -143,12 +143,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);
@@ -170,14 +170,14 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       });
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'draft',
         orderNumber: 'ORD-001',
         customerId: 'customer-123'
       });
 
       vi.mocked(prisma.order.update).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'processing',
         orderNumber: 'ORD-001',
         customerId: 'customer-123'
@@ -185,7 +185,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
 
       vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
         id: 'history-123',
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'draft',
         toStatus: 'processing',
         changedBy: 'user-123',
@@ -200,12 +200,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         return callback(prisma);
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(200);
@@ -225,12 +225,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       // THIS TEST WILL FAIL - route doesn't exist yet
       vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}) // Missing status
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -253,12 +253,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       // THIS TEST WILL FAIL - route doesn't exist yet
       vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'pending' }) // Invalid status
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -279,20 +279,20 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
         vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           statusCode: 'draft',
           orderNumber: 'ORD-001'
         });
 
         vi.mocked(prisma.order.update).mockResolvedValueOnce({
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           statusCode: status,
           orderNumber: 'ORD-001'
         });
 
         vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
           id: 'history-1',
-          orderId: 'order-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
           fromStatus: 'draft',
           toStatus: status,
           changedBy: 'user-id',
@@ -305,12 +305,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
           return callback(prisma);
         });
 
-        const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+        const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status })
         });
-        const params = { params: { id: 'order-123' } };
+        const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
         const response = await PATCH(request, params);
         expect(response.status).toBe(200);
@@ -321,7 +321,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       // THIS TEST WILL FAIL - route doesn't exist yet
       vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -329,7 +329,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
           reason: 'a'.repeat(501)
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -343,7 +343,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       // THIS TEST WILL FAIL - route doesn't exist yet
       vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -351,7 +351,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
           notes: 'b'.repeat(501)
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -400,13 +400,13 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'draft',
         orderNumber: 'ORD-001'
       });
 
       vi.mocked(prisma.order.update).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'processing',
         orderNumber: 'ORD-001',
         customerId: 'customer-123',
@@ -425,7 +425,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
 
       vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
         id: 'history-123',
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'draft',
         toStatus: 'processing',
         changedBy: 'user-123',
@@ -433,12 +433,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         createdAt: new Date()
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(200);
@@ -451,7 +451,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       // Verify history was created
       expect(prisma.orderStatusHistory.create).toHaveBeenCalledWith({
         data: {
-          orderId: 'order-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
           fromStatus: 'draft',
           toStatus: 'processing',
           changedBy: 'user-123',
@@ -466,13 +466,13 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'processing',
         orderNumber: 'ORD-001'
       });
 
       vi.mocked(prisma.order.update).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'cancelled',
         orderNumber: 'ORD-001',
         customerId: 'customer-123',
@@ -486,7 +486,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
 
       vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
         id: 'history-123',
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'processing',
         toStatus: 'cancelled',
         changedBy: 'user-123',
@@ -501,7 +501,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         return result;
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -509,7 +509,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
           notes: 'Spoke with customer on phone'
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(200);
@@ -528,13 +528,13 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'completed',
         orderNumber: 'ORD-001'
       });
 
       vi.mocked(prisma.order.update).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'processing',
         orderNumber: 'ORD-001',
         customerId: 'customer-123',
@@ -548,7 +548,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
 
       vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
         id: 'history-123',
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'completed',
         toStatus: 'processing',
         changedBy: 'user-123',
@@ -563,12 +563,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         return result;
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(200);
@@ -576,7 +576,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       // Should allow the change (no restrictions in Phase 2a)
       expect(prisma.order.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'order-123' },
+          where: { id: '550e8400-e29b-41d4-a716-446655440001' },
           data: expect.objectContaining({
             statusCode: 'processing'
           })
@@ -589,19 +589,19 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'draft',
         orderNumber: 'ORD-001'
       });
 
       vi.mocked(prisma.$transaction).mockRejectedValueOnce(new Error('Database connection lost'));
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(500);
@@ -615,7 +615,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'draft',
         orderNumber: 'ORD-001'
       });
@@ -626,12 +626,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         return callback(prisma);
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       await PATCH(request, params);
 
@@ -643,7 +643,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(validSession);
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'draft',
         orderNumber: 'ORD-001'
       });
@@ -655,7 +655,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
       vi.mocked(prisma.orderStatusHistory.findMany).mockResolvedValueOnce([
         {
           id: 'history-2',
-          orderId: 'order-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
           fromStatus: 'draft',
           toStatus: 'processing',
           changedBy: 'user-123',
@@ -664,7 +664,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         },
         {
           id: 'history-1',
-          orderId: 'order-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
           fromStatus: null,
           toStatus: 'draft',
           changedBy: 'user-456',
@@ -673,12 +673,12 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Enhanced Tests', () => {
         }
       ]);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(200);

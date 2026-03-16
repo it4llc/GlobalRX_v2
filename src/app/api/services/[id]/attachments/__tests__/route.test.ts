@@ -79,7 +79,7 @@ describe('GET /api/services/[id]/attachments', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments');
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(401);
@@ -100,8 +100,8 @@ describe('GET /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing'
@@ -113,7 +113,7 @@ describe('GET /api/services/[id]/attachments', () => {
           id: 1,
           serviceFulfillmentId: 789,
           fileName: 'report1.pdf',
-          filePath: 'uploads/service-results/order-456/item-123/abc_report1.pdf',
+          filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/abc_report1.pdf',
           fileSize: 1024000,
           uploadedBy: 10,
           uploadedAt: new Date('2024-03-01')
@@ -122,7 +122,7 @@ describe('GET /api/services/[id]/attachments', () => {
           id: 2,
           serviceFulfillmentId: 789,
           fileName: 'report2.pdf',
-          filePath: 'uploads/service-results/order-456/item-123/xyz_report2.pdf',
+          filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/xyz_report2.pdf',
           fileSize: 2048000,
           uploadedBy: 20,
           uploadedAt: new Date('2024-03-02')
@@ -133,7 +133,7 @@ describe('GET /api/services/[id]/attachments', () => {
       vi.mocked(prisma.serviceAttachment.findMany).mockResolvedValueOnce(mockAttachments);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments');
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -157,8 +157,8 @@ describe('GET /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -171,7 +171,7 @@ describe('GET /api/services/[id]/attachments', () => {
           id: 1,
           serviceFulfillmentId: 789,
           fileName: 'vendor_report.pdf',
-          filePath: 'uploads/service-results/order-456/item-123/vendor_report.pdf',
+          filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/vendor_report.pdf',
           fileSize: 500000,
           uploadedBy: 30,
           uploadedAt: new Date()
@@ -182,7 +182,7 @@ describe('GET /api/services/[id]/attachments', () => {
       vi.mocked(prisma.serviceAttachment.findMany).mockResolvedValueOnce(mockAttachments);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments');
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -203,8 +203,8 @@ describe('GET /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -215,7 +215,7 @@ describe('GET /api/services/[id]/attachments', () => {
       vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments');
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -237,8 +237,8 @@ describe('GET /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'completed'
@@ -246,7 +246,7 @@ describe('GET /api/services/[id]/attachments', () => {
       };
 
       const mockOrder = {
-        id: 'order-456',
+        id: '550e8400-e29b-41d4-a716-446655440002',
         customerId: 'customer-123' // Matches user's customerId
       };
 
@@ -255,7 +255,7 @@ describe('GET /api/services/[id]/attachments', () => {
           id: 1,
           serviceFulfillmentId: 789,
           fileName: 'final_report.pdf',
-          filePath: 'uploads/service-results/order-456/item-123/final_report.pdf',
+          filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/final_report.pdf',
           fileSize: 1500000,
           uploadedBy: 10,
           uploadedAt: new Date()
@@ -267,7 +267,7 @@ describe('GET /api/services/[id]/attachments', () => {
       vi.mocked(prisma.serviceAttachment.findMany).mockResolvedValueOnce(mockAttachments);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments');
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -288,8 +288,8 @@ describe('GET /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'completed'
@@ -297,7 +297,7 @@ describe('GET /api/services/[id]/attachments', () => {
       };
 
       const mockOrder = {
-        id: 'order-456',
+        id: '550e8400-e29b-41d4-a716-446655440002',
         customerId: 'customer-999' // Different customer
       };
 
@@ -305,7 +305,7 @@ describe('GET /api/services/[id]/attachments', () => {
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments');
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -326,8 +326,8 @@ describe('GET /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing'
@@ -338,7 +338,7 @@ describe('GET /api/services/[id]/attachments', () => {
       vi.mocked(prisma.serviceAttachment.findMany).mockResolvedValueOnce([]);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments');
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -359,7 +359,7 @@ describe('GET /api/services/[id]/attachments', () => {
       vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments');
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(404);
@@ -386,7 +386,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(401);
@@ -407,8 +407,8 @@ describe('POST /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing'
@@ -419,7 +419,7 @@ describe('POST /api/services/[id]/attachments', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'test.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/uuid_test.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/uuid_test.pdf',
         fileSize: 1024,
         uploadedBy: 123,
         uploadedAt: new Date()
@@ -442,7 +442,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(201);
@@ -468,7 +468,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(403);
@@ -490,8 +490,8 @@ describe('POST /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -503,7 +503,7 @@ describe('POST /api/services/[id]/attachments', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'vendor_report.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/uuid_vendor_report.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/uuid_vendor_report.pdf',
         fileSize: 2048,
         uploadedBy: 456,
         uploadedAt: new Date()
@@ -526,7 +526,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(201);
@@ -546,8 +546,8 @@ describe('POST /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -564,7 +564,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(403);
@@ -592,7 +592,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(403);
@@ -619,7 +619,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(400);
@@ -645,7 +645,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(400);
@@ -673,7 +673,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(400);
@@ -702,7 +702,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(404);
@@ -721,8 +721,8 @@ describe('POST /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'completed' // Terminal status
@@ -738,7 +738,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(409);
@@ -757,8 +757,8 @@ describe('POST /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'cancelled' // Terminal status
@@ -774,7 +774,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(409);
@@ -793,8 +793,8 @@ describe('POST /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing'
@@ -812,7 +812,7 @@ describe('POST /api/services/[id]/attachments', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'test.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/uuid_test.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/uuid_test.pdf',
         fileSize: 1024,
         uploadedBy: 123,
         uploadedAt: new Date()
@@ -825,13 +825,13 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       await POST(request, params);
 
       // Verify directory creation was called with correct path
       expect(mkdir).toHaveBeenCalledWith(
-        expect.stringContaining('uploads/service-results/order-456/item-123'),
+        expect.stringContaining('uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123'),
         expect.objectContaining({ recursive: true })
       );
     });
@@ -846,8 +846,8 @@ describe('POST /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing'
@@ -868,7 +868,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       await POST(request, params);
 
@@ -877,7 +877,7 @@ describe('POST /api/services/[id]/attachments', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             fileName: 'my_report_2024.pdf', // Original filename preserved
-            filePath: expect.stringMatching(/uploads\/service-results\/order-456\/item-123\/.*_my_report_2024\.pdf/) // Path includes UUID prefix
+            filePath: expect.stringMatching(/uploads\/service-results\/550e8400-e29b-41d4-a716-446655440002\/item-123\/.*_my_report_2024\.pdf/) // Path includes UUID prefix
           })
         })
       );
@@ -895,8 +895,8 @@ describe('POST /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing'
@@ -913,7 +913,7 @@ describe('POST /api/services/[id]/attachments', () => {
         id: 100,
         serviceFulfillmentId: 789,
         fileName: 'audit_test.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/uuid_audit_test.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/uuid_audit_test.pdf',
         fileSize: 2048,
         uploadedBy: 123,
         uploadedAt: new Date()
@@ -926,7 +926,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       await POST(request, params);
 
@@ -960,8 +960,8 @@ describe('POST /api/services/[id]/attachments', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing'
@@ -979,7 +979,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(500);
@@ -1008,7 +1008,7 @@ describe('POST /api/services/[id]/attachments', () => {
         method: 'POST',
         body: formData
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await POST(request, params);
       expect(response.status).toBe(500);

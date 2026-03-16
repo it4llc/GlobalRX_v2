@@ -49,7 +49,7 @@ describe('useServiceComments - Regression Test for NULL ID Bug', () => {
           // @ts-ignore - Mocking internals
           vi.spyOn(require('@/contexts/AuthContext'), 'useAuth').mockReturnValue({ user: mockUser });
 
-          return useServiceComments(null, 'order-123');
+          return useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001');
         },
         { wrapper }
       );
@@ -61,7 +61,7 @@ describe('useServiceComments - Regression Test for NULL ID Bug', () => {
             templateId: 'template-1',
             finalText: 'Test comment',
             isInternalOnly: true,
-            serviceId: 'service-fulfillment-123' // The fix: pass the ServiceFulfillment ID
+            serviceId: '123e4567-e89b-12d3-a456-426614174000' // The fix: pass the ServiceFulfillment ID
           });
         });
       } catch (error) {
@@ -83,7 +83,7 @@ describe('useServiceComments - Regression Test for NULL ID Bug', () => {
       if (allCalls.length > 0) {
         const firstCallUrl = allCalls[0][0] as string;
         expect(firstCallUrl).not.toContain('/api/services/null/');
-        expect(firstCallUrl).toContain('/api/services/service-fulfillment-123/');
+        expect(firstCallUrl).toContain('/api/services/123e4567-e89b-12d3-a456-426614174000/');
       }
     });
 
@@ -106,7 +106,7 @@ describe('useServiceComments - Regression Test for NULL ID Bug', () => {
           const mockUser = { id: 'user-1', userType: 'internal' };
           // @ts-ignore
           vi.spyOn(require('@/contexts/AuthContext'), 'useAuth').mockReturnValue({ user: mockUser });
-          return useServiceComments(null, 'order-123'); // Order mode
+          return useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001'); // Order mode
         },
         { wrapper }
       );
@@ -172,7 +172,7 @@ describe('useServiceComments - Regression Test for NULL ID Bug', () => {
         ok: true,
         json: async () => ({
           commentsByService: {
-            'service-fulfillment-123': {
+            '123e4567-e89b-12d3-a456-426614174000': {
               comments: []
             }
           }
@@ -188,7 +188,7 @@ describe('useServiceComments - Regression Test for NULL ID Bug', () => {
           const mockUser = { id: 'user-1', userType: 'internal' };
           // @ts-ignore
           vi.spyOn(require('@/contexts/AuthContext'), 'useAuth').mockReturnValue({ user: mockUser });
-          return useServiceComments(null, 'order-123');
+          return useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001');
         },
         { wrapper }
       );
@@ -216,15 +216,15 @@ describe('useServiceComments - Regression Test for NULL ID Bug', () => {
           await result.current.createComment({
             templateId: 'template-1',
             finalText: 'New comment',
-            serviceId: 'service-fulfillment-123'
+            serviceId: '123e4567-e89b-12d3-a456-426614174000'
           });
         } catch {}
       });
 
       // Verify the state was updated
-      expect(result.current.commentsByService['service-fulfillment-123']).toBeDefined();
-      expect(result.current.commentsByService['service-fulfillment-123'].comments).toHaveLength(1);
-      expect(result.current.commentsByService['service-fulfillment-123'].comments[0].id).toBe('new-comment');
+      expect(result.current.commentsByService['123e4567-e89b-12d3-a456-426614174000']).toBeDefined();
+      expect(result.current.commentsByService['123e4567-e89b-12d3-a456-426614174000'].comments).toHaveLength(1);
+      expect(result.current.commentsByService['123e4567-e89b-12d3-a456-426614174000'].comments[0].id).toBe('new-comment');
     });
   });
 

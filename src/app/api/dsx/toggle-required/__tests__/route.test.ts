@@ -55,7 +55,7 @@ describe('POST /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-456',
           requirementId: 'req-789',
           isRequired: true
@@ -99,7 +99,7 @@ describe('POST /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-456',
           requirementId: 'req-789',
           isRequired: true
@@ -144,7 +144,7 @@ describe('POST /api/dsx/toggle-required', () => {
       // Mock creating new mapping
       vi.mocked(prisma.dSXMapping.create).mockResolvedValueOnce({
         id: 'mapping-1',
-        serviceId: 'service-123',
+        serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         locationId: 'location-456',
         requirementId: 'req-789',
         isRequired: true,
@@ -155,7 +155,7 @@ describe('POST /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-456',
           requirementId: 'req-789',
           isRequired: true
@@ -184,7 +184,7 @@ describe('POST /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-456',
           requirementId: 'req-789',
           isRequired: true
@@ -212,7 +212,7 @@ describe('POST /api/dsx/toggle-required', () => {
       // Mock creating new mapping
       vi.mocked(prisma.dSXMapping.create).mockResolvedValueOnce({
         id: 'mapping-1',
-        serviceId: 'service-123',
+        serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         locationId: 'location-456',
         requirementId: 'req-789',
         isRequired: true,
@@ -223,7 +223,7 @@ describe('POST /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-456',
           requirementId: 'req-789',
           isRequired: true
@@ -270,7 +270,7 @@ describe('POST /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementId: 'req-789',
           isRequired: true
         })
@@ -286,7 +286,7 @@ describe('POST /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-456',
           isRequired: true
         })
@@ -315,7 +315,7 @@ describe('POST /api/dsx/toggle-required', () => {
       vi.mocked(prisma.dSXMapping.findFirst).mockResolvedValueOnce(null);
       vi.mocked(prisma.dSXMapping.create).mockResolvedValueOnce({
         id: 'new-mapping',
-        serviceId: 'service-123',
+        serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         locationId: 'location-456',
         requirementId: 'req-789',
         isRequired: true,
@@ -326,7 +326,7 @@ describe('POST /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-456',
           requirementId: 'req-789',
           isRequired: true
@@ -343,7 +343,7 @@ describe('POST /api/dsx/toggle-required', () => {
     it('should update existing mapping when toggling required status', async () => {
       const existingMapping = {
         id: 'existing-mapping',
-        serviceId: 'service-123',
+        serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         locationId: 'location-456',
         requirementId: 'req-789',
         isRequired: true,
@@ -360,7 +360,7 @@ describe('POST /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-456',
           requirementId: 'req-789',
           isRequired: false
@@ -380,7 +380,7 @@ describe('POST /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-456',
           requirementId: 'req-789',
           isRequired: false
@@ -412,7 +412,7 @@ describe('PATCH /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'PATCH',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           updates: []
         })
       });
@@ -444,7 +444,7 @@ describe('PATCH /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'PATCH',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           updates: [
             {
               locationId: 'location-456',
@@ -481,7 +481,7 @@ describe('PATCH /api/dsx/toggle-required', () => {
             findFirst: vi.fn()
               .mockResolvedValueOnce({
                 id: 'mapping-1',
-                serviceId: 'service-123',
+                serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
                 locationId: 'location-456',
                 requirementId: 'req-789',
                 isRequired: false
@@ -493,7 +493,7 @@ describe('PATCH /api/dsx/toggle-required', () => {
             }),
             create: vi.fn().mockResolvedValueOnce({
               id: 'mapping-2',
-              serviceId: 'service-123',
+              serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
               locationId: 'location-456',
               requirementId: 'req-790',
               isRequired: true
@@ -507,7 +507,7 @@ describe('PATCH /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'PATCH',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           updates: [
             {
               locationId: 'location-456',
@@ -535,7 +535,7 @@ describe('PATCH /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'PATCH',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           updates: 'not-an-array'
         })
       });
@@ -574,7 +574,7 @@ describe('PATCH /api/dsx/toggle-required', () => {
       const request = new Request('http://localhost:3000/api/dsx/toggle-required', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-456',
           requirementId: 'req-789',
           isRequired: true
