@@ -505,10 +505,8 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       };
 
       vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(mockService);
-      vi.mocked(ServiceAuditService.getHistory).mockImplementationOnce(
-        () => new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Query timeout')), 100)
-        )
+      vi.mocked(ServiceAuditService.getHistory).mockRejectedValueOnce(
+        new Error('Query timeout')
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');

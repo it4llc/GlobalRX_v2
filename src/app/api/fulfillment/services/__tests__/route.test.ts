@@ -521,10 +521,8 @@ describe('GET /api/fulfillment/services', () => {
     });
 
     it('should handle timeout errors gracefully', async () => {
-      vi.mocked(ServiceFulfillmentService.getServices).mockImplementationOnce(
-        () => new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Operation timeout')), 100)
-        )
+      vi.mocked(ServiceFulfillmentService.getServices).mockRejectedValueOnce(
+        new Error('Operation timeout')
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services');

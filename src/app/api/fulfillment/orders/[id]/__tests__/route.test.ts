@@ -457,10 +457,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
     });
 
     it('should handle timeout errors gracefully', async () => {
-      vi.mocked(prisma.order.findUnique).mockImplementationOnce(
-        () => new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Query timeout')), 100)
-        )
+      vi.mocked(prisma.order.findUnique).mockRejectedValueOnce(
+        new Error('Query timeout')
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
