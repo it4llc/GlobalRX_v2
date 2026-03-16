@@ -11,6 +11,10 @@ vi.mock('@/lib/prisma', () => ({
       findMany: vi.fn(),
       findFirst: vi.fn()
     },
+    orderItem: {
+      findUnique: vi.fn(),
+      findMany: vi.fn()
+    },
     serviceComment: {
       findMany: vi.fn()
     },
@@ -36,7 +40,7 @@ vi.mock('@/lib/logger', () => ({
 describe('ServiceCommentService.getServiceComments', () => {
   let service: ServiceCommentService;
   const mockUserId = 'user-123';
-  const mockServiceId = 'service-123';
+  const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
   const mockCustomerId = 'customer-123';
   const mockVendorId = 'vendor-123';
 
@@ -327,8 +331,8 @@ describe('ServiceCommentService.getServiceComments', () => {
 describe('ServiceCommentService.validateUserAccess', () => {
   let service: ServiceCommentService;
   const mockUserId = 'user-123';
-  const mockServiceId = 'service-123';
-  const mockOrderId = 'order-123';
+  const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
+  const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
   const mockCustomerId = 'customer-123';
   const mockVendorId = 'vendor-123';
 
@@ -495,7 +499,7 @@ describe('ServiceCommentService.validateUserAccess', () => {
 describe('ServiceCommentService.validateOrderAccess', () => {
   let service: ServiceCommentService;
   const mockUserId = 'user-123';
-  const mockOrderId = 'order-123';
+  const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
   const mockCustomerId = 'customer-123';
   const mockVendorId = 'vendor-123';
 
@@ -544,7 +548,7 @@ describe('ServiceCommentService.validateOrderAccess', () => {
       } as any);
 
       vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue({
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         orderId: mockOrderId,
         assignedVendorId: mockVendorId
       } as any);

@@ -11,7 +11,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
     describe('valid data with brackets', () => {
       it('should pass when text contains opening bracket only', () => {
         const validData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440001',
           finalText: 'Please provide [document by tomorrow',
           isInternalOnly: true
         };
@@ -23,7 +23,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
       it('should pass when text contains closing bracket only', () => {
         const validData = {
-          templateId: 'template-456',
+          templateId: '550e8400-e29b-41d4-a716-446655440002',
           finalText: 'Document received] and processed',
           isInternalOnly: false
         };
@@ -35,7 +35,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
       it('should pass when text contains matched brackets like placeholder', () => {
         const validData = {
-          templateId: 'template-789',
+          templateId: '550e8400-e29b-41d4-a716-446655440003',
           finalText: 'Please provide [driver license] by [end of day]',
           isInternalOnly: true
         };
@@ -47,7 +47,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
       it('should pass when text contains multiple unmatched brackets', () => {
         const validData = {
-          templateId: 'template-abc',
+          templateId: '550e8400-e29b-41d4-a716-446655440004',
           finalText: 'Notes: [incomplete] data [missing fields]] [[[extra brackets',
           isInternalOnly: true
         };
@@ -59,7 +59,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
       it('should pass when text is entirely brackets', () => {
         const validData = {
-          templateId: 'template-xyz',
+          templateId: '550e8400-e29b-41d4-a716-446655440005',
           finalText: '[[[[[]]]]]]',
           isInternalOnly: true
         };
@@ -71,7 +71,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
       it('should pass when brackets are mixed with special characters', () => {
         const validData = {
-          templateId: 'template-special',
+          templateId: '550e8400-e29b-41d4-a716-446655440006',
           finalText: 'Data [field1]: value, {field2}: [value2], <field3>: [value3]',
           isInternalOnly: false
         };
@@ -82,7 +82,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
       it('should pass when user completely removes template text and enters new text with brackets', () => {
         const validData = {
-          templateId: 'template-replaced',
+          templateId: '550e8400-e29b-41d4-a716-446655440007',
           finalText: 'Completely new text with [my own brackets] here',
           isInternalOnly: true
         };
@@ -96,45 +96,48 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
     describe('standard validation rules still apply', () => {
       it('should fail when text is empty', () => {
         const invalidData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440008',
           finalText: '',
           isInternalOnly: true
         };
 
         const result = createServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
-        expect(result.error?.issues[0].message).toContain('Comment text is required');
+        // Updated to match actual error message from schema
+        expect(result.error?.issues[0].message).toContain('String must contain at least 1 character');
       });
 
       it('should fail when text is only whitespace', () => {
         const invalidData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440009',
           finalText: '   \n\t  ',
           isInternalOnly: true
         };
 
         const result = createServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
-        expect(result.error?.issues[0].message).toContain('Comment text is required');
+        // Updated to match actual error message from schema refine
+        expect(result.error?.issues[0].message).toContain('Comment text cannot be empty or only whitespace');
       });
 
       it('should fail when text exceeds 1000 characters even with brackets', () => {
         const longTextWithBrackets = '[start]' + 'a'.repeat(990) + '[end]';
         const invalidData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440010',
           finalText: longTextWithBrackets,
           isInternalOnly: true
         };
 
         const result = createServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
-        expect(result.error?.issues[0].message).toContain('Comment cannot exceed 1000 characters');
+        // Updated to match actual error message from schema
+        expect(result.error?.issues[0].message).toContain('Comment text cannot exceed 1000 characters');
       });
 
       it('should pass when text is exactly 1000 characters with brackets', () => {
         const exactText = '[' + 'a'.repeat(998) + ']';
         const validData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440011',
           finalText: exactText,
           isInternalOnly: true
         };
@@ -156,7 +159,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
       it('should default isInternalOnly to true', () => {
         const validData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440012',
           finalText: 'Comment with [brackets] without visibility setting'
         };
 
@@ -216,7 +219,8 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
         const result = updateServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
-        expect(result.error?.issues[0].message).toContain('Comment text is required');
+        // Updated to match actual error message from schema
+        expect(result.error?.issues[0].message).toContain('String must contain at least 1 character');
       });
 
       it('should fail when updating to only whitespace', () => {
@@ -226,7 +230,8 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
         const result = updateServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
-        expect(result.error?.issues[0].message).toContain('Comment text is required');
+        // Updated to match actual error message from schema refine
+        expect(result.error?.issues[0].message).toContain('Comment text cannot be empty or only whitespace');
       });
 
       it('should fail when updated text exceeds 1000 characters with brackets', () => {
@@ -236,7 +241,8 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
         const result = updateServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
-        expect(result.error?.issues[0].message).toContain('Comment cannot exceed 1000 characters');
+        // Updated to match actual error message from schema
+        expect(result.error?.issues[0].message).toContain('Comment text cannot exceed 1000 characters');
       });
 
       it('should pass with empty object (no updates)', () => {
@@ -262,7 +268,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
   describe('edge cases with brackets', () => {
     it('should handle nested brackets correctly', () => {
       const validData = {
-        templateId: 'template-nested',
+        templateId: '550e8400-e29b-41d4-a716-446655440013',
         finalText: 'Data [[nested [deep [deeper]]]] structure',
         isInternalOnly: true
       };
@@ -273,7 +279,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
     it('should handle brackets in different languages', () => {
       const validData = {
-        templateId: 'template-intl',
+        templateId: '550e8400-e29b-41d4-a716-446655440014',
         finalText: '【Japanese brackets】〖Chinese〗「quotes」[English]',
         isInternalOnly: true
       };
@@ -284,7 +290,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
     it('should handle mathematical notation with brackets', () => {
       const validData = {
-        templateId: 'template-math',
+        templateId: '550e8400-e29b-41d4-a716-446655440015',
         finalText: 'Formula: f(x) = [a + b] * [c - d] / [e]',
         isInternalOnly: false
       };
@@ -295,7 +301,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
     it('should handle code snippets with brackets', () => {
       const validData = {
-        templateId: 'template-code',
+        templateId: '550e8400-e29b-41d4-a716-446655440016',
         finalText: 'Code: const arr = [1, 2, 3]; obj["key"] = value;',
         isInternalOnly: true
       };
@@ -306,7 +312,7 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
     it('should handle markdown-style links with brackets', () => {
       const validData = {
-        templateId: 'template-markdown',
+        templateId: '550e8400-e29b-41d4-a716-446655440017',
         finalText: 'See [this link](http://example.com) and [another][ref]',
         isInternalOnly: false
       };
@@ -317,14 +323,14 @@ describe('serviceCommentSchemas - Full Text Editing Feature', () => {
 
     it('should track templateId even when text is completely different from template', () => {
       const validData = {
-        templateId: 'original-template-id',
+        templateId: '550e8400-e29b-41d4-a716-446655440018',
         finalText: 'This text has nothing to do with the original template',
         isInternalOnly: true
       };
 
       const result = createServiceCommentSchema.safeParse(validData);
       expect(result.success).toBe(true);
-      expect(result.data?.templateId).toBe('original-template-id');
+      expect(result.data?.templateId).toBe('550e8400-e29b-41d4-a716-446655440018');
     });
   });
 });

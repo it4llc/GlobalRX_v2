@@ -278,14 +278,14 @@ describe('DELETE /api/dsx/remove-requirement', () => {
         // Verify the correct delete calls were made
         expect(tx.serviceRequirement.deleteMany).toHaveBeenCalledWith({
           where: {
-            serviceId: 'service-123',
+            serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
             requirementId: 'req-789'
           }
         });
 
         expect(tx.dSXMapping.deleteMany).toHaveBeenCalledWith({
           where: {
-            serviceId: 'service-123',
+            serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
             requirementId: 'req-789'
           }
         });
@@ -344,7 +344,7 @@ describe('POST /api/dsx/remove-requirement', () => {
       const request = new Request('http://localhost:3000/api/dsx/remove-requirement', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementIds: ['req-1', 'req-2']
         })
       });
@@ -390,7 +390,7 @@ describe('POST /api/dsx/remove-requirement', () => {
       const request = new Request('http://localhost:3000/api/dsx/remove-requirement', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementIds: ['req-1', 'req-2', 'req-3']
         })
       });
@@ -438,7 +438,7 @@ describe('POST /api/dsx/remove-requirement', () => {
       const request = new Request('http://localhost:3000/api/dsx/remove-requirement', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123'
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479'
         })
       });
 
@@ -452,7 +452,7 @@ describe('POST /api/dsx/remove-requirement', () => {
       const request = new Request('http://localhost:3000/api/dsx/remove-requirement', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementIds: 'not-an-array'
         })
       });
@@ -492,7 +492,7 @@ describe('POST /api/dsx/remove-requirement', () => {
         // Verify the correct delete calls were made
         expect(tx.serviceRequirement.deleteMany).toHaveBeenCalledWith({
           where: {
-            serviceId: 'service-123',
+            serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
             requirementId: {
               in: ['req-1', 'req-2', 'req-3']
             }
@@ -501,7 +501,7 @@ describe('POST /api/dsx/remove-requirement', () => {
 
         expect(tx.dSXMapping.deleteMany).toHaveBeenCalledWith({
           where: {
-            serviceId: 'service-123',
+            serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
             requirementId: {
               in: ['req-1', 'req-2', 'req-3']
             }
@@ -517,7 +517,7 @@ describe('POST /api/dsx/remove-requirement', () => {
       const request = new Request('http://localhost:3000/api/dsx/remove-requirement', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           requirementIds: ['req-1', 'req-2', 'req-3']
         })
       });

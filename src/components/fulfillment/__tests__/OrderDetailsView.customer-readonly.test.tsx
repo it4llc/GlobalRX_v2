@@ -27,7 +27,7 @@ const mockRouter = {
 
 vi.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
-  useParams: () => ({ id: 'order-123' })
+  useParams: () => ({ id: '550e8400-e29b-41d4-a716-446655440001' })
 }));
 
 vi.mock('../ServiceFulfillmentTable', () => ({
@@ -89,7 +89,7 @@ if (typeof HTMLDialogElement === 'undefined') {
 
 describe('OrderDetailsView - Customer Read-Only Access', () => {
   const mockOrderData = {
-    id: 'order-123',
+    id: '550e8400-e29b-41d4-a716-446655440001',
     orderNumber: '20240310-ABC-0001',
     statusCode: 'processing',
     customerId: 'cust-456',
@@ -114,10 +114,10 @@ describe('OrderDetailsView - Customer Read-Only Access', () => {
     },
     items: [
       {
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         status: 'processing',
         service: {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           name: 'Criminal Background Check',
           category: 'Background'
         },
@@ -141,7 +141,7 @@ describe('OrderDetailsView - Customer Read-Only Access', () => {
     comments: [
       {
         id: 'comment-1',
-        serviceId: 'service-1',
+        serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         finalText: 'Processing has begun',
         isInternalOnly: false,
         createdAt: '2024-03-10T10:00:00Z'
@@ -310,14 +310,14 @@ describe('OrderDetailsView - Customer Read-Only Access', () => {
         comments: [
           {
             id: 'comment-1',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             finalText: 'External comment for all',
             isInternalOnly: false,
             createdAt: '2024-03-10T10:00:00Z'
           },
           {
             id: 'comment-2',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             finalText: 'Internal staff comment',
             isInternalOnly: true,
             createdAt: '2024-03-10T11:00:00Z'
@@ -401,7 +401,7 @@ describe('OrderDetailsView - Customer Read-Only Access', () => {
         comments: [
           {
             id: 'comment-1',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             finalText: 'External comment',
             isInternalOnly: false,
             createdAt: '2024-03-10T10:00:00Z',
@@ -409,7 +409,7 @@ describe('OrderDetailsView - Customer Read-Only Access', () => {
           },
           {
             id: 'comment-2',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             finalText: 'Internal comment',
             isInternalOnly: true,
             createdAt: '2024-03-10T11:00:00Z',

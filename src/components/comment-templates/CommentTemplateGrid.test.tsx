@@ -90,16 +90,17 @@ describe('CommentTemplateGrid', () => {
     vi.clearAllMocks();
 
     vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
       user: {
         id: '1',
         type: 'internal',
         permissions: { comment_management: true }
       },
-      hasPermission: (perm) => perm === 'comment_management',
-      loading: false,
-      error: null,
-      signIn: vi.fn(),
-      signOut: vi.fn()
+      isLoading: false,
+      login: vi.fn(async () => ({ success: true })),
+      logout: vi.fn(),
+      checkPermission: (resource: string, action?: string) => resource === 'comment_management',
+      fetchWithAuth: vi.fn(async () => new Response())
     });
 
     // useTranslation is already mocked at the module level with proper translations
@@ -678,16 +679,17 @@ describe('CommentTemplateGrid', () => {
   describe('Permissions', () => {
     it('should disable add button when user lacks permission', () => {
       vi.mocked(useAuth).mockReturnValue({
+        isAuthenticated: true,
         user: {
           id: '1',
           type: 'internal',
           permissions: {}
         },
-        hasPermission: () => false,
-        loading: false,
-        error: null,
-        signIn: vi.fn(),
-        signOut: vi.fn()
+        isLoading: false,
+        login: vi.fn(async () => ({ success: true })),
+        logout: vi.fn(),
+        checkPermission: () => false,
+        fetchWithAuth: vi.fn(async () => new Response())
       });
 
       render(<CommentTemplateGrid />);

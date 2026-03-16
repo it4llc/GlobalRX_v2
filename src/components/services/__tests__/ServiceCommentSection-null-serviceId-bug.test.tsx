@@ -55,9 +55,9 @@ describe('ServiceCommentSection - null serviceId bug', () => {
      * operations.
      */
     it('should demonstrate the bug: creating comment in order mode fails with null serviceId', async () => {
-      const mockOrderId = 'order-123';
+      const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
       const actualServiceId = 'order-item-456'; // OrderItem.id
-      const mockServiceFulfillmentId = 'service-fulfillment-789'; // ServiceFulfillment.id
+      const mockServiceFulfillmentId = '789e4567-e89b-12d3-a456-426614174000'; // ServiceFulfillment.id
 
       // Mock initial fetch for order comments
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -131,7 +131,7 @@ describe('ServiceCommentSection - null serviceId bug', () => {
     });
 
     it('should demonstrate correct behavior in single service mode (no bug)', async () => {
-      const mockServiceId = 'service-123';
+      const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
 
       // Mock fetch for single service comments
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -179,9 +179,9 @@ describe('ServiceCommentSection - null serviceId bug', () => {
 
   describe('Expected behavior after fix', () => {
     it('should pass serviceId to CRUD operations in order mode', async () => {
-      const mockOrderId = 'order-123';
+      const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
       const actualServiceId = 'order-item-456';
-      const mockServiceFulfillmentId = 'service-fulfillment-789';
+      const mockServiceFulfillmentId = '789e4567-e89b-12d3-a456-426614174000';
 
       // Mock initial fetch
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -222,7 +222,7 @@ describe('ServiceCommentSection - null serviceId bug', () => {
 
   describe('Comment visibility in different contexts', () => {
     it('should correctly filter comments by service in order mode', async () => {
-      const mockOrderId = 'order-123';
+      const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
       const serviceId1 = 'order-item-1';
       const serviceId2 = 'order-item-2';
       const fulfillmentId1 = 'fulfillment-1';
@@ -307,7 +307,7 @@ describe('ServiceCommentSection - null serviceId bug', () => {
         }
       } as any);
 
-      const mockServiceId = 'service-123';
+      const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
 
       // Mock comments with mixed visibility
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -341,7 +341,7 @@ describe('ServiceCommentSection - null serviceId bug', () => {
 
   describe('Error handling', () => {
     it('should display error message when comment creation fails', async () => {
-      const mockServiceId = 'service-123';
+      const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
 
       // Mock initial successful load
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -370,7 +370,7 @@ describe('ServiceCommentSection - null serviceId bug', () => {
     });
 
     it('should handle API errors gracefully', async () => {
-      const mockServiceId = 'service-123';
+      const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
 
       // Mock API error
       vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));

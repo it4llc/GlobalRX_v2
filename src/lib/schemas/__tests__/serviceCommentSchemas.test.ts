@@ -292,7 +292,7 @@ describe('serviceCommentSchemas', () => {
       it('should pass with minimal comment data', () => {
         const validData = {
           id: 'comment-123',
-          serviceId: 'service-456',
+          serviceId: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
           templateId: 'template-789',
           templateName: 'Document Request',
           finalText: 'Please provide documents',
@@ -312,7 +312,7 @@ describe('serviceCommentSchemas', () => {
       it('should pass with complete comment data including updates', () => {
         const validData = {
           id: 'comment-123',
-          serviceId: 'service-456',
+          serviceId: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
           templateId: 'template-789',
           templateName: 'Document Request',
           finalText: 'Updated text',
@@ -334,7 +334,7 @@ describe('serviceCommentSchemas', () => {
       it('should handle ISO date strings', () => {
         const validData = {
           id: 'comment-123',
-          serviceId: 'service-456',
+          serviceId: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
           templateId: 'template-789',
           templateName: 'Test Template',
           finalText: 'Test comment',
@@ -364,7 +364,7 @@ describe('serviceCommentSchemas', () => {
       it('should fail with invalid date formats', () => {
         const invalidData = {
           id: 'comment-123',
-          serviceId: 'service-456',
+          serviceId: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
           templateId: 'template-789',
           templateName: 'Test',
           finalText: 'Test',

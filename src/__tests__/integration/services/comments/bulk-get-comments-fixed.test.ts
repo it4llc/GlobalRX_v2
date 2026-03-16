@@ -4,10 +4,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ServiceCommentService } from '@/services/service-comment-service';
 import { prisma } from '@/lib/prisma';
 
-// Mock Prisma client
+// Mock Prisma client - add orderItem which is required
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     servicesFulfillment: {
+      findMany: vi.fn()
+    },
+    orderItem: {
+      findUnique: vi.fn(),
       findMany: vi.fn()
     },
     order: {
@@ -32,7 +36,7 @@ vi.mock('@/lib/logger', () => ({
 describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () => {
   let service: ServiceCommentService;
   const mockUserId = 'user-123';
-  const mockOrderId = 'order-123';
+  const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
   const mockCustomerId = 'customer-123';
   const mockVendorId = 'vendor-123';
 
@@ -45,7 +49,7 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
     it('should fetch comments through orderItem.comments relationship', async () => {
       const mockServices = [
         {
-          id: 'service-fulfillment-1', // ServiceFulfillment ID
+          id: '123e4567-e89b-12d3-a456-426614174001', // ServiceFulfillment ID
           orderId: mockOrderId,
           orderItemId: 'order-item-1', // OrderItem ID
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
@@ -91,7 +95,7 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
           }
         },
         {
-          id: 'service-fulfillment-2', // ServiceFulfillment ID
+          id: '123e4567-e89b-12d3-a456-426614174002', // ServiceFulfillment ID
           orderId: mockOrderId,
           orderItemId: 'order-item-2', // OrderItem ID
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
@@ -130,17 +134,17 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
       );
 
       // Results should be keyed by ServiceFulfillment ID
-      expect(result['service-fulfillment-1']).toBeDefined();
-      expect(result['service-fulfillment-1'].serviceName).toBe('Background Check');
-      expect(result['service-fulfillment-1'].serviceStatus).toBe('Processing');
-      expect(result['service-fulfillment-1'].comments).toHaveLength(2);
-      expect(result['service-fulfillment-1'].total).toBe(2);
+      expect(result['123e4567-e89b-12d3-a456-426614174001']).toBeDefined();
+      expect(result['123e4567-e89b-12d3-a456-426614174001'].serviceName).toBe('Background Check');
+      expect(result['123e4567-e89b-12d3-a456-426614174001'].serviceStatus).toBe('Processing');
+      expect(result['123e4567-e89b-12d3-a456-426614174001'].comments).toHaveLength(2);
+      expect(result['123e4567-e89b-12d3-a456-426614174001'].total).toBe(2);
 
-      expect(result['service-fulfillment-2']).toBeDefined();
-      expect(result['service-fulfillment-2'].serviceName).toBe('Drug Test');
-      expect(result['service-fulfillment-2'].serviceStatus).toBe('Completed');
-      expect(result['service-fulfillment-2'].comments).toHaveLength(1);
-      expect(result['service-fulfillment-2'].total).toBe(1);
+      expect(result['123e4567-e89b-12d3-a456-426614174002']).toBeDefined();
+      expect(result['123e4567-e89b-12d3-a456-426614174002'].serviceName).toBe('Drug Test');
+      expect(result['123e4567-e89b-12d3-a456-426614174002'].serviceStatus).toBe('Completed');
+      expect(result['123e4567-e89b-12d3-a456-426614174002'].comments).toHaveLength(1);
+      expect(result['123e4567-e89b-12d3-a456-426614174002'].total).toBe(1);
 
       // Verify Prisma query structure
       expect(prisma.servicesFulfillment.findMany).toHaveBeenCalledWith({
@@ -167,7 +171,7 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
     it('should include status change fields in comments', async () => {
       const mockServices = [
         {
-          id: 'service-fulfillment-1',
+          id: '123e4567-e89b-12d3-a456-426614174001',
           orderId: mockOrderId,
           orderItemId: 'order-item-1',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
@@ -208,7 +212,7 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
         mockUserId
       );
 
-      const comment = result['service-fulfillment-1'].comments[0];
+      const comment = result['123e4567-e89b-12d3-a456-426614174001'].comments[0];
       expect(comment.isStatusChange).toBe(true);
       expect(comment.statusChangedFrom).toBe('Processing');
       expect(comment.statusChangedTo).toBe('Completed');
@@ -217,7 +221,7 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
     it('should filter internal comments for customer users with new structure', async () => {
       const mockServices = [
         {
-          id: 'service-fulfillment-1',
+          id: '123e4567-e89b-12d3-a456-426614174001',
           orderId: mockOrderId,
           orderItemId: 'order-item-1',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
@@ -257,9 +261,9 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
       );
 
       // Service should have 1 external comment
-      expect(result['service-fulfillment-1'].comments).toHaveLength(1);
-      expect(result['service-fulfillment-1'].comments[0].isInternalOnly).toBe(false);
-      expect(result['service-fulfillment-1'].total).toBe(1);
+      expect(result['123e4567-e89b-12d3-a456-426614174001'].comments).toHaveLength(1);
+      expect(result['123e4567-e89b-12d3-a456-426614174001'].comments[0].isInternalOnly).toBe(false);
+      expect(result['123e4567-e89b-12d3-a456-426614174001'].total).toBe(1);
 
       // Verify the query filtered by isInternalOnly
       expect(prisma.servicesFulfillment.findMany).toHaveBeenCalledWith({
@@ -286,7 +290,7 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
     it('should handle services without orderItem gracefully', async () => {
       const mockServices = [
         {
-          id: 'service-fulfillment-1',
+          id: '123e4567-e89b-12d3-a456-426614174001',
           orderId: mockOrderId,
           orderItemId: 'order-item-1',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
@@ -294,7 +298,7 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
           orderItem: null // No orderItem linked
         },
         {
-          id: 'service-fulfillment-2',
+          id: '123e4567-e89b-12d3-a456-426614174002',
           orderId: mockOrderId,
           orderItemId: 'order-item-2',
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
@@ -315,10 +319,10 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
       );
 
       // Both services should have empty comment arrays
-      expect(result['service-fulfillment-1'].comments).toEqual([]);
-      expect(result['service-fulfillment-1'].total).toBe(0);
-      expect(result['service-fulfillment-2'].comments).toEqual([]);
-      expect(result['service-fulfillment-2'].total).toBe(0);
+      expect(result['123e4567-e89b-12d3-a456-426614174001'].comments).toEqual([]);
+      expect(result['123e4567-e89b-12d3-a456-426614174001'].total).toBe(0);
+      expect(result['123e4567-e89b-12d3-a456-426614174002'].comments).toEqual([]);
+      expect(result['123e4567-e89b-12d3-a456-426614174002'].total).toBe(0);
     });
   });
 
@@ -326,7 +330,7 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
     it('should transform comment data for API response with all required fields', async () => {
       const mockServices = [
         {
-          id: 'service-fulfillment-1',
+          id: '123e4567-e89b-12d3-a456-426614174001',
           orderId: mockOrderId,
           orderItemId: 'order-item-1',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
@@ -378,7 +382,7 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
         mockUserId
       );
 
-      const comment = result['service-fulfillment-1'].comments[0];
+      const comment = result['123e4567-e89b-12d3-a456-426614174001'].comments[0];
 
       // Verify all required fields are present
       expect(comment).toMatchObject({

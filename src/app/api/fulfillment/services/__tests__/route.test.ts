@@ -70,8 +70,8 @@ describe('GET /api/fulfillment/services', () => {
 
       const mockServices = {
         services: [
-          { id: 'service-1', status: 'pending' },
-          { id: 'service-2', status: 'processing' }
+          { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'pending' },
+          { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'processing' }
         ],
         total: 2,
         limit: 50,
@@ -101,7 +101,7 @@ describe('GET /api/fulfillment/services', () => {
 
       const vendorServices = {
         services: [
-          { id: 'service-1', assignedVendorId: 'vendor-123', status: 'submitted' }
+          { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-123', status: 'submitted' }
         ],
         total: 1,
         limit: 50,
@@ -381,9 +381,9 @@ describe('GET /api/fulfillment/services', () => {
       const fullServices = {
         services: [
           {
-            id: 'service-1',
+            id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             orderId: 'order-1',
-            orderItemId: 'item-1',
+            orderItemId: '660e8400-e29b-41d4-a716-446655440001',
             serviceId: 'service-type-1',
             locationId: 'location-1',
             status: 'processing',
@@ -438,7 +438,7 @@ describe('GET /api/fulfillment/services', () => {
       const vendorServices = {
         services: [
           {
-            id: 'service-1',
+            id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             status: 'submitted',
             assignedVendorId: 'vendor-123',
             vendorNotes: 'Working on it',
@@ -550,8 +550,8 @@ describe('GET /api/fulfillment/services', () => {
 
       const vendorSpecificServices = {
         services: [
-          { id: 'service-1', assignedVendorId: 'vendor-123', status: 'submitted' },
-          { id: 'service-2', assignedVendorId: 'vendor-123', status: 'processing' }
+          { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-123', status: 'submitted' },
+          { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-123', status: 'processing' }
           // Services assigned to other vendors are NOT included
         ],
         total: 2,
@@ -582,9 +582,9 @@ describe('GET /api/fulfillment/services', () => {
 
       const servicesWithTerminalStatus = {
         services: [
-          { id: 'service-1', assignedVendorId: 'vendor-123', status: 'completed' },
-          { id: 'service-2', assignedVendorId: 'vendor-123', status: 'cancelled' },
-          { id: 'service-3', assignedVendorId: 'vendor-123', status: 'processing' }
+          { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-123', status: 'completed' },
+          { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-123', status: 'cancelled' },
+          { id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-123', status: 'processing' }
         ],
         total: 3,
         limit: 50,

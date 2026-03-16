@@ -111,53 +111,6 @@ export function canUserManageVendors(user: User | null): boolean {
          hasGenericAdminPermissions || hasCustomersPermissions;
 }
 
-/**
- * Determines vendor assignment for a new order
- *
- * Business Rule: New orders are automatically assigned to the primary vendor if active.
- * If no primary vendor is configured or the primary is inactive, orders go to the
- * internal fulfillment team. This ensures orders are never left unassigned.
- *
- * Assignment Priority:
- * 1. Active primary vendor (auto-assignment)
- * 2. Internal team (fallback when no primary or primary inactive)
- */
-export function getVendorAssignmentForOrder(vendors: Vendor[]): {
-  vendorId: string | null;
-  assignmentReason: string;
-} {
-  if (vendors.length === 0) {
-    return {
-      vendorId: null,
-      assignmentReason: 'No vendors configured, assigned to internal team'
-    };
-  }
-
-  // Find the first active primary vendor
-  const primaryVendor = vendors.find(v => v.isPrimary && v.isActive);
-
-  if (primaryVendor) {
-    return {
-      vendorId: primaryVendor.id,
-      assignmentReason: 'Auto-assigned to primary vendor'
-    };
-  }
-
-  // Check if primary vendor exists but is inactive
-  const inactivePrimary = vendors.find(v => v.isPrimary && !v.isActive);
-  if (inactivePrimary) {
-    return {
-      vendorId: null,
-      assignmentReason: 'Primary vendor is inactive, assigned to internal team'
-    };
-  }
-
-  // No primary vendor configured
-  return {
-    vendorId: null,
-    assignmentReason: 'No primary vendor configured, assigned to internal team'
-  };
-}
 
 /**
  * Validates that only one vendor is marked as primary

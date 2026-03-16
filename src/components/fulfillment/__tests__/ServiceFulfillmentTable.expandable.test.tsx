@@ -30,13 +30,13 @@ vi.mock('@/hooks/useToast', () => ({
 global.fetch = vi.fn();
 
 describe('ServiceFulfillmentTable - Expandable Rows for Comments', () => {
-  const mockOrderId = 'order-123';
+  const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
 
   const mockServices = [
     {
-      id: 'service-1',
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       orderId: mockOrderId,
-      orderItemId: 'item-1',
+      orderItemId: '660e8400-e29b-41d4-a716-446655440001',
       serviceId: 'service-type-1',
       locationId: 'location-1',
       status: 'pending',
@@ -52,9 +52,9 @@ describe('ServiceFulfillmentTable - Expandable Rows for Comments', () => {
       }
     },
     {
-      id: 'service-2',
+      id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
       orderId: mockOrderId,
-      orderItemId: 'item-2',
+      orderItemId: '660e8400-e29b-41d4-a716-446655440002',
       serviceId: 'service-type-2',
       locationId: 'location-2',
       status: 'processing',
@@ -72,12 +72,12 @@ describe('ServiceFulfillmentTable - Expandable Rows for Comments', () => {
   ];
 
   const mockCommentsMap = {
-    'service-1': [
+    'f47ac10b-58cc-4372-a567-0e02b2c3d479': [
       { id: 'comment-1', finalText: 'Comment 1', isInternalOnly: true },
       { id: 'comment-2', finalText: 'Comment 2', isInternalOnly: false },
       { id: 'comment-3', finalText: 'Comment 3', isInternalOnly: true }
     ],
-    'service-2': [
+    'a47ac10b-58cc-4372-a567-0e02b2c3d479': [
       { id: 'comment-4', finalText: 'Comment 4', isInternalOnly: false }
     ]
   };
@@ -169,7 +169,7 @@ describe('ServiceFulfillmentTable - Expandable Rows for Comments', () => {
       expect(firstRow).toHaveClass('has-comments');
 
       const noCommentsService = {
-        id: 'service-3',
+        id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
         orderId: mockOrderId,
         service: { name: 'Education Verification' }
       };
@@ -414,7 +414,7 @@ describe('ServiceFulfillmentTable - Expandable Rows for Comments', () => {
       const user = userEvent.setup();
 
       vi.mocked(useServiceComments).mockReturnValue({
-        commentsByService: { 'service-1': [] },
+        commentsByService: { 'f47ac10b-58cc-4372-a567-0e02b2c3d479': [] },
         getCommentCount: vi.fn(() => 0),
         loading: false,
         error: null
@@ -531,8 +531,8 @@ describe('ServiceFulfillmentTable - Expandable Rows for Comments', () => {
       // Update mock to simulate new comment
       const updatedCommentsMap = {
         ...mockCommentsMap,
-        'service-1': [
-          ...mockCommentsMap['service-1'],
+        'f47ac10b-58cc-4372-a567-0e02b2c3d479': [
+          ...mockCommentsMap['f47ac10b-58cc-4372-a567-0e02b2c3d479'],
           { id: 'comment-new', finalText: 'New comment', isInternalOnly: true }
         ]
       };
@@ -585,7 +585,7 @@ describe('ServiceFulfillmentTable - Expandable Rows for Comments', () => {
       // Mock filtered comments (only external)
       vi.mocked(useServiceComments).mockReturnValue({
         commentsByService: {
-          'service-1': [
+          'f47ac10b-58cc-4372-a567-0e02b2c3d479': [
             { id: 'comment-2', finalText: 'Comment 2', isInternalOnly: false }
           ]
         },

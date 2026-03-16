@@ -45,11 +45,11 @@ const mockDefaultFetchResponses = (results = null, attachments = []) => {
 
 describe('ServiceResultsSection', () => {
   const mockProps = {
-    serviceId: 'item-123',
+    serviceId: '660e8400-e29b-41d4-a716-446655440004',
     serviceFulfillmentId: 'sf-789',
     serviceName: 'Criminal Background Check',
     serviceStatus: 'PROCESSING',
-    orderId: 'order-456',
+    orderId: '550e8400-e29b-41d4-a716-446655440002',
     isCustomer: false
   };
 

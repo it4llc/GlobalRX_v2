@@ -58,7 +58,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       });
 
       const mockOrder = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         orderNumber: '20240301-ABC-0001',
         statusCode: 'processing',
         customerId: 'customer-456'
@@ -82,14 +82,14 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
 
       vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
         id: 'history-123',
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'closed',
         comment: 'All background checks completed successfully',
         userId: 'user-123',
         createdAt: new Date()
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -97,7 +97,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
           closureComments: 'All background checks completed successfully'
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(200);
@@ -106,7 +106,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       expect(data.statusCode).toBe('closed');
       expect(data.closureComments).toBe('All background checks completed successfully');
 
-      expect(ServiceFulfillmentService.checkOrderCompletion).toHaveBeenCalledWith('order-123');
+      expect(ServiceFulfillmentService.checkOrderCompletion).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440001');
       expect(prisma.order.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -128,7 +128,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       });
 
       const mockOrder = {
-        id: 'order-456',
+        id: '550e8400-e29b-41d4-a716-446655440002',
         orderNumber: '20240301-DEF-0002',
         statusCode: 'processing'
       };
@@ -138,7 +138,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       // Some services are still in progress
       vi.mocked(ServiceFulfillmentService.checkOrderCompletion).mockResolvedValueOnce(false);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-456/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440002/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -146,7 +146,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
           closureComments: 'Trying to close prematurely'
         })
       });
-      const params = { params: { id: 'order-456' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440002' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -154,7 +154,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       const data = await response.json();
       expect(data).toHaveProperty('error', 'Cannot close order - not all services are complete');
 
-      expect(ServiceFulfillmentService.checkOrderCompletion).toHaveBeenCalledWith('order-456');
+      expect(ServiceFulfillmentService.checkOrderCompletion).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440002');
       expect(prisma.order.update).not.toHaveBeenCalled();
     });
 
@@ -168,14 +168,14 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       });
 
       const mockOrder = {
-        id: 'order-789',
+        id: '550e8400-e29b-41d4-a716-446655440003',
         statusCode: 'processing'
       };
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
       vi.mocked(ServiceFulfillmentService.checkOrderCompletion).mockResolvedValueOnce(true);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-789/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440003/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -183,7 +183,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
           // Missing closureComments
         })
       });
-      const params = { params: { id: 'order-789' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440003' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -202,7 +202,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       });
 
       const mockOrder = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'processing'
       };
 
@@ -217,7 +217,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
         closureComments: 'All checks complete'
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -225,7 +225,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
           closureComments: 'All checks complete'
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       const data = await response.json();
@@ -514,7 +514,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       });
 
       const mockOrder = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'processing'
       };
 
@@ -523,7 +523,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
 
       const tooLongComment = 'A'.repeat(5001); // Exceeds 5000 char limit
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -531,7 +531,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
           closureComments: tooLongComment
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -550,13 +550,13 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       });
 
       const mockOrder = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'closed' // Already closed
       };
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -564,7 +564,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
           closureComments: 'Trying to close again'
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -583,7 +583,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       });
 
       const mockOrder = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'processing'
       };
 
@@ -596,14 +596,14 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
       });
       vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
         id: 'history-123',
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'closed',
         comment: 'All services complete',
         userId: 'user-123',
         createdAt: new Date()
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -611,13 +611,13 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
           closureComments: 'All services complete'
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       await PATCH(request, params);
 
       expect(prisma.orderStatusHistory.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          orderId: 'order-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
           statusCode: 'closed',
           comment: 'All services complete',
           userId: 'user-123'
@@ -636,7 +636,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -644,7 +644,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
           closureComments: 'Test closure'
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);
@@ -663,7 +663,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -671,7 +671,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
           closureComments: 'Vendor trying to close'
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);
@@ -690,7 +690,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -698,7 +698,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status - Order Closure with Service
           closureComments: 'Customer trying to close'
         })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);

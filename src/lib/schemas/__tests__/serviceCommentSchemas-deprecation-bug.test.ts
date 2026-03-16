@@ -90,7 +90,7 @@ describe('Service Comment Schemas - Deprecation Bug', () => {
       // Test that they work as Zod schemas
       const testComment = {
         id: '123',
-        serviceId: 'service-123',
+        serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         templateId: 'template-123',
         finalText: 'Test comment text',
         isInternalOnly: true,
@@ -124,7 +124,7 @@ describe('Service Comment Schemas - Deprecation Bug', () => {
         comments: [
           {
             id: '1',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             templateId: 'template-1',
             finalText: 'Comment 1',
             isInternalOnly: false,
@@ -155,13 +155,13 @@ describe('Service Comment Schemas - Deprecation Bug', () => {
       // The validation file provides a better structured schema for order comments
       const orderResponse = {
         serviceComments: {
-          'service-1': {
+          'f47ac10b-58cc-4372-a567-0e02b2c3d479': {
             serviceName: 'Background Check',
             serviceStatus: 'completed',
             comments: [
               {
                 id: '1',
-                serviceId: 'service-1',
+                serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
                 templateId: 'template-1',
                 finalText: 'Service completed successfully',
                 isInternalOnly: false,

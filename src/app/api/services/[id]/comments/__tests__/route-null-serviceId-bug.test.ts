@@ -118,7 +118,7 @@ describe('Service Comments API - null serviceId bug', () => {
       // Mock service exists
       vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce({
         id: validServiceId,
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         serviceType: 'BACKGROUND_CHECK'
       } as any);
 

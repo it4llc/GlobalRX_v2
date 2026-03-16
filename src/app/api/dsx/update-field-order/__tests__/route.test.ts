@@ -47,7 +47,7 @@ describe('POST /api/dsx/update-field-order', () => {
       const request = new Request('http://localhost:3000/api/dsx/update-field-order', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           fieldOrders: []
         })
       });
@@ -84,7 +84,7 @@ describe('POST /api/dsx/update-field-order', () => {
       const request = new Request('http://localhost:3000/api/dsx/update-field-order', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           fieldOrders: [
             { requirementId: 'req-1', displayOrder: 1 }
           ]
@@ -131,7 +131,7 @@ describe('POST /api/dsx/update-field-order', () => {
       const request = new Request('http://localhost:3000/api/dsx/update-field-order', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           fieldOrders: [
             { requirementId: 'req-1', displayOrder: 1 }
           ]
@@ -156,7 +156,7 @@ describe('POST /api/dsx/update-field-order', () => {
       const request = new Request('http://localhost:3000/api/dsx/update-field-order', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           fieldOrders: []
         })
       });
@@ -196,7 +196,7 @@ describe('POST /api/dsx/update-field-order', () => {
       const request = new Request('http://localhost:3000/api/dsx/update-field-order', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123'
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479'
         })
       });
 
@@ -210,7 +210,7 @@ describe('POST /api/dsx/update-field-order', () => {
       const request = new Request('http://localhost:3000/api/dsx/update-field-order', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           fieldOrders: 'not-an-array'
         })
       });
@@ -265,7 +265,7 @@ describe('POST /api/dsx/update-field-order', () => {
       const request = new Request('http://localhost:3000/api/dsx/update-field-order', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           fieldOrders: [
             { requirementId: 'req-1', displayOrder: 10 },
             { requirementId: 'req-2', displayOrder: 20 }
@@ -290,7 +290,7 @@ describe('POST /api/dsx/update-field-order', () => {
             ]),
             updateMany: vi.fn().mockResolvedValue({ count: 1 }),
             create: vi.fn().mockResolvedValue({
-              serviceId: 'service-123',
+              serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
               requirementId: 'req-2',
               displayOrder: 20
             })
@@ -316,7 +316,7 @@ describe('POST /api/dsx/update-field-order', () => {
       const request = new Request('http://localhost:3000/api/dsx/update-field-order', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           fieldOrders: [
             { requirementId: 'req-1', displayOrder: 10 },
             { requirementId: 'req-2', displayOrder: 20 }
@@ -377,7 +377,7 @@ describe('POST /api/dsx/update-field-order', () => {
       const request = new Request('http://localhost:3000/api/dsx/update-field-order', {
         method: 'POST',
         body: JSON.stringify({
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           fieldOrders: [
             { requirementId: 'req-1', displayOrder: 10 }
           ]

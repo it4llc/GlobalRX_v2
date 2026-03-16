@@ -103,8 +103,8 @@ describe('Dashboard Stats Display Bug - Component Level', () => {
             id: '1',
             statusCode: 'processing',
             items: [
-              { id: 'item-1', service: { name: 'Service A' } },
-              { id: 'item-2', service: { name: 'Service B' } },
+              { id: '660e8400-e29b-41d4-a716-446655440001', service: { name: 'Service A' } },
+              { id: '660e8400-e29b-41d4-a716-446655440002', service: { name: 'Service B' } },
             ],
             orderNumber: 'ORD-001'
           },
@@ -112,7 +112,7 @@ describe('Dashboard Stats Display Bug - Component Level', () => {
             id: '2',
             statusCode: 'submitted',
             items: [
-              { id: 'item-3', service: { name: 'Service C' } },
+              { id: '660e8400-e29b-41d4-a716-446655440003', service: { name: 'Service C' } },
             ],
             orderNumber: 'ORD-002'
           },

@@ -117,13 +117,13 @@ describe('Portal Orders Page - Service Status Display', () => {
           },
           items: [
             {
-              id: 'item-1',
+              id: '660e8400-e29b-41d4-a716-446655440001',
               service: { name: 'Criminal Check' },
               location: { name: 'USA', code: 'US' },
               status: 'submitted'
             },
             {
-              id: 'item-2',
+              id: '660e8400-e29b-41d4-a716-446655440002',
               service: { name: 'Employment Verification' },
               location: { name: 'Canada', code: 'CA' },
               status: 'processing'
@@ -192,19 +192,19 @@ describe('Portal Orders Page - Service Status Display', () => {
           },
           items: [
             {
-              id: 'item-1',
+              id: '660e8400-e29b-41d4-a716-446655440001',
               service: { name: 'Service 1' },
               location: { name: 'USA', code: 'US' },
               status: 'completed'
             },
             {
-              id: 'item-2',
+              id: '660e8400-e29b-41d4-a716-446655440002',
               service: { name: 'Service 2' },
               location: { name: 'USA', code: 'US' },
               status: 'processing'
             },
             {
-              id: 'item-3',
+              id: '660e8400-e29b-41d4-a716-446655440003',
               service: { name: 'Service 3' },
               location: { name: 'USA', code: 'US' },
               status: 'cancelled'
@@ -276,7 +276,7 @@ describe('Portal Orders Page - Service Status Display', () => {
         createdAt: '2024-03-01T10:00:00Z',
         subject: { firstName: 'Jane', lastName: 'Smith' },
         items: [{
-          id: 'item-1',
+          id: '660e8400-e29b-41d4-a716-446655440001',
           service: { name: 'Criminal Check' },
           location: { name: 'USA', code: 'US' },
           status: 'submitted'
@@ -382,19 +382,19 @@ describe('Portal Orders Page - Service Status Display', () => {
         subject: { firstName: 'Jane', lastName: 'Smith' },
         items: [
           {
-            id: 'item-1',
+            id: '660e8400-e29b-41d4-a716-446655440001',
             service: { name: null }, // Missing name
             location: { name: 'USA', code: 'US' },
             status: 'submitted'
           },
           {
-            id: 'item-2',
+            id: '660e8400-e29b-41d4-a716-446655440002',
             service: { name: 'Valid Service' },
             location: { name: null, code: null }, // Missing location
             status: 'processing'
           },
           {
-            id: 'item-3',
+            id: '660e8400-e29b-41d4-a716-446655440003',
             service: { name: 'Another Service' },
             location: { name: 'Canada', code: 'CA' },
             status: 'unknown_status' // Unknown status
