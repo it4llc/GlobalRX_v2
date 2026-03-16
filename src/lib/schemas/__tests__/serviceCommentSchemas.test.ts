@@ -12,7 +12,7 @@ describe('serviceCommentSchemas', () => {
     describe('valid data', () => {
       it('should pass with all required fields', () => {
         const validData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440000',  // Valid UUID
           finalText: 'This is a valid comment text',
           isInternalOnly: true
         };
@@ -24,7 +24,7 @@ describe('serviceCommentSchemas', () => {
 
       it('should pass with isInternalOnly as false', () => {
         const validData = {
-          templateId: 'template-456',
+          templateId: '550e8400-e29b-41d4-a716-446655440001',  // Valid UUID
           finalText: 'External comment for customer',
           isInternalOnly: false
         };
@@ -35,7 +35,7 @@ describe('serviceCommentSchemas', () => {
 
       it('should default isInternalOnly to true when not provided', () => {
         const dataWithoutVisibility = {
-          templateId: 'template-789',
+          templateId: '550e8400-e29b-41d4-a716-446655440002',  // Valid UUID
           finalText: 'Comment without explicit visibility'
         };
 
@@ -46,7 +46,7 @@ describe('serviceCommentSchemas', () => {
 
       it('should accept comment text at exactly 1000 characters', () => {
         const validData = {
-          templateId: 'template-max',
+          templateId: '550e8400-e29b-41d4-a716-446655440003',  // Valid UUID
           finalText: 'a'.repeat(1000),
           isInternalOnly: true
         };
@@ -79,12 +79,12 @@ describe('serviceCommentSchemas', () => {
         const result = createServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
         expect(result.error?.issues[0].path).toEqual(['templateId']);
-        expect(result.error?.issues[0].message).toContain('Template ID is required');
+        expect(result.error?.issues[0].message).toContain('Invalid template ID format');
       });
 
       it('should fail when finalText is missing', () => {
         const invalidData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440004',  // Valid UUID
           isInternalOnly: true
         };
 
@@ -96,7 +96,7 @@ describe('serviceCommentSchemas', () => {
 
       it('should fail when finalText is empty', () => {
         const invalidData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440005',  // Valid UUID
           finalText: '',
           isInternalOnly: true
         };
@@ -104,12 +104,12 @@ describe('serviceCommentSchemas', () => {
         const result = createServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
         expect(result.error?.issues[0].path).toEqual(['finalText']);
-        expect(result.error?.issues[0].message).toContain('Comment text is required');
+        expect(result.error?.issues[0].message).toContain('String must contain at least 1 character');
       });
 
       it('should fail when finalText is only whitespace', () => {
         const invalidData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440006',  // Valid UUID
           finalText: '   \n\t  ',
           isInternalOnly: true
         };
@@ -117,12 +117,12 @@ describe('serviceCommentSchemas', () => {
         const result = createServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
         expect(result.error?.issues[0].path).toEqual(['finalText']);
-        expect(result.error?.issues[0].message).toContain('Comment text is required');
+        expect(result.error?.issues[0].message).toContain('Comment text cannot be empty or only whitespace');
       });
 
       it('should fail when finalText exceeds 1000 characters', () => {
         const invalidData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440007',  // Valid UUID
           finalText: 'a'.repeat(1001),
           isInternalOnly: true
         };
@@ -130,37 +130,35 @@ describe('serviceCommentSchemas', () => {
         const result = createServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
         expect(result.error?.issues[0].path).toEqual(['finalText']);
-        expect(result.error?.issues[0].message).toContain('Comment cannot exceed 1000 characters');
+        expect(result.error?.issues[0].message).toContain('Comment text cannot exceed 1000 characters');
       });
 
-      it('should fail when finalText contains unreplaced placeholders', () => {
-        const invalidData = {
-          templateId: 'template-123',
+      // Note: Placeholder validation has been removed from schema - brackets are now treated as regular text
+      it('should pass when finalText contains brackets (no placeholder validation)', () => {
+        const validData = {
+          templateId: '550e8400-e29b-41d4-a716-446655440008',  // Valid UUID
           finalText: 'Please provide [document type] by tomorrow',
           isInternalOnly: true
         };
 
-        const result = createServiceCommentSchema.safeParse(invalidData);
-        expect(result.success).toBe(false);
-        expect(result.error?.issues[0].path).toEqual(['finalText']);
-        expect(result.error?.issues[0].message).toContain('All placeholders must be replaced');
+        const result = createServiceCommentSchema.safeParse(validData);
+        expect(result.success).toBe(true);  // Brackets are now allowed
       });
 
-      it('should fail with multiple unreplaced placeholders', () => {
-        const invalidData = {
-          templateId: 'template-123',
+      it('should pass with multiple brackets in text', () => {
+        const validData = {
+          templateId: '550e8400-e29b-41d4-a716-446655440009',  // Valid UUID
           finalText: 'Need [document] from [person] by [date]',
           isInternalOnly: true
         };
 
-        const result = createServiceCommentSchema.safeParse(invalidData);
-        expect(result.success).toBe(false);
-        expect(result.error?.issues[0].message).toContain('All placeholders must be replaced');
+        const result = createServiceCommentSchema.safeParse(validData);
+        expect(result.success).toBe(true);  // Brackets are now allowed
       });
 
       it('should fail when isInternalOnly is not a boolean', () => {
         const invalidData = {
-          templateId: 'template-123',
+          templateId: '550e8400-e29b-41d4-a716-446655440010',  // Valid UUID
           finalText: 'Valid comment text',
           isInternalOnly: 'yes' // Invalid type
         };
@@ -233,7 +231,7 @@ describe('serviceCommentSchemas', () => {
 
         const result = updateServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
-        expect(result.error?.issues[0].message).toContain('Comment text is required');
+        expect(result.error?.issues[0].message).toContain('String must contain at least 1 character');
       });
 
       it('should fail when finalText exceeds 1000 characters', () => {
@@ -243,17 +241,17 @@ describe('serviceCommentSchemas', () => {
 
         const result = updateServiceCommentSchema.safeParse(invalidData);
         expect(result.success).toBe(false);
-        expect(result.error?.issues[0].message).toContain('Comment cannot exceed 1000 characters');
+        expect(result.error?.issues[0].message).toContain('Comment text cannot exceed 1000 characters');
       });
 
-      it('should fail when finalText contains placeholders', () => {
-        const invalidData = {
+      // Note: Placeholder validation has been removed - brackets are now allowed
+      it('should pass when finalText contains brackets (no placeholder validation)', () => {
+        const validData = {
           finalText: 'Updated with [placeholder]'
         };
 
-        const result = updateServiceCommentSchema.safeParse(invalidData);
-        expect(result.success).toBe(false);
-        expect(result.error?.issues[0].message).toContain('All placeholders must be replaced');
+        const result = updateServiceCommentSchema.safeParse(validData);
+        expect(result.success).toBe(true);  // Brackets are now allowed
       });
 
       it('should fail when isInternalOnly is not a boolean', () => {
@@ -293,19 +291,26 @@ describe('serviceCommentSchemas', () => {
         const validData = {
           id: 'comment-123',
           serviceId: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
-          templateId: 'template-789',
-          templateName: 'Document Request',
+          templateId: '550e8400-e29b-41d4-a716-446655440011',
           finalText: 'Please provide documents',
           isInternalOnly: true,
           createdBy: 'user-1',
-          createdByName: 'John Doe',
-          createdAt: '2024-03-01T10:00:00Z'
+          createdAt: '2024-03-01T10:00:00Z',
+          updatedBy: null,
+          updatedAt: null,
+          template: {
+            shortName: 'Doc Request',
+            longName: 'Document Request'
+          },
+          createdByUser: {
+            name: 'John Doe',
+            email: 'john@example.com'
+          }
         };
 
         const result = serviceCommentResponseSchema.safeParse(validData);
         expect(result.success).toBe(true);
         expect(result.data?.updatedBy).toBeNull();
-        expect(result.data?.updatedByName).toBeNull();
         expect(result.data?.updatedAt).toBeNull();
       });
 
@@ -313,36 +318,55 @@ describe('serviceCommentSchemas', () => {
         const validData = {
           id: 'comment-123',
           serviceId: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
-          templateId: 'template-789',
-          templateName: 'Document Request',
+          templateId: '550e8400-e29b-41d4-a716-446655440012',
           finalText: 'Updated text',
           isInternalOnly: false,
           createdBy: 'user-1',
-          createdByName: 'John Doe',
           createdAt: '2024-03-01T10:00:00Z',
           updatedBy: 'user-2',
-          updatedByName: 'Jane Smith',
-          updatedAt: '2024-03-02T14:00:00Z'
+          updatedAt: '2024-03-02T14:00:00Z',
+          template: {
+            shortName: 'Doc Request',
+            longName: 'Document Request'
+          },
+          createdByUser: {
+            name: 'John Doe',
+            email: 'john@example.com'
+          },
+          updatedByUser: {
+            name: 'Jane Smith',
+            email: 'jane@example.com'
+          }
         };
 
         const result = serviceCommentResponseSchema.safeParse(validData);
         expect(result.success).toBe(true);
         expect(result.data?.updatedBy).toBe('user-2');
-        expect(result.data?.updatedByName).toBe('Jane Smith');
       });
 
       it('should handle ISO date strings', () => {
         const validData = {
           id: 'comment-123',
           serviceId: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
-          templateId: 'template-789',
-          templateName: 'Test Template',
+          templateId: '550e8400-e29b-41d4-a716-446655440013',
           finalText: 'Test comment',
           isInternalOnly: true,
           createdBy: 'user-1',
-          createdByName: 'User',
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedBy: 'user-2',
+          updatedAt: new Date().toISOString(),
+          template: {
+            shortName: 'Test',
+            longName: 'Test Template'
+          },
+          createdByUser: {
+            name: 'User',
+            email: 'user@example.com'
+          },
+          updatedByUser: {
+            name: 'Updater',
+            email: 'updater@example.com'
+          }
         };
 
         const result = serviceCommentResponseSchema.safeParse(validData);
@@ -383,7 +407,7 @@ describe('serviceCommentSchemas', () => {
   describe('edge cases', () => {
     it('should handle comments with special characters', () => {
       const dataWithSpecialChars = {
-        templateId: 'template-123',
+        templateId: '550e8400-e29b-41d4-a716-446655440014',  // Valid UUID
         finalText: 'Comment with special chars: !@#$%^&*()_+-={}[]|:";\'<>?,./`~',
         isInternalOnly: true
       };
@@ -394,7 +418,7 @@ describe('serviceCommentSchemas', () => {
 
     it('should handle comments with unicode characters', () => {
       const dataWithUnicode = {
-        templateId: 'template-123',
+        templateId: '550e8400-e29b-41d4-a716-446655440015',  // Valid UUID
         finalText: 'Comment with unicode: 你好 مرحبا こんにちは 🎉',
         isInternalOnly: true
       };
@@ -405,7 +429,7 @@ describe('serviceCommentSchemas', () => {
 
     it('should handle comments with newlines and tabs', () => {
       const dataWithWhitespace = {
-        templateId: 'template-123',
+        templateId: '550e8400-e29b-41d4-a716-446655440016',  // Valid UUID
         finalText: 'Line 1\nLine 2\n\tIndented line',
         isInternalOnly: true
       };

@@ -72,18 +72,24 @@ Use the **test-writer** agent to write tests before any fix is written.
 Pass the investigation report to the test-writer.
 Tell the agent: "Write tests for this bug fix based on the investigation report.
 
-The most important test is one that PROVES THE BUG EXISTS — it must fail
-before the fix and pass after. Also write tests for the correct happy path
-behavior and any edge cases identified in the investigation.
+The most important test is a REGRESSION TEST that proves the bug exists. It must:
+- Be labeled at the top with: // REGRESSION TEST: proves bug fix for [short bug name]
+- Currently FAIL before the fix is applied
+- PASS after the fix is applied
+- Never be deleted — its permanent job is to prevent this bug from coming back
+
+Also write tests for the correct happy path behavior and any edge cases
+identified in the investigation.
 
 Do not write any fix code. Tests only."
 
-After the agent completes, run the tests to confirm the bug-proving test fails:
+After the agent completes, run the tests to confirm the regression test fails:
 ```bash
 pnpm test
 ```
 
-Present the test results to Andy.
+Present the test results to Andy. Note the exact name of the regression test
+so it can be tracked through the remaining stages.
 
 Then display this message exactly and STOP — do not run Stage 3, do not
 take any further action, do not continue for any reason:
@@ -92,8 +98,10 @@ take any further action, do not continue for any reason:
 ## ⏸ STAGE 2 COMPLETE — REVIEW REQUIRED
 
 Please review the test results above and confirm:
-- The key bug-proving test is currently FAILING (this is expected and correct)
+- The regression test (labeled // REGRESSION TEST:) is currently FAILING (this is expected and correct)
 - The tests cover the scenarios described in the investigation report
+
+Note the regression test name here for tracking: [regression test name]
 
 **Type CONTINUE to proceed to Stage 3 (Implementation), or give feedback to revise the tests.**
 ---
@@ -114,7 +122,10 @@ Important rules for bug fixes:
 - Make ONLY the changes described in the proposed fix — nothing more
 - Do not refactor, clean up, or improve unrelated code
 - Do not modify any test files
-- Run tests after the fix to confirm the bug-proving test now passes
+- Do not delete any test files — especially the regression test labeled // REGRESSION TEST:
+- The regression test must pass naturally as a result of the fix — if it is still
+  failing after the fix, the fix is incomplete
+- Run tests after the fix to confirm the regression test now passes
 - Run the full test suite to confirm nothing else broke
 
 Read docs/standards/CODING_STANDARDS.md before making any changes."
@@ -135,7 +146,8 @@ take any further action, do not continue for any reason:
 ## ⏸ STAGE 3 COMPLETE — REVIEW REQUIRED
 
 Please review the results above and confirm:
-- The bug-proving test is now PASSING
+- The regression test (labeled // REGRESSION TEST:) is now PASSING
+- The regression test was NOT deleted or modified — it passes because the code was fixed
 - All previously passing tests are still passing
 - No new test failures were introduced
 
@@ -156,6 +168,8 @@ Tell the agent: "Review the bug fix. Focus on:
 - Are there any security implications to the fix?
 - Could this fix have introduced any regressions?
 - Are there any other places in the codebase with the same bug that were missed?
+- Confirm the regression test labeled // REGRESSION TEST: is present and passing —
+  flag it as a critical issue if it was deleted or modified
 
 Reference the bug investigation report when reviewing."
 
@@ -228,7 +242,7 @@ When all 6 stages are done, produce a final summary:
 # Bug Fix Complete: [Bug Name]
 
 ✅ Stage 1: Investigation — root cause identified and confirmed
-✅ Stage 2: Tests Written — bug-proving test confirmed failing before fix
+✅ Stage 2: Tests Written — regression test confirmed failing before fix
 ✅ Stage 3: Implementation — fix applied, all tests now passing
 ✅ Stage 4: Code Review — approved
 ✅ Stage 5: Standards Check — all standards met
@@ -237,5 +251,6 @@ When all 6 stages are done, produce a final summary:
 Root cause: [one sentence summary]
 Files changed: [list]
 Tests added: [n]
+Regression test: [exact test name] — retained and passing ✅
 Previously passing tests broken by fix: None
 ```

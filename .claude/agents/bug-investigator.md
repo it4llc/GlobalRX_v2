@@ -144,8 +144,17 @@ Keeping the fix surgical is important.
 
 ## Test Cases Needed
 List the specific scenarios the test-writer should cover:
-1. A test that proves the bug exists (will fail before the fix, pass after)
+
+1. **A regression test that proves the bug exists.**
+   - This test MUST fail before the fix is applied and pass after.
+   - It must be clearly labeled with this comment at the top:
+     `// REGRESSION TEST: proves bug fix for [short bug name]`
+   - This test must NEVER be deleted after the fix. Its permanent job is to
+     prevent this bug from coming back. The implementer is explicitly
+     forbidden from deleting it or modifying it to force a pass.
+
 2. Tests for the happy path (normal successful behavior)
+
 3. Tests for any edge cases uncovered during investigation
 
 ## Risk of Fix
