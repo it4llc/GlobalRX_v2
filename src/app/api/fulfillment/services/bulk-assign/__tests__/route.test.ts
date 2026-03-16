@@ -578,10 +578,8 @@ describe('POST /api/fulfillment/services/bulk-assign', () => {
     });
 
     it('should handle timeout errors gracefully', async () => {
-      vi.mocked(ServiceFulfillmentService.bulkAssignServices).mockImplementationOnce(
-        () => new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Operation timeout')), 100)
-        )
+      vi.mocked(ServiceFulfillmentService.bulkAssignServices).mockRejectedValueOnce(
+        new Error('Operation timeout')
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/bulk-assign', {

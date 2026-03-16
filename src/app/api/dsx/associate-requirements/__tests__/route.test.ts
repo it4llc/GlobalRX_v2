@@ -27,8 +27,9 @@ vi.mock('@/lib/prisma', () => ({
   }
 }));
 
-vi.mock('@/lib/permission-utils', () => ({
-  hasPermission: vi.fn()
+// Mock auth-utils with the actual function used by the route
+vi.mock('@/lib/auth-utils', () => ({
+  canAccessDataRx: vi.fn()
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -41,8 +42,8 @@ vi.mock('@/lib/logger', () => ({
   logDatabaseError: vi.fn()
 }));
 
-// Import the mocked hasPermission after mocking
-import { hasPermission } from '@/lib/permission-utils';
+// Import the mocked canAccessDataRx after mocking
+import { canAccessDataRx } from '@/lib/auth-utils';
 
 describe('POST /api/dsx/associate-requirements', () => {
   beforeEach(() => {
@@ -68,21 +69,13 @@ describe('POST /api/dsx/associate-requirements', () => {
     });
   });
 
-  describe('permissions - BUG DEMONSTRATION', () => {
-    /**
-     * CRITICAL BUG TEST #3
-     * This test PROVES the bug exists: the endpoint uses hasPermission()
-     * with 'dsx' permission and 'manage' action, which is incorrect.
-     *
-     * It should be using canAccessDataRx() to check for global_config permission.
-     */
-    it('BUG: checks for dsx permission with manage action instead of using canAccessDataRx', async () => {
-      // User has global_config permission
+  describe('permissions', () => {
+    it('should return 403 when user lacks global_config permission', async () => {
       const mockUser = {
         id: '1',
         permissions: {
-          global_config: true
-          // Note: NO 'dsx' permission
+          candidate_workflow: true
+          // NO global_config permission
         }
       };
 
@@ -91,9 +84,8 @@ describe('POST /api/dsx/associate-requirements', () => {
         expires: new Date(Date.now() + 3600000).toISOString()
       });
 
-      // hasPermission will be called with the user object and 'dsx', 'manage'
-      // It will return false because user doesn't have 'dsx' permission
-      vi.mocked(hasPermission).mockReturnValueOnce(false);
+      // canAccessDataRx returns false for users without global_config
+      vi.mocked(canAccessDataRx).mockReturnValueOnce(false);
 
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
@@ -106,28 +98,20 @@ describe('POST /api/dsx/associate-requirements', () => {
       });
 
       const response = await POST(request);
-
-      // BUG: Endpoint checks for 'dsx' permission with 'manage' action
       expect(response.status).toBe(403);
       const data = await response.json();
-      expect(data.error).toBe('Forbidden');
+      expect(data.error).toBe('Forbidden - Insufficient permissions');
 
-      // Verify it checked for 'dsx' permission with 'manage' action (wrong!)
-      expect(hasPermission).toHaveBeenCalledWith(
-        mockUser,  // The user object itself, not session.user.permissions
-        'dsx',
-        'manage'
-      );
+      // Verify it checked using canAccessDataRx
+      expect(canAccessDataRx).toHaveBeenCalledWith(mockUser);
     });
 
-    /**
-     * This test shows the current (incorrect) behavior where only 'dsx' permission works
-     */
-    it('currently only accepts legacy dsx permission with manage action', async () => {
+    it('should allow user with global_config permission to associate requirements', async () => {
       const mockUser = {
         id: '1',
+        userType: 'internal',
         permissions: {
-          dsx: { manage: true }  // Legacy permission structure
+          global_config: true
         }
       };
 
@@ -136,8 +120,8 @@ describe('POST /api/dsx/associate-requirements', () => {
         expires: new Date(Date.now() + 3600000).toISOString()
       });
 
-      // hasPermission returns true for 'dsx' with 'manage' action
-      vi.mocked(hasPermission).mockReturnValueOnce(true);
+      // canAccessDataRx returns true for users with global_config
+      vi.mocked(canAccessDataRx).mockReturnValueOnce(true);
 
       // Mock existing requirements
       vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce([
@@ -175,11 +159,13 @@ describe('POST /api/dsx/associate-requirements', () => {
       expect(data.success).toBe(true);
     });
 
-    it('should return 403 when user has dsx permission without manage action', async () => {
+    it('should return 403 when vendor user tries to manage requirements', async () => {
       const mockUser = {
-        id: '1',
+        id: '2',
+        userType: 'vendor',
+        vendorId: 'vendor-123',
         permissions: {
-          dsx: { view: true }  // Has dsx but not manage action
+          fulfillment: true
         }
       };
 
@@ -188,7 +174,7 @@ describe('POST /api/dsx/associate-requirements', () => {
         expires: new Date(Date.now() + 3600000).toISOString()
       });
 
-      vi.mocked(hasPermission).mockReturnValueOnce(false);
+      vi.mocked(canAccessDataRx).mockReturnValueOnce(false);
 
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
@@ -202,11 +188,13 @@ describe('POST /api/dsx/associate-requirements', () => {
       expect(response.status).toBe(403);
     });
 
-    it('should return 403 when user lacks both dsx and global_config permissions', async () => {
+    it('should return 403 when customer user tries to manage requirements', async () => {
       const mockUser = {
-        id: '1',
+        id: '3',
+        userType: 'customer',
+        customerId: 'customer-123',
         permissions: {
-          candidate_workflow: true  // Some other permission
+          candidate_workflow: true
         }
       };
 
@@ -215,7 +203,7 @@ describe('POST /api/dsx/associate-requirements', () => {
         expires: new Date(Date.now() + 3600000).toISOString()
       });
 
-      vi.mocked(hasPermission).mockReturnValueOnce(false);
+      vi.mocked(canAccessDataRx).mockReturnValueOnce(false);
 
       const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
         method: 'POST',
@@ -234,13 +222,14 @@ describe('POST /api/dsx/associate-requirements', () => {
     beforeEach(() => {
       const mockUser = {
         id: '1',
-        permissions: { dsx: { manage: true } }
+        userType: 'internal',
+        permissions: { global_config: true }
       };
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: mockUser,
         expires: new Date(Date.now() + 3600000).toISOString()
       });
-      vi.mocked(hasPermission).mockReturnValueOnce(true);
+      vi.mocked(canAccessDataRx).mockReturnValueOnce(true);
     });
 
     it('should return 400 when serviceId is missing', async () => {
@@ -306,13 +295,14 @@ describe('POST /api/dsx/associate-requirements', () => {
     beforeEach(() => {
       const mockUser = {
         id: '1',
-        permissions: { dsx: { manage: true } }
+        userType: 'internal',
+        permissions: { global_config: true }
       };
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: mockUser,
         expires: new Date(Date.now() + 3600000).toISOString()
       });
-      vi.mocked(hasPermission).mockReturnValueOnce(true);
+      vi.mocked(canAccessDataRx).mockReturnValueOnce(true);
     });
 
     it('should preserve display order for existing requirements', async () => {
@@ -489,50 +479,6 @@ describe('POST /api/dsx/associate-requirements', () => {
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data.count).toBe(2);
-    });
-  });
-
-  describe('expected behavior after fix', () => {
-    /**
-     * This test shows what SHOULD happen after the bug is fixed
-     * The endpoint should use canAccessDataRx() which checks for global_config
-     */
-    it('AFTER FIX: should allow user with global_config permission to associate requirements', async () => {
-      const mockUser = {
-        id: '1',
-        permissions: {
-          global_config: true
-        }
-      };
-
-      vi.mocked(getServerSession).mockResolvedValueOnce({
-        user: mockUser,
-        expires: new Date(Date.now() + 3600000).toISOString()
-      });
-
-      // After fix, the endpoint should call canAccessDataRx() instead of hasPermission()
-      // For now, we mock hasPermission to return false (current bug behavior)
-      vi.mocked(hasPermission).mockReturnValueOnce(false);
-
-      const request = new Request('http://localhost:3000/api/dsx/associate-requirements', {
-        method: 'POST',
-        body: JSON.stringify({
-          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
-          requirements: [
-            { id: 'req-1', type: 'data-field' }
-          ]
-        })
-      });
-
-      const response = await POST(request);
-
-      // Currently returns 403 (bug), should return 200 after fix
-      expect(response.status).toBe(403);
-
-      // After fix, this test would pass:
-      // expect(response.status).toBe(200);
-      // const data = await response.json();
-      // expect(data.success).toBe(true);
     });
   });
 });
