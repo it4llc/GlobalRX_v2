@@ -180,7 +180,7 @@ export function ServiceFulfillmentTable({
   const [showBulkAssignDialog, setShowBulkAssignDialog] = useState(false);
   const [currentServiceForHistory, setCurrentServiceForHistory] = useState<ServiceFulfillment | null>(null);
   const [currentServiceForNotes, setCurrentServiceForNotes] = useState<ServiceFulfillment | null>(null);
-  const [confirmCancelService, setConfirmCancelService] = useState<ServiceFulfillment | null>(null);
+  const [confirmCancelService, setConfirmCancelService] = useState<(ServiceFulfillment & { pendingStatus?: string }) | null>(null);
   const [activeLocks, setActiveLocks] = useState<Set<string>>(new Set());
   const [confirmReopenService, setConfirmReopenService] = useState<{
     orderItemId: string;
@@ -248,6 +248,9 @@ export function ServiceFulfillmentTable({
   }, [canManageFulfillment]);
 
   // Fetch comment counts for all services using order-level API
+  // PERFORMANCE IMPROVEMENT (March 10, 2026): Implemented efficient bulk comment counting
+  // This replaces individual per-service API calls with a single bulk operation,
+  // preventing N+1 query issues and improving page load performance
   useEffect(() => {
     if (process.env.NODE_ENV === 'test') {
       // Set mock counts for testing
@@ -260,7 +263,9 @@ export function ServiceFulfillmentTable({
     }
 
     // Fetch comment counts from order-level API
-    // This replaced a TODO and implements proper comment count tracking for service fulfillment UI
+    // CRITICAL IMPLEMENTATION (March 10, 2026): Added proper comment count tracking
+    // This feature was previously a TODO and now provides accurate comment counts
+    // with role-based filtering (internal vs external) for the fulfillment UI
     const fetchCommentCounts = async () => {
       if (!orderId) {
         // Edge case: If no orderId is provided, gracefully default to zero counts
@@ -550,7 +555,7 @@ export function ServiceFulfillmentTable({
         } catch (lockError) {
           // Log error only in development to avoid exposing in production
           clientLogger.error('Failed to release lock on status change error', {
-            serviceId,
+            serviceId: service.id,
             error: lockError instanceof Error ? lockError.message : 'Unknown error'
           });
         }
@@ -575,7 +580,7 @@ export function ServiceFulfillmentTable({
   const handleConfirmCancel = async () => {
     if (confirmCancelService) {
       // Use the pendingStatus if available, otherwise default to CANCELLED
-      const statusToSet = (confirmCancelService as ServiceFulfillment & { pendingStatus?: string }).pendingStatus || SERVICE_STATUSES.CANCELLED;
+      const statusToSet = confirmCancelService.pendingStatus || SERVICE_STATUSES.CANCELLED;
       await handleStatusChange(confirmCancelService.orderItemId, statusToSet, true); // Skip confirmation dialog
       setConfirmCancelService(null);
       confirmCancelDialogRef.current?.close();
@@ -842,12 +847,12 @@ export function ServiceFulfillmentTable({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200" aria-label="Service fulfillment status">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full table-fixed divide-y divide-gray-200" aria-label="Service fulfillment status">
           <thead className="bg-gray-50">
             <tr>
               {!readOnly && canManageFulfillment && (
-                <th className="px-3 py-3">
+                <th className="w-[5%] px-3 py-3">
                   <input
                     type="checkbox"
                     checked={filteredServices.length > 0 && selectedServices.size === filteredServices.length}
@@ -859,7 +864,7 @@ export function ServiceFulfillmentTable({
                 </th>
               )}
               <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                className="w-[22%] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                 onClick={() => handleSort('service')}
               >
                 <div className="flex items-center gap-1">
@@ -869,11 +874,11 @@ export function ServiceFulfillmentTable({
                   )}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[15%] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Location
               </th>
               <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                className="w-[15%] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                 onClick={() => handleSort('status')}
               >
                 <div className="flex items-center gap-1">
@@ -884,27 +889,19 @@ export function ServiceFulfillmentTable({
                 </div>
               </th>
               {!isCustomer && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-[16%] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Assigned Vendor
                 </th>
               )}
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Assigned
+              <th className="w-[10%] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Dates
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Completed
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[12%] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Comments
               </th>
-              {showNotes && canEdit && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Notes
-                </th>
-              )}
               {!readOnly && !isCustomer && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                <th className="w-[5%] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <span className="sr-only">Actions</span>
                 </th>
               )}
             </tr>
@@ -940,19 +937,19 @@ export function ServiceFulfillmentTable({
                         />
                       </td>
                     )}
-                    <td className="px-6 py-4 whitespace-nowrap" role="cell" aria-label={service.service.name}>
-                      <div className="flex items-center gap-2">
+                    <td className="px-6 py-4" role="cell" aria-label={service.service.name}>
+                      <div className="flex items-start gap-2">
                         <button
                           onClick={() => toggleRowExpansion(service.id)}
-                          className="p-1 hover:bg-gray-100 rounded"
+                          className="p-1 hover:bg-gray-100 rounded mt-0.5 flex-shrink-0"
                           aria-expanded={isExpanded}
                           aria-label={`${isExpanded ? 'Collapse' : 'Expand'} comments for ${service.service.name}`}
                         >
                           <ChevronRight className={`w-4 h-4 text-gray-500 transform transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                         </button>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-900">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900 break-words">
                               {service.service.name}
                             </span>
                             {/* Visual indicators for results and attachments */}
@@ -985,13 +982,13 @@ export function ServiceFulfillmentTable({
                         </div>
                       </div>
                     </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 text-sm text-gray-900">
                     {service.location.name}
                     {service.location.code2 && (
                       <span className="ml-1 text-gray-500">({service.location.code2})</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap" role="cell" aria-label={service.status}>
+                  <td className="px-6 py-4" role="cell" aria-label={service.status}>
                     {!readOnly && !statusDisabled && ((isVendor && service.assignedVendorId === user?.vendorId) || canEdit) ? (
                       <select
                         value={service.status}
@@ -1014,7 +1011,7 @@ export function ServiceFulfillmentTable({
                     )}
                   </td>
                   {!isCustomer && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 text-sm text-gray-900 break-words">
                       {service.assignedVendor ? (
                         <div className="flex items-center gap-2">
                           <div>
@@ -1047,13 +1044,19 @@ export function ServiceFulfillmentTable({
                       )}
                     </td>
                   )}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(service.assignedAt)}
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    <div className="space-y-1">
+                      <div>
+                        <span className="text-xs text-gray-400">Assigned:</span>
+                        <div className="text-gray-600">{formatDate(service.assignedAt)}</div>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-400">Completed:</span>
+                        <div className="text-gray-600">{formatDate(service.completedAt)}</div>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(service.completedAt)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4">
                     <button
                       onClick={() => toggleRowExpansion(service.id)}
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -1062,30 +1065,14 @@ export function ServiceFulfillmentTable({
                       <MessageSquare className="w-3 h-3" />
                       {isCustomer ? commentCount.total - commentCount.internal : commentCount.total} {(isCustomer ? commentCount.total - commentCount.internal : commentCount.total) === 1 ? 'comment' : 'comments'}
                       {hasInternalComments && !isCustomer && (
-                        <Lock className="w-3 h-3 ml-1" title="Has internal comments" />
+                        <span title="Has internal comments">
+                          <Lock className="w-3 h-3 ml-1" />
+                        </span>
                       )}
                     </button>
                   </td>
-                  {showNotes && canEdit && (
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      <div className="space-y-1">
-                        {service.vendorNotes && (
-                          <div>
-                            <span className="font-medium">Vendor: </span>
-                            {service.vendorNotes}
-                          </div>
-                        )}
-                        {service.internalNotes && !isVendor && (
-                          <div>
-                            <span className="font-medium">Internal: </span>
-                            {service.internalNotes}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  )}
                   {!readOnly && !isCustomer && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 text-sm">
                       <button
                         onClick={() => setOpenDropdown(openDropdown === service.id ? null : service.id)}
                         disabled={loadingService === service.id}
@@ -1127,8 +1114,8 @@ export function ServiceFulfillmentTable({
                 {/* Expandable Comment and Results Section */}
                 {isExpanded && (
                   <tr data-testid={`comment-section-${service.id}`}>
-                    <td colSpan={100} className="px-6 py-4 bg-gray-50">
-                      <div className="expanded-content-container space-y-6">
+                    <td colSpan={100} className="px-2 sm:px-4 md:px-6 py-4 bg-gray-50">
+                      <div className="expanded-content-container space-y-6 w-full max-w-6xl lg:max-w-7xl mx-auto">
                         {/* Requirements Section - Business Rule 1: Must be shown above results and comments */}
                         <ServiceRequirementsDisplay orderData={service.orderData} />
 
@@ -1156,10 +1143,9 @@ export function ServiceFulfillmentTable({
                           serviceId={service.orderItemId}
                           orderId={orderId}
                           serviceName={service.service.name}
-                          serviceType={service.service.code || service.service.category || undefined}
+                          serviceType={service.service.code || service.service.category || service.service.name || ''}
                           serviceStatus={service.status.toUpperCase()}
                           serviceFulfillmentId={service.id}
-                          isCustomer={isCustomer}
                         />
                       </div>
                     </td>
