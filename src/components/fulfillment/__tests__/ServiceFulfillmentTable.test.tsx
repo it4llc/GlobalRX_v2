@@ -393,7 +393,7 @@ describe('ServiceFulfillmentTable', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/fulfillment/services/service-1',
+          '/api/fulfillment/services/f47ac10b-58cc-4372-a567-0e02b2c3d479',
           expect.objectContaining({
             method: 'PATCH',
             body: JSON.stringify({ assignedVendorId: 'vendor-789' })
@@ -475,7 +475,7 @@ describe('ServiceFulfillmentTable', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/services/item-1/status',
+          `/api/services/${mockServices[0].orderItemId}/status`,
           expect.objectContaining({
             method: 'PUT',
             body: JSON.stringify({ status: 'Processing' })
@@ -585,7 +585,7 @@ describe('ServiceFulfillmentTable', () => {
       await waitFor(() => {
         expect(screen.getByText('Service History')).toBeInTheDocument();
         // Check that the fetch was called to get history
-        expect(global.fetch).toHaveBeenCalledWith('/api/fulfillment/services/service-1/history');
+        expect(global.fetch).toHaveBeenCalledWith('/api/fulfillment/services/f47ac10b-58cc-4372-a567-0e02b2c3d479/history');
       });
     });
 
@@ -741,7 +741,7 @@ describe('ServiceFulfillmentTable', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/services/item-2/status',
+          `/api/services/${vendorServices[0].orderItemId}/status`,
           expect.objectContaining({
             method: 'PUT',
             body: JSON.stringify({ status: 'Completed' })
@@ -799,7 +799,7 @@ describe('ServiceFulfillmentTable', () => {
       render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       // Get the first service checkbox (skip the header select-all checkbox)
-      const firstCheckbox = screen.getByTestId('select-service-service-1');
+      const firstCheckbox = screen.getByTestId(`select-service-${mockServices[0].id}`);
       firstCheckbox.focus();
 
       // Space key should toggle the checkbox
@@ -834,7 +834,7 @@ describe('ServiceFulfillmentTable', () => {
       // Wait for the API call to complete
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/services/item-1/status',
+          `/api/services/${mockServices[0].orderItemId}/status`,
           expect.objectContaining({
             method: 'PUT',
             body: JSON.stringify({ status: 'Processing' })
@@ -858,7 +858,7 @@ describe('ServiceFulfillmentTable', () => {
       const statusDropdown = screen.getByLabelText('Status for Criminal Background Check');
 
       // Change to trigger the API call
-      fireEvent.change(statusDropdown, { target: { value: 'processing' } });
+      fireEvent.change(statusDropdown, { target: { value: 'Processing' } });
 
       // Wait for the error to be handled
       await waitFor(() => {
