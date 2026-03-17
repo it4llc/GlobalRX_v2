@@ -105,7 +105,7 @@ describe('Service Results Schemas', () => {
           id: 1,
           serviceFulfillmentId: 100,
           fileName: 'background_check.pdf',
-          filePath: 'uploads/service-results/order-123/service-456/abc123_background_check.pdf',
+          filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440001/service-456/abc123_background_check.pdf',
           fileSize: 1024 * 500, // 500 KB
           uploadedBy: 10,
           uploadedAt: new Date()
@@ -119,7 +119,7 @@ describe('Service Results Schemas', () => {
           id: 1,
           serviceFulfillmentId: 100,
           fileName: 'large_report.pdf',
-          filePath: 'uploads/service-results/order-123/service-456/large_report.pdf',
+          filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440001/service-456/large_report.pdf',
           fileSize: 5 * 1024 * 1024, // Exactly 5MB
           uploadedBy: 10,
           uploadedAt: new Date()

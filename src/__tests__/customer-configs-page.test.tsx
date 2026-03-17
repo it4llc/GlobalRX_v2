@@ -62,10 +62,10 @@ describe('CustomerConfigsPage', () => {
     disabled: false,
     subaccountsCount: 2,
     packagesCount: 3,
-    serviceIds: ['service-1', 'service-2'],
+    serviceIds: ['f47ac10b-58cc-4372-a567-0e02b2c3d479', 'a47ac10b-58cc-4372-a567-0e02b2c3d479'],
     services: [
-      { id: 'service-1', name: 'Service A', category: 'Category 1' },
-      { id: 'service-2', name: 'Service B', category: 'Category 2' }
+      { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', name: 'Service A', category: 'Category 1' },
+      { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', name: 'Service B', category: 'Category 2' }
     ],
     logoUrl: null,
     primaryColor: '#1f2937',

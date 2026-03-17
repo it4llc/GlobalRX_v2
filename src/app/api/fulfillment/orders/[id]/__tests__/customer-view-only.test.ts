@@ -46,7 +46,7 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
   });
 
   const mockOrderData = {
-    id: 'order-123',
+    id: '550e8400-e29b-41d4-a716-446655440001',
     orderNumber: '20240310-ABC-0001',
     statusCode: 'processing',
     customerId: 'cust-456',
@@ -83,8 +83,8 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
   const mockServiceFulfillments = [
     {
       id: 'fulfillment-1',
-      orderId: 'order-123',
-      serviceId: 'service-1',
+      orderId: '550e8400-e29b-41d4-a716-446655440001',
+      serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       status: 'processing',
       assignedVendorId: 'vendor-111',
       vendorNotes: 'Vendor notes here',
@@ -107,7 +107,7 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
   const mockComments = [
     {
       id: 'comment-1',
-      serviceId: 'service-1',
+      serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       finalText: 'External comment visible to all',
       isInternalOnly: false,
       createdBy: 'user-111',
@@ -116,7 +116,7 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
     },
     {
       id: 'comment-2',
-      serviceId: 'service-1',
+      serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       finalText: 'Internal comment for staff only',
       isInternalOnly: true,
       createdBy: 'user-222',
@@ -125,7 +125,7 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
     },
     {
       id: 'comment-3',
-      serviceId: 'service-1',
+      serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       finalText: 'Another external comment',
       isInternalOnly: false,
       createdBy: 'user-333',
@@ -138,8 +138,8 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
     it('should return 401 when no session exists', async () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(null);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(401);
       const data = await response.json();
@@ -157,8 +157,8 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrderData);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(403);
       const data = await response.json();
@@ -197,11 +197,11 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrderData);
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServiceFulfillments);
-      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: 'item-1' }]);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: '660e8400-e29b-41d4-a716-446655440001' }]);
       vi.mocked(prisma.serviceComment.findMany).mockResolvedValueOnce(mockComments);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -232,11 +232,11 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrderData);
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServiceFulfillments);
-      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: 'item-1' }]);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: '660e8400-e29b-41d4-a716-446655440001' }]);
       vi.mocked(prisma.serviceComment.findMany).mockResolvedValueOnce(mockComments);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -267,11 +267,11 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrderData);
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServiceFulfillments);
-      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: 'item-1' }]);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: '660e8400-e29b-41d4-a716-446655440001' }]);
       vi.mocked(prisma.serviceComment.findMany).mockResolvedValueOnce(mockComments);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -298,11 +298,11 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrderData);
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServiceFulfillments);
-      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: 'item-1' }]);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: '660e8400-e29b-41d4-a716-446655440001' }]);
       vi.mocked(prisma.serviceComment.findMany).mockResolvedValueOnce(mockComments);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -326,11 +326,11 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrderData);
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServiceFulfillments);
-      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: 'item-1' }]);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: '660e8400-e29b-41d4-a716-446655440001' }]);
       vi.mocked(prisma.serviceComment.findMany).mockResolvedValueOnce(mockComments);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -352,11 +352,11 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrderData);
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServiceFulfillments);
-      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: 'item-1' }]);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: '660e8400-e29b-41d4-a716-446655440001' }]);
       vi.mocked(prisma.serviceComment.findMany).mockResolvedValueOnce(mockComments);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -391,11 +391,11 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrderData);
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServiceFulfillments);
-      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: 'item-1' }]);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: '660e8400-e29b-41d4-a716-446655440001' }]);
       vi.mocked(prisma.serviceComment.findMany).mockResolvedValueOnce(mockComments);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -421,11 +421,11 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrderData);
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServiceFulfillments);
-      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: 'item-1' }]);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce([{ id: '660e8400-e29b-41d4-a716-446655440001' }]);
       vi.mocked(prisma.serviceComment.findMany).mockResolvedValueOnce(mockComments);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -455,8 +455,8 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
 
       vi.mocked(prisma.order.findUnique).mockRejectedValueOnce(new Error('Database connection failed'));
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(500);
       const data = await response.json();
@@ -472,8 +472,8 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(403);
       const data = await response.json();
@@ -493,8 +493,8 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce([]);
       vi.mocked(prisma.serviceComment.findMany).mockResolvedValueOnce([]);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -517,8 +517,8 @@ describe('GET /api/fulfillment/orders/[id] - Customer View-Only Access', () => {
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServiceFulfillments);
       vi.mocked(prisma.serviceComment.findMany).mockResolvedValueOnce([]);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();

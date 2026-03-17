@@ -40,13 +40,14 @@ describe('useServiceComments - Works Without Deprecated Schemas', () => {
       // This proves the deprecated import is not needed
 
       const { result } = renderHook(() =>
-        useServiceComments('service-123', undefined, 'background_check', 'pending')
+        useServiceComments('c47ac10b-58cc-4372-a567-0e02b2c3d479', undefined, 'background_check', 'pending')
       );
 
       // Hook should initialize successfully
       expect(result.current).toBeDefined();
       expect(result.current.comments).toEqual([]);
-      expect(result.current.loading).toBe(false);
+      // The hook starts loading immediately when given a serviceId
+      expect(result.current.loading).toBe(true);
       expect(result.current.error).toBeNull();
     });
 
@@ -58,7 +59,7 @@ describe('useServiceComments - Works Without Deprecated Schemas', () => {
         comments: [
           {
             id: 'comment-1',
-            serviceId: 'service-123',
+            serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
             templateId: 'template-1',
             finalText: 'Test comment',
             isInternalOnly: true,
@@ -84,7 +85,7 @@ describe('useServiceComments - Works Without Deprecated Schemas', () => {
       });
 
       const { result } = renderHook(() =>
-        useServiceComments('service-123', undefined, 'background_check', 'pending')
+        useServiceComments('c47ac10b-58cc-4372-a567-0e02b2c3d479', undefined, 'background_check', 'pending')
       );
 
       // Wait for the hook to fetch data
@@ -102,48 +103,58 @@ describe('useServiceComments - Works Without Deprecated Schemas', () => {
 
       const mockOrderResponse = {
         commentsByService: {
-          'service-1': [
-            {
-              id: 'comment-1',
-              serviceId: 'service-1',
-              templateId: 'template-1',
-              finalText: 'Service 1 comment',
-              isInternalOnly: false,
-              createdBy: 'user-123',
-              createdAt: new Date().toISOString(),
-              updatedBy: null,
-              updatedAt: null,
-              template: {
-                shortName: 'S1',
-                longName: 'Service 1 Template'
-              },
-              createdByUser: {
-                name: 'User 1',
-                email: 'user1@example.com'
+          'f47ac10b-58cc-4372-a567-0e02b2c3d479': {
+            serviceName: 'Background Check',
+            serviceStatus: 'pending',
+            comments: [
+              {
+                id: 'comment-1',
+                serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+                templateId: 'template-1',
+                finalText: 'Service 1 comment',
+                isInternalOnly: false,
+                createdBy: 'user-123',
+                createdAt: new Date().toISOString(),
+                updatedBy: null,
+                updatedAt: null,
+                template: {
+                  shortName: 'S1',
+                  longName: 'Service 1 Template'
+                },
+                createdByUser: {
+                  name: 'User 1',
+                  email: 'user1@example.com'
+                }
               }
-            }
-          ],
-          'service-2': [
-            {
-              id: 'comment-2',
-              serviceId: 'service-2',
-              templateId: 'template-2',
-              finalText: 'Service 2 comment',
-              isInternalOnly: true,
-              createdBy: 'user-456',
-              createdAt: new Date().toISOString(),
-              updatedBy: null,
-              updatedAt: null,
-              template: {
-                shortName: 'S2',
-                longName: 'Service 2 Template'
-              },
-              createdByUser: {
-                name: 'User 2',
-                email: 'user2@example.com'
+            ],
+            total: 1
+          },
+          'a47ac10b-58cc-4372-a567-0e02b2c3d479': {
+            serviceName: 'Drug Test',
+            serviceStatus: 'completed',
+            comments: [
+              {
+                id: 'comment-2',
+                serviceId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
+                templateId: 'template-2',
+                finalText: 'Service 2 comment',
+                isInternalOnly: true,
+                createdBy: 'user-456',
+                createdAt: new Date().toISOString(),
+                updatedBy: null,
+                updatedAt: null,
+                template: {
+                  shortName: 'S2',
+                  longName: 'Service 2 Template'
+                },
+                createdByUser: {
+                  name: 'User 2',
+                  email: 'user2@example.com'
+                }
               }
-            }
-          ]
+            ],
+            total: 1
+          }
         }
       };
 
@@ -153,7 +164,7 @@ describe('useServiceComments - Works Without Deprecated Schemas', () => {
       });
 
       const { result } = renderHook(() =>
-        useServiceComments(null, 'order-123')
+        useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001')
       );
 
       // Wait for the hook to fetch data
@@ -173,7 +184,7 @@ describe('useServiceComments - Works Without Deprecated Schemas', () => {
       // The hook DOES use createServiceCommentSchema for input validation
 
       const { result } = renderHook(() =>
-        useServiceComments('service-123')
+        useServiceComments('c47ac10b-58cc-4372-a567-0e02b2c3d479')
       );
 
       // Test with invalid data - missing templateId
@@ -199,7 +210,7 @@ describe('useServiceComments - Works Without Deprecated Schemas', () => {
       // The hook DOES use updateServiceCommentSchema for input validation
 
       const { result } = renderHook(() =>
-        useServiceComments('service-123')
+        useServiceComments('c47ac10b-58cc-4372-a567-0e02b2c3d479')
       );
 
       // Mock initial comments
@@ -247,7 +258,7 @@ describe('useServiceComments - Works Without Deprecated Schemas', () => {
       // Comprehensive test to ensure all hook features work
 
       const { result } = renderHook(() =>
-        useServiceComments('service-123', undefined, 'background_check', 'pending')
+        useServiceComments('c47ac10b-58cc-4372-a567-0e02b2c3d479', undefined, 'background_check', 'pending')
       );
 
       // Test all return values are present
@@ -291,7 +302,7 @@ describe('useServiceComments - Works Without Deprecated Schemas', () => {
       (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
 
       const { result } = renderHook(() =>
-        useServiceComments('service-123')
+        useServiceComments('c47ac10b-58cc-4372-a567-0e02b2c3d479')
       );
 
       // Wait for the hook to handle the error

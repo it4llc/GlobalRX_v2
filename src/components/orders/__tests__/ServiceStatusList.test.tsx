@@ -34,7 +34,7 @@ describe('ServiceStatusList', () => {
     it('should render services with proper format: "Service Name - Country - Status"', () => {
       const services = [
         {
-          id: 'item-1',
+          id: '660e8400-e29b-41d4-a716-446655440001',
           service: { name: 'Criminal Check' },
           location: { name: 'United States', code: 'US' },
           status: 'Submitted'
@@ -145,7 +145,7 @@ describe('ServiceStatusList', () => {
     statusColorTestCases.forEach(({ status, expectedClasses, displayText }) => {
       it(`should apply correct color classes for "${status}" status`, () => {
         const services = [{
-          id: 'item-1',
+          id: '660e8400-e29b-41d4-a716-446655440001',
           service: { name: 'Test Service' },
           location: { name: 'USA', code: 'US' },
           status
@@ -163,7 +163,7 @@ describe('ServiceStatusList', () => {
 
     it('should display unknown status with gray coloring as fallback', () => {
       const services = [{
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         service: { name: 'Test Service' },
         location: { name: 'USA', code: 'US' },
         status: 'unknown_status'
@@ -179,7 +179,7 @@ describe('ServiceStatusList', () => {
   describe('Country Display', () => {
     it('should display full country name when space allows', () => {
       const services = [{
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         service: { name: 'Criminal Check' },
         location: { name: 'United States', code: 'US' },
         status: 'Submitted'
@@ -192,7 +192,7 @@ describe('ServiceStatusList', () => {
 
     it('should display country code when preferCountryCode prop is true', () => {
       const services = [{
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         service: { name: 'Criminal Check' },
         location: { name: 'United States', code: 'US' },
         status: 'Submitted'
@@ -206,7 +206,7 @@ describe('ServiceStatusList', () => {
 
     it('should display "Unknown Location" when location name is missing', () => {
       const services = [{
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         service: { name: 'Criminal Check' },
         location: { name: null, code: 'US' },
         status: 'Submitted'
@@ -223,7 +223,7 @@ describe('ServiceStatusList', () => {
   describe('Service Name Display', () => {
     it('should truncate service names longer than 30 characters', () => {
       const services = [{
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         service: { name: 'This is a very long service name that exceeds thirty characters' },
         location: { name: 'USA', code: 'US' },
         status: 'Submitted'
@@ -236,7 +236,7 @@ describe('ServiceStatusList', () => {
 
     it('should display "Unnamed Service" when service name is missing', () => {
       const services = [{
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         service: { name: null },
         location: { name: 'USA', code: 'US' },
         status: 'Submitted'
@@ -265,7 +265,7 @@ describe('ServiceStatusList', () => {
 
     it('should display stacked layout on mobile (< 768px)', () => {
       const services = [{
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         service: { name: 'Criminal Check' },
         location: { name: 'United States', code: 'US' },
         status: 'Submitted'
@@ -294,7 +294,7 @@ describe('ServiceStatusList', () => {
       }));
 
       const services = [{
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         service: { name: 'Criminal Check' },
         location: { name: 'United States', code: 'US' },
         status: 'Submitted'
@@ -328,19 +328,19 @@ describe('ServiceStatusList', () => {
     it('should handle services with mixed valid and missing data', () => {
       const services = [
         {
-          id: 'item-1',
+          id: '660e8400-e29b-41d4-a716-446655440001',
           service: { name: 'Valid Service' },
           location: { name: 'USA', code: 'US' },
           status: 'Completed'
         },
         {
-          id: 'item-2',
+          id: '660e8400-e29b-41d4-a716-446655440002',
           service: { name: null },
           location: { name: null, code: null },
           status: 'invalid_status'
         },
         {
-          id: 'item-3',
+          id: '660e8400-e29b-41d4-a716-446655440003',
           service: { name: 'This is an extremely long service name that definitely exceeds the thirty character limit' },
           location: { name: 'Canada', code: 'CA' },
           status: 'Processing'
@@ -391,7 +391,7 @@ describe('ServiceStatusList', () => {
 
     it('should handle empty location code gracefully', () => {
       const services = [{
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         service: { name: 'Test Service' },
         location: { name: 'United States', code: null },
         status: 'Submitted'
@@ -407,7 +407,7 @@ describe('ServiceStatusList', () => {
   describe('Accessibility', () => {
     it('should have proper ARIA labels for status badges', () => {
       const services = [{
-        id: 'item-1',
+        id: '660e8400-e29b-41d4-a716-446655440001',
         service: { name: 'Criminal Check' },
         location: { name: 'USA', code: 'US' },
         status: 'Submitted'

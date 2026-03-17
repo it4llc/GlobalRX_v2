@@ -63,7 +63,7 @@ describe('ServiceCommentService', () => {
 
   describe('createComment', () => {
     const mockUserId = 'user-123';
-    const mockServiceId = 'service-456';
+    const mockServiceId = 'd47ac10b-58cc-4372-a567-0e02b2c3d479';
     const mockTemplateId = 'template-789';
     const mockCommentData = {
       templateId: mockTemplateId,
@@ -88,8 +88,8 @@ describe('ServiceCommentService', () => {
       it('should validate that the template exists', async () => {
         const mockService = {
           id: mockServiceId,
-          orderId: 'order-123',
-          serviceId: 'service-def-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
+          serviceId: 'e47ac10b-58cc-4372-a567-0e02b2c3d479',
           status: 'pending',
           order: { customerId: 'customer-123' }
         };
@@ -109,8 +109,8 @@ describe('ServiceCommentService', () => {
       it('should validate that the template is active', async () => {
         const mockService = {
           id: mockServiceId,
-          orderId: 'order-123',
-          serviceId: 'service-def-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
+          serviceId: 'e47ac10b-58cc-4372-a567-0e02b2c3d479',
           status: 'pending',
           order: { customerId: 'customer-123' }
         };
@@ -133,14 +133,14 @@ describe('ServiceCommentService', () => {
       it('should validate template availability for service type and status', async () => {
         const mockService = {
           id: mockServiceId,
-          orderId: 'order-123',
-          serviceId: 'service-def-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
+          serviceId: 'e47ac10b-58cc-4372-a567-0e02b2c3d479',
           status: 'pending',
           order: { customerId: 'customer-123' }
         };
 
         const mockServiceDefinition = {
-          id: 'service-def-123',
+          id: 'e47ac10b-58cc-4372-a567-0e02b2c3d479',
           code: 'BACKGROUND_CHECK'
         };
 
@@ -196,14 +196,14 @@ describe('ServiceCommentService', () => {
       it('should create a comment with all required fields', async () => {
         const mockService = {
           id: mockServiceId,
-          orderId: 'order-123',
-          serviceId: 'service-def-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
+          serviceId: 'e47ac10b-58cc-4372-a567-0e02b2c3d479',
           status: 'pending',
           order: { customerId: 'customer-123' }
         };
 
         const mockServiceDefinition = {
-          id: 'service-def-123',
+          id: 'e47ac10b-58cc-4372-a567-0e02b2c3d479',
           code: 'BACKGROUND_CHECK'
         };
 
@@ -270,14 +270,14 @@ describe('ServiceCommentService', () => {
 
         const mockService = {
           id: mockServiceId,
-          orderId: 'order-123',
-          serviceId: 'service-def-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
+          serviceId: 'e47ac10b-58cc-4372-a567-0e02b2c3d479',
           status: 'pending',
           order: { customerId: 'customer-123' }
         };
 
         const mockServiceDefinition = {
-          id: 'service-def-123',
+          id: 'e47ac10b-58cc-4372-a567-0e02b2c3d479',
           code: 'BACKGROUND_CHECK'
         };
 
@@ -379,7 +379,7 @@ describe('ServiceCommentService', () => {
       it('should update comment and set audit fields', async () => {
         const mockExistingComment = {
           id: mockCommentId,
-          serviceId: 'service-123',
+          serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           templateId: 'template-123',
           finalText: 'Original text',
           isInternalOnly: true,
@@ -474,7 +474,7 @@ describe('ServiceCommentService', () => {
   });
 
   describe('getServiceComments', () => {
-    const mockServiceId = 'service-123';
+    const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
     const mockUserRole = 'internal';
     const mockUserId = 'user-123';
 
@@ -559,28 +559,32 @@ describe('ServiceCommentService', () => {
   });
 
   describe('getOrderServiceComments', () => {
-    const mockOrderId = 'order-123';
+    const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
     const mockUserRole = 'internal';
     const mockUserId = 'user-123';
 
     it('should return comments grouped by service', async () => {
       const mockServices = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           service: { name: 'Background Check' },
           status: 'processing',
-          comments: [
-            { id: 'comment-1', finalText: 'Comment 1', template: {}, createdByUser: {}, updatedByUser: null },
-            { id: 'comment-2', finalText: 'Comment 2', template: {}, createdByUser: {}, updatedByUser: null }
-          ]
+          orderItem: {
+            comments: [
+              { id: 'comment-1', finalText: 'Comment 1', template: {}, createdByUser: {}, updatedByUser: null },
+              { id: 'comment-2', finalText: 'Comment 2', template: {}, createdByUser: {}, updatedByUser: null }
+            ]
+          }
         },
         {
-          id: 'service-2',
+          id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           service: { name: 'Drug Test' },
           status: 'completed',
-          comments: [
-            { id: 'comment-3', finalText: 'Comment 3', template: {}, createdByUser: {}, updatedByUser: null }
-          ]
+          orderItem: {
+            comments: [
+              { id: 'comment-3', finalText: 'Comment 3', template: {}, createdByUser: {}, updatedByUser: null }
+            ]
+          }
         }
       ];
 
@@ -588,23 +592,25 @@ describe('ServiceCommentService', () => {
 
       const result = await service.getOrderServiceComments(mockOrderId, mockUserRole, mockUserId);
 
-      expect(result).toHaveProperty('service-1');
-      expect(result).toHaveProperty('service-2');
-      expect(result['service-1'].serviceName).toBe('Background Check');
-      expect(result['service-1'].total).toBe(2);
-      expect(result['service-2'].total).toBe(1);
+      expect(result).toHaveProperty('f47ac10b-58cc-4372-a567-0e02b2c3d479');
+      expect(result).toHaveProperty('a47ac10b-58cc-4372-a567-0e02b2c3d479');
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].serviceName).toBe('Background Check');
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(2);
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(1);
     });
 
     it('should filter comments based on user role', async () => {
       const mockServices = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           service: { name: 'Background Check' },
           status: 'processing',
-          comments: [
-            { id: 'comment-1', isInternalOnly: true, finalText: 'Internal', template: {}, createdByUser: {}, updatedByUser: null },
-            { id: 'comment-2', isInternalOnly: false, finalText: 'External', template: {}, createdByUser: {}, updatedByUser: null }
-          ]
+          orderItem: {
+            comments: [
+              { id: 'comment-1', isInternalOnly: true, finalText: 'Internal', template: {}, createdByUser: {}, updatedByUser: null },
+              { id: 'comment-2', isInternalOnly: false, finalText: 'External', template: {}, createdByUser: {}, updatedByUser: null }
+            ]
+          }
         }
       ];
 
@@ -612,7 +618,9 @@ describe('ServiceCommentService', () => {
       const customerServices = [
         {
           ...mockServices[0],
-          comments: [mockServices[0].comments[1]] // Only external comment
+          orderItem: {
+            comments: [mockServices[0].orderItem.comments[1]] // Only external comment
+          }
         }
       ];
 
@@ -620,27 +628,27 @@ describe('ServiceCommentService', () => {
       const customerResult = await service.getOrderServiceComments(mockOrderId, 'customer', mockUserId);
 
       // Customer should only see external comment
-      expect(customerResult['service-1'].comments).toHaveLength(1);
-      expect(customerResult['service-1'].comments[0].isInternalOnly).toBe(false);
+      expect(customerResult['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments).toHaveLength(1);
+      expect(customerResult['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments[0].isInternalOnly).toBe(false);
 
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServices as any);
       const internalResult = await service.getOrderServiceComments(mockOrderId, 'internal', mockUserId);
 
       // Internal user should see all comments
-      expect(internalResult['service-1'].comments).toHaveLength(2);
+      expect(internalResult['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments).toHaveLength(2);
     });
   });
 
   describe('validateUserAccess', () => {
-    const mockServiceId = 'service-123';
+    const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
     const mockUserId = 'user-456';
 
     it('should validate internal user has access to service', async () => {
       const mockService = {
         id: mockServiceId,
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         order: {
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           customerId: 'customer-789'
         }
       };
@@ -655,10 +663,10 @@ describe('ServiceCommentService', () => {
     it('should validate vendor has access to assigned service', async () => {
       const mockService = {
         id: mockServiceId,
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         assignedVendorId: 'vendor-123',
         order: {
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           customerId: 'customer-789'
         }
       };
@@ -679,10 +687,10 @@ describe('ServiceCommentService', () => {
     it('should deny vendor access to non-assigned service', async () => {
       const mockService = {
         id: mockServiceId,
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         assignedVendorId: 'vendor-999',
         order: {
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           customerId: 'customer-789'
         }
       };
@@ -705,9 +713,9 @@ describe('ServiceCommentService', () => {
     it('should validate customer has access to their order services', async () => {
       const mockService = {
         id: mockServiceId,
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         order: {
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           customerId: 'customer-789'
         }
       };
@@ -728,9 +736,9 @@ describe('ServiceCommentService', () => {
     it('should deny customer access to other customer services', async () => {
       const mockService = {
         id: mockServiceId,
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         order: {
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           customerId: 'customer-999'
         }
       };

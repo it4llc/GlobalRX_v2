@@ -1,6 +1,25 @@
 // Test setup file for Vitest
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
+import { createMockPrisma } from './utils';
+
+// Mock Prisma globally for all tests
+vi.mock('@/lib/prisma', () => ({
+  prisma: createMockPrisma()
+}));
+
+// Mock the logger globally
+vi.mock('@/lib/logger', () => ({
+  default: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    http: vi.fn(),
+    verbose: vi.fn(),
+    silly: vi.fn()
+  }
+}));
 
 // Add missing DOM methods for Radix UI components
 if (!Element.prototype.hasPointerCapture) {
@@ -84,6 +103,87 @@ vi.mock('@/contexts/AuthContext', () => ({
     logout: vi.fn(),
   }),
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock TranslationContext with common translations for testing
+const testTranslations: Record<string, string> = {
+  // Common translations
+  'common.loading': 'Loading...',
+  'common.back': 'Back',
+  'common.cancel': 'Cancel',
+  'common.delete': 'Delete',
+  'common.confirmDelete': 'Confirm Delete',
+  'common.edit': 'Edit',
+  'common.save': 'Save',
+  'common.submit': 'Submit',
+  'common.close': 'Close',
+  'common.status': 'Status',
+  'common.name': 'Name',
+  'common.code': 'Code',
+  'common.location': 'Location',
+  'common.updated': 'Updated',
+
+  // Service comments
+  'serviceComments.title': 'Comments',
+  'serviceComments.addComment': 'Add Comment',
+  'serviceComments.emptyState': 'No comments yet. Add the first comment.',
+  'serviceComments.comment': 'Comment',
+  'serviceComments.deleteConfirmation': 'Are you sure you want to delete this comment? This action cannot be undone.',
+  'serviceComments.editComment': 'Edit Comment',
+  'serviceComments.internal': 'Internal',
+  'serviceComments.external': 'External',
+  'serviceComments.addCommentTo': 'Add Comment to',
+  'serviceComments.template': 'Template',
+  'serviceComments.selectTemplate': 'Select a template...',
+  'serviceComments.commentText': 'Comment Text',
+  'serviceComments.visibility': 'Visibility',
+  'serviceComments.internalOnly': 'Internal Only',
+
+  // Module fulfillment
+  'module.fulfillment.title': 'Fulfillment Services',
+  'module.fulfillment.description': 'Manage outsourced order fulfillment',
+  'module.fulfillment.email': 'Email',
+  'module.fulfillment.notes': 'Notes',
+  'module.fulfillment.middleName': 'Middle Name',
+  'module.fulfillment.submitted': 'Submitted',
+  'module.fulfillment.processing': 'Processing',
+  'module.fulfillment.pending': 'Pending',
+  'module.fulfillment.firstName': 'First Name',
+  'module.fulfillment.lastName': 'Last Name',
+  'module.fulfillment.dateOfBirth': 'Date of Birth',
+  'module.fulfillment.phone': 'Phone',
+  'module.fulfillment.ssn': 'SSN',
+  'module.fulfillment.orderNumber': 'Order Number',
+  'module.fulfillment.orderInformation': 'Order Information',
+  'module.fulfillment.subjectInformation': 'Subject Information',
+  'module.fulfillment.orderItems': 'Order Items',
+  'module.fulfillment.customerDetails': 'Customer Details',
+  'module.fulfillment.created': 'Created',
+
+  // Order details
+  'order.subject.firstName': 'First Name',
+  'order.subject.lastName': 'Last Name',
+  'order.subject.dateOfBirth': 'Date of Birth',
+  'order.subject.email': 'Email',
+  'order.subject.phone': 'Phone',
+  'order.subject.ssn': 'SSN',
+
+  // Status labels
+  'status.pending': 'Pending',
+  'status.processing': 'Processing',
+  'status.completed': 'Completed',
+  'status.failed': 'Failed',
+  'status.submitted': 'Submitted',
+};
+
+vi.mock('@/contexts/TranslationContext', () => ({
+  useTranslation: () => ({
+    t: (key: string) => testTranslations[key] || key,  // Return translation or key if not found
+    language: 'en',
+    setLanguage: vi.fn(),
+    isLoading: false,
+  }),
+  TranslationProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 // Mock window methods that don't exist in test environment

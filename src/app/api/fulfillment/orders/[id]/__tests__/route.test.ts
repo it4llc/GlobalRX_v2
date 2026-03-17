@@ -63,7 +63,7 @@ describe('GET /api/fulfillment/orders/[id]', () => {
 
       // Mock order exists and is accessible
       const mockOrder = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         orderNumber: '20240301-ABC-0001',
         statusCode: 'processing',
         customerId: 'customer-456',
@@ -87,9 +87,9 @@ describe('GET /api/fulfillment/orders/[id]', () => {
         assignedVendor: null,
         items: [
           {
-            id: 'item-1',
+            id: '660e8400-e29b-41d4-a716-446655440001',
             service: {
-              id: 'service-1',
+              id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               name: 'Criminal Background Check',
               category: 'Background'
             },
@@ -107,8 +107,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const params = { params: { id: 'order-123' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await GET(request, params);
 
@@ -116,14 +116,14 @@ describe('GET /api/fulfillment/orders/[id]', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toHaveProperty('id', 'order-123');
+      expect(data).toHaveProperty('id', '550e8400-e29b-41d4-a716-446655440001');
       expect(data).toHaveProperty('orderNumber', '20240301-ABC-0001');
       expect(data.customer).toHaveProperty('name', 'ACME Corp');
 
       // Verify correct Prisma method was called
       expect(prisma.order.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'order-123' },
+          where: { id: '550e8400-e29b-41d4-a716-446655440001' },
           include: expect.any(Object)
         })
       );
@@ -143,15 +143,15 @@ describe('GET /api/fulfillment/orders/[id]', () => {
       });
 
       const mockOrder = {
-        id: 'order-789',
+        id: '550e8400-e29b-41d4-a716-446655440003',
         orderNumber: '20240301-XYZ-0002',
         status: 'pending'
       };
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-789');
-      const params = { params: { id: 'order-789' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440003');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440003' } };
 
       const response = await GET(request, params);
 
@@ -159,7 +159,7 @@ describe('GET /api/fulfillment/orders/[id]', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toHaveProperty('id', 'order-789');
+      expect(data).toHaveProperty('id', '550e8400-e29b-41d4-a716-446655440003');
     });
   });
 
@@ -167,8 +167,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
     it('should return 401 when not authenticated', async () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(null);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const params = { params: { id: 'order-123' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(401);
@@ -183,8 +183,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
         expires: '2024-12-31'
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const params = { params: { id: 'order-123' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(401);
@@ -205,8 +205,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const params = { params: { id: 'order-123' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -227,8 +227,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const params = { params: { id: 'order-123' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -249,8 +249,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const params = { params: { id: 'order-123' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -300,7 +300,7 @@ describe('GET /api/fulfillment/orders/[id]', () => {
 
     it('should return full order details including customer information', async () => {
       const fullOrderDetails = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         orderNumber: '20240301-ABC-0001',
         status: 'processing',
         customerId: 'customer-456',
@@ -324,13 +324,13 @@ describe('GET /api/fulfillment/orders/[id]', () => {
         },
         orderItems: [
           {
-            id: 'item-1',
+            id: '660e8400-e29b-41d4-a716-446655440001',
             serviceName: 'Criminal Background Check',
             locationName: 'National',
             status: 'pending'
           },
           {
-            id: 'item-2',
+            id: '660e8400-e29b-41d4-a716-446655440002',
             serviceName: 'Employment Verification',
             locationName: 'Previous Employer',
             status: 'completed'
@@ -345,8 +345,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(fullOrderDetails);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const params = { params: { id: 'order-123' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -354,7 +354,7 @@ describe('GET /api/fulfillment/orders/[id]', () => {
       const data = await response.json();
 
       // Verify all important fields are returned
-      expect(data).toHaveProperty('id', 'order-123');
+      expect(data).toHaveProperty('id', '550e8400-e29b-41d4-a716-446655440001');
       expect(data).toHaveProperty('orderNumber', '20240301-ABC-0001');
       expect(data).toHaveProperty('status', 'processing');
       expect(data).toHaveProperty('customer');
@@ -369,7 +369,7 @@ describe('GET /api/fulfillment/orders/[id]', () => {
 
     it('should handle orders without assigned vendors', async () => {
       const orderWithoutVendor = {
-        id: 'order-456',
+        id: '550e8400-e29b-41d4-a716-446655440002',
         orderNumber: '20240301-DEF-0002',
         status: 'pending',
         customerId: 'customer-789',
@@ -382,8 +382,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(orderWithoutVendor);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-456');
-      const params = { params: { id: 'order-456' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440002');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440002' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -436,8 +436,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
         new Error('Database connection failed')
       );
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const params = { params: { id: 'order-123' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(500);
@@ -457,14 +457,12 @@ describe('GET /api/fulfillment/orders/[id]', () => {
     });
 
     it('should handle timeout errors gracefully', async () => {
-      vi.mocked(prisma.order.findUnique).mockImplementationOnce(
-        () => new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Query timeout')), 100)
-        )
+      vi.mocked(prisma.order.findUnique).mockRejectedValueOnce(
+        new Error('Query timeout')
       );
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const params = { params: { id: 'order-123' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(500);
@@ -480,8 +478,8 @@ describe('GET /api/fulfillment/orders/[id]', () => {
         someInvalidField: 'value'
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const params = { params: { id: 'order-123' } };
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await GET(request, params);
 

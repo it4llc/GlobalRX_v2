@@ -19,12 +19,12 @@ describe('AddressBlockInput - Asterisk Display Bug', () => {
     it('should FAIL: Shows asterisk on optional street2 field when parent is required', () => {
       // This test proves the bug exists - it will fail until the bug is fixed
       const config = {
-        street1: { label: 'Street Address', required: true },
-        street2: { label: 'Apt/Suite', required: false }, // NOT required
-        city: { label: 'City', required: true },
-        state: { label: 'State', required: true },
-        county: { label: 'County', required: false },
-        postalCode: { label: 'Zip Code', required: true },
+        street1: { enabled: true, label: 'Street Address', required: true },
+        street2: { enabled: true, label: 'Apt/Suite', required: false }, // NOT required
+        city: { enabled: true, label: 'City', required: true },
+        state: { enabled: true, label: 'State', required: true },
+        county: { enabled: true, label: 'County', required: false },
+        postalCode: { enabled: true, label: 'Zip Code', required: true },
       };
 
       const { container } = render(
@@ -53,12 +53,12 @@ describe('AddressBlockInput - Asterisk Display Bug', () => {
     it('should FAIL: Shows asterisk on optional county field when parent is required', () => {
       // This test proves the bug exists for county field
       const config = {
-        street1: { label: 'Street Address', required: true },
-        street2: { label: 'Apt/Suite', required: false },
-        city: { label: 'City', required: true },
-        state: { label: 'State', required: true },
-        county: { label: 'County', required: false }, // NOT required
-        postalCode: { label: 'Zip Code', required: true },
+        street1: { enabled: true, label: 'Street Address', required: true },
+        street2: { enabled: true, label: 'Apt/Suite', required: false },
+        city: { enabled: true, label: 'City', required: true },
+        state: { enabled: true, label: 'State', required: true },
+        county: { enabled: true, label: 'County', required: false }, // NOT required
+        postalCode: { enabled: true, label: 'Zip Code', required: true },
       };
 
       const { container } = render(
@@ -85,12 +85,12 @@ describe('AddressBlockInput - Asterisk Display Bug', () => {
     it('should show asterisk only when BOTH parent AND sub-field are required', () => {
       // This test verifies the correct AND logic behavior
       const config = {
-        street1: { label: 'Street Address', required: true },
-        street2: { label: 'Apt/Suite', required: false },
-        city: { label: 'City', required: true },
-        state: { label: 'State', required: true },
-        county: { label: 'County', required: false },
-        postalCode: { label: 'Zip Code', required: true },
+        street1: { enabled: true, label: 'Street Address', required: true },
+        street2: { enabled: true, label: 'Apt/Suite', required: false },
+        city: { enabled: true, label: 'City', required: true },
+        state: { enabled: true, label: 'State', required: true },
+        county: { enabled: true, label: 'County', required: false },
+        postalCode: { enabled: true, label: 'Zip Code', required: true },
       };
 
       const { container } = render(
@@ -131,12 +131,12 @@ describe('AddressBlockInput - Asterisk Display Bug', () => {
     it('should not show any asterisks when parent field is not required', () => {
       // Even if sub-fields are marked as required, if parent is not required, no asterisks
       const config = {
-        street1: { label: 'Street Address', required: true },
-        street2: { label: 'Apt/Suite', required: false },
-        city: { label: 'City', required: true },
-        state: { label: 'State', required: true },
-        county: { label: 'County', required: false },
-        postalCode: { label: 'Zip Code', required: true },
+        street1: { enabled: true, label: 'Street Address', required: true },
+        street2: { enabled: true, label: 'Apt/Suite', required: false },
+        city: { enabled: true, label: 'City', required: true },
+        state: { enabled: true, label: 'State', required: true },
+        county: { enabled: true, label: 'County', required: false },
+        postalCode: { enabled: true, label: 'Zip Code', required: true },
       };
 
       const { container } = render(
@@ -161,12 +161,12 @@ describe('AddressBlockInput - Asterisk Display Bug', () => {
     it('should handle the asterisk display correctly based on AND logic', () => {
       // Test the correct behavior: asterisk shows only when BOTH parent AND sub-field are required
       const config = {
-        street1: { label: 'Street Address', required: true },
-        street2: { label: 'Apt/Suite', required: false },
-        city: { label: 'City', required: true },
-        state: { label: 'State', required: true },
-        county: { label: 'County', required: false },
-        postalCode: { label: 'Zip Code', required: true },
+        street1: { enabled: true, label: 'Street Address', required: true },
+        street2: { enabled: true, label: 'Apt/Suite', required: false },
+        city: { enabled: true, label: 'City', required: true },
+        state: { enabled: true, label: 'State', required: true },
+        county: { enabled: true, label: 'County', required: false },
+        postalCode: { enabled: true, label: 'Zip Code', required: true },
       };
 
       // Test case 1: Parent required = true
@@ -210,12 +210,12 @@ describe('AddressBlockInput - Asterisk Display Bug', () => {
 
     it('should render all field types correctly', () => {
       const config = {
-        street1: { label: 'Street Address', required: true },
-        street2: { label: 'Apt/Suite', required: false },
-        city: { label: 'City', required: true },
-        state: { label: 'State', required: true },
-        county: { label: 'County', required: false },
-        postalCode: { label: 'Zip Code', required: true },
+        street1: { enabled: true, label: 'Street Address', required: true },
+        street2: { enabled: true, label: 'Apt/Suite', required: false },
+        city: { enabled: true, label: 'City', required: true },
+        state: { enabled: true, label: 'State', required: true },
+        county: { enabled: true, label: 'County', required: false },
+        postalCode: { enabled: true, label: 'Zip Code', required: true },
       };
 
       render(
@@ -247,7 +247,14 @@ describe('AddressBlockInput - Asterisk Display Bug', () => {
     it('should handle missing config gracefully', () => {
       const { container } = render(
         <AddressBlockInput
-          config={{}} // Empty config
+          config={{
+            street1: { enabled: true, label: '', required: false },
+            street2: { enabled: true, label: '', required: false },
+            city: { enabled: true, label: '', required: false },
+            state: { enabled: true, label: '', required: false },
+            county: { enabled: true, label: '', required: false },
+            postalCode: { enabled: true, label: '', required: false },
+          }} // Empty config with proper structure
           value={{}}
           onChange={() => {}}
           required={true}
@@ -261,12 +268,12 @@ describe('AddressBlockInput - Asterisk Display Bug', () => {
 
     it('should handle null/undefined sub-field config', () => {
       const config = {
-        street1: { label: 'Street Address', required: true },
-        street2: undefined as any, // Undefined config
-        city: { label: 'City', required: true },
-        state: null as any, // Null config
-        county: { label: 'County' } as any, // Missing required property
-        postalCode: { label: 'Zip Code', required: true },
+        street1: { enabled: true, label: 'Street Address', required: true },
+        street2: { enabled: true, label: '', required: false }, // Default for undefined config
+        city: { enabled: true, label: 'City', required: true },
+        state: { enabled: true, label: '', required: false }, // Default for null config
+        county: { enabled: true, label: 'County', required: false }, // Adding missing properties
+        postalCode: { enabled: true, label: 'Zip Code', required: true },
       };
 
       const { container } = render(

@@ -289,7 +289,7 @@ describe('Vendor Schemas', () => {
     describe('valid data', () => {
       it('should pass with vendor assignment', () => {
         const validData = {
-          orderId: 'order-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
           vendorId: 'vendor-456',
           assignmentNotes: 'Expedited processing requested'
         };
@@ -300,7 +300,7 @@ describe('Vendor Schemas', () => {
 
       it('should pass with null vendorId for internal assignment', () => {
         const validData = {
-          orderId: 'order-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
           vendorId: null,
           assignmentNotes: 'Reassigned to internal team'
         };
@@ -311,7 +311,7 @@ describe('Vendor Schemas', () => {
 
       it('should pass without optional notes', () => {
         const validData = {
-          orderId: 'order-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
           vendorId: 'vendor-456'
         };
 

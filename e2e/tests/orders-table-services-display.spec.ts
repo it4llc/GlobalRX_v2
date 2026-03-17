@@ -95,7 +95,7 @@ test.describe('Orders Table Services Display', () => {
       await page.waitForSelector('table');
 
       // Status color mappings to verify
-      const statusColors = {
+      const statusColors: Record<string, string> = {
         'draft': 'bg-gray-100',
         'Draft': 'bg-gray-100',
         'submitted': 'bg-blue-100',

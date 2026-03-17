@@ -127,19 +127,19 @@ describe('Fulfillment Page - Service Status Display', () => {
           },
           items: [
             {
-              id: 'item-1',
+              id: '660e8400-e29b-41d4-a716-446655440001',
               service: { name: 'Criminal Check' },
               location: { name: 'United States', code: 'US' },
               status: 'submitted'
             },
             {
-              id: 'item-2',
+              id: '660e8400-e29b-41d4-a716-446655440002',
               service: { name: 'Employment Verification' },
               location: { name: 'Canada', code: 'CA' },
               status: 'processing'
             },
             {
-              id: 'item-3',
+              id: '660e8400-e29b-41d4-a716-446655440003',
               service: { name: 'Education Verification' },
               location: { name: 'United Kingdom', code: 'GB' },
               status: 'completed'
@@ -186,31 +186,31 @@ describe('Fulfillment Page - Service Status Display', () => {
           subject: { firstName: 'Jane', lastName: 'Smith' },
           items: [
             {
-              id: 'item-1',
+              id: '660e8400-e29b-41d4-a716-446655440001',
               service: { name: 'Service 1' },
               location: { name: 'USA', code: 'US' },
               status: 'draft'
             },
             {
-              id: 'item-2',
+              id: '660e8400-e29b-41d4-a716-446655440002',
               service: { name: 'Service 2' },
               location: { name: 'USA', code: 'US' },
               status: 'submitted'
             },
             {
-              id: 'item-3',
+              id: '660e8400-e29b-41d4-a716-446655440003',
               service: { name: 'Service 3' },
               location: { name: 'USA', code: 'US' },
               status: 'processing'
             },
             {
-              id: 'item-4',
+              id: '660e8400-e29b-41d4-a716-446655440004',
               service: { name: 'Service 4' },
               location: { name: 'USA', code: 'US' },
               status: 'missing_info'
             },
             {
-              id: 'item-5',
+              id: '660e8400-e29b-41d4-a716-446655440005',
               service: { name: 'Service 5' },
               location: { name: 'USA', code: 'US' },
               status: 'completed'
@@ -306,14 +306,14 @@ describe('Fulfillment Page - Service Status Display', () => {
           assignedVendorId: 'vendor-123',
           items: [
             {
-              id: 'item-1',
+              id: '660e8400-e29b-41d4-a716-446655440001',
               service: { name: 'Background Check' },
               location: { name: 'USA', code: 'US' },
               status: 'processing',
               assignedVendorId: 'vendor-123'
             },
             {
-              id: 'item-2',
+              id: '660e8400-e29b-41d4-a716-446655440002',
               service: { name: 'Drug Test' },
               location: { name: 'USA', code: 'US' },
               status: 'submitted',
@@ -410,7 +410,7 @@ describe('Fulfillment Page - Service Status Display', () => {
         customer: { name: 'ACME Corp' },
         subject: { firstName: 'Jane', lastName: 'Smith' },
         items: [{
-          id: 'item-1',
+          id: '660e8400-e29b-41d4-a716-446655440001',
           service: { name: 'Criminal Check' },
           location: { name: 'USA', code: 'US' },
           status: 'submitted'
@@ -522,19 +522,19 @@ describe('Fulfillment Page - Service Status Display', () => {
         subject: { firstName: 'Jane', lastName: 'Smith' },
         items: [
           {
-            id: 'item-1',
+            id: '660e8400-e29b-41d4-a716-446655440001',
             service: null, // Missing service object
             location: { name: 'USA', code: 'US' },
             status: 'submitted'
           },
           {
-            id: 'item-2',
+            id: '660e8400-e29b-41d4-a716-446655440002',
             service: { name: 'Valid Service' },
             location: null, // Missing location object
             status: 'processing'
           },
           {
-            id: 'item-3',
+            id: '660e8400-e29b-41d4-a716-446655440003',
             service: { name: 'Another Service' },
             location: { name: 'Canada', code: 'CA' },
             status: null // Missing status

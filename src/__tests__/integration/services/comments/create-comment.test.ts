@@ -14,6 +14,11 @@ vi.mock('@/lib/prisma', () => ({
     service: {
       findUnique: vi.fn()
     },
+    orderItem: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn()
+    },
     commentTemplate: {
       findUnique: vi.fn(),
       update: vi.fn()
@@ -49,9 +54,9 @@ vi.mock('@/lib/logger', () => ({
 describe('ServiceCommentService.createComment', () => {
   let service: ServiceCommentService;
   const mockUserId = 'user-123';
-  const mockServiceId = 'service-123';
+  const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
   const mockTemplateId = 'template-123';
-  const mockOrderId = 'order-123';
+  const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
   const mockCustomerId = 'customer-123';
   const mockVendorId = 'vendor-123';
 

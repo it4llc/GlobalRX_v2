@@ -52,7 +52,7 @@ describe('useCustomerConfig', () => {
     invoiceTerms: 'Net 30',
     invoiceContact: 'billing@acme.com',
     invoiceMethod: 'Email',
-    serviceIds: ['service-1', 'service-2'],
+    serviceIds: ['f47ac10b-58cc-4372-a567-0e02b2c3d479', 'a47ac10b-58cc-4372-a567-0e02b2c3d479'],
     logoUrl: '/logo.png',
     primaryColor: '#1f2937',
     secondaryColor: '#3b82f6',

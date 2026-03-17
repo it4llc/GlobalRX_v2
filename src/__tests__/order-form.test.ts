@@ -16,7 +16,7 @@ describe('Order Form Business Logic', () => {
     it('should validate step 1 passes with service items', () => {
       const serviceItems = [
         {
-          serviceId: 'service-1',
+          serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           serviceName: 'Background Check',
           locationId: 'location-1',
           locationName: 'United States',
@@ -52,7 +52,7 @@ describe('Order Form Business Logic', () => {
           name: 'Previous Address',
           required: true,
           dataType: 'address_block',
-          serviceId: 'service-1',
+          serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-1'
         },
         {
@@ -60,7 +60,7 @@ describe('Order Form Business Logic', () => {
           name: 'Employment History',
           required: false,
           dataType: 'text',
-          serviceId: 'service-1',
+          serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-1'
         }
       ],
@@ -72,11 +72,11 @@ describe('Order Form Business Logic', () => {
 
     const mockServiceItems = [
       {
-        serviceId: 'service-1',
+        serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         serviceName: 'Background Check',
         locationId: 'location-1',
         locationName: 'United States',
-        itemId: 'item-1'
+        itemId: '660e8400-e29b-41d4-a716-446655440001'
       }
     ];
 
@@ -146,7 +146,7 @@ describe('Order Form Business Logic', () => {
         'field-5': 'NY'
       };
       const searchFieldValues = {
-        'item-1': {
+        '660e8400-e29b-41d4-a716-446655440001': {
           'search-1': { street1: '456 Old St', city: 'Previous City', state: 'CA', postalCode: '54321' }
         }
       };
@@ -170,7 +170,7 @@ describe('Order Form Business Logic', () => {
 
     it('should handle search fields per service item correctly', () => {
       const searchFieldValues = {
-        'item-1': {
+        '660e8400-e29b-41d4-a716-446655440001': {
           'search-2': 'optional employment info' // Only optional field filled
         }
       };
@@ -198,7 +198,7 @@ describe('Order Form Business Logic', () => {
         mockRequirements,
         mockServiceItems,
         { 'field-1': 'John', 'field-2': 'Address', 'field-5': 'NY' },
-        { 'item-1': { 'search-1': 'previous address' } },
+        { '660e8400-e29b-41d4-a716-446655440001': { 'search-1': 'previous address' } },
         uploadedDocuments
       );
 
@@ -211,46 +211,47 @@ describe('Order Form Business Logic', () => {
   describe('Service Cart Management', () => {
     it('should add service to cart with unique item ID', () => {
       const existingItems: any[] = [];
-      const service = { id: 'service-1', name: 'Background Check', category: 'Criminal' };
+      const service = { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', name: 'Background Check', category: 'Criminal' };
       const locationId = 'location-1';
       const locationName = 'United States';
 
       const result = addServiceToCartLogic(existingItems, service, locationId, locationName);
 
       expect(result).toHaveLength(1);
-      expect(result[0].serviceId).toBe('service-1');
+      expect(result[0].serviceId).toBe('f47ac10b-58cc-4372-a567-0e02b2c3d479');
       expect(result[0].serviceName).toBe('Background Check');
       expect(result[0].locationId).toBe('location-1');
       expect(result[0].locationName).toBe('United States');
-      expect(result[0].itemId).toMatch(/^service-1-location-1-\d+$/);
+      // Updated to match actual itemId format: serviceId-locationId-timestamp
+      expect(result[0].itemId).toMatch(/^f47ac10b-58cc-4372-a567-0e02b2c3d479-location-1-\d+$/);
     });
 
     it('should allow duplicate service+location pairs with unique IDs', () => {
       const existingItems = [
-        { serviceId: 'service-1', serviceName: 'Employment Verification', locationId: 'location-1', locationName: 'US', itemId: 'service-1-location-1-1000' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Employment Verification', locationId: 'location-1', locationName: 'US', itemId: 'service-1-location-1-1000' }
       ];
-      const service = { id: 'service-1', name: 'Employment Verification', category: 'Employment' };
+      const service = { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', name: 'Employment Verification', category: 'Employment' };
 
       const result = addServiceToCartLogic(existingItems, service, 'location-1', 'US');
 
       expect(result).toHaveLength(2);
       expect(result[0].itemId).toBe('service-1-location-1-1000'); // Original
       expect(result[1].itemId).not.toBe('service-1-location-1-1000'); // New unique ID
-      expect(result[1].serviceId).toBe('service-1');
+      expect(result[1].serviceId).toBe('f47ac10b-58cc-4372-a567-0e02b2c3d479');
       expect(result[1].locationId).toBe('location-1');
     });
 
     it('should remove service from cart by item ID', () => {
       const existingItems = [
-        { serviceId: 'service-1', serviceName: 'Check 1', locationId: 'loc-1', locationName: 'US', itemId: 'item-1' },
-        { serviceId: 'service-2', serviceName: 'Check 2', locationId: 'loc-2', locationName: 'CA', itemId: 'item-2' },
-        { serviceId: 'service-1', serviceName: 'Check 1', locationId: 'loc-1', locationName: 'US', itemId: 'item-3' } // Duplicate service+location
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check 1', locationId: 'loc-1', locationName: 'US', itemId: '660e8400-e29b-41d4-a716-446655440001' },
+        { serviceId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check 2', locationId: 'loc-2', locationName: 'CA', itemId: '660e8400-e29b-41d4-a716-446655440002' },
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check 1', locationId: 'loc-1', locationName: 'US', itemId: '660e8400-e29b-41d4-a716-446655440003' } // Duplicate service+location
       ];
 
-      const result = removeServiceFromCartLogic(existingItems, 'item-1');
+      const result = removeServiceFromCartLogic(existingItems, '660e8400-e29b-41d4-a716-446655440001');
 
       expect(result).toHaveLength(2);
-      expect(result.map(item => item.itemId)).toEqual(['item-2', 'item-3']);
+      expect(result.map(item => item.itemId)).toEqual(['660e8400-e29b-41d4-a716-446655440002', '660e8400-e29b-41d4-a716-446655440003']);
     });
   });
 
@@ -265,14 +266,14 @@ describe('Order Form Business Logic', () => {
           id: 'search-1',
           name: 'Required Search Field',
           required: true,
-          serviceId: 'service-1',
+          serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-1'
         },
         {
           id: 'search-2',
           name: 'Optional Search Field',
           required: false,
-          serviceId: 'service-1',
+          serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-1'
         }
       ],
@@ -283,7 +284,7 @@ describe('Order Form Business Logic', () => {
     };
 
     const mockServiceItems = [
-      { serviceId: 'service-1', locationId: 'location-1', itemId: 'item-1', serviceName: 'Check', locationName: 'US' }
+      { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', locationId: 'location-1', itemId: '660e8400-e29b-41d4-a716-446655440001', serviceName: 'Check', locationName: 'US' }
     ];
 
     it('should check step 1 completion based on service items', () => {
@@ -306,8 +307,8 @@ describe('Order Form Business Logic', () => {
     });
 
     it('should check step 3 completion based on required search fields per service', () => {
-      const completeSearchValues = { 'item-1': { 'search-1': 'required value' } };
-      const incompleteSearchValues = { 'item-1': { 'search-2': 'optional value' } };
+      const completeSearchValues = { '660e8400-e29b-41d4-a716-446655440001': { 'search-1': 'required value' } };
+      const incompleteSearchValues = { '660e8400-e29b-41d4-a716-446655440001': { 'search-2': 'optional value' } };
 
       expect(isStepCompleteLogic(3, mockServiceItems, mockRequirements, {}, completeSearchValues, {}, 4)).toBe(true);
       expect(isStepCompleteLogic(3, mockServiceItems, mockRequirements, {}, incompleteSearchValues, {}, 4)).toBe(false);
@@ -351,7 +352,7 @@ describe('Order Form Business Logic', () => {
       };
 
       const serviceItems = [
-        { serviceId: 'service-1', locationId: 'location-1', itemId: 'item-1', serviceName: 'Check', locationName: 'US' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', locationId: 'location-1', itemId: '660e8400-e29b-41d4-a716-446655440001', serviceName: 'Check', locationName: 'US' }
       ];
 
       // Test completely missing address block
@@ -390,7 +391,7 @@ describe('Order Form Business Logic', () => {
       };
 
       const serviceItems = [
-        { serviceId: 'service-1', locationId: 'location-1', itemId: 'item-1', serviceName: 'Check', locationName: 'US' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', locationId: 'location-1', itemId: '660e8400-e29b-41d4-a716-446655440001', serviceName: 'Check', locationName: 'US' }
       ];
 
       const addressValues = {
@@ -414,7 +415,7 @@ describe('Order Form Business Logic', () => {
             name: 'Employment Address',
             required: true,
             dataType: 'address_block',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             locationId: 'location-1'
           },
           {
@@ -422,7 +423,7 @@ describe('Order Form Business Logic', () => {
             name: 'Reference Address',
             required: false,
             dataType: 'address_block',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             locationId: 'location-1'
           }
         ],
@@ -430,11 +431,11 @@ describe('Order Form Business Logic', () => {
       };
 
       const serviceItems = [
-        { serviceId: 'service-1', locationId: 'location-1', itemId: 'item-1', serviceName: 'Employment Check', locationName: 'US' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', locationId: 'location-1', itemId: '660e8400-e29b-41d4-a716-446655440001', serviceName: 'Employment Check', locationName: 'US' }
       ];
 
       const searchFieldValues = {
-        'item-1': {
+        '660e8400-e29b-41d4-a716-446655440001': {
           'search-addr-1': { street1: '', city: '', state: '', postalCode: '' }, // Required but empty
           'search-addr-2': { street1: '', city: '', state: '', postalCode: '' }  // Optional and empty, OK
         }
@@ -460,7 +461,7 @@ describe('Order Form Business Logic', () => {
             name: 'Employer Name',
             required: true,
             dataType: 'text',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             locationId: 'location-1'
           },
           {
@@ -468,7 +469,7 @@ describe('Order Form Business Logic', () => {
             name: 'Employer Address',
             required: false,
             dataType: 'address_block',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             locationId: 'location-1'
           }
         ],
@@ -476,7 +477,7 @@ describe('Order Form Business Logic', () => {
       };
 
       const serviceItems = [
-        { serviceId: 'service-1', locationId: 'location-1', itemId: 'item-1', serviceName: 'Employment Check', locationName: 'US' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', locationId: 'location-1', itemId: '660e8400-e29b-41d4-a716-446655440001', serviceName: 'Employment Check', locationName: 'US' }
       ];
 
       const subjectValues = {
@@ -486,7 +487,7 @@ describe('Order Form Business Logic', () => {
       };
 
       const searchValues = {
-        'item-1': {
+        '660e8400-e29b-41d4-a716-446655440001': {
           'employer': 'Acme Corp',
           'emp-address': { street1: '', city: '', state: '', postalCode: '' } // Optional, empty is OK
         }
@@ -510,7 +511,7 @@ describe('Order Form Business Logic', () => {
       };
 
       const serviceItems = [
-        { serviceId: 'service-1', locationId: 'location-1', itemId: 'item-1', serviceName: 'Check', locationName: 'US' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', locationId: 'location-1', itemId: '660e8400-e29b-41d4-a716-446655440001', serviceName: 'Check', locationName: 'US' }
       ];
 
       const addressValues = {
@@ -553,15 +554,15 @@ describe('Order Form Business Logic', () => {
 
     it('should convert search field values per item to name-based', () => {
       const searchFieldValues = {
-        'item-1': { 'search-1': 'Previous job at Company X' },
-        'item-2': { 'search-1': 'Current job at Company Y' }
+        '660e8400-e29b-41d4-a716-446655440001': { 'search-1': 'Previous job at Company X' },
+        '660e8400-e29b-41d4-a716-446655440002': { 'search-1': 'Current job at Company Y' }
       };
 
       const result = convertSearchFieldsToNameBasedLogic(searchFieldValues, mockRequirements.searchFields);
 
       expect(result).toEqual({
-        'item-1': { 'Employment History': 'Previous job at Company X' },
-        'item-2': { 'Employment History': 'Current job at Company Y' }
+        '660e8400-e29b-41d4-a716-446655440001': { 'Employment History': 'Previous job at Company X' },
+        '660e8400-e29b-41d4-a716-446655440002': { 'Employment History': 'Current job at Company Y' }
       });
     });
 

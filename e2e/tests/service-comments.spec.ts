@@ -146,7 +146,10 @@ test.describe('Service Comments', () => {
 
       // Add Comment button should not be visible or be disabled
       const addButton = page.getByRole('button', { name: /add comment/i });
-      await expect(addButton).toBeDisabled().or(addButton).not.toBeVisible();
+      // Check if button is either disabled or not visible
+      const isDisabled = await addButton.isDisabled().catch(() => false);
+      const isVisible = await addButton.isVisible().catch(() => false);
+      expect(isDisabled || !isVisible).toBeTruthy();
     });
   });
 

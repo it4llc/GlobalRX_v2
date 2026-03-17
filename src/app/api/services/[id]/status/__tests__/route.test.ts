@@ -61,9 +61,9 @@ vi.mock('@/lib/services/order-lock.service', () => ({
 }));
 
 describe('PUT /api/services/[id]/status', () => {
-  const mockServiceId = 'service-123';
+  const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
   const mockUserId = 'user-456';
-  const mockOrderId = 'order-789';
+  const mockOrderId = '550e8400-e29b-41d4-a716-446655440003';
   const mockSession = {
     user: {
       id: mockUserId,

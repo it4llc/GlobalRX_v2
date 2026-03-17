@@ -104,7 +104,7 @@ test.describe('Order Fulfillment Details Page', () => {
 
     // Select a different status
     const newStatusOption = page.locator('[role="option"], .dropdown-item').filter({
-      hasNotText: initialStatus
+      hasNotText: initialStatus || ''
     }).first();
 
     const newStatusText = await newStatusOption.textContent();
@@ -215,7 +215,7 @@ test.describe('Order Fulfillment Details Page', () => {
     // Mock the print dialog
     await page.evaluate(() => {
       window.print = () => {
-        window.printCalled = true;
+        (window as any).printCalled = true;
       };
     });
 
@@ -223,7 +223,7 @@ test.describe('Order Fulfillment Details Page', () => {
     await printButton.click();
 
     // Verify print was called
-    const printCalled = await page.evaluate(() => window.printCalled);
+    const printCalled = await page.evaluate(() => (window as any).printCalled);
     expect(printCalled).toBe(true);
   });
 
@@ -285,7 +285,7 @@ test.describe('Order Fulfillment Details Page', () => {
     // Mock user without fulfillment permission
     await page.evaluate(() => {
       // Override session to remove fulfillment permission
-      window.mockUserPermissions = {};
+      (window as any).mockUserPermissions = {};
     });
 
     await page.goto('/fulfillment/orders/test-order-id');

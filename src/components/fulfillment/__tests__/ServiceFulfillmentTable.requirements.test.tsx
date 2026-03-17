@@ -69,9 +69,9 @@ if (typeof HTMLDialogElement === 'undefined') {
 describe('ServiceFulfillmentTable - Requirements Display Integration', () => {
   const mockServices = [
     {
-      id: 'service-1',
-      orderId: 'order-123',
-      orderItemId: 'item-1',
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      orderId: '550e8400-e29b-41d4-a716-446655440001',
+      orderItemId: '660e8400-e29b-41d4-a716-446655440001',
       serviceId: 'service-type-1',
       locationId: 'location-1',
       status: 'Submitted',
@@ -103,9 +103,9 @@ describe('ServiceFulfillmentTable - Requirements Display Integration', () => {
       }
     },
     {
-      id: 'service-2',
-      orderId: 'order-123',
-      orderItemId: 'item-2',
+      id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
+      orderId: '550e8400-e29b-41d4-a716-446655440001',
+      orderItemId: '660e8400-e29b-41d4-a716-446655440002',
       serviceId: 'service-type-2',
       locationId: 'location-2',
       status: 'Processing',

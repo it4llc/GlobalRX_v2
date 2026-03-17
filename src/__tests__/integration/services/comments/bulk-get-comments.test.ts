@@ -3,10 +3,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ServiceCommentService } from '@/services/service-comment-service';
 import { prisma } from '@/lib/prisma';
 
-// Mock Prisma client
+// Mock Prisma client - add orderItem which is required
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     servicesFulfillment: {
+      findMany: vi.fn()
+    },
+    orderItem: {
+      findUnique: vi.fn(),
       findMany: vi.fn()
     },
     order: {
@@ -31,7 +35,7 @@ vi.mock('@/lib/logger', () => ({
 describe('ServiceCommentService.getOrderServiceComments', () => {
   let service: ServiceCommentService;
   const mockUserId = 'user-123';
-  const mockOrderId = 'order-123';
+  const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
   const mockCustomerId = 'customer-123';
   const mockVendorId = 'vendor-123';
 
@@ -44,14 +48,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
     it('should return all comments for all services for internal users', async () => {
       const mockServices = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
           status: 'Processing',
           comments: [
             {
               id: 'comment-1-1',
-              serviceId: 'service-1',
+              serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'Internal comment for service 1',
               isInternalOnly: true,
               createdAt: new Date('2024-03-03T10:00:00Z'),
@@ -61,7 +65,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
             },
             {
               id: 'comment-1-2',
-              serviceId: 'service-1',
+              serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'External comment for service 1',
               isInternalOnly: false,
               createdAt: new Date('2024-03-02T10:00:00Z'),
@@ -72,14 +76,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           ]
         },
         {
-          id: 'service-2',
+          id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
           status: 'Completed',
           comments: [
             {
               id: 'comment-2-1',
-              serviceId: 'service-2',
+              serviceId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'Comment for service 2',
               isInternalOnly: false,
               createdAt: new Date('2024-03-01T10:00:00Z'),
@@ -99,23 +103,23 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
         mockUserId
       );
 
-      expect(result['service-1']).toBeDefined();
-      expect(result['service-1'].serviceName).toBe('Background Check');
-      expect(result['service-1'].serviceStatus).toBe('Processing');
-      expect(result['service-1'].comments).toHaveLength(2);
-      expect(result['service-1'].total).toBe(2);
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479']).toBeDefined();
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].serviceName).toBe('Background Check');
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].serviceStatus).toBe('Processing');
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments).toHaveLength(2);
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(2);
 
-      expect(result['service-2']).toBeDefined();
-      expect(result['service-2'].serviceName).toBe('Drug Test');
-      expect(result['service-2'].serviceStatus).toBe('Completed');
-      expect(result['service-2'].comments).toHaveLength(1);
-      expect(result['service-2'].total).toBe(1);
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479']).toBeDefined();
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].serviceName).toBe('Drug Test');
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].serviceStatus).toBe('Completed');
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].comments).toHaveLength(1);
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(1);
     });
 
     it('should filter internal comments for customer users', async () => {
       const mockServices = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
           status: 'Processing',
@@ -123,7 +127,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
             // Only external comment should be included for customers
             {
               id: 'comment-1-2',
-              serviceId: 'service-1',
+              serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'External comment',
               isInternalOnly: false,
               createdAt: new Date('2024-03-02T10:00:00Z'),
@@ -134,7 +138,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           ]
         },
         {
-          id: 'service-2',
+          id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
           status: 'Processing',
@@ -151,13 +155,13 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
       );
 
       // Service 1 should have 1 external comment
-      expect(result['service-1'].comments).toHaveLength(1);
-      expect(result['service-1'].comments[0].isInternalOnly).toBe(false);
-      expect(result['service-1'].total).toBe(1);
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments).toHaveLength(1);
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments[0].isInternalOnly).toBe(false);
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(1);
 
       // Service 2 should have no comments
-      expect(result['service-2'].comments).toHaveLength(0);
-      expect(result['service-2'].total).toBe(0);
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].comments).toHaveLength(0);
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(0);
 
       // Verify the query filtered by isInternalOnly
       expect(prisma.servicesFulfillment.findMany).toHaveBeenCalledWith({
@@ -180,14 +184,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
     it('should return all comments for vendor users', async () => {
       const mockServices = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
           status: 'Processing',
           comments: [
             {
               id: 'comment-1-1',
-              serviceId: 'service-1',
+              serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'Internal comment',
               isInternalOnly: true,
               createdAt: new Date('2024-03-03T10:00:00Z'),
@@ -197,7 +201,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
             },
             {
               id: 'comment-1-2',
-              serviceId: 'service-1',
+              serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'External comment',
               isInternalOnly: false,
               createdAt: new Date('2024-03-02T10:00:00Z'),
@@ -218,8 +222,8 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
       );
 
       // Vendors see all comments (both internal and external)
-      expect(result['service-1'].comments).toHaveLength(2);
-      expect(result['service-1'].total).toBe(2);
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments).toHaveLength(2);
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(2);
 
       // Verify the query didn't filter by isInternalOnly
       expect(prisma.servicesFulfillment.findMany).toHaveBeenCalledWith({
@@ -256,14 +260,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
     it('should handle services with no comments', async () => {
       const mockServices = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
           status: 'Draft',
           comments: []
         },
         {
-          id: 'service-2',
+          id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
           status: 'Draft',
@@ -279,23 +283,23 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
         mockUserId
       );
 
-      expect(result['service-1'].comments).toEqual([]);
-      expect(result['service-1'].total).toBe(0);
-      expect(result['service-2'].comments).toEqual([]);
-      expect(result['service-2'].total).toBe(0);
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments).toEqual([]);
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(0);
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].comments).toEqual([]);
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(0);
     });
 
     it('should handle mixed scenario - some services with comments, some without', async () => {
       const mockServices = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
           status: 'Processing',
           comments: [
             {
               id: 'comment-1',
-              serviceId: 'service-1',
+              serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'Has comment',
               isInternalOnly: false,
               createdAt: new Date(),
@@ -306,21 +310,21 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           ]
         },
         {
-          id: 'service-2',
+          id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
           status: 'Draft',
           comments: []
         },
         {
-          id: 'service-3',
+          id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-3', name: 'Education Verification', code: 'EDUVER' },
           status: 'Completed',
           comments: [
             {
               id: 'comment-3-1',
-              serviceId: 'service-3',
+              serviceId: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'Completed successfully',
               isInternalOnly: false,
               createdAt: new Date(),
@@ -330,7 +334,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
             },
             {
               id: 'comment-3-2',
-              serviceId: 'service-3',
+              serviceId: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'Internal review note',
               isInternalOnly: true,
               createdAt: new Date(),
@@ -351,9 +355,9 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
       );
 
       expect(Object.keys(result)).toHaveLength(3);
-      expect(result['service-1'].total).toBe(1);
-      expect(result['service-2'].total).toBe(0);
-      expect(result['service-3'].total).toBe(2);
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(1);
+      expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(0);
+      expect(result['b47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(2);
     });
   });
 
@@ -361,14 +365,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
     it('should sort comments newest first within each service', async () => {
       const mockServices = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
           status: 'Processing',
           comments: [
             {
               id: 'comment-newest',
-              serviceId: 'service-1',
+              serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'Newest',
               isInternalOnly: false,
               createdAt: new Date('2024-03-03T10:00:00Z'),
@@ -378,7 +382,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
             },
             {
               id: 'comment-middle',
-              serviceId: 'service-1',
+              serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'Middle',
               isInternalOnly: false,
               createdAt: new Date('2024-03-02T10:00:00Z'),
@@ -388,7 +392,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
             },
             {
               id: 'comment-oldest',
-              serviceId: 'service-1',
+              serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'Oldest',
               isInternalOnly: false,
               createdAt: new Date('2024-03-01T10:00:00Z'),
@@ -408,7 +412,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
         mockUserId
       );
 
-      const comments = result['service-1'].comments;
+      const comments = result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments;
       expect(comments[0].id).toBe('comment-newest');
       expect(comments[1].id).toBe('comment-middle');
       expect(comments[2].id).toBe('comment-oldest');
@@ -430,7 +434,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
     it('should include service details in response', async () => {
       const mockServices = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: {
             id: 'def-1',
@@ -451,21 +455,21 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
         mockUserId
       );
 
-      expect(result['service-1'].serviceName).toBe('Background Check');
-      expect(result['service-1'].serviceStatus).toBe('Processing');
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].serviceName).toBe('Background Check');
+      expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].serviceStatus).toBe('Processing');
     });
 
     it('should include comment details with template and user info', async () => {
       const mockServices = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
           status: 'Processing',
           comments: [
             {
               id: 'comment-1',
-              serviceId: 'service-1',
+              serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
               finalText: 'Test comment with details',
               isInternalOnly: false,
               createdAt: new Date('2024-03-01T10:00:00Z'),
@@ -500,7 +504,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
         mockUserId
       );
 
-      const comment = result['service-1'].comments[0];
+      const comment = result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].comments[0];
       expect(comment.finalText).toBe('Test comment with details');
       expect(comment.template.shortName).toBe('DOC_REQ');
       expect(comment.template.longName).toBe('Document Required');

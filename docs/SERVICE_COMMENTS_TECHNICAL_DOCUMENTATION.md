@@ -1,12 +1,12 @@
 # Service Comments System - Technical Documentation
 
 **Feature:** Service Comments Database, API, and Frontend UI (Phases 2b, 2c, & 2d)
-**Date:** March 9, 2026
+**Date:** March 17, 2026 (Updated)
 **Status:** ✅ Complete - Full Implementation with Status Change
 **Phase 2b Status:** ✅ Complete - Backend Implementation
 **Phase 2c Status:** ✅ Complete - Frontend UI Implementation
 **Phase 2d Status:** ✅ Complete - Service Status Change Capability
-**Bug Fixes:** ✅ Comment Display ID Mismatch Fixed (March 9, 2026)
+**Bug Fixes:** ✅ Comment System Critical Bug Fixes Completed (March 17, 2026)
 
 ---
 
@@ -633,6 +633,79 @@ export interface ServiceCommentResponse {
 ---
 
 ## Bug Fixes
+
+### Comment System Critical Bug Fixes (March 17, 2026)
+
+#### 1. Comment Creation Issue in Fulfillment Section
+
+**Root Cause:** Template loading and UI layout issues prevented comment creation in the order fulfillment context. The system was making API calls with null service IDs, causing 404 errors.
+
+**Solution Implemented:**
+- **ID Resolution Pattern:** Modified createComment function to accept explicit serviceId parameter
+- **Template Loading Fix:** Fixed template availability checks when serviceType is undefined
+- **API Routing:** Proper service ID resolution for order vs single service mode
+- **Error Handling:** Enhanced validation with comprehensive error messages
+
+#### 2. Comment Count Calculation Bug
+
+**Root Cause:** UI was displaying incorrect comment counts due to data structure mismatch. The component expected a direct array but received an object with a 'comments' property.
+
+**Solution Implemented:**
+- **Data Structure Fix:** Updated getCommentCount to properly access comments array within response object
+- **UI Integration:** Ensured accurate counts display in ServiceFulfillmentTable
+- **Type Safety:** Added proper TypeScript types for the response structure
+
+#### 3. UUID Validation for Security
+
+**Root Cause:** Service and fulfillment IDs were not validated, creating potential security vulnerabilities.
+
+**Solution Implemented:**
+- **Security Enhancement:** Added UUID format validation regex to prevent injection attacks
+- **Input Validation:** All service and fulfillment IDs must match UUID format before API calls
+- **Error Prevention:** Prevents SQL injection and path traversal attacks through malformed IDs
+
+#### 4. TypeScript Compliance Improvements
+
+**Root Cause:** Multiple TypeScript errors were causing compilation issues and reducing code safety.
+
+**Solution Implemented:**
+- **Error Handling:** Added proper error type annotations and error handling patterns
+- **Type Safety:** Eliminated 'any' types with specific interfaces
+- **Null Checks:** Enhanced null/undefined checks throughout the codebase
+
+#### 5. Logging Standards Compliance
+
+**Root Cause:** Console statements violated enterprise logging standards and exposed sensitive data.
+
+**Solution Implemented:**
+- **Client Logger Enhancement:** Replaced console statements with structured logging via client-logger
+- **Production Safety:** Logs only sent to Sentry in production environment
+- **Email Filtering:** Enhanced PII protection with email detection and filtering
+- **Sensitive Data Protection:** Comprehensive pattern detection for preventing data exposure
+
+#### 6. CommentCreateModal Undefined Length Error
+
+**Root Cause:** API responses containing comment templates with undefined templateText property causing runtime TypeError when calculating character count.
+
+**Error Details:**
+- **Error:** `TypeError: "Cannot read properties of undefined (reading 'length')" at line 150 of CommentCreateModal.tsx`
+- **Impact:** Modal crashes when attempting to calculate `templateText.length` without checking for undefined values
+- **Test Failures:** Multiple test failures due to unhandled undefined API response values
+
+**Solution Implemented:**
+- **Frontend Defense:** Added null safety operators (`finalText?.length || 0`) for character count calculation
+- **API Sanitization:** Modified comment-templates API endpoints to ensure templateText is never undefined
+- **Type Safety:** Updated TypeScript interfaces to reflect templateText as optional property
+- **Defensive Programming:** Added comprehensive null checks in template text handling
+
+**Files Modified:**
+1. `CommentCreateModal.tsx` - Added null safety for character counting and template text handling
+2. `comment-templates/route.ts` - Added template sanitization before API response
+3. `comment-templates/[id]/route.ts` - Added individual template sanitization
+
+**Prevention Pattern:** This fix establishes defensive programming patterns for handling potentially undefined API response values throughout the platform.
+- **Structured Logging:** Replaced console statements with structured logging patterns
+- **Email Filtering:** Enhanced detection and filtering of email addresses from logs
 
 ### Comment Display ID Mismatch (March 9, 2026)
 

@@ -29,6 +29,23 @@ vi.mock('@/lib/auth', () => ({
   authOptions: {}
 }));
 
+// Mock vendorUtils with the actual function used by the route
+vi.mock('@/lib/vendorUtils', () => ({
+  canUserManageVendors: vi.fn()
+}));
+
+vi.mock('@/lib/logger', () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn()
+  }
+}));
+
+// Import the mocked canUserManageVendors after mocking
+import { canUserManageVendors } from '@/lib/vendorUtils';
+
 describe('POST /api/vendors', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -56,14 +73,19 @@ describe('POST /api/vendors', () => {
       expect(data.error).toBe('Unauthorized');
     });
 
-    it('should return 403 when user lacks global_config permission', async () => {
+    it('should return 403 when user lacks vendor management permission', async () => {
+      const mockUser = {
+        id: '1',
+        userType: 'internal',
+        permissions: { candidate_workflow: true }
+      };
+
       vi.mocked(getServerSession).mockResolvedValueOnce({
-        user: {
-          id: '1',
-          type: 'internal',
-          permissions: { candidate_workflow: true }
-        }
+        user: mockUser
       });
+
+      // canUserManageVendors returns false for users without proper permissions
+      vi.mocked(canUserManageVendors).mockReturnValueOnce(false);
 
       const request = new Request('http://localhost:3000/api/vendors', {
         method: 'POST',
@@ -81,17 +103,25 @@ describe('POST /api/vendors', () => {
 
       const data = await response.json();
       expect(data.error).toBe('Insufficient permissions');
+
+      // Verify it checked using canUserManageVendors
+      expect(canUserManageVendors).toHaveBeenCalledWith(mockUser);
     });
 
     it('should return 403 when vendor user tries to create vendor', async () => {
+      const mockUser = {
+        id: '2',
+        userType: 'vendor',
+        vendorId: 'vendor-123',
+        permissions: {}
+      };
+
       vi.mocked(getServerSession).mockResolvedValueOnce({
-        user: {
-          id: '2',
-          type: 'vendor',
-          vendorId: 'vendor-123',
-          permissions: { global_config: true }
-        }
+        user: mockUser
       });
+
+      // Vendor users cannot manage vendors
+      vi.mocked(canUserManageVendors).mockReturnValueOnce(false);
 
       const request = new Request('http://localhost:3000/api/vendors', {
         method: 'POST',
@@ -111,13 +141,17 @@ describe('POST /api/vendors', () => {
 
   describe('validation', () => {
     beforeEach(() => {
+      const mockUser = {
+        id: '1',
+        userType: 'internal',
+        permissions: { global_config: true }
+      };
+
       vi.mocked(getServerSession).mockResolvedValueOnce({
-        user: {
-          id: '1',
-          type: 'internal',
-          permissions: { global_config: true }
-        }
+        user: mockUser
       });
+
+      vi.mocked(canUserManageVendors).mockReturnValueOnce(true);
     });
 
     it('should return 400 when name is missing', async () => {
@@ -173,13 +207,17 @@ describe('POST /api/vendors', () => {
 
   describe('business logic', () => {
     beforeEach(() => {
+      const mockUser = {
+        id: '1',
+        userType: 'internal',
+        permissions: { global_config: true }
+      };
+
       vi.mocked(getServerSession).mockResolvedValueOnce({
-        user: {
-          id: '1',
-          type: 'internal',
-          permissions: { global_config: true }
-        }
+        user: mockUser
       });
+
+      vi.mocked(canUserManageVendors).mockReturnValueOnce(true);
     });
 
     it('should unset other primary vendors when creating new primary', async () => {
@@ -305,7 +343,7 @@ describe('GET /api/vendors', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: { candidate_workflow: true }
         }
       });
@@ -329,7 +367,7 @@ describe('GET /api/vendors', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '2',
-          type: 'vendor',
+          userType: 'vendor',
           vendorId: 'vendor-123',
           permissions: {}
         }
@@ -355,7 +393,7 @@ describe('GET /api/vendors', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '3',
-          type: 'customer',
+          userType: 'customer',
           customerId: 'customer-123',
           permissions: {}
         }
@@ -375,7 +413,7 @@ describe('GET /api/vendors', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: { global_config: true }
         }
       });

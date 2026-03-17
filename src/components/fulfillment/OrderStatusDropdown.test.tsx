@@ -22,7 +22,7 @@ vi.mock('@/hooks/useToast', () => ({
 
 describe('OrderStatusDropdown', () => {
   const mockProps = {
-    orderId: 'order-123',
+    orderId: '550e8400-e29b-41d4-a716-446655440001',
     currentStatus: 'draft',
     onStatusChange: vi.fn()
   };
@@ -133,7 +133,7 @@ describe('OrderStatusDropdown', () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           statusCode: 'processing',
           message: 'Order status updated successfully'
         })
@@ -149,7 +149,7 @@ describe('OrderStatusDropdown', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/fulfillment/orders/order-123/status',
+          '/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status',
           {
             method: 'PATCH',
             headers: {
@@ -235,7 +235,7 @@ describe('OrderStatusDropdown', () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           statusCode: 'processing'
         })
       });
@@ -260,7 +260,7 @@ describe('OrderStatusDropdown', () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           statusCode: 'processing'
         })
       });
@@ -282,7 +282,7 @@ describe('OrderStatusDropdown', () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           statusCode: 'processing',
           message: 'Order status updated successfully'
         })

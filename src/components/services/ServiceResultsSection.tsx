@@ -416,10 +416,10 @@ export function ServiceResultsSection({
 
       {/* Attachments Section */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-medium text-gray-700">Attachments</h4>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <h4 className="text-sm font-medium text-gray-700 flex-shrink-0">Attachments</h4>
           {canEdit && !isCustomer && (
-            <div>
+            <div className="flex-shrink-0">
               <input
                 ref={fileInputRef}
                 type="file"

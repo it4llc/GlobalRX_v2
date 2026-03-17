@@ -48,7 +48,13 @@ export async function GET(
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
 
-    return NextResponse.json(template, { status: 200 });
+    // Sanitize template to ensure templateText is never undefined
+    const sanitizedTemplate = {
+      ...template,
+      templateText: template.templateText || ''  // Ensure templateText is always a string
+    };
+
+    return NextResponse.json(sanitizedTemplate, { status: 200 });
   } catch (error) {
     logger.error('Error fetching comment template', { error, templateId: params.id });
     return NextResponse.json(

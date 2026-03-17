@@ -298,7 +298,7 @@ describe('UserType Bug - Fulfillment Route', () => {
       const ordersWithServices = mockOrders.map(order => ({
         ...order,
         services: [
-          { id: 'service-1', orderId: order.id, name: 'Background Check' }
+          { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', orderId: order.id, name: 'Background Check' }
         ]
       }));
 

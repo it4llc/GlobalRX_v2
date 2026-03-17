@@ -115,11 +115,12 @@ describe('DynamicFieldInput - Address Block Instructions Bug', () => {
         dataType: 'address_block',
         instructions: 'Enter the address where mail should be sent',
         addressConfig: {
-          street1: { label: 'Street', required: true },
-          street2: { label: 'Apt/Suite', required: false },
-          city: { label: 'City', required: true },
-          state: { label: 'State', required: true },
-          postalCode: { label: 'Zip', required: true }
+          street1: { enabled: true, label: 'Street', required: true },
+          street2: { enabled: true, label: 'Apt/Suite', required: false },
+          city: { enabled: true, label: 'City', required: true },
+          state: { enabled: true, label: 'State', required: true },
+          county: { enabled: false, label: 'County', required: false },
+          postalCode: { enabled: true, label: 'Zip', required: true }
         },
         required: false
       };
@@ -220,11 +221,12 @@ describe('DynamicFieldInput - Address Block Instructions Bug', () => {
         dataType: 'address_block',
         instructions: longInstructionsText,
         addressConfig: {
-          street1: { label: 'Street', required: true },
-          street2: { label: 'Apt', required: false },
-          city: { label: 'City', required: true },
-          state: { label: 'State', required: true },
-          postalCode: { label: 'Zip', required: true }
+          street1: { enabled: true, label: 'Street', required: true },
+          street2: { enabled: true, label: 'Apt', required: false },
+          city: { enabled: true, label: 'City', required: true },
+          state: { enabled: true, label: 'State', required: true },
+          county: { enabled: false, label: '', required: false },
+          postalCode: { enabled: true, label: 'Zip', required: true }
         }
       };
 
@@ -260,10 +262,12 @@ describe('DynamicFieldInput - Address Block Instructions Bug', () => {
               dataType: 'address_block',
               instructions: 'Enter your billing address for credit card verification',
               addressConfig: {
-                street1: { label: 'Street', required: true },
-                city: { label: 'City', required: true },
-                state: { label: 'State', required: true },
-                postalCode: { label: 'Zip', required: true }
+                street1: { enabled: true, label: 'Street', required: true },
+                street2: { enabled: false, label: '', required: false },
+                city: { enabled: true, label: 'City', required: true },
+                state: { enabled: true, label: 'State', required: true },
+                county: { enabled: false, label: '', required: false },
+                postalCode: { enabled: true, label: 'Zip', required: true }
               }
             }}
             value={{}}

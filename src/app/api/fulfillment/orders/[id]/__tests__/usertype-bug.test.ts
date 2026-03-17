@@ -41,7 +41,7 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
   });
 
   const mockOrder = {
-    id: 'order-123',
+    id: '550e8400-e29b-41d4-a716-446655440001',
     orderNumber: 'ORD-2024-001',
     customerId: 'customer-456',
     vendorId: 'vendor-789',
@@ -60,14 +60,14 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
 
   const mockServices = [
     {
-      id: 'service-1',
-      orderId: 'order-123',
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      orderId: '550e8400-e29b-41d4-a716-446655440001',
       serviceType: 'Background Check',
       status: 'pending'
     },
     {
-      id: 'service-2',
-      orderId: 'order-123',
+      id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
+      orderId: '550e8400-e29b-41d4-a716-446655440001',
       serviceType: 'Drug Test',
       status: 'completed'
     }
@@ -88,13 +88,13 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
       vi.mocked(prisma.service.findMany).mockResolvedValueOnce(mockServices);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       // Internal users should see any order
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.id).toBe('order-123');
+      expect(data.id).toBe('550e8400-e29b-41d4-a716-446655440001');
       expect(data.services).toHaveLength(2);
     });
 
@@ -113,13 +113,13 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
       vi.mocked(prisma.service.findMany).mockResolvedValueOnce(mockServices);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       // Vendor users should see their assigned orders
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.id).toBe('order-123');
+      expect(data.id).toBe('550e8400-e29b-41d4-a716-446655440001');
     });
 
     it('should block vendor users with userType from viewing other vendor orders', async () => {
@@ -135,8 +135,8 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       // Vendor users should NOT see orders assigned to other vendors
       expect(response.status).toBe(403);
@@ -158,13 +158,13 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
       vi.mocked(prisma.service.findMany).mockResolvedValueOnce(mockServices);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       // Customer users should see their own orders
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.id).toBe('order-123');
+      expect(data.id).toBe('550e8400-e29b-41d4-a716-446655440001');
     });
 
     it('should block customer users with userType from viewing other customer orders', async () => {
@@ -180,8 +180,8 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       // Customer users should NOT see other customers' orders
       expect(response.status).toBe(403);
@@ -204,8 +204,8 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
       vi.mocked(prisma.service.findMany).mockResolvedValueOnce(mockServices);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       // Should work with just userType, no fallback needed
       expect(response.status).toBe(200);
@@ -228,14 +228,14 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
       vi.mocked(prisma.service.findMany).mockResolvedValueOnce(mockServices);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       // Should use userType (internal) and allow access
       // The reversed fallback actually works here, but it's still wrong to have it
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.id).toBe('order-123');
+      expect(data.id).toBe('550e8400-e29b-41d4-a716-446655440001');
     });
 
     it('should fail when type is set but userType is not (proves fallback is wrong)', async () => {
@@ -253,8 +253,8 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
       vi.mocked(prisma.service.findMany).mockResolvedValueOnce(mockServices);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       // With reversed fallback (userType || type), this would work incorrectly
       // But it SHOULD fail because we should ONLY use userType
@@ -298,8 +298,8 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
       vi.mocked(prisma.service.findMany).mockResolvedValueOnce(mockServices);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123?includeServices=true');
-      const response = await GET(request, { params: { id: 'order-123' } });
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001?includeServices=true');
+      const response = await GET(request, { params: { id: '550e8400-e29b-41d4-a716-446655440001' } });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -309,7 +309,7 @@ describe('UserType Bug - Fulfillment Order Details Route', () => {
       // Verify services were queried
       expect(prisma.service.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { orderId: 'order-123' }
+          where: { orderId: '550e8400-e29b-41d4-a716-446655440001' }
         })
       );
     });
