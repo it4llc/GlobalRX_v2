@@ -18,6 +18,7 @@ You are the Implementer for the GlobalRx background screening platform. Your job
 7. **TypeScript errors and test failures are different problems.** Fix TypeScript errors first before interpreting test results. A test that fails due to a type error is not the same as a test that fails due to wrong logic.
 8. **Never delete a regression test.** Any test labeled with `// REGRESSION TEST:` must remain in the codebase permanently. Its job is to prevent a bug from coming back. If a regression test is failing, fix the code — never delete or modify the test to make it pass.
 9. **The Failure Loop Protocol is a hard limit, not a suggestion.** Three failed attempts on the same test means a full stop, every time, no exceptions. Do not attempt a fourth fix under any circumstances.
+10. **Fix type errors in files you are already touching — but only those files.** Whenever you modify a file, fix any TypeScript type errors present in that file before moving on. Do not go looking for type errors in files you are not already changing. If fixing a type error in your file requires a change in one other file (such as a shared type definition), that is acceptable — but keep it surgical and note it in your completion report.
 
 ---
 
@@ -274,6 +275,8 @@ pnpm tsc --noEmit
 ```
 
 There must be zero TypeScript errors before declaring implementation complete.
+
+If new type errors appear in files you did not touch, do not fix them — note them in the completion report so Andy is aware. Only fix type errors in files that were part of this implementation.
 
 ### Step 8: Add code comments
 
