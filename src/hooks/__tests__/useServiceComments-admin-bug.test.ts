@@ -45,7 +45,7 @@ describe('useServiceComments - Admin User Comment Creation Bug', () => {
 
     // Act: Render the hook with a service ID
     const { result } = renderHook(() =>
-      useServiceComments('service-123', undefined, 'background-check', 'SUBMITTED')
+      useServiceComments('service-123', undefined, 'background-check', 'submitted')
     );
 
     // Assert: Admin users SHOULD be able to create comments
@@ -72,7 +72,7 @@ describe('useServiceComments - Admin User Comment Creation Bug', () => {
 
     // Act: Render the hook
     const { result } = renderHook(() =>
-      useServiceComments('service-123', undefined, 'background-check', 'SUBMITTED')
+      useServiceComments('service-123', undefined, 'background-check', 'submitted')
     );
 
     // Assert: Internal users should be able to create comments
@@ -97,7 +97,7 @@ describe('useServiceComments - Admin User Comment Creation Bug', () => {
 
     // Act: Render the hook
     const { result } = renderHook(() =>
-      useServiceComments('service-123', undefined, 'drug-test', 'PROCESSING')
+      useServiceComments('service-123', undefined, 'drug-test', 'processing')
     );
 
     // Assert: Vendor users should be able to create comments
@@ -122,7 +122,7 @@ describe('useServiceComments - Admin User Comment Creation Bug', () => {
 
     // Act: Render the hook
     const { result } = renderHook(() =>
-      useServiceComments('service-123', undefined, 'education-verification', 'COMPLETED')
+      useServiceComments('service-123', undefined, 'education-verification', 'completed')
     );
 
     // Assert: Customer users should NOT be able to create comments
@@ -139,7 +139,7 @@ describe('useServiceComments - Admin User Comment Creation Bug', () => {
 
     // Act: Render the hook
     const { result } = renderHook(() =>
-      useServiceComments('service-123', undefined, 'background-check', 'DRAFT')
+      useServiceComments('service-123', undefined, 'background-check', 'draft')
     );
 
     // Assert: Unauthenticated users should NOT be able to create comments
@@ -163,7 +163,7 @@ describe('useServiceComments - Admin User Comment Creation Bug', () => {
 
     // Act: Render the hook
     const { result } = renderHook(() =>
-      useServiceComments('service-123', undefined, 'background-check', 'SUBMITTED')
+      useServiceComments('service-123', undefined, 'background-check', 'submitted')
     );
 
     // Assert: Unknown user types should NOT be able to create comments
@@ -190,7 +190,7 @@ describe('useServiceComments - Admin User Comment Creation Bug', () => {
 
     it('admin users should have consistent permissions for all comment operations', () => {
       const { result } = renderHook(() =>
-        useServiceComments('service-123', undefined, 'background-check', 'SUBMITTED')
+        useServiceComments('service-123', undefined, 'background-check', 'submitted')
       );
 
       // Admin users should be able to perform all operations (same as internal users):

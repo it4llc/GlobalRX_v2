@@ -106,7 +106,7 @@ describe('PUT /api/services/[id]/results', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'PROCESSING',
+        status: 'processing',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -154,7 +154,7 @@ describe('PUT /api/services/[id]/results', () => {
       vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce({
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'PROCESSING',
+        status: 'processing',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -192,7 +192,7 @@ describe('PUT /api/services/[id]/results', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'PROCESSING',
+        status: 'processing',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -239,7 +239,7 @@ describe('PUT /api/services/[id]/results', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'PROCESSING',
+        status: 'processing',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -280,7 +280,7 @@ describe('PUT /api/services/[id]/results', () => {
       vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce({
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'PROCESSING',
+        status: 'processing',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -360,7 +360,7 @@ describe('PUT /api/services/[id]/results', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'PROCESSING',
+        status: 'processing',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -431,7 +431,7 @@ describe('PUT /api/services/[id]/results', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'COMPLETED', // Terminal status is checked on orderItem.status, not serviceFulfillment.status
+        status: 'completed', // Terminal status is checked on orderItem.status, not serviceFulfillment.status
         serviceFulfillment: {
           id: 'sf-789',
           status: 'completed',
@@ -467,7 +467,7 @@ describe('PUT /api/services/[id]/results', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'CANCELLED', // Terminal status is checked on orderItem.status, not serviceFulfillment.status
+        status: 'cancelled', // Terminal status is checked on orderItem.status, not serviceFulfillment.status
         serviceFulfillment: {
           id: 'sf-789',
           status: 'cancelled',
@@ -503,7 +503,7 @@ describe('PUT /api/services/[id]/results', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'PROCESSING',
+        status: 'processing',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -555,7 +555,7 @@ describe('PUT /api/services/[id]/results', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'PROCESSING',
+        status: 'processing',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -613,7 +613,7 @@ describe('PUT /api/services/[id]/results', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'PROCESSING',
+        status: 'processing',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',
@@ -660,7 +660,7 @@ describe('PUT /api/services/[id]/results', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'PROCESSING',
+        status: 'processing',
         serviceFulfillment: {
           id: 'sf-789',
           status: 'processing',

@@ -6,14 +6,19 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ServiceStatusList } from '../ServiceStatusList';
 
-// Mock next-intl
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: any) => {
-    if (key === 'noServices') return 'No services';
-    if (key === 'showMore' && params?.count) return `Show ${params.count} more`;
-    if (key === 'showLess') return 'Show less';
-    return key;
-  }
+// Mock TranslationContext
+vi.mock('@/contexts/TranslationContext', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        'services.noServices': 'No services',
+        'services.showMore': 'Show',
+        'services.more': 'more',
+        'services.showLess': 'Show less'
+      };
+      return translations[key] || key;
+    }
+  })
 }));
 
 // Mock window.matchMedia for responsive tests
@@ -77,7 +82,7 @@ describe('ServiceStatusList', () => {
       expect(screen.queryByText('Service 8')).not.toBeInTheDocument();
 
       // Should show "Show 3 more" link
-      expect(screen.getByText('Show 3 more')).toBeInTheDocument();
+      expect(screen.getByText(/Show.*3.*more/)).toBeInTheDocument();
     });
 
     it('should display all services when "Show N more" is clicked', async () => {
@@ -90,7 +95,7 @@ describe('ServiceStatusList', () => {
 
       render(<ServiceStatusList items={services} />);
 
-      const showMoreButton = screen.getByText('Show 2 more');
+      const showMoreButton = screen.getByText(/Show.*2.*more/);
       await userEvent.click(showMoreButton);
 
       // All services should now be visible
@@ -171,7 +176,7 @@ describe('ServiceStatusList', () => {
 
       render(<ServiceStatusList items={services} />);
 
-      const statusBadge = screen.getByText('unknown_status');
+      const statusBadge = screen.getByText('Unknown Status');
       expect(statusBadge).toHaveClass('bg-gray-100', 'text-gray-800');
     });
   });
@@ -316,7 +321,7 @@ describe('ServiceStatusList', () => {
 
       render(<ServiceStatusList items={services} isMobile={true} />);
 
-      const showMoreButton = screen.getByText('Show 2 more');
+      const showMoreButton = screen.getByText(/Show.*2.*more/);
       const buttonElement = showMoreButton.closest('button') || showMoreButton;
 
       // Check for minimum touch target size classes (44x44 pixels)
@@ -356,7 +361,7 @@ describe('ServiceStatusList', () => {
       // Invalid service with fallbacks
       expect(screen.getByText('Unnamed Service')).toBeInTheDocument();
       expect(screen.getByText('Unknown Location')).toBeInTheDocument();
-      expect(screen.getByText('invalid_status')).toBeInTheDocument();
+      expect(screen.getByText('Invalid Status')).toBeInTheDocument();
 
       // Truncated service
       expect(screen.getByText(/This is an extremely long serv.../)).toBeInTheDocument();
@@ -429,7 +434,7 @@ describe('ServiceStatusList', () => {
 
       render(<ServiceStatusList items={services} />);
 
-      const showMoreButton = screen.getByText('Show 2 more');
+      const showMoreButton = screen.getByText(/Show.*2.*more/);
       expect(showMoreButton).toHaveAttribute('aria-expanded', 'false');
 
       await userEvent.click(showMoreButton);

@@ -1,5 +1,3 @@
-# .claude/agents/standards-checker.md
-
 ---
 name: standards-checker
 description: Use this agent AFTER the code-reviewer has approved the changes. Mechanically checks every changed file against the GlobalRx coding standards document. Read-only — produces a checklist report only, makes no changes. Run before the documentation-writer. Also used as Stage 3 of /fix-typescript to verify no shortcuts were taken during TypeScript cleanup.

@@ -649,7 +649,7 @@ describe('useServiceComments', () => {
       } as Response);
 
       const { result } = renderHook(() =>
-        useServiceComments(mockServiceId, undefined, 'BACKGROUND_CHECK', 'PROCESSING')
+        useServiceComments(mockServiceId, undefined, 'BACKGROUND_CHECK', 'processing')
       );
 
       await waitFor(() => {

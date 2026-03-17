@@ -48,7 +48,7 @@ describe('ServiceResultsSection', () => {
     serviceId: '660e8400-e29b-41d4-a716-446655440004',
     serviceFulfillmentId: 'sf-789',
     serviceName: 'Criminal Background Check',
-    serviceStatus: 'PROCESSING',
+    serviceStatus: 'processing',
     orderId: '550e8400-e29b-41d4-a716-446655440002',
     isCustomer: false
   };
@@ -188,7 +188,7 @@ describe('ServiceResultsSection', () => {
   });
 
   describe('terminal status handling', () => {
-    const terminalStatuses = ['COMPLETED', 'CANCELLED', 'CANCELLED_DNB'];
+    const terminalStatuses = ['completed', 'cancelled', 'cancelled_dnb'];
 
     terminalStatuses.forEach(status => {
       it(`should disable editing when service status is ${status}`, () => {

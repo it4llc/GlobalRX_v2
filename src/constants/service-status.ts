@@ -10,15 +10,16 @@
  * - Service fulfillment UI
  */
 
-// The actual status values used in the database and API
+// The actual status values used in the database and API (raw database format)
 export const SERVICE_STATUSES = {
-  DRAFT: 'Draft',
-  SUBMITTED: 'Submitted',
-  PROCESSING: 'Processing',
-  MISSING_INFO: 'Missing Information',
-  COMPLETED: 'Completed',
-  CANCELLED: 'Cancelled',
-  CANCELLED_DNB: 'Cancelled-DNB'
+  DRAFT: 'draft',
+  PENDING: 'pending',
+  SUBMITTED: 'submitted',
+  PROCESSING: 'processing',
+  MISSING_INFO: 'missing_info',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+  CANCELLED_DNB: 'cancelled_dnb'
 } as const;
 
 // TypeScript type for service status
@@ -30,6 +31,7 @@ export const SERVICE_STATUS_VALUES = Object.values(SERVICE_STATUSES);
 // Display order for UI (workflow progression)
 export const SERVICE_STATUS_DISPLAY_ORDER: ServiceStatus[] = [
   SERVICE_STATUSES.DRAFT,
+  SERVICE_STATUSES.PENDING,
   SERVICE_STATUSES.SUBMITTED,
   SERVICE_STATUSES.PROCESSING,
   SERVICE_STATUSES.MISSING_INFO,
@@ -41,6 +43,7 @@ export const SERVICE_STATUS_DISPLAY_ORDER: ServiceStatus[] = [
 // Status colors for UI display
 export const SERVICE_STATUS_COLORS: Record<ServiceStatus, string> = {
   [SERVICE_STATUSES.DRAFT]: 'gray',
+  [SERVICE_STATUSES.PENDING]: 'blue',
   [SERVICE_STATUSES.SUBMITTED]: 'blue',
   [SERVICE_STATUSES.PROCESSING]: 'yellow',
   [SERVICE_STATUSES.MISSING_INFO]: 'orange',
