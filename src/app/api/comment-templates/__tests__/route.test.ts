@@ -153,10 +153,10 @@ describe('GET /api/comment-templates', () => {
       ];
 
       const mockOrders = [
-        { statusCode: 'DRAFT' },
-        { statusCode: 'SUBMITTED' },
-        { statusCode: 'PROCESSING' },
-        { statusCode: 'COMPLETED' }
+        { statusCode: 'draft' },
+        { statusCode: 'submitted' },
+        { statusCode: 'processing' },
+        { statusCode: 'completed' }
       ];
 
       vi.mocked(prisma.commentTemplate.findMany).mockResolvedValueOnce(mockTemplates);

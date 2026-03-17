@@ -68,7 +68,7 @@ describe('CommentCreateModal - Full Text Editing Feature', () => {
       longName: 'Document Request',
       templateText: 'Please provide [document type] by [date] for verification purposes.',
       serviceTypes: ['BACKGROUND_CHECK'],
-      statuses: ['PROCESSING']
+      statuses: ['processing']
     },
     {
       id: '223e4567-e89b-12d3-a456-426614174001',
@@ -76,7 +76,7 @@ describe('CommentCreateModal - Full Text Editing Feature', () => {
       longName: 'Processing Update',
       templateText: 'Your background check is currently being processed.',
       serviceTypes: ['BACKGROUND_CHECK'],
-      statuses: ['PROCESSING']
+      statuses: ['processing']
     },
     {
       id: '323e4567-e89b-12d3-a456-426614174002',
@@ -84,7 +84,7 @@ describe('CommentCreateModal - Full Text Editing Feature', () => {
       longName: 'Additional Info',
       templateText: 'We need [information] to complete [service type] verification.',
       serviceTypes: ['BACKGROUND_CHECK'],
-      statuses: ['PROCESSING']
+      statuses: ['processing']
     }
   ];
 

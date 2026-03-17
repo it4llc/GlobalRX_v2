@@ -202,7 +202,7 @@ describe('Comment Template Schemas', () => {
       const validAvailability = {
         templateId: '123e4567-e89b-12d3-a456-426614174000',
         serviceCode: 'CRIMINAL',
-        status: 'IN_PROGRESS'
+        status: 'in_progress'
       };
 
       const result = commentTemplateAvailabilitySchema.safeParse(validAvailability);
@@ -224,9 +224,9 @@ describe('Comment Template Schemas', () => {
     it('should accept array of service/status pairs', () => {
       const validUpdate = {
         availabilities: [
-          { serviceCode: 'CRIMINAL', status: 'IN_PROGRESS' },
-          { serviceCode: 'CRIMINAL', status: 'PENDING' },
-          { serviceCode: 'EDUCATION', status: 'IN_PROGRESS' }
+          { serviceCode: 'CRIMINAL', status: 'in_progress' },
+          { serviceCode: 'CRIMINAL', status: 'pending' },
+          { serviceCode: 'EDUCATION', status: 'in_progress' }
         ]
       };
 
@@ -260,7 +260,7 @@ describe('Comment Template Schemas', () => {
           { code: 'CRIMINAL', name: 'Criminal Background Check' },
           { code: 'EDUCATION', name: 'Education Verification', category: 'Verification' }
         ],
-        statuses: ['DRAFT', 'SUBMITTED', 'IN_PROGRESS', 'COMPLETED']
+        statuses: ['draft', 'submitted', 'in_progress', 'completed']
       };
 
       const result = commentTemplateListSchema.safeParse(validResponse);
@@ -273,7 +273,7 @@ describe('Comment Template Schemas', () => {
         services: [
           { code: 'CRIMINAL', name: 'Criminal Background Check' }
         ],
-        statuses: ['DRAFT']
+        statuses: ['draft']
       };
 
       const result = commentTemplateListSchema.safeParse(emptyTemplates);

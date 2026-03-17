@@ -53,7 +53,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
 
       // Render hook in order mode (serviceId is null)
       const { result } = renderHook(
-        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'PENDING'),
+        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'pending'),
         { wrapper }
       );
 
@@ -118,7 +118,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
       });
 
       const { result } = renderHook(
-        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'PENDING'),
+        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'pending'),
         { wrapper }
       );
 
@@ -175,7 +175,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
       });
 
       const { result } = renderHook(
-        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'PENDING'),
+        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'pending'),
         { wrapper }
       );
 
@@ -233,7 +233,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
       });
 
       const { result } = renderHook(
-        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'PENDING'),
+        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'pending'),
         { wrapper }
       );
 
@@ -294,7 +294,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
       });
 
       const { result } = renderHook(
-        () => useServiceComments(serviceId, undefined, 'SERVICE_TYPE', 'PENDING'),
+        () => useServiceComments(serviceId, undefined, 'SERVICE_TYPE', 'pending'),
         { wrapper }
       );
 

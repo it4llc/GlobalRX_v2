@@ -12,36 +12,37 @@ describe('serviceStatusUpdateSchema', () => {
   describe('valid data', () => {
     it('should pass with valid status only', () => {
       const result = serviceStatusUpdateSchema.safeParse({
-        status: 'Processing'
+        status: 'processing'
       });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('Processing');
+        expect(result.data.status).toBe('processing');
         expect(result.data.comment).toBeUndefined();
       }
     });
 
     it('should pass with status and comment', () => {
       const result = serviceStatusUpdateSchema.safeParse({
-        status: 'Completed',
+        status: 'completed',
         comment: 'All checks passed'
       });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.status).toBe('Completed');
+        expect(result.data.status).toBe('completed');
         expect(result.data.comment).toBe('All checks passed');
       }
     });
 
     it('should accept all valid status values', () => {
       const statuses = [
-        'Draft',
-        'Submitted',
-        'Processing',
-        'Missing Information',
-        'Completed',
-        'Cancelled',
-        'Cancelled-DNB'
+        'draft',
+        'pending',
+        'submitted',
+        'processing',
+        'missing_info',
+        'completed',
+        'cancelled',
+        'cancelled_dnb'
       ];
 
       statuses.forEach(status => {
@@ -76,7 +77,7 @@ describe('serviceStatusUpdateSchema', () => {
     it('should fail when comment exceeds 1000 characters', () => {
       const longComment = 'a'.repeat(1001);
       const result = serviceStatusUpdateSchema.safeParse({
-        status: 'Processing',
+        status: 'processing',
         comment: longComment
       });
       expect(result.success).toBe(false);
@@ -177,8 +178,8 @@ describe('statusChangeCommentSchema', () => {
         orderItemId: '123e4567-e89b-12d3-a456-426614174000',
         userId: '987fcdeb-51a2-43d1-9876-543210fedcba',
         isStatusChange: true,
-        statusChangedFrom: 'Draft',
-        statusChangedTo: 'Processing',
+        statusChangedFrom: 'draft',
+        statusChangedTo: 'processing',
         comment: 'Starting background check process',
         createdAt: new Date().toISOString()
       });
@@ -186,8 +187,8 @@ describe('statusChangeCommentSchema', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.isStatusChange).toBe(true);
-        expect(result.data.statusChangedFrom).toBe('Draft');
-        expect(result.data.statusChangedTo).toBe('Processing');
+        expect(result.data.statusChangedFrom).toBe('draft');
+        expect(result.data.statusChangedTo).toBe('processing');
       }
     });
 
@@ -196,8 +197,8 @@ describe('statusChangeCommentSchema', () => {
         orderItemId: '123e4567-e89b-12d3-a456-426614174000',
         userId: '987fcdeb-51a2-43d1-9876-543210fedcba',
         isStatusChange: true,
-        statusChangedFrom: 'Processing',
-        statusChangedTo: 'Completed',
+        statusChangedFrom: 'processing',
+        statusChangedTo: 'completed',
         createdAt: new Date().toISOString()
       });
 
@@ -214,7 +215,7 @@ describe('statusChangeCommentSchema', () => {
         orderItemId: '123e4567-e89b-12d3-a456-426614174000',
         userId: '987fcdeb-51a2-43d1-9876-543210fedcba',
         isStatusChange: true,
-        statusChangedFrom: 'Draft',
+        statusChangedFrom: 'draft',
         createdAt: new Date().toISOString()
       });
 
@@ -229,7 +230,7 @@ describe('statusChangeCommentSchema', () => {
         orderItemId: '123e4567-e89b-12d3-a456-426614174000',
         userId: '987fcdeb-51a2-43d1-9876-543210fedcba',
         isStatusChange: true,
-        statusChangedTo: 'Processing',
+        statusChangedTo: 'processing',
         createdAt: new Date().toISOString()
       });
 
@@ -244,8 +245,8 @@ describe('statusChangeCommentSchema', () => {
         orderItemId: '123e4567-e89b-12d3-a456-426614174000',
         userId: '987fcdeb-51a2-43d1-9876-543210fedcba',
         isStatusChange: true,
-        statusChangedFrom: 'Draft',
-        statusChangedTo: 'InvalidStatus',
+        statusChangedFrom: 'draft',
+        statusChangedTo: 'invalid_status',
         createdAt: new Date().toISOString()
       });
 
@@ -256,8 +257,8 @@ describe('statusChangeCommentSchema', () => {
       const result = statusChangeCommentSchema.safeParse({
         userId: '987fcdeb-51a2-43d1-9876-543210fedcba',
         isStatusChange: true,
-        statusChangedFrom: 'Draft',
-        statusChangedTo: 'Processing',
+        statusChangedFrom: 'draft',
+        statusChangedTo: 'processing',
         createdAt: new Date().toISOString()
       });
 
@@ -270,20 +271,21 @@ describe('statusChangeCommentSchema', () => {
 });
 
 describe('SERVICE_STATUS_VALUES', () => {
-  it('should contain all seven status values', () => {
-    expect(SERVICE_STATUS_VALUES).toHaveLength(7);
-    expect(SERVICE_STATUS_VALUES).toContain('Draft');
-    expect(SERVICE_STATUS_VALUES).toContain('Submitted');
-    expect(SERVICE_STATUS_VALUES).toContain('Processing');
-    expect(SERVICE_STATUS_VALUES).toContain('Missing Information');
-    expect(SERVICE_STATUS_VALUES).toContain('Completed');
-    expect(SERVICE_STATUS_VALUES).toContain('Cancelled');
-    expect(SERVICE_STATUS_VALUES).toContain('Cancelled-DNB');
+  it('should contain all eight status values', () => {
+    expect(SERVICE_STATUS_VALUES).toHaveLength(8);
+    expect(SERVICE_STATUS_VALUES).toContain('draft');
+    expect(SERVICE_STATUS_VALUES).toContain('pending');
+    expect(SERVICE_STATUS_VALUES).toContain('submitted');
+    expect(SERVICE_STATUS_VALUES).toContain('processing');
+    expect(SERVICE_STATUS_VALUES).toContain('missing_info');
+    expect(SERVICE_STATUS_VALUES).toContain('completed');
+    expect(SERVICE_STATUS_VALUES).toContain('cancelled');
+    expect(SERVICE_STATUS_VALUES).toContain('cancelled_dnb');
   });
 
   it('should identify terminal statuses correctly', () => {
-    const terminalStatuses = ['Completed', 'Cancelled', 'Cancelled-DNB'];
-    const nonTerminalStatuses = ['Draft', 'Submitted', 'Processing', 'Missing Information'];
+    const terminalStatuses = ['completed', 'cancelled', 'cancelled_dnb'];
+    const nonTerminalStatuses = ['draft', 'pending', 'submitted', 'processing', 'missing_info'];
 
     // This assumes there will be a helper function to check terminal status
     // The implementer will need to create this

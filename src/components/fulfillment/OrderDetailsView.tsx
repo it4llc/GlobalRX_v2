@@ -1,4 +1,4 @@
-// /GlobalRX_v2/src/components/fulfillment/OrderDetailsView.tsx
+// /GlobalRx_v2/src/components/fulfillment/OrderDetailsView.tsx
 // Main content component for displaying order information in fulfillment workflow.
 //
 // LAYOUT REDESIGN CHANGES (feature/order-details-layout):
@@ -343,7 +343,7 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                 orderId={order.id}
                 services={order.items
                   .filter(item => item.id) // Ensure item has a valid ID
-                  .map(item => {
+                  .map((item) => {
                     // Convert data array to orderData object
                     // The data field contains field-value pairs that represent service-specific requirements
                     const orderData = item.data?.reduce((acc, dataItem) => {
@@ -351,7 +351,7 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                         acc[dataItem.fieldName] = dataItem.fieldValue;
                       }
                       return acc;
-                    }, {} as Record<string, any>) || null;
+                    }, {} as Record<string, string>) || null;
 
                     return {
                       // ID MAPPING FIX: Use ServiceFulfillment ID if available, otherwise fall back to OrderItem ID
@@ -362,7 +362,9 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                       orderItemId: item.id,
                       serviceId: item.service?.id || '',
                       locationId: item.location?.id || '',
-                      status: item.serviceFulfillment?.status || item.status || 'pending',
+                      // BUG FIX: serviceFulfillment.status field no longer exists (removed in commit f1dddb96)
+                      // Use item.status directly as the single source of truth
+                      status: item.status || 'pending',
                       assignedVendorId: item.serviceFulfillment?.assignedVendorId || null,
                       vendorNotes: item.serviceFulfillment?.vendorNotes || null,
                       internalNotes: item.serviceFulfillment?.internalNotes || null,

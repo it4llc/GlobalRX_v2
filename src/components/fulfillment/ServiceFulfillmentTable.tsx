@@ -17,6 +17,7 @@ import { useServiceComments } from '@/hooks/useServiceComments';
 import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
 import { UpdateServiceFulfillmentRequest } from '@/types/service-fulfillment';
 import clientLogger from '@/lib/client-logger';
+import { formatServiceStatus } from '@/lib/status-utils';
 
 interface ServiceFulfillment {
   id: string;
@@ -127,12 +128,7 @@ const statusColors: Record<string, string> = {
   [SERVICE_STATUSES.CANCELLED_DNB]: 'bg-red-100 text-red-800'
 };
 
-const formatStatus = (status: string): string => {
-  return status
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-};
+// Status formatting moved to centralized utility: src/lib/status-utils.ts
 
 const formatDate = (date: string | null): string => {
   if (!date) return '--';
@@ -998,7 +994,7 @@ export function ServiceFulfillmentTable({
                         aria-label={`Status for ${service.service.name}`}
                       >
                         {SERVICE_STATUS_VALUES.map(status => (
-                          <option key={status} value={status}>{status}</option>
+                          <option key={status} value={status}>{formatServiceStatus(status)}</option>
                         ))}
                       </select>
                     ) : (
@@ -1006,7 +1002,7 @@ export function ServiceFulfillmentTable({
                         className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[service.status] || 'bg-gray-100 text-gray-800'}`}
                       >
                         {statusIcons[service.status]}
-                        {service.status}
+                        {formatServiceStatus(service.status)}
                       </span>
                     )}
                   </td>

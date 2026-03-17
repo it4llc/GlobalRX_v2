@@ -57,7 +57,7 @@ describe('GET /api/orders/[id]/services/comments - Fixed Response', () => {
     mockGetOrderServiceComments.mockResolvedValue({
       '123e4567-e89b-12d3-a456-426614174001': {
         serviceName: 'Criminal History',
-        serviceStatus: 'PROCESSING',
+        serviceStatus: 'processing',
         comments: [
           {
             id: 'comment-1',
@@ -190,7 +190,7 @@ describe('GET /api/orders/[id]/services/comments - Fixed Response', () => {
     mockGetOrderServiceComments.mockResolvedValue({
       'f47ac10b-58cc-4372-a567-0e02b2c3d479': {
         serviceName: 'Test Service',
-        serviceStatus: 'PROCESSING',
+        serviceStatus: 'processing',
         comments: [
           {
             id: 'comment-1',
@@ -257,7 +257,7 @@ describe('GET /api/orders/[id]/services/comments - Fixed Response', () => {
     mockGetOrderServiceComments.mockResolvedValue({
       'f47ac10b-58cc-4372-a567-0e02b2c3d479': {
         serviceName: 'Test Service',
-        serviceStatus: 'DRAFT',
+        serviceStatus: 'draft',
         comments: [
           {
             id: 'comment-1',

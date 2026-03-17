@@ -84,7 +84,7 @@ describe('CommentTemplateGrid', () => {
     { code: 'DRUG', name: 'Drug Screening', category: 'Health' }
   ];
 
-  const mockStatuses = ['PASS', 'FAIL', 'PENDING', 'IN_PROGRESS', 'REVIEW', 'COMPLETED'];
+  const mockStatuses = ['PASS', 'FAIL', 'pending', 'in_progress', 'REVIEW', 'completed'];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -589,10 +589,10 @@ describe('CommentTemplateGrid', () => {
       await waitFor(() => {
         const headers = screen.getAllByRole('columnheader');
         // First header is 'Service', then the statuses in order
-        expect(headers[1]).toHaveTextContent('DRAFT');
-        expect(headers[2]).toHaveTextContent('SUBMITTED');
-        expect(headers[3]).toHaveTextContent('PROCESSING');
-        expect(headers[4]).toHaveTextContent('COMPLETED');
+        expect(headers[1]).toHaveTextContent('draft');
+        expect(headers[2]).toHaveTextContent('submitted');
+        expect(headers[3]).toHaveTextContent('processing');
+        expect(headers[4]).toHaveTextContent('completed');
       });
     });
 
