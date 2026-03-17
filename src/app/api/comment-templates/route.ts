@@ -181,8 +181,14 @@ export async function GET(request: NextRequest) {
     // Extract unique statuses
     const statuses = [...new Set(orderStatuses.map(o => o.statusCode))];
 
+    // Sanitize templates to ensure templateText is never undefined
+    const sanitizedTemplates = templates.map(template => ({
+      ...template,
+      templateText: template.templateText || ''  // Ensure templateText is always a string
+    }));
+
     const responseData = {
-      templates,
+      templates: sanitizedTemplates,
       services: servicesWithCategory,
       statuses
     };
