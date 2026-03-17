@@ -3,31 +3,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ServiceCommentService } from '@/services/service-comment-service';
 import { prisma } from '@/lib/prisma';
 
-// Mock Prisma client
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    serviceComment: {
-      findUnique: vi.fn(),
-      update: vi.fn()
-    }
-  }
-}));
-
-// Mock logger
-vi.mock('@/lib/logger', () => ({
-  default: {
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn()
-  }
-}));
+// The global mock from test/setup.ts handles Prisma and logger mocking
+// No need for local mocks here
 
 describe('ServiceCommentService.updateComment', () => {
   let service: ServiceCommentService;
   const mockUserId = 'user-123';
   const mockCommentId = 'comment-123';
-  const mockServiceId = 'service-123';
+  const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
   const mockTemplateId = 'template-123';
 
   beforeEach(() => {

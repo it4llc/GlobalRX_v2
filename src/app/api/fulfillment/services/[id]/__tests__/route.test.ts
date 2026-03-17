@@ -79,7 +79,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(401);
@@ -100,8 +100,8 @@ describe('GET /api/fulfillment/services/[id]', () => {
       });
 
       const mockService = {
-        id: 'service-123',
-        orderId: 'order-456',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'Processing',
         assignedVendorId: 'vendor-789'
       };
@@ -109,7 +109,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(mockService);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -129,7 +129,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       });
 
       const mockService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: 'vendor-123',
         status: 'Submitted'
       };
@@ -137,7 +137,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(mockService);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -161,7 +161,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-456');
-      const params = { params: { id: 'service-456' } };
+      const params = { params: { id: 'd47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -184,7 +184,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(404);
@@ -232,9 +232,9 @@ describe('GET /api/fulfillment/services/[id]', () => {
 
     it('should return full service details including relations', async () => {
       const fullServiceDetails = {
-        id: 'service-123',
-        orderId: 'order-456',
-        orderItemId: 'item-789',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
+        orderItemId: '660e8400-e29b-41d4-a716-446655440006',
         serviceId: 'service-type-1',
         locationId: 'location-1',
         status: 'Processing',
@@ -258,7 +258,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(fullServiceDetails);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -290,7 +290,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(500);
@@ -315,7 +315,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'Processing' })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(401);
@@ -336,7 +336,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       });
 
       const updatedService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         status: 'Processing'
       };
 
@@ -351,7 +351,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         },
         body: JSON.stringify({ status: 'Processing' })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
 
@@ -367,7 +367,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       expect(data).toEqual(updatedService);
 
       expect(ServiceFulfillmentService.updateService).toHaveBeenCalledWith(
-        'service-123',
+        'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         { status: 'Processing' },
         expect.objectContaining({
           id: 'user-123',
@@ -392,7 +392,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       });
 
       const updatedService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: 'vendor-123',
         status: 'Processing',
         vendorNotes: 'Updated notes'
@@ -408,7 +408,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
           vendorNotes: 'Updated notes'
         })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(200);
@@ -433,7 +433,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignedVendorId: 'a1234567-89ab-cdef-0123-456789abcdef' })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);
@@ -461,7 +461,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ internalNotes: 'Should not be allowed' })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);
@@ -485,7 +485,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'Processing' })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);
@@ -513,7 +513,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'invalid-status' })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -529,7 +529,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignedVendorId: 'not-a-uuid' })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -545,7 +545,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vendorNotes: tooLongNote })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -575,7 +575,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -648,7 +648,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignedVendorId: vendorId })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -659,7 +659,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
     it('should allow multiple field updates in single request', async () => {
       const updatedService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         status: 'Completed',
         vendorNotes: 'All checks passed',
         internalNotes: 'Approved for hire',
@@ -679,7 +679,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
           internalNotes: 'Approved for hire'
         })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
 
@@ -708,7 +708,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       });
 
       const updatedService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: null,
         assignedAt: null,
         assignedBy: null
@@ -723,7 +723,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignedVendorId: null })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(200);
@@ -748,7 +748,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       });
 
       vi.mocked(ServiceFulfillmentService.updateService).mockResolvedValueOnce({
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         status: 'Processing'
       });
 
@@ -762,12 +762,12 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         },
         body: JSON.stringify({ status: 'Processing' })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       await PATCH(request, params);
 
       expect(ServiceFulfillmentService.updateService).toHaveBeenCalledWith(
-        'service-123',
+        'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         { status: 'Processing' },
         expect.any(Object),
         expect.objectContaining({
@@ -803,7 +803,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'Processing' })
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(500);
@@ -826,7 +826,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         headers: { 'Content-Type': 'application/json' },
         body: 'invalid json {'
       });
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);

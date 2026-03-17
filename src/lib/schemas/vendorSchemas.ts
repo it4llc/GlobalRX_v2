@@ -77,16 +77,9 @@ export const vendorUserSchema = z.object({
   }
 );
 
-// Schema for assigning orders to vendors
-export const assignOrderToVendorSchema = z.object({
-  orderId: z.string().min(1, 'Order ID is required'),
-  vendorId: z.string().nullable(),
-  assignmentNotes: z.string().optional()
-});
 
 // Infer TypeScript types from schemas
 export type VendorOrganization = z.infer<typeof vendorOrganizationSchema>;
 export type CreateVendorOrganization = z.infer<typeof createVendorOrganizationSchema>;
 export type UpdateVendorOrganization = z.infer<typeof updateVendorOrganizationSchema>;
 export type VendorUser = z.infer<typeof vendorUserSchema>;
-export type AssignOrderToVendor = z.infer<typeof assignOrderToVendorSchema>;

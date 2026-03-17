@@ -45,11 +45,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
       // THIS TEST WILL FAIL because the route doesn't exist yet
       vi.mocked(getServerSession).mockResolvedValueOnce(null);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(401);
@@ -64,11 +64,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
         expires: '2024-12-31'
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(401);
@@ -89,11 +89,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);
@@ -114,11 +114,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
         }
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(403);
@@ -145,11 +145,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
 
     it('should return 400 when status is missing', async () => {
       // THIS TEST WILL FAIL because the route doesn't exist yet
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         body: JSON.stringify({})
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -166,11 +166,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
 
     it('should return 400 when status is invalid', async () => {
       // THIS TEST WILL FAIL because the route doesn't exist yet
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         body: JSON.stringify({ status: 'invalid-status' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(400);
@@ -234,7 +234,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
 
     it('should successfully update order status and create history entry', async () => {
       const mockOrder = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         orderNumber: '20240301-ABC-0001',
         statusCode: 'draft',
         customerId: 'customer-456'
@@ -253,7 +253,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
       vi.mocked(prisma.order.update).mockResolvedValueOnce(updatedOrder);
       vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
         id: 'history-1',
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'draft',
         toStatus: 'processing',
         changedBy: 'user-123',
@@ -262,17 +262,17 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
         isAutomatic: false
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         body: JSON.stringify({ status: 'processing', notes: 'Starting processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toHaveProperty('id', 'order-123');
+      expect(data).toHaveProperty('id', '550e8400-e29b-41d4-a716-446655440001');
       expect(data).toHaveProperty('statusCode', 'processing');
       expect(data).toHaveProperty('message', 'Order status updated successfully');
 
@@ -281,7 +281,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
 
       // Verify order was updated
       expect(prisma.order.update).toHaveBeenCalledWith({
-        where: { id: 'order-123' },
+        where: { id: '550e8400-e29b-41d4-a716-446655440001' },
         data: {
           statusCode: 'processing',
           updatedAt: expect.any(Date)
@@ -292,7 +292,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
       // Verify history entry was created
       expect(prisma.orderStatusHistory.create).toHaveBeenCalledWith({
         data: {
-          orderId: 'order-123',
+          orderId: '550e8400-e29b-41d4-a716-446655440001',
           fromStatus: 'draft',
           toStatus: 'processing',
           changedBy: 'user-123',
@@ -306,7 +306,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
     it('should handle updating to the same status (no-op)', async () => {
       // THIS TEST WILL FAIL because the route doesn't exist yet
       const mockOrder = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         orderNumber: '20240301-ABC-0001',
         statusCode: 'processing',
         customerId: 'customer-456'
@@ -314,11 +314,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
 
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(200);
@@ -353,7 +353,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
         });
 
         const mockOrder = {
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           statusCode: testCase.from
         };
 
@@ -364,11 +364,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
           statusCode: testCase.to
         });
 
-        const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+        const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
           method: 'PATCH',
           body: JSON.stringify({ status: testCase.to })
         });
-        const params = { params: { id: 'order-123' } };
+        const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
         const response = await PATCH(request, params);
         expect(response.status).toBe(200);
@@ -392,7 +392,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
 
     it('should return 500 when database error occurs during update', async () => {
       const mockOrder = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'draft'
       };
 
@@ -401,11 +401,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
         new Error('Database connection failed')
       );
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(500);
@@ -416,7 +416,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
 
     it('should handle transaction rollback on failure', async () => {
       const mockOrder = {
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'draft'
       };
 
@@ -433,11 +433,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
         return fn(tx);
       });
 
-      const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+      const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
         method: 'PATCH',
         body: JSON.stringify({ status: 'processing' })
       });
-      const params = { params: { id: 'order-123' } };
+      const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
       const response = await PATCH(request, params);
       expect(response.status).toBe(500);
@@ -472,7 +472,7 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
         });
 
         const mockOrder = {
-          id: 'order-123',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           statusCode: 'draft'
         };
 
@@ -483,11 +483,11 @@ describe('PATCH /api/fulfillment/orders/[id]/status', () => {
           statusCode: status
         });
 
-        const request = new Request('http://localhost:3000/api/fulfillment/orders/order-123/status', {
+        const request = new Request('http://localhost:3000/api/fulfillment/orders/550e8400-e29b-41d4-a716-446655440001/status', {
           method: 'PATCH',
           body: JSON.stringify({ status })
         });
-        const params = { params: { id: 'order-123' } };
+        const params = { params: { id: '550e8400-e29b-41d4-a716-446655440001' } };
 
         const response = await PATCH(request, params);
         expect(response.status).toBe(200);

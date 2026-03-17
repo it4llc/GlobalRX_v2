@@ -105,7 +105,7 @@ describe('ServiceCommentSection - ID Type Bug Prevention', () => {
 
       renderComponent({
         serviceId: 'order-item-456', // OrderItem ID
-        orderId: 'order-789',
+        orderId: '550e8400-e29b-41d4-a716-446655440003',
         serviceFulfillmentId: 'service-fulfillment-123', // ServiceFulfillment ID
         serviceName: 'Test Service'
       });
@@ -239,7 +239,7 @@ describe('ServiceCommentSection - ID Type Bug Prevention', () => {
 
       renderComponent({
         serviceId: 'order-item-456',
-        orderId: 'order-789',
+        orderId: '550e8400-e29b-41d4-a716-446655440003',
         serviceFulfillmentId: 'service-fulfillment-123',
         serviceName: 'Test Service'
       });
@@ -312,7 +312,7 @@ describe('ServiceCommentSection - ID Type Bug Prevention', () => {
 
       renderComponent({
         serviceId: 'order-item-456',
-        orderId: 'order-789',
+        orderId: '550e8400-e29b-41d4-a716-446655440003',
         serviceFulfillmentId: 'service-fulfillment-123',
         serviceName: 'Test Service'
       });
@@ -366,7 +366,7 @@ describe('ServiceCommentSection - ID Type Bug Prevention', () => {
       renderComponent({
         serviceId: 'order-item-999',
         orderId: 'order-999',
-        serviceFulfillmentId: 'service-fulfillment-999',
+        serviceFulfillmentId: '999e4567-e89b-12d3-a456-426614174000',
         serviceName: 'Test Service'
       });
 

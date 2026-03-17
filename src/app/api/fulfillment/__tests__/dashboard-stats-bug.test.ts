@@ -59,8 +59,8 @@ describe('Dashboard Stats Bug - API Level', () => {
           subject: { firstName: 'John', lastName: 'Doe' },
           customer: { id: 'cust-1', name: 'Customer A' },
           items: [
-            { id: 'item-1', service: { id: 'svc-1', name: 'Background Check' } },
-            { id: 'item-2', service: { id: 'svc-2', name: 'Drug Test' } },
+            { id: '660e8400-e29b-41d4-a716-446655440001', service: { id: 'svc-1', name: 'Background Check' } },
+            { id: '660e8400-e29b-41d4-a716-446655440002', service: { id: 'svc-2', name: 'Drug Test' } },
           ],
         },
         {
@@ -70,7 +70,7 @@ describe('Dashboard Stats Bug - API Level', () => {
           subject: { firstName: 'Jane', lastName: 'Smith' },
           customer: { id: 'cust-1', name: 'Customer A' },
           items: [
-            { id: 'item-3', service: { id: 'svc-1', name: 'Background Check' } },
+            { id: '660e8400-e29b-41d4-a716-446655440003', service: { id: 'svc-1', name: 'Background Check' } },
           ],
         },
       ];
@@ -165,23 +165,23 @@ describe('Dashboard Stats Bug - API Level', () => {
           id: 'order-1',
           statusCode: 'submitted',
           items: [
-            { id: 'item-1', service: { name: 'Service A' } },
-            { id: 'item-2', service: { name: 'Service B' } },
-            { id: 'item-3', service: { name: 'Service C' } },
+            { id: '660e8400-e29b-41d4-a716-446655440001', service: { name: 'Service A' } },
+            { id: '660e8400-e29b-41d4-a716-446655440002', service: { name: 'Service B' } },
+            { id: '660e8400-e29b-41d4-a716-446655440003', service: { name: 'Service C' } },
           ],
         },
         {
           id: 'order-2',
           statusCode: 'processing',
           items: [
-            { id: 'item-4', service: { name: 'Service D' } },
+            { id: '660e8400-e29b-41d4-a716-446655440004', service: { name: 'Service D' } },
           ],
         },
         {
           id: 'order-3',
           statusCode: 'draft',
           items: [
-            { id: 'item-5', service: { name: 'Service E' } },
+            { id: '660e8400-e29b-41d4-a716-446655440005', service: { name: 'Service E' } },
           ],
         },
         {

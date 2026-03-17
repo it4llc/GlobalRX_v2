@@ -83,7 +83,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'Test results' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(401);
@@ -104,8 +104,8 @@ describe('PUT /api/services/[id]/results', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'PROCESSING',
         serviceFulfillment: {
           id: 'sf-789',
@@ -131,7 +131,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'Background check completed successfully' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(200);
@@ -152,8 +152,8 @@ describe('PUT /api/services/[id]/results', () => {
 
       // Mock the orderItem.findUnique to return a service
       vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce({
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'PROCESSING',
         serviceFulfillment: {
           id: 'sf-789',
@@ -168,7 +168,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'Test' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(403);
@@ -190,8 +190,8 @@ describe('PUT /api/services/[id]/results', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'PROCESSING',
         serviceFulfillment: {
           id: 'sf-789',
@@ -217,7 +217,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'Investigation complete' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(200);
@@ -237,8 +237,8 @@ describe('PUT /api/services/[id]/results', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'PROCESSING',
         serviceFulfillment: {
           id: 'sf-789',
@@ -255,7 +255,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'Test' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(403);
@@ -278,8 +278,8 @@ describe('PUT /api/services/[id]/results', () => {
 
       // Mock the orderItem.findUnique to return a service
       vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce({
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'PROCESSING',
         serviceFulfillment: {
           id: 'sf-789',
@@ -294,7 +294,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'Test' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(403);
@@ -319,7 +319,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: 'invalid json'
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(400);
@@ -339,7 +339,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 123 }) // Number instead of string
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(400);
@@ -358,8 +358,8 @@ describe('PUT /api/services/[id]/results', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'PROCESSING',
         serviceFulfillment: {
           id: 'sf-789',
@@ -383,7 +383,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: null })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(200);
@@ -410,7 +410,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'Test' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(404);
@@ -429,8 +429,8 @@ describe('PUT /api/services/[id]/results', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'COMPLETED', // Terminal status is checked on orderItem.status, not serviceFulfillment.status
         serviceFulfillment: {
           id: 'sf-789',
@@ -446,7 +446,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'New results' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(409);
@@ -465,8 +465,8 @@ describe('PUT /api/services/[id]/results', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'CANCELLED', // Terminal status is checked on orderItem.status, not serviceFulfillment.status
         serviceFulfillment: {
           id: 'sf-789',
@@ -482,7 +482,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'Test' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(409);
@@ -501,8 +501,8 @@ describe('PUT /api/services/[id]/results', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'PROCESSING',
         serviceFulfillment: {
           id: 'sf-789',
@@ -524,7 +524,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'First results' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       await PUT(request, params);
 
@@ -553,8 +553,8 @@ describe('PUT /api/services/[id]/results', () => {
 
       const originalDate = new Date('2024-01-01');
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'PROCESSING',
         serviceFulfillment: {
           id: 'sf-789',
@@ -578,7 +578,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'Updated results' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       await PUT(request, params);
 
@@ -611,8 +611,8 @@ describe('PUT /api/services/[id]/results', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'PROCESSING',
         serviceFulfillment: {
           id: 'sf-789',
@@ -632,7 +632,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'New results' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       await PUT(request, params);
 
@@ -658,8 +658,8 @@ describe('PUT /api/services/[id]/results', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'PROCESSING',
         serviceFulfillment: {
           id: 'sf-789',
@@ -679,7 +679,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'First results' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       await PUT(request, params);
 
@@ -715,7 +715,7 @@ describe('PUT /api/services/[id]/results', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: 'Test' })
       });
-      const params = { params: { id: 'item-123' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004' } };
 
       const response = await PUT(request, params);
       expect(response.status).toBe(500);

@@ -83,7 +83,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(401);
@@ -104,8 +104,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -116,7 +116,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'report.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/abc_report.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/abc_report.pdf',
         fileSize: 1024000,
         uploadedBy: 10,
         uploadedAt: new Date()
@@ -131,7 +131,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(readFile).mockResolvedValueOnce(mockFileContent);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await GET(request, params);
 
@@ -161,8 +161,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789,  // Must be a number to match serviceFulfillmentId
@@ -174,7 +174,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'vendor_doc.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/vendor_doc.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/vendor_doc.pdf',
         fileSize: 500000,
         uploadedBy: 30,
         uploadedAt: new Date()
@@ -190,7 +190,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(readFile).mockResolvedValueOnce(mockFileContent);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -211,8 +211,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789,  // Must be a number to match serviceFulfillmentId
@@ -223,7 +223,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -245,8 +245,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'completed',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -254,7 +254,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       };
 
       const mockOrder = {
-        id: 'order-456',
+        id: '550e8400-e29b-41d4-a716-446655440002',
         customerId: 'customer-123' // Matches user's customerId
       };
 
@@ -262,7 +262,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'final_report.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/final_report.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/final_report.pdf',
         fileSize: 1500000,
         uploadedBy: 10,
         uploadedAt: new Date()
@@ -279,7 +279,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(readFile).mockImplementation(() => Promise.resolve(mockFileContent));
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -300,8 +300,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'completed',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -309,7 +309,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       };
 
       const mockOrder = {
-        id: 'order-456',
+        id: '550e8400-e29b-41d4-a716-446655440002',
         customerId: 'customer-999' // Different customer
       };
 
@@ -317,7 +317,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -340,7 +340,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(404);
@@ -359,8 +359,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -371,7 +371,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/999');
-      const params = { params: { id: 'item-123', attachmentId: '999' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '999' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(404);
@@ -390,8 +390,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -412,7 +412,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(404);
@@ -431,8 +431,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -443,7 +443,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'missing.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/missing.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/missing.pdf',
         fileSize: 1024,
         uploadedBy: 10,
         uploadedAt: new Date()
@@ -455,7 +455,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(fs.existsSync).mockReturnValue(false); // File doesn't exist
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(404);
@@ -476,8 +476,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -488,7 +488,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'error.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/error.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/error.pdf',
         fileSize: 1024,
         uploadedBy: 10,
         uploadedAt: new Date()
@@ -502,7 +502,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(readFile).mockRejectedValueOnce(new Error('Permission denied'));
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(500);
@@ -525,7 +525,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(401);
@@ -546,8 +546,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -558,7 +558,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'to_delete.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/to_delete.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/to_delete.pdf',
         fileSize: 1024,
         uploadedBy: 10,
         uploadedAt: new Date()
@@ -578,7 +578,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(200);
@@ -607,8 +607,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
 
       // Need to mock orderItem for permission check to occur
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',
         serviceFulfillment: {
           id: 789
@@ -620,7 +620,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(403);
@@ -642,8 +642,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789,  // Must be a number to match serviceFulfillmentId
@@ -655,7 +655,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'vendor_file.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/vendor_file.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/vendor_file.pdf',
         fileSize: 2048,
         uploadedBy: 30,
         uploadedAt: new Date()
@@ -675,7 +675,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(200);
@@ -695,8 +695,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789,  // Must be a number to match serviceFulfillmentId
@@ -709,7 +709,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(403);
@@ -733,7 +733,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(403);
@@ -758,7 +758,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(404);
@@ -777,8 +777,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -791,7 +791,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/999', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '999' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '999' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(404);
@@ -810,8 +810,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'completed',  // Terminal status is on OrderItem
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -823,7 +823,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(409);
@@ -842,8 +842,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'cancelled',  // Terminal status is on OrderItem
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -855,7 +855,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(409);
@@ -874,8 +874,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -886,7 +886,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'missing.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/missing.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/missing.pdf',
         fileSize: 1024,
         uploadedBy: 10,
         uploadedAt: new Date()
@@ -904,7 +904,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(200);
@@ -933,8 +933,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -945,7 +945,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'audit_delete.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/audit_delete.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/audit_delete.pdf',
         fileSize: 2048,
         uploadedBy: 10,
         uploadedAt: new Date()
@@ -965,7 +965,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       await DELETE(request, params);
 
@@ -1000,7 +1000,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
       expect(response.status).toBe(500);
@@ -1019,8 +1019,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       });
 
       const mockOrderItem = {
-        id: 'item-123',
-        orderId: 'order-456',
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',  // Status is on OrderItem, not ServiceFulfillment
         serviceFulfillment: {
           id: 789  // Must be a number to match serviceFulfillmentId
@@ -1031,7 +1031,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         id: 1,
         serviceFulfillmentId: 789,
         fileName: 'protected.pdf',
-        filePath: 'uploads/service-results/order-456/item-123/protected.pdf',
+        filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/protected.pdf',
         fileSize: 1024,
         uploadedBy: 10,
         uploadedAt: new Date()
@@ -1051,7 +1051,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
       });
-      const params = { params: { id: 'item-123', attachmentId: '1' } };
+      const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
 
       const response = await DELETE(request, params);
 

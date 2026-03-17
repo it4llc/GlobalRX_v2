@@ -18,7 +18,7 @@ interface CommentModalTemplate {
   shortName?: string;
   longName?: string;
   name?: string;
-  templateText: string;
+  templateText?: string;  // Made optional to reflect actual API responses that may have undefined
   serviceTypes?: string[];
   statuses?: string[];
 }
@@ -86,7 +86,8 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
 
     // Set template text as the initial value for the editable textarea
     // This text can be completely changed by the user - brackets are just regular text
-    setFinalText(selectedTemplate.templateText);
+    // FIX: Ensure templateText is never undefined to prevent runtime errors
+    setFinalText(selectedTemplate.templateText || '');
   }, [selectedTemplate]);
 
   const handleTemplateChange = (templateId: string) => {
@@ -147,7 +148,8 @@ export const CommentCreateModal = forwardRef<DialogRef, CommentCreateModalProps>
   };
 
   // Character count
-  const characterCount = finalText.length;
+  // FIX: Handle undefined finalText to prevent TypeError at runtime
+  const characterCount = finalText?.length || 0;
   const maxCharacters = 1000;
 
   // Check if the text is empty or only whitespace

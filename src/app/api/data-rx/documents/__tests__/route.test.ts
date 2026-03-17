@@ -252,7 +252,7 @@ describe('GET /api/data-rx/documents', () => {
 
       vi.mocked(prisma.dSXRequirement.findMany).mockResolvedValueOnce(mockDocuments);
 
-      const request = new Request('http://localhost:3000/api/data-rx/documents?serviceId=service-123');
+      const request = new Request('http://localhost:3000/api/data-rx/documents?serviceId=c47ac10b-58cc-4372-a567-0e02b2c3d479');
       const response = await GET(request);
 
       expect(response.status).toBe(200);
@@ -261,7 +261,7 @@ describe('GET /api/data-rx/documents', () => {
           where: expect.objectContaining({
             serviceRequirements: {
               some: {
-                serviceId: 'service-123'
+                serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479'
               }
             }
           })

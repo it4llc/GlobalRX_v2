@@ -35,8 +35,8 @@ describe('ServiceAuditService', () => {
   describe('logChange', () => {
     it('should create an audit log entry for status change', async () => {
       const auditData = {
-        serviceFulfillmentId: 'service-123',
-        orderId: 'order-456',
+        serviceFulfillmentId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         userId: 'user-789',
         changeType: 'status_change' as const,
         fieldName: 'status',
@@ -64,8 +64,8 @@ describe('ServiceAuditService', () => {
 
     it('should create an audit log entry for vendor assignment', async () => {
       const auditData = {
-        serviceFulfillmentId: 'service-456',
-        orderId: 'order-789',
+        serviceFulfillmentId: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440003',
         userId: 'admin-123',
         changeType: 'vendor_assignment' as const,
         fieldName: 'assignedVendorId',
@@ -91,8 +91,8 @@ describe('ServiceAuditService', () => {
 
     it('should create an audit log entry for note updates', async () => {
       const auditData = {
-        serviceFulfillmentId: 'service-789',
-        orderId: 'order-123',
+        serviceFulfillmentId: '947ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         userId: 'user-456',
         changeType: 'note_update' as const,
         fieldName: 'vendorNotes',
@@ -118,8 +118,8 @@ describe('ServiceAuditService', () => {
     it('should handle long text values in oldValue and newValue', async () => {
       const longText = 'A'.repeat(5000); // Max 5000 chars
       const auditData = {
-        serviceFulfillmentId: 'service-123',
-        orderId: 'order-456',
+        serviceFulfillmentId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         userId: 'user-789',
         changeType: 'note_update' as const,
         fieldName: 'internalNotes',
@@ -142,8 +142,8 @@ describe('ServiceAuditService', () => {
 
     it('should handle database errors gracefully', async () => {
       const auditData = {
-        serviceFulfillmentId: 'service-123',
-        orderId: 'order-456',
+        serviceFulfillmentId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         userId: 'user-789',
         changeType: 'status_change' as const,
         fieldName: 'status',
@@ -161,8 +161,8 @@ describe('ServiceAuditService', () => {
 
     it('should include optional notes field when provided', async () => {
       const auditData = {
-        serviceFulfillmentId: 'service-123',
-        orderId: 'order-456',
+        serviceFulfillmentId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         userId: 'user-789',
         changeType: 'status_change' as const,
         fieldName: 'status',
@@ -193,20 +193,20 @@ describe('ServiceAuditService', () => {
     it('should create multiple audit logs for bulk vendor assignment', async () => {
       const changes = [
         {
-          serviceFulfillmentId: 'service-1',
-          orderId: 'order-1',
+          serviceFulfillmentId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+          orderId: '550e8400-e29b-41d4-a716-446655440004',
           oldVendorId: null,
           newVendorId: 'vendor-123'
         },
         {
-          serviceFulfillmentId: 'service-2',
-          orderId: 'order-2',
+          serviceFulfillmentId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
+          orderId: '550e8400-e29b-41d4-a716-446655440005',
           oldVendorId: 'vendor-old',
           newVendorId: 'vendor-123'
         },
         {
-          serviceFulfillmentId: 'service-3',
-          orderId: 'order-3',
+          serviceFulfillmentId: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
+          orderId: '550e8400-e29b-41d4-a716-446655440006',
           oldVendorId: null,
           newVendorId: 'vendor-123'
         }
@@ -229,8 +229,8 @@ describe('ServiceAuditService', () => {
       expect(prisma.serviceAuditLog.createMany).toHaveBeenCalledWith({
         data: [
           {
-            serviceFulfillmentId: 'service-1',
-            orderId: 'order-1',
+            serviceFulfillmentId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+            orderId: '550e8400-e29b-41d4-a716-446655440004',
             userId: 'admin-user',
             changeType: 'vendor_assignment',
             fieldName: 'assignedVendorId',
@@ -241,8 +241,8 @@ describe('ServiceAuditService', () => {
             createdAt: expect.any(Date)
           },
           {
-            serviceFulfillmentId: 'service-2',
-            orderId: 'order-2',
+            serviceFulfillmentId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
+            orderId: '550e8400-e29b-41d4-a716-446655440005',
             userId: 'admin-user',
             changeType: 'vendor_assignment',
             fieldName: 'assignedVendorId',
@@ -253,8 +253,8 @@ describe('ServiceAuditService', () => {
             createdAt: expect.any(Date)
           },
           {
-            serviceFulfillmentId: 'service-3',
-            orderId: 'order-3',
+            serviceFulfillmentId: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
+            orderId: '550e8400-e29b-41d4-a716-446655440006',
             userId: 'admin-user',
             changeType: 'vendor_assignment',
             fieldName: 'assignedVendorId',
@@ -278,8 +278,8 @@ describe('ServiceAuditService', () => {
     it('should handle database errors in bulk operations', async () => {
       const changes = [
         {
-          serviceFulfillmentId: 'service-1',
-          orderId: 'order-1',
+          serviceFulfillmentId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+          orderId: '550e8400-e29b-41d4-a716-446655440004',
           oldVendorId: null,
           newVendorId: 'vendor-123'
         }
@@ -296,12 +296,12 @@ describe('ServiceAuditService', () => {
 
   describe('getHistory', () => {
     it('should return audit history for a service', async () => {
-      const serviceFulfillmentId = 'service-123';
+      const serviceFulfillmentId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
       const mockHistory = [
         {
           id: 'log-1',
           serviceFulfillmentId,
-          orderId: 'order-456',
+          orderId: '550e8400-e29b-41d4-a716-446655440002',
           userId: 'user-1',
           changeType: 'status_change',
           fieldName: 'status',
@@ -321,7 +321,7 @@ describe('ServiceAuditService', () => {
         {
           id: 'log-2',
           serviceFulfillmentId,
-          orderId: 'order-456',
+          orderId: '550e8400-e29b-41d4-a716-446655440002',
           userId: 'user-2',
           changeType: 'vendor_assignment',
           fieldName: 'assignedVendorId',
@@ -341,7 +341,7 @@ describe('ServiceAuditService', () => {
         {
           id: 'log-3',
           serviceFulfillmentId,
-          orderId: 'order-456',
+          orderId: '550e8400-e29b-41d4-a716-446655440002',
           userId: 'vendor-user',
           changeType: 'status_change',
           fieldName: 'status',
@@ -395,7 +395,7 @@ describe('ServiceAuditService', () => {
         new Error('Query timeout')
       );
 
-      await expect(ServiceAuditService.getHistory('service-123'))
+      await expect(ServiceAuditService.getHistory('c47ac10b-58cc-4372-a567-0e02b2c3d479'))
         .rejects.toThrow('Query timeout');
     });
 
@@ -437,7 +437,7 @@ describe('ServiceAuditService', () => {
 
       vi.mocked(prisma.serviceAuditLog.findMany).mockResolvedValueOnce(mockHistory);
 
-      const result = await ServiceAuditService.getHistory('service-123');
+      const result = await ServiceAuditService.getHistory('c47ac10b-58cc-4372-a567-0e02b2c3d479');
 
       expect(result).toHaveLength(4);
       expect(result.map(log => log.changeType)).toEqual([
@@ -451,25 +451,25 @@ describe('ServiceAuditService', () => {
 
   describe('getHistoryByOrder', () => {
     it('should return all audit logs for an order', async () => {
-      const orderId = 'order-456';
+      const orderId = '550e8400-e29b-41d4-a716-446655440002';
       const mockHistory = [
         {
           id: 'log-1',
-          serviceFulfillmentId: 'service-1',
+          serviceFulfillmentId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId,
           changeType: 'status_change',
           createdAt: new Date('2024-03-01T10:00:00Z')
         },
         {
           id: 'log-2',
-          serviceFulfillmentId: 'service-2',
+          serviceFulfillmentId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId,
           changeType: 'vendor_assignment',
           createdAt: new Date('2024-03-01T10:30:00Z')
         },
         {
           id: 'log-3',
-          serviceFulfillmentId: 'service-1',
+          serviceFulfillmentId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId,
           changeType: 'status_change',
           createdAt: new Date('2024-03-01T11:00:00Z')
@@ -555,8 +555,8 @@ describe('ServiceAuditService', () => {
 
     it('should always include timestamp in audit logs', async () => {
       const auditData = {
-        serviceFulfillmentId: 'service-123',
-        orderId: 'order-456',
+        serviceFulfillmentId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         userId: 'user-789',
         changeType: 'status_change' as const,
         fieldName: 'status',

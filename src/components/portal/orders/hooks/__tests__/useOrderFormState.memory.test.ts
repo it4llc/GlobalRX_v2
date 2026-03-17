@@ -78,7 +78,7 @@ describe('useOrderFormState - Memory and Reference Stability', () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        id: 'order-123',
+        id: '550e8400-e29b-41d4-a716-446655440001',
         statusCode: 'draft',
         items: [],
         subject: null,
@@ -98,7 +98,7 @@ describe('useOrderFormState - Memory and Reference Stability', () => {
       let previousReference: any = null;
 
       mockSearchParams = new URLSearchParams('?edit=order-123');
-      mockSearchParams.get = vi.fn((key: string) => key === 'edit' ? 'order-123' : null);
+      mockSearchParams.get = vi.fn((key: string) => key === 'edit' ? '550e8400-e29b-41d4-a716-446655440001' : null);
       (useSearchParams as any).mockReturnValue(mockSearchParams);
 
       const { result, rerender } = renderHook(() => useOrderFormState());
@@ -125,7 +125,7 @@ describe('useOrderFormState - Memory and Reference Stability', () => {
 
     it('should prevent repeated API calls with proper cleanup (regression test)', async () => {
       mockSearchParams = new URLSearchParams('?edit=order-456');
-      mockSearchParams.get = vi.fn((key: string) => key === 'edit' ? 'order-456' : null);
+      mockSearchParams.get = vi.fn((key: string) => key === 'edit' ? '550e8400-e29b-41d4-a716-446655440002' : null);
       (useSearchParams as any).mockReturnValue(mockSearchParams);
 
       let apiCallCount = 0;
@@ -141,7 +141,7 @@ describe('useOrderFormState - Memory and Reference Stability', () => {
         activeRequests--;
         return {
           ok: true,
-          json: async () => ({ id: 'order-456', statusCode: 'draft', items: [] })
+          json: async () => ({ id: '550e8400-e29b-41d4-a716-446655440002', statusCode: 'draft', items: [] })
         };
       });
 

@@ -60,22 +60,22 @@ describe('ServiceFulfillmentService', () => {
 
   describe('createServicesForOrder', () => {
     it('should create service fulfillment records for all order items', async () => {
-      const orderId = 'order-123';
+      const orderId = '550e8400-e29b-41d4-a716-446655440001';
       const userId = 'user-456';
       const orderItems = [
         {
-          id: 'item-1',
+          id: '660e8400-e29b-41d4-a716-446655440001',
           orderId,
-          serviceId: 'service-1',
+          serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-1',
           data: null,
           createdAt: new Date(),
           updatedAt: new Date()
         },
         {
-          id: 'item-2',
+          id: '660e8400-e29b-41d4-a716-446655440002',
           orderId,
-          serviceId: 'service-2',
+          serviceId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           locationId: 'location-2',
           data: null,
           createdAt: new Date(),
@@ -98,16 +98,16 @@ describe('ServiceFulfillmentService', () => {
         data: [
           {
             orderId,
-            orderItemId: 'item-1',
-            serviceId: 'service-1',
+            orderItemId: '660e8400-e29b-41d4-a716-446655440001',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             locationId: 'location-1',
             status: 'pending',
             createdAt: expect.any(Date)
           },
           {
             orderId,
-            orderItemId: 'item-2',
-            serviceId: 'service-2',
+            orderItemId: '660e8400-e29b-41d4-a716-446655440002',
+            serviceId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
             locationId: 'location-2',
             status: 'pending',
             createdAt: expect.any(Date)
@@ -161,8 +161,8 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const mockServices = [
-        { id: 'service-1', orderId: 'order-1', status: 'pending' },
-        { id: 'service-2', orderId: 'order-2', status: 'processing' }
+        { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', orderId: '550e8400-e29b-41d4-a716-446655440004', status: 'pending' },
+        { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', orderId: '550e8400-e29b-41d4-a716-446655440005', status: 'processing' }
       ];
 
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(mockServices);
@@ -205,7 +205,7 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const vendorServices = [
-        { id: 'service-1', assignedVendorId: 'vendor-123', status: 'submitted' }
+        { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-123', status: 'submitted' }
       ];
 
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(vendorServices);
@@ -252,11 +252,11 @@ describe('ServiceFulfillmentService', () => {
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce([]);
       vi.mocked(prisma.servicesFulfillment.count).mockResolvedValueOnce(0);
 
-      await ServiceFulfillmentService.getServices(user, { orderId: 'order-123' });
+      await ServiceFulfillmentService.getServices(user, { orderId: '550e8400-e29b-41d4-a716-446655440001' });
 
       expect(prisma.servicesFulfillment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { orderId: 'order-123' }
+          where: { orderId: '550e8400-e29b-41d4-a716-446655440001' }
         })
       );
     });
@@ -308,7 +308,7 @@ describe('ServiceFulfillmentService', () => {
 
       const services = [
         {
-          id: 'service-1',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           assignedVendorId: 'vendor-123',
           assignedVendor: {
             id: 'vendor-123',
@@ -317,7 +317,7 @@ describe('ServiceFulfillmentService', () => {
           }
         },
         {
-          id: 'service-2',
+          id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           assignedVendorId: 'vendor-456',
           assignedVendor: {
             id: 'vendor-456',
@@ -346,9 +346,9 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const mockService = {
-        id: 'service-123',
-        orderId: 'order-456',
-        orderItemId: 'item-789',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
+        orderItemId: '660e8400-e29b-41d4-a716-446655440006',
         status: 'processing',
         assignedVendorId: 'vendor-111',
         assignedVendor: { name: 'Test Vendor' },
@@ -358,11 +358,11 @@ describe('ServiceFulfillmentService', () => {
 
       vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValueOnce(mockService);
 
-      const result = await ServiceFulfillmentService.getServiceById('service-123', user);
+      const result = await ServiceFulfillmentService.getServiceById('c47ac10b-58cc-4372-a567-0e02b2c3d479', user);
 
       expect(result).toEqual(mockService);
       expect(prisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
-        where: { id: 'service-123' },
+        where: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' },
         include: expect.any(Object)
       });
     });
@@ -376,14 +376,14 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const mockService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: 'vendor-123',
         status: 'processing'
       };
 
       vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValueOnce(mockService);
 
-      const result = await ServiceFulfillmentService.getServiceById('service-123', user);
+      const result = await ServiceFulfillmentService.getServiceById('c47ac10b-58cc-4372-a567-0e02b2c3d479', user);
 
       expect(result).toEqual(mockService);
     });
@@ -397,14 +397,14 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const mockService = {
-        id: 'service-456',
+        id: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: 'vendor-999', // Different vendor
         status: 'processing'
       };
 
       vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValueOnce(mockService);
 
-      await expect(ServiceFulfillmentService.getServiceById('service-456', user))
+      await expect(ServiceFulfillmentService.getServiceById('d47ac10b-58cc-4372-a567-0e02b2c3d479', user))
         .rejects.toThrow('Access denied');
     });
 
@@ -432,8 +432,8 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const existingService = {
-        id: 'service-123',
-        orderId: 'order-456',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'pending',
         assignedVendorId: null,
         vendorNotes: null,
@@ -449,7 +449,7 @@ describe('ServiceFulfillmentService', () => {
       vi.mocked(prisma.servicesFulfillment.update).mockResolvedValueOnce(updatedService);
 
       const result = await ServiceFulfillmentService.updateService(
-        'service-123',
+        'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         { status: 'processing' },
         user,
         { ipAddress: '127.0.0.1', userAgent: 'Test Browser' }
@@ -458,8 +458,8 @@ describe('ServiceFulfillmentService', () => {
       expect(result).toEqual(updatedService);
 
       expect(ServiceAuditService.logChange).toHaveBeenCalledWith({
-        serviceFulfillmentId: 'service-123',
-        orderId: 'order-456',
+        serviceFulfillmentId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         userId: 'user-123',
         changeType: 'status_change',
         fieldName: 'status',
@@ -478,8 +478,8 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const existingService = {
-        id: 'service-123',
-        orderId: 'order-456',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         assignedVendorId: null,
         assignedAt: null,
         assignedBy: null
@@ -499,14 +499,14 @@ describe('ServiceFulfillmentService', () => {
       });
 
       await ServiceFulfillmentService.updateService(
-        'service-123',
+        'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         { assignedVendorId: 'vendor-123' },
         user,
         {}
       );
 
       expect(prisma.servicesFulfillment.update).toHaveBeenCalledWith({
-        where: { id: 'service-123' },
+        where: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' },
         data: expect.objectContaining({
           assignedVendorId: 'vendor-123',
           assignedAt: expect.any(Date),
@@ -534,8 +534,8 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const existingService = {
-        id: 'service-123',
-        orderId: 'order-456',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         assignedVendorId: 'vendor-123',
         vendorNotes: 'Initial notes'
       };
@@ -547,7 +547,7 @@ describe('ServiceFulfillmentService', () => {
       });
 
       await ServiceFulfillmentService.updateService(
-        'service-123',
+        'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         { vendorNotes: 'Updated notes' },
         user,
         {}
@@ -572,14 +572,14 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const existingService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: 'vendor-123'
       };
 
       vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValueOnce(existingService);
 
       await expect(ServiceFulfillmentService.updateService(
-        'service-123',
+        'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         { internalNotes: 'Should not be allowed' },
         user,
         {}
@@ -594,14 +594,14 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const existingService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: null
       };
 
       vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValueOnce(existingService);
 
       await expect(ServiceFulfillmentService.updateService(
-        'service-123',
+        'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         { assignedVendorId: 'vendor-456' },
         user,
         {}
@@ -616,8 +616,8 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const existingService = {
-        id: 'service-123',
-        orderId: 'order-456',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing',
         completedAt: null
       };
@@ -630,7 +630,7 @@ describe('ServiceFulfillmentService', () => {
       });
 
       await ServiceFulfillmentService.updateService(
-        'service-123',
+        'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         { status: 'completed' },
         user,
         {}
@@ -671,7 +671,7 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const existingService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: null
       };
 
@@ -683,7 +683,7 @@ describe('ServiceFulfillmentService', () => {
       });
 
       await expect(ServiceFulfillmentService.updateService(
-        'service-123',
+        'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         { assignedVendorId: 'vendor-deactivated' },
         user,
         {}
@@ -699,7 +699,7 @@ describe('ServiceFulfillmentService', () => {
         permissions: { fulfillment: { manage: true } }
       };
 
-      const serviceIds = ['service-1', 'service-2', 'service-3'];
+      const serviceIds = ['f47ac10b-58cc-4372-a567-0e02b2c3d479', 'a47ac10b-58cc-4372-a567-0e02b2c3d479', 'b47ac10b-58cc-4372-a567-0e02b2c3d479'];
       const vendorId = 'vendor-123';
 
       vi.mocked(prisma.vendorOrganization.findUnique).mockResolvedValueOnce({
@@ -714,14 +714,14 @@ describe('ServiceFulfillmentService', () => {
 
       vi.mocked(prisma.servicesFulfillment.findMany)
         .mockResolvedValueOnce([
-          { id: 'service-1', orderId: 'order-1', assignedVendorId: null, updatedAt: date1 },
-          { id: 'service-2', orderId: 'order-2', assignedVendorId: 'vendor-old', updatedAt: date2 },
-          { id: 'service-3', orderId: 'order-3', assignedVendorId: null, updatedAt: date3 }
+          { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', orderId: '550e8400-e29b-41d4-a716-446655440004', assignedVendorId: null, updatedAt: date1 },
+          { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', orderId: '550e8400-e29b-41d4-a716-446655440005', assignedVendorId: 'vendor-old', updatedAt: date2 },
+          { id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479', orderId: '550e8400-e29b-41d4-a716-446655440006', assignedVendorId: null, updatedAt: date3 }
         ])
         .mockResolvedValueOnce([
-          { id: 'service-1', updatedAt: date1 },
-          { id: 'service-2', updatedAt: date2 },
-          { id: 'service-3', updatedAt: date3 }
+          { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', updatedAt: date1 },
+          { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', updatedAt: date2 },
+          { id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479', updatedAt: date3 }
         ]);
 
       vi.mocked(prisma.$transaction).mockImplementationOnce(async (fn) => {
@@ -764,7 +764,7 @@ describe('ServiceFulfillmentService', () => {
       vi.mocked(prisma.vendorOrganization.findUnique).mockResolvedValueOnce(null);
 
       await expect(ServiceFulfillmentService.bulkAssignServices(
-        ['service-1'],
+        ['f47ac10b-58cc-4372-a567-0e02b2c3d479'],
         'non-existent-vendor',
         user,
         {}
@@ -785,7 +785,7 @@ describe('ServiceFulfillmentService', () => {
       });
 
       await expect(ServiceFulfillmentService.bulkAssignServices(
-        ['service-1'],
+        ['f47ac10b-58cc-4372-a567-0e02b2c3d479'],
         'vendor-123',
         user,
         {}
@@ -800,7 +800,7 @@ describe('ServiceFulfillmentService', () => {
       };
 
       await expect(ServiceFulfillmentService.bulkAssignServices(
-        ['service-1'],
+        ['f47ac10b-58cc-4372-a567-0e02b2c3d479'],
         'vendor-123',
         user,
         {}
@@ -844,12 +844,12 @@ describe('ServiceFulfillmentService', () => {
 
   describe('checkOrderCompletion', () => {
     it('should return true when all services are in terminal status', async () => {
-      const orderId = 'order-123';
+      const orderId = '550e8400-e29b-41d4-a716-446655440001';
 
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce([
-        { id: 'service-1', status: 'completed' },
-        { id: 'service-2', status: 'cancelled' },
-        { id: 'service-3', status: 'completed' }
+        { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'completed' },
+        { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'cancelled' },
+        { id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'completed' }
       ]);
 
       const result = await ServiceFulfillmentService.checkOrderCompletion(orderId);
@@ -858,12 +858,12 @@ describe('ServiceFulfillmentService', () => {
     });
 
     it('should return false when some services are not in terminal status', async () => {
-      const orderId = 'order-456';
+      const orderId = '550e8400-e29b-41d4-a716-446655440002';
 
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce([
-        { id: 'service-1', status: 'completed' },
-        { id: 'service-2', status: 'processing' }, // Not terminal
-        { id: 'service-3', status: 'cancelled' }
+        { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'completed' },
+        { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'processing' }, // Not terminal
+        { id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'cancelled' }
       ]);
 
       const result = await ServiceFulfillmentService.checkOrderCompletion(orderId);
@@ -884,7 +884,7 @@ describe('ServiceFulfillmentService', () => {
 
   describe('getServiceHistory', () => {
     it('should delegate to ServiceAuditService', async () => {
-      const serviceId = 'service-123';
+      const serviceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
       const mockHistory = [
         { id: 'log-1', changeType: 'status_change', createdAt: new Date() },
         { id: 'log-2', changeType: 'vendor_assignment', createdAt: new Date() }
@@ -908,8 +908,8 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const existingService = {
-        id: 'service-123',
-        orderId: 'order-456',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         assignedVendorId: 'vendor-old',
         assignedAt: new Date('2024-01-01'),
         assignedBy: 'user-old'
@@ -929,7 +929,7 @@ describe('ServiceFulfillmentService', () => {
       });
 
       await ServiceFulfillmentService.updateService(
-        'service-123',
+        'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         { assignedVendorId: 'vendor-new' },
         user,
         {}
@@ -955,9 +955,9 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const services = [
-        { id: 'service-1', assignedVendorId: 'vendor-123', status: 'completed' },
-        { id: 'service-2', assignedVendorId: 'vendor-123', status: 'cancelled' },
-        { id: 'service-3', assignedVendorId: 'vendor-123', status: 'processing' }
+        { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-123', status: 'completed' },
+        { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-123', status: 'cancelled' },
+        { id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-123', status: 'processing' }
       ];
 
       vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValueOnce(services);
@@ -981,7 +981,7 @@ describe('ServiceFulfillmentService', () => {
       };
 
       const service = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: 'vendor-123',
         order: {
           orderNumber: '20240301-ABC-0001',
@@ -995,7 +995,7 @@ describe('ServiceFulfillmentService', () => {
 
       vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValueOnce(service);
 
-      const result = await ServiceFulfillmentService.getServiceById('service-123', user);
+      const result = await ServiceFulfillmentService.getServiceById('c47ac10b-58cc-4372-a567-0e02b2c3d479', user);
 
       // Service should return order number but filter out customer details
       expect(result.order.orderNumber).toBe('20240301-ABC-0001');

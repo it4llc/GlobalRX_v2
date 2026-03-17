@@ -22,11 +22,11 @@ describe('Order Form Hooks', () => {
       it('should validate step 1 passes with service items', () => {
         const serviceItems = [
           {
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             serviceName: 'Background Check',
             locationId: 'location-1',
             locationName: 'United States',
-            itemId: 'service-1-location-1-123'
+            itemId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479-location-1-123'
           }
         ];
 
@@ -75,7 +75,7 @@ describe('Order Form Hooks', () => {
             name: 'Previous Address',
             required: true,
             dataType: 'address_block',
-            serviceId: 'service-1',
+            serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             locationId: 'location-1'
           }
         ],
@@ -86,11 +86,11 @@ describe('Order Form Hooks', () => {
 
       const mockServiceItems = [
         {
-          serviceId: 'service-1',
+          serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           serviceName: 'Background Check',
           locationId: 'location-1',
           locationName: 'United States',
-          itemId: 'item-1'
+          itemId: '660e8400-e29b-41d4-a716-446655440001'
         }
       ];
 
@@ -118,7 +118,7 @@ describe('Order Form Hooks', () => {
             'field-2': { street1: '123 Main St', city: 'Anytown', state: 'CA', postalCode: '90210' }
           },
           {
-            'item-1': {
+            '660e8400-e29b-41d4-a716-446655440001': {
               'search-1': { street1: '456 Old St', city: 'Previous City', state: 'CA', postalCode: '54321' }
             }
           },
@@ -157,15 +157,15 @@ describe('Order Form Hooks', () => {
 
       it('should convert search fields to name-based storage', () => {
         const fieldValues = {
-          'item-1': { 'field-1': 'Value 1' },
-          'item-2': { 'field-2': 'Value 2' }
+          '660e8400-e29b-41d4-a716-446655440001': { 'field-1': 'Value 1' },
+          '660e8400-e29b-41d4-a716-446655440002': { 'field-2': 'Value 2' }
         };
 
         const result = validation.convertSearchFieldsToNameBased(fieldValues, mockFields);
 
         expect(result).toEqual({
-          'item-1': { 'First Name': 'Value 1' },
-          'item-2': { 'Address Block': 'Value 2' }
+          '660e8400-e29b-41d4-a716-446655440001': { 'First Name': 'Value 1' },
+          '660e8400-e29b-41d4-a716-446655440002': { 'Address Block': 'Value 2' }
         });
       });
     });
@@ -181,7 +181,7 @@ describe('Order Form Hooks', () => {
 
     it('should initialize with provided items', () => {
       const initialItems = [
-        { serviceId: 'service-1', serviceName: 'Check', locationId: 'loc-1', locationName: 'US', itemId: 'item-1' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check', locationId: 'loc-1', locationName: 'US', itemId: '660e8400-e29b-41d4-a716-446655440001' }
       ];
 
       const { result } = renderHook(() => useServiceCart(initialItems));
@@ -192,15 +192,15 @@ describe('Order Form Hooks', () => {
 
     it('should add service to cart', () => {
       const { result } = renderHook(() => useServiceCart());
-      const service = { id: 'service-1', name: 'Background Check', category: 'Criminal' };
+      const service = { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', name: 'Background Check', category: 'Criminal' };
 
       act(() => {
         const newItem = result.current.addServiceToCart(service, 'location-1', 'United States');
-        expect(newItem.serviceId).toBe('service-1');
+        expect(newItem.serviceId).toBe('f47ac10b-58cc-4372-a567-0e02b2c3d479');
         expect(newItem.serviceName).toBe('Background Check');
         expect(newItem.locationId).toBe('location-1');
         expect(newItem.locationName).toBe('United States');
-        expect(newItem.itemId).toMatch(/^service-1-location-1-\d+-\d+$/);
+        expect(newItem.itemId).toMatch(/^f47ac10b-58cc-4372-a567-0e02b2c3d479-location-1-\d+-\d+$/);
       });
 
       expect(result.current.serviceItems).toHaveLength(1);
@@ -209,7 +209,7 @@ describe('Order Form Hooks', () => {
 
     it('should allow duplicate service+location pairs', () => {
       const { result } = renderHook(() => useServiceCart());
-      const service = { id: 'service-1', name: 'Employment Check', category: 'Employment' };
+      const service = { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', name: 'Employment Check', category: 'Employment' };
 
       act(() => {
         result.current.addServiceToCart(service, 'location-1', 'US');
@@ -225,24 +225,24 @@ describe('Order Form Hooks', () => {
 
     it('should remove service from cart by item ID', () => {
       const initialItems = [
-        { serviceId: 'service-1', serviceName: 'Check 1', locationId: 'loc-1', locationName: 'US', itemId: 'item-1' },
-        { serviceId: 'service-2', serviceName: 'Check 2', locationId: 'loc-2', locationName: 'CA', itemId: 'item-2' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check 1', locationId: 'loc-1', locationName: 'US', itemId: '660e8400-e29b-41d4-a716-446655440001' },
+        { serviceId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check 2', locationId: 'loc-2', locationName: 'CA', itemId: '660e8400-e29b-41d4-a716-446655440002' }
       ];
 
       const { result } = renderHook(() => useServiceCart(initialItems));
 
       act(() => {
-        result.current.removeServiceFromCart('item-1');
+        result.current.removeServiceFromCart('660e8400-e29b-41d4-a716-446655440001');
       });
 
       expect(result.current.serviceItems).toHaveLength(1);
-      expect(result.current.serviceItems[0].itemId).toBe('item-2');
+      expect(result.current.serviceItems[0].itemId).toBe('660e8400-e29b-41d4-a716-446655440002');
     });
 
     it('should clear entire cart', () => {
       const initialItems = [
-        { serviceId: 'service-1', serviceName: 'Check 1', locationId: 'loc-1', locationName: 'US', itemId: 'item-1' },
-        { serviceId: 'service-2', serviceName: 'Check 2', locationId: 'loc-2', locationName: 'CA', itemId: 'item-2' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check 1', locationId: 'loc-1', locationName: 'US', itemId: '660e8400-e29b-41d4-a716-446655440001' },
+        { serviceId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check 2', locationId: 'loc-2', locationName: 'CA', itemId: '660e8400-e29b-41d4-a716-446655440002' }
       ];
 
       const { result } = renderHook(() => useServiceCart(initialItems));
@@ -257,28 +257,28 @@ describe('Order Form Hooks', () => {
 
     it('should check for service+location existence', () => {
       const initialItems = [
-        { serviceId: 'service-1', serviceName: 'Check', locationId: 'location-1', locationName: 'US', itemId: 'item-1' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check', locationId: 'location-1', locationName: 'US', itemId: '660e8400-e29b-41d4-a716-446655440001' }
       ];
 
       const { result } = renderHook(() => useServiceCart(initialItems));
 
-      expect(result.current.hasServiceLocation('service-1', 'location-1')).toBe(true);
-      expect(result.current.hasServiceLocation('service-1', 'location-2')).toBe(false);
-      expect(result.current.hasServiceLocation('service-2', 'location-1')).toBe(false);
+      expect(result.current.hasServiceLocation('f47ac10b-58cc-4372-a567-0e02b2c3d479', 'location-1')).toBe(true);
+      expect(result.current.hasServiceLocation('f47ac10b-58cc-4372-a567-0e02b2c3d479', 'location-2')).toBe(false);
+      expect(result.current.hasServiceLocation('a47ac10b-58cc-4372-a567-0e02b2c3d479', 'location-1')).toBe(false);
     });
 
     it('should count service+location instances', () => {
       const initialItems = [
-        { serviceId: 'service-1', serviceName: 'Check', locationId: 'location-1', locationName: 'US', itemId: 'item-1' },
-        { serviceId: 'service-1', serviceName: 'Check', locationId: 'location-1', locationName: 'US', itemId: 'item-2' },
-        { serviceId: 'service-1', serviceName: 'Check', locationId: 'location-2', locationName: 'CA', itemId: 'item-3' }
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check', locationId: 'location-1', locationName: 'US', itemId: '660e8400-e29b-41d4-a716-446655440001' },
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check', locationId: 'location-1', locationName: 'US', itemId: '660e8400-e29b-41d4-a716-446655440002' },
+        { serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', serviceName: 'Check', locationId: 'location-2', locationName: 'CA', itemId: '660e8400-e29b-41d4-a716-446655440003' }
       ];
 
       const { result } = renderHook(() => useServiceCart(initialItems));
 
-      expect(result.current.getServiceLocationCount('service-1', 'location-1')).toBe(2);
-      expect(result.current.getServiceLocationCount('service-1', 'location-2')).toBe(1);
-      expect(result.current.getServiceLocationCount('service-2', 'location-1')).toBe(0);
+      expect(result.current.getServiceLocationCount('f47ac10b-58cc-4372-a567-0e02b2c3d479', 'location-1')).toBe(2);
+      expect(result.current.getServiceLocationCount('f47ac10b-58cc-4372-a567-0e02b2c3d479', 'location-2')).toBe(1);
+      expect(result.current.getServiceLocationCount('a47ac10b-58cc-4372-a567-0e02b2c3d479', 'location-1')).toBe(0);
     });
   });
 });

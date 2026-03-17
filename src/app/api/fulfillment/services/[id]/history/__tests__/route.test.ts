@@ -47,7 +47,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(401);
@@ -62,7 +62,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       });
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(401);
@@ -80,15 +80,15 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       });
 
       const mockService = {
-        id: 'service-123',
-        orderId: 'order-456',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
         status: 'processing'
       };
 
       const mockHistory = [
         {
           id: 'log-1',
-          serviceFulfillmentId: 'service-123',
+          serviceFulfillmentId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           changeType: 'status_change',
           fieldName: 'status',
           oldValue: 'pending',
@@ -103,7 +103,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
         },
         {
           id: 'log-2',
-          serviceFulfillmentId: 'service-123',
+          serviceFulfillmentId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
           changeType: 'vendor_assignment',
           fieldName: 'assignedVendorId',
           oldValue: null,
@@ -122,14 +122,14 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       vi.mocked(ServiceAuditService.getHistory).mockResolvedValueOnce(mockHistory);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
 
       const data = await response.json();
       expect(data).toEqual({
-        serviceId: 'service-123',
+        serviceId: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         history: mockHistory,
         totalEntries: 2
       });
@@ -146,7 +146,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       });
 
       const mockService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: 'vendor-123',
         status: 'processing'
       };
@@ -166,7 +166,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       vi.mocked(ServiceAuditService.getHistory).mockResolvedValueOnce(mockHistory);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -191,7 +191,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-456/history');
-      const params = { params: { id: 'service-456' } };
+      const params = { params: { id: 'd47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -211,7 +211,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       });
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -230,7 +230,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       });
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(403);
@@ -300,7 +300,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
 
     it('should return complete audit history in chronological order', async () => {
       const mockService = {
-        id: 'service-123',
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         status: 'completed'
       };
 
@@ -357,7 +357,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       vi.mocked(ServiceAuditService.getHistory).mockResolvedValueOnce(mockHistory);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(200);
@@ -371,7 +371,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
 
     it('should include all change types in history', async () => {
       const mockService = {
-        id: 'service-123'
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479'
       };
 
       const mockHistory = [
@@ -385,7 +385,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       vi.mocked(ServiceAuditService.getHistory).mockResolvedValueOnce(mockHistory);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       const data = await response.json();
@@ -398,7 +398,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
 
     it('should include user details in history entries', async () => {
       const mockService = {
-        id: 'service-123'
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479'
       };
 
       const mockHistory = [
@@ -420,7 +420,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       vi.mocked(ServiceAuditService.getHistory).mockResolvedValueOnce(mockHistory);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       const data = await response.json();
@@ -432,7 +432,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
 
     it('should include IP address and user agent when available', async () => {
       const mockService = {
-        id: 'service-123'
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479'
       };
 
       const mockHistory = [
@@ -456,7 +456,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       vi.mocked(ServiceAuditService.getHistory).mockResolvedValueOnce(mockHistory);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       const data = await response.json();
@@ -481,7 +481,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
 
     it('should return 500 when service throws an error', async () => {
       const mockService = {
-        id: 'service-123'
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479'
       };
 
       vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(mockService);
@@ -490,7 +490,7 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(500);
@@ -501,18 +501,16 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
 
     it('should handle timeout errors gracefully', async () => {
       const mockService = {
-        id: 'service-123'
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479'
       };
 
       vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(mockService);
-      vi.mocked(ServiceAuditService.getHistory).mockImplementationOnce(
-        () => new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Query timeout')), 100)
-        )
+      vi.mocked(ServiceAuditService.getHistory).mockRejectedValueOnce(
+        new Error('Query timeout')
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
       expect(response.status).toBe(504);
@@ -535,14 +533,14 @@ describe('GET /api/fulfillment/services/[id]/history', () => {
 
     it('should set no-cache headers for audit data', async () => {
       const mockService = {
-        id: 'service-123'
+        id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479'
       };
 
       vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(mockService);
       vi.mocked(ServiceAuditService.getHistory).mockResolvedValueOnce([]);
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123/history');
-      const params = { params: { id: 'service-123' } };
+      const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
       const response = await GET(request, params);
 

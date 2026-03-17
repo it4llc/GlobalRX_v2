@@ -90,7 +90,7 @@ describe('DSX Required Fields Bug Tests', () => {
 
   describe('Bug-Proving Test: Unchecking removes field entirely instead of making it optional', () => {
     it('SHOULD FAIL: Unchecking a DSX matrix checkbox should make field optional, not remove it', async () => {
-      const serviceId = 'service-123';
+      const serviceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
       const locationId = 'location-456';
       const requirementId = 'req-789';
 
@@ -177,7 +177,7 @@ describe('DSX Required Fields Bug Tests', () => {
 
   describe('Expected Behavior Tests', () => {
     it('Checking a DSX matrix checkbox should make field required', async () => {
-      const serviceId = 'service-123';
+      const serviceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
       const locationId = 'location-456';
       const requirementId = 'req-789';
 
@@ -244,7 +244,7 @@ describe('DSX Required Fields Bug Tests', () => {
     });
 
     it('All fields in a service should always have DSXMapping records', async () => {
-      const serviceId = 'service-123';
+      const serviceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
       const locationId = 'location-456';
       const requirement1 = 'req-1';
       const requirement2 = 'req-2';
@@ -337,7 +337,7 @@ describe('DSX Required Fields Bug Tests', () => {
 
   describe('Edge Cases and Validation', () => {
     it('Should handle empty associatedRequirements array gracefully', async () => {
-      const serviceId = 'service-123';
+      const serviceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
       const locationId = 'location-456';
 
       vi.mocked(prisma.dSXService.findUnique).mockResolvedValue({
@@ -385,7 +385,7 @@ describe('DSX Required Fields Bug Tests', () => {
     });
 
     it('Should validate and reject invalid requirement IDs', async () => {
-      const serviceId = 'service-123';
+      const serviceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
       const locationId = 'location-456';
       const validReqId = 'req-valid';
       const invalidReqId = 'req-invalid';
@@ -437,7 +437,7 @@ describe('DSX Required Fields Bug Tests', () => {
     });
 
     it('Should handle invalid location IDs gracefully', async () => {
-      const serviceId = 'service-123';
+      const serviceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
       const invalidLocationId = 'invalid-location';
       const requirementId = 'req-789';
 
@@ -511,7 +511,7 @@ describe('DSX Required Fields Bug Tests', () => {
     });
 
     it('Should handle malformed locationRequirements gracefully', async () => {
-      const serviceId = 'service-123';
+      const serviceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
       const requirementId = 'req-789';
 
       vi.mocked(prisma.dSXService.findUnique).mockResolvedValue({

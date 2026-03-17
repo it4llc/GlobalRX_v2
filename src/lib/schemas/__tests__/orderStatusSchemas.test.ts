@@ -140,7 +140,7 @@ describe('orderStatusHistorySchema', () => {
     it('should pass with all required fields', () => {
       // THIS TEST WILL FAIL - schema doesn't exist yet
       const validData = {
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'draft',
         toStatus: 'submitted',
         changedBy: 'user-456',
@@ -150,7 +150,7 @@ describe('orderStatusHistorySchema', () => {
       const result = orderStatusHistorySchema.safeParse(validData);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.orderId).toBe('order-123');
+        expect(result.data.orderId).toBe('550e8400-e29b-41d4-a716-446655440001');
         expect(result.data.fromStatus).toBe('draft');
         expect(result.data.toStatus).toBe('submitted');
         expect(result.data.changedBy).toBe('user-456');
@@ -161,7 +161,7 @@ describe('orderStatusHistorySchema', () => {
     it('should accept null fromStatus for initial status', () => {
       // THIS TEST WILL FAIL - schema doesn't exist yet
       const validData = {
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: null,
         toStatus: 'draft',
         changedBy: 'user-456',
@@ -178,7 +178,7 @@ describe('orderStatusHistorySchema', () => {
     it('should accept system changes with isAutomatic true', () => {
       // THIS TEST WILL FAIL - schema doesn't exist yet
       const validData = {
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'draft',
         toStatus: 'submitted',
         changedBy: 'system',
@@ -196,7 +196,7 @@ describe('orderStatusHistorySchema', () => {
     it('should accept optional reason and notes', () => {
       // THIS TEST WILL FAIL - schema doesn't exist yet
       const validData = {
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'processing',
         toStatus: 'cancelled',
         changedBy: 'user-456',
@@ -234,7 +234,7 @@ describe('orderStatusHistorySchema', () => {
     it('should fail when toStatus is missing', () => {
       // THIS TEST WILL FAIL - schema doesn't exist yet
       const invalidData = {
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'draft',
         changedBy: 'user-456',
         isAutomatic: false
@@ -250,7 +250,7 @@ describe('orderStatusHistorySchema', () => {
     it('should fail when changedBy is missing', () => {
       // THIS TEST WILL FAIL - schema doesn't exist yet
       const invalidData = {
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'draft',
         toStatus: 'submitted',
         isAutomatic: false
@@ -266,7 +266,7 @@ describe('orderStatusHistorySchema', () => {
     it('should fail when isAutomatic is missing', () => {
       // THIS TEST WILL FAIL - schema doesn't exist yet
       const invalidData = {
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'draft',
         toStatus: 'submitted',
         changedBy: 'user-456'
@@ -282,7 +282,7 @@ describe('orderStatusHistorySchema', () => {
     it('should fail with invalid toStatus value', () => {
       // THIS TEST WILL FAIL - schema doesn't exist yet
       const invalidData = {
-        orderId: 'order-123',
+        orderId: '550e8400-e29b-41d4-a716-446655440001',
         fromStatus: 'draft',
         toStatus: 'invalid-status',
         changedBy: 'user-456',

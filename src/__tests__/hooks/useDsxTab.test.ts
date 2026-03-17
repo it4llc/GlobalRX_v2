@@ -1012,8 +1012,6 @@ describe('useDsxTab', () => {
     });
 
     it('should show success message after save', async () => {
-      vi.useFakeTimers();
-
       const mockServices = [{ id: '1', name: 'Service A' }];
 
       mockFetchWithAuth.mockResolvedValueOnce({
@@ -1076,13 +1074,14 @@ describe('useDsxTab', () => {
 
       expect(result.current.successMessage).toBe('DSX configuration saved successfully');
 
-      // Success message should clear after timeout - use fake timers
+      // Use fake timers just for advancing time
+      vi.useFakeTimers();
       act(() => {
         vi.advanceTimersByTime(3100);
       });
+      vi.useRealTimers();
 
       expect(result.current.successMessage).toBeNull();
-      // Don't restore timers here - afterEach will handle it
     });
   });
 

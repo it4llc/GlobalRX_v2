@@ -37,7 +37,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
       // The API expects ServiceFulfillment IDs, not OrderItem IDs
 
       const orderItemId = 'order-item-123';
-      const serviceFulfillmentId = 'service-fulfillment-456';
+      const serviceFulfillmentId = '456e4567-e89b-12d3-a456-426614174000';
 
       // Mock the order comments fetch
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -53,7 +53,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
 
       // Render hook in order mode (serviceId is null)
       const { result } = renderHook(
-        () => useServiceComments(null, 'order-123', 'SERVICE_TYPE', 'PENDING'),
+        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'PENDING'),
         { wrapper }
       );
 
@@ -98,7 +98,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
     });
 
     it('should update commentsByService state correctly after creating comment in order mode', async () => {
-      const serviceFulfillmentId = 'service-fulfillment-789';
+      const serviceFulfillmentId = '789e4567-e89b-12d3-a456-426614174000';
       const existingComment = {
         id: 'existing-comment',
         text: 'Existing comment',
@@ -118,7 +118,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
       });
 
       const { result } = renderHook(
-        () => useServiceComments(null, 'order-123', 'SERVICE_TYPE', 'PENDING'),
+        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'PENDING'),
         { wrapper }
       );
 
@@ -158,7 +158,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
     });
 
     it('should handle delete with ServiceFulfillment ID in order mode', async () => {
-      const serviceFulfillmentId = 'service-fulfillment-999';
+      const serviceFulfillmentId = '999e4567-e89b-12d3-a456-426614174000';
 
       // Mock initial state
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -175,7 +175,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
       });
 
       const { result } = renderHook(
-        () => useServiceComments(null, 'order-123', 'SERVICE_TYPE', 'PENDING'),
+        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'PENDING'),
         { wrapper }
       );
 
@@ -216,7 +216,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
     });
 
     it('should handle update with ServiceFulfillment ID in order mode', async () => {
-      const serviceFulfillmentId = 'service-fulfillment-888';
+      const serviceFulfillmentId = '888e4567-e89b-12d3-a456-426614174000';
 
       // Mock initial state
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -233,7 +233,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
       });
 
       const { result } = renderHook(
-        () => useServiceComments(null, 'order-123', 'SERVICE_TYPE', 'PENDING'),
+        () => useServiceComments(null, '550e8400-e29b-41d4-a716-446655440001', 'SERVICE_TYPE', 'PENDING'),
         { wrapper }
       );
 
@@ -282,7 +282,7 @@ describe('useServiceComments - OrderItem vs ServiceFulfillment ID handling', () 
 
   describe('Single service mode should still work', () => {
     it('should use serviceId directly when not in order mode', async () => {
-      const serviceId = 'service-123';
+      const serviceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
 
       // Mock fetch for single service
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({

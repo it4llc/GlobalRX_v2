@@ -55,9 +55,9 @@ if (typeof HTMLDialogElement === 'undefined') {
 describe('ServiceFulfillmentTable', () => {
   const mockServices = [
     {
-      id: 'service-1',
-      orderId: 'order-123',
-      orderItemId: 'item-1',
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      orderId: '550e8400-e29b-41d4-a716-446655440001',
+      orderItemId: '660e8400-e29b-41d4-a716-446655440001',
       serviceId: 'service-type-1',
       locationId: 'location-1',
       status: 'Submitted',
@@ -82,9 +82,9 @@ describe('ServiceFulfillmentTable', () => {
       assignedVendor: null
     },
     {
-      id: 'service-2',
-      orderId: 'order-123',
-      orderItemId: 'item-2',
+      id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
+      orderId: '550e8400-e29b-41d4-a716-446655440001',
+      orderItemId: '660e8400-e29b-41d4-a716-446655440002',
       serviceId: 'service-type-2',
       locationId: 'location-2',
       status: 'Processing',
@@ -113,9 +113,9 @@ describe('ServiceFulfillmentTable', () => {
       }
     },
     {
-      id: 'service-3',
-      orderId: 'order-123',
-      orderItemId: 'item-3',
+      id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
+      orderId: '550e8400-e29b-41d4-a716-446655440001',
+      orderItemId: '660e8400-e29b-41d4-a716-446655440003',
       serviceId: 'service-type-3',
       locationId: 'location-3',
       status: 'Completed',
@@ -162,7 +162,7 @@ describe('ServiceFulfillmentTable', () => {
 
   describe('rendering', () => {
     it('should display service information in table rows', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       // Check headers
       expect(screen.getByText('Service')).toBeInTheDocument();
@@ -189,7 +189,7 @@ describe('ServiceFulfillmentTable', () => {
     });
 
     it('should display status badges with correct colors', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       // Find status badges in the table cells (they also appear in dropdowns)
       const rows = screen.getAllByRole('row');
@@ -208,39 +208,39 @@ describe('ServiceFulfillmentTable', () => {
     });
 
     it('should display "Not Assigned" for services without vendor', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       expect(screen.getByText('Not Assigned')).toBeInTheDocument();
     });
 
     it('should display empty state when no services exist', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={[]} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={[]} />);
 
       expect(screen.getByText('No services found for this order')).toBeInTheDocument();
     });
 
     it('should display checkbox for bulk selection', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const checkboxes = screen.getAllByRole('checkbox');
       expect(checkboxes).toHaveLength(4); // 1 header + 3 rows
     });
 
     it('should display loading state', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} isLoading={true} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} isLoading={true} />);
 
       expect(screen.getByText('Loading services...')).toBeInTheDocument();
     });
 
     it('should display vendor notes when available', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} showNotes={true} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} showNotes={true} />);
 
       expect(screen.getByText('In progress')).toBeInTheDocument();
       expect(screen.getByText('All checks passed')).toBeInTheDocument();
     });
 
     it('should display internal notes for internal users', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} showNotes={true} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} showNotes={true} />);
 
       expect(screen.getByText('Rush order')).toBeInTheDocument();
       expect(screen.getByText('Approved')).toBeInTheDocument();
@@ -256,7 +256,7 @@ describe('ServiceFulfillmentTable', () => {
         }
       });
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} showNotes={true} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} showNotes={true} />);
 
       expect(screen.queryByText('Rush order')).not.toBeInTheDocument();
       expect(screen.queryByText('Approved')).not.toBeInTheDocument();
@@ -273,7 +273,7 @@ describe('ServiceFulfillmentTable', () => {
         }
       ];
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={servicesWithDeactivated} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={servicesWithDeactivated} />);
 
       expect(screen.getByText('(Deactivated)')).toBeInTheDocument();
     });
@@ -282,7 +282,7 @@ describe('ServiceFulfillmentTable', () => {
   describe('bulk selection', () => {
     it('should select all services when header checkbox is clicked', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const headerCheckbox = screen.getAllByRole('checkbox')[0];
       await user.click(headerCheckbox);
@@ -295,7 +295,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should deselect all when header checkbox is unchecked', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const headerCheckbox = screen.getAllByRole('checkbox')[0];
 
@@ -312,7 +312,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should select individual services', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const firstServiceCheckbox = screen.getAllByRole('checkbox')[1];
       await user.click(firstServiceCheckbox);
@@ -323,7 +323,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should enable bulk assign button when services are selected', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       expect(screen.getByText('Bulk Assign to Vendor')).toBeDisabled();
 
@@ -335,7 +335,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should show count of selected services', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const checkboxes = screen.getAllByRole('checkbox');
       await user.click(checkboxes[1]);
@@ -348,7 +348,7 @@ describe('ServiceFulfillmentTable', () => {
   describe('vendor assignment', () => {
     it('should open assignment dialog when Assign button is clicked', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const assignButton = screen.getAllByText('Assign')[0];
       await user.click(assignButton);
@@ -359,7 +359,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should open bulk assignment dialog when bulk assign is clicked', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       // Select services first
       const checkboxes = screen.getAllByRole('checkbox');
@@ -377,10 +377,10 @@ describe('ServiceFulfillmentTable', () => {
       const user = userEvent.setup();
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ id: 'service-1', assignedVendorId: 'vendor-789' })
+        json: async () => ({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-789' })
       });
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const assignButton = screen.getAllByText('Assign')[0];
       await user.click(assignButton);
@@ -393,7 +393,7 @@ describe('ServiceFulfillmentTable', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/fulfillment/services/service-1',
+          '/api/fulfillment/services/f47ac10b-58cc-4372-a567-0e02b2c3d479',
           expect.objectContaining({
             method: 'PATCH',
             body: JSON.stringify({ assignedVendorId: 'vendor-789' })
@@ -404,7 +404,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should allow reassigning to different vendor', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       // Find service that already has vendor
       const reassignButton = screen.getAllByText('Reassign')[0];
@@ -424,7 +424,7 @@ describe('ServiceFulfillmentTable', () => {
         }
       });
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       expect(screen.queryByText('Assign')).not.toBeInTheDocument();
       expect(screen.queryByText('Reassign')).not.toBeInTheDocument();
@@ -440,7 +440,7 @@ describe('ServiceFulfillmentTable', () => {
         }
       });
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       expect(screen.queryByText('Assign')).not.toBeInTheDocument();
       expect(screen.queryByText('Bulk Assign to Vendor')).not.toBeInTheDocument();
@@ -449,7 +449,7 @@ describe('ServiceFulfillmentTable', () => {
 
   describe('status updates', () => {
     it('should display status dropdown for each service', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       // Get dropdowns specifically for service status (not filter dropdowns)
       const statusDropdowns = screen.getAllByRole('combobox', { name: /status for/i });
@@ -461,12 +461,12 @@ describe('ServiceFulfillmentTable', () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          service: { id: 'service-1', status: 'Processing' },
+          service: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'Processing' },
           auditEntry: { id: 'audit-1' }
         })
       });
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const statusDropdown = screen.getByRole('combobox', { name: /Status for Criminal Background Check/i });
 
@@ -475,7 +475,7 @@ describe('ServiceFulfillmentTable', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/services/item-1/status',
+          `/api/services/${mockServices[0].orderItemId}/status`,
           expect.objectContaining({
             method: 'PUT',
             body: JSON.stringify({ status: 'Processing' })
@@ -485,7 +485,7 @@ describe('ServiceFulfillmentTable', () => {
     });
 
     it('should allow status changes for completed services with confirmation', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       // Completed service should have a dropdown (terminal statuses can be changed with confirmation)
       const completedService = mockServices.find(s => s.status === 'Completed');
@@ -505,7 +505,7 @@ describe('ServiceFulfillmentTable', () => {
         }
       ];
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={servicesWithCancelled} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={servicesWithCancelled} />);
 
       // Cancelled service should have a dropdown (terminal statuses can be changed with confirmation)
       const dropdown = screen.getByLabelText('Status for Criminal Background Check');
@@ -515,7 +515,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should show confirmation for status change to cancelled', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const statusDropdown = screen.getAllByRole('combobox', { name: /status/i })[0];
       await user.selectOptions(statusDropdown, 'Cancelled');
@@ -527,7 +527,7 @@ describe('ServiceFulfillmentTable', () => {
 
   describe('actions menu', () => {
     it('should display actions dropdown for each service', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const actionButtons = screen.getAllByText('Actions');
       expect(actionButtons).toHaveLength(4); // 1 header + 3 buttons
@@ -535,7 +535,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should show view history option', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const actionButton = screen.getAllByText('Actions')[1]; // Skip header
       await user.click(actionButton);
@@ -545,7 +545,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should show edit notes option', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const actionButton = screen.getAllByText('Actions')[1]; // Skip header
       await user.click(actionButton);
@@ -558,7 +558,7 @@ describe('ServiceFulfillmentTable', () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          serviceId: 'service-1',
+          serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           history: [
             {
               id: 'log-1',
@@ -574,7 +574,7 @@ describe('ServiceFulfillmentTable', () => {
         })
       });
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const actionButton = screen.getAllByText('Actions')[1]; // Skip header
       await user.click(actionButton);
@@ -585,13 +585,13 @@ describe('ServiceFulfillmentTable', () => {
       await waitFor(() => {
         expect(screen.getByText('Service History')).toBeInTheDocument();
         // Check that the fetch was called to get history
-        expect(global.fetch).toHaveBeenCalledWith('/api/fulfillment/services/service-1/history');
+        expect(global.fetch).toHaveBeenCalledWith('/api/fulfillment/services/f47ac10b-58cc-4372-a567-0e02b2c3d479/history');
       });
     });
 
     it('should open notes dialog when edit notes is clicked', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const actionButton = screen.getAllByText('Actions')[1]; // Skip header
       await user.click(actionButton);
@@ -615,7 +615,7 @@ describe('ServiceFulfillmentTable', () => {
       });
 
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const actionButton = screen.getAllByText('Actions')[1]; // Skip header
       await user.click(actionButton);
@@ -631,7 +631,7 @@ describe('ServiceFulfillmentTable', () => {
   describe('filtering and sorting', () => {
     it('should filter services by status', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const statusFilter = screen.getByLabelText('Filter by Status');
       await user.selectOptions(statusFilter, 'Completed');
@@ -643,7 +643,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should filter services by vendor', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const vendorFilter = screen.getByLabelText('Filter by Vendor');
       await user.selectOptions(vendorFilter, 'vendor-123');
@@ -655,7 +655,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should show only unassigned services when filtered', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const vendorFilter = screen.getByLabelText('Filter by Vendor');
       await user.selectOptions(vendorFilter, 'unassigned');
@@ -667,7 +667,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should sort services by service name', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const serviceHeader = screen.getByText('Service');
       await user.click(serviceHeader);
@@ -686,7 +686,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should sort services by status', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const statusHeader = screen.getByText('Status');
       await user.click(statusHeader);
@@ -714,7 +714,7 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should only show services assigned to the vendor', () => {
       const vendorServices = mockServices.filter(s => s.assignedVendorId === 'vendor-123');
-      render(<ServiceFulfillmentTable orderId="order-123" services={vendorServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={vendorServices} />);
 
       expect(screen.getByText('Employment Verification')).toBeInTheDocument();
       expect(screen.queryByText('Criminal Background Check')).not.toBeInTheDocument();
@@ -727,12 +727,12 @@ describe('ServiceFulfillmentTable', () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          service: { id: 'service-2', status: 'Completed' },
+          service: { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'Completed' },
           auditEntry: { id: 'audit-1' }
         })
       });
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={vendorServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={vendorServices} />);
 
       const statusDropdown = screen.getByRole('combobox', { name: /Status for Employment Verification/i });
 
@@ -741,7 +741,7 @@ describe('ServiceFulfillmentTable', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/services/item-2/status',
+          `/api/services/${vendorServices[0].orderItemId}/status`,
           expect.objectContaining({
             method: 'PUT',
             body: JSON.stringify({ status: 'Completed' })
@@ -754,7 +754,7 @@ describe('ServiceFulfillmentTable', () => {
       const user = userEvent.setup();
       const vendorServices = [mockServices[1]];
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={vendorServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={vendorServices} />);
 
       // Get the Actions button (skip the header)
       const actionButtons = screen.getAllByText('Actions');
@@ -777,7 +777,7 @@ describe('ServiceFulfillmentTable', () => {
         }
       ];
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={completedServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={completedServices} />);
 
       expect(screen.getByText('Employment Verification')).toBeInTheDocument();
       // Check that the status dropdown shows Completed as the selected value
@@ -788,7 +788,7 @@ describe('ServiceFulfillmentTable', () => {
 
   describe('accessibility', () => {
     it('should have proper ARIA labels', () => {
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       expect(screen.getByRole('table')).toHaveAttribute('aria-label', 'Service fulfillment status');
       expect(screen.getAllByRole('row')).toHaveLength(4); // Header + 3 data rows
@@ -796,10 +796,10 @@ describe('ServiceFulfillmentTable', () => {
 
     it('should support keyboard navigation', async () => {
       const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       // Get the first service checkbox (skip the header select-all checkbox)
-      const firstCheckbox = screen.getByTestId('select-service-service-1');
+      const firstCheckbox = screen.getByTestId(`select-service-${mockServices[0].id}`);
       firstCheckbox.focus();
 
       // Space key should toggle the checkbox
@@ -815,12 +815,12 @@ describe('ServiceFulfillmentTable', () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-        service: { id: 'service-1', status: 'Processing' },
+        service: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'Processing' },
         auditEntry: { id: 'audit-1' }
       })
       });
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       // Find status dropdown by aria-label for the specific service
       const statusDropdown = screen.getByLabelText('Status for Criminal Background Check');
@@ -834,7 +834,7 @@ describe('ServiceFulfillmentTable', () => {
       // Wait for the API call to complete
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          '/api/services/item-1/status',
+          `/api/services/${mockServices[0].orderItemId}/status`,
           expect.objectContaining({
             method: 'PUT',
             body: JSON.stringify({ status: 'Processing' })
@@ -852,13 +852,13 @@ describe('ServiceFulfillmentTable', () => {
       // Mock the status update to fail
       global.fetch.mockRejectedValueOnce(new Error('Network error'));
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       // Find status dropdown by aria-label for the specific service
       const statusDropdown = screen.getByLabelText('Status for Criminal Background Check');
 
       // Change to trigger the API call
-      fireEvent.change(statusDropdown, { target: { value: 'processing' } });
+      fireEvent.change(statusDropdown, { target: { value: 'Processing' } });
 
       // Wait for the error to be handled
       await waitFor(() => {
@@ -879,7 +879,7 @@ describe('ServiceFulfillmentTable', () => {
         json: async () => ({ error: 'Cannot assign service to vendor' })
       });
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const assignButton = screen.getAllByText('Assign')[0];
       await user.click(assignButton);
@@ -908,7 +908,7 @@ describe('ServiceFulfillmentTable', () => {
         json: async () => ({ error: 'Insufficient permissions to assign vendors' })
       });
 
-      render(<ServiceFulfillmentTable orderId="order-123" services={mockServices} />);
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
 
       const assignButton = screen.getAllByText('Assign')[0];
       await user.click(assignButton);

@@ -41,11 +41,11 @@ describe('ServiceFulfillmentService - Case Sensitivity', () => {
       // @ts-expect-error - Mocking partial Prisma return type for testing
       vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce(mockItems);
 
-      const result = await ServiceFulfillmentService.checkAllServicesSubmitted('order-123');
+      const result = await ServiceFulfillmentService.checkAllServicesSubmitted('550e8400-e29b-41d4-a716-446655440001');
 
       expect(result).toBe(true);
       expect(prisma.orderItem.findMany).toHaveBeenCalledWith({
-        where: { orderId: 'order-123' },
+        where: { orderId: '550e8400-e29b-41d4-a716-446655440001' },
         select: { status: true }
       });
     });
@@ -59,7 +59,7 @@ describe('ServiceFulfillmentService - Case Sensitivity', () => {
       // @ts-expect-error - Mocking partial Prisma return type for testing
       vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce(mockItems);
 
-      const result = await ServiceFulfillmentService.checkAllServicesSubmitted('order-123');
+      const result = await ServiceFulfillmentService.checkAllServicesSubmitted('550e8400-e29b-41d4-a716-446655440001');
 
       expect(result).toBe(false);
     });
@@ -73,7 +73,7 @@ describe('ServiceFulfillmentService - Case Sensitivity', () => {
       // @ts-expect-error - Mocking partial Prisma return type for testing
       vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce(mockItems);
 
-      const result = await ServiceFulfillmentService.checkAllServicesSubmitted('order-123');
+      const result = await ServiceFulfillmentService.checkAllServicesSubmitted('550e8400-e29b-41d4-a716-446655440001');
 
       expect(result).toBe(false);
     });
@@ -91,7 +91,7 @@ describe('ServiceFulfillmentService - Case Sensitivity', () => {
         // @ts-expect-error - Mocking partial Prisma return type for testing
         vi.mocked(prisma.orderItem.findMany).mockResolvedValueOnce(mockItems);
 
-        const result = await ServiceFulfillmentService.checkAllServicesSubmitted('order-123');
+        const result = await ServiceFulfillmentService.checkAllServicesSubmitted('550e8400-e29b-41d4-a716-446655440001');
         expect(result).toBe(true);
       }
     });
