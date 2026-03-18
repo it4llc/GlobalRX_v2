@@ -449,6 +449,74 @@ describe('ServiceFulfillmentTable', () => {
       expect(screen.queryByText('Assign')).not.toBeInTheDocument();
       expect(screen.queryByText('Bulk Assign to Vendor')).not.toBeInTheDocument();
     });
+
+    // REGRESSION TEST: Bulk assign must use correct field name 'serviceFulfillmentIds'
+    it('should send serviceFulfillmentIds field in bulk assign API request', async () => {
+      const user = userEvent.setup();
+
+      // Mock successful API response
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ updated: 2 })
+      });
+
+      // Mock vendors API response
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          vendors: [
+            { id: 'vendor-789', name: 'Test Vendor', deactivated: false }
+          ]
+        })
+      });
+
+      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+
+      // Select multiple services
+      const checkboxes = screen.getAllByRole('checkbox');
+      await user.click(checkboxes[1]); // Select first service
+      await user.click(checkboxes[2]); // Select second service
+
+      // Click bulk assign button
+      const bulkAssignButton = screen.getByText('Bulk Assign to Vendor');
+      await user.click(bulkAssignButton);
+
+      // Wait for dialog and vendor list to load
+      await waitFor(() => {
+        expect(screen.getByText('Bulk Assign Services to Vendor')).toBeInTheDocument();
+      });
+
+      // Select a vendor
+      const vendorSelect = await screen.findByLabelText('Select Vendor');
+      await user.selectOptions(vendorSelect, 'vendor-789');
+
+      // Click confirm button
+      const confirmButton = screen.getByText('Confirm Bulk Assignment');
+      await user.click(confirmButton);
+
+      // Verify the API was called with the correct field name
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          '/api/fulfillment/services/bulk-assign',
+          expect.objectContaining({
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              serviceFulfillmentIds: [
+                'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+                'a47ac10b-58cc-4372-a567-0e02b2c3d479'
+              ],
+              vendorId: 'vendor-789'
+            })
+          })
+        );
+      });
+
+      // Verify success message
+      expect(mockToastSuccess).toHaveBeenCalledWith('Vendor assigned to 2 service(s)');
+    });
   });
 
   describe('status updates', () => {

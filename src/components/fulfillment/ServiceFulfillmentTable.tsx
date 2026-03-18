@@ -668,8 +668,11 @@ export function ServiceFulfillmentTable({
         headers: {
           'Content-Type': 'application/json',
         },
+        // CRITICAL: Field name must match API expectation - 'serviceFulfillmentIds' not 'serviceIds'
+        // The bulk assign API expects an array of service fulfillment record IDs,
+        // not service type IDs, to identify which specific service instances to assign
         body: JSON.stringify({
-          serviceIds: Array.from(selectedServices),
+          serviceFulfillmentIds: Array.from(selectedServices),
           vendorId: selectedVendorId
         }),
       });
