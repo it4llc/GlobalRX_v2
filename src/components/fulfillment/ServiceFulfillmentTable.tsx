@@ -1121,7 +1121,6 @@ export function ServiceFulfillmentTable({
                         {/* Results Section */}
                         <ServiceResultsSection
                           serviceId={service.orderItemId}
-                          serviceFulfillmentId={service.id}
                           serviceName={service.service.name}
                           serviceStatus={service.status.toUpperCase()}
                           orderId={orderId || ''}
@@ -1132,16 +1131,13 @@ export function ServiceFulfillmentTable({
                         <hr className="border-gray-200" />
 
                         {/* Comments Section */}
-                        {/* DUAL ID PATTERN: Pass both IDs to handle comment operations correctly
-                            - serviceId (orderItemId): Used for creating/updating comments (comments table uses orderItemId)
-                            - serviceFulfillmentId: Used for fetching comments in order context (API keys results by this) */}
+                        {/* Comment Section - Now uses only OrderItem ID after fulfillment ID standardization */}
                         <ServiceCommentSection
                           serviceId={service.orderItemId}
                           orderId={orderId}
                           serviceName={service.service.name}
                           serviceType={service.service.code || service.service.category || service.service.name || ''}
                           serviceStatus={service.status.toUpperCase()}
-                          serviceFulfillmentId={service.id}
                         />
                       </div>
                     </td>

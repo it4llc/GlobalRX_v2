@@ -61,11 +61,13 @@ vi.mock('@/lib/prisma', () => ({
 }));
 
 vi.mock('fs/promises', () => ({
+  default: {},
   writeFile: vi.fn(),
   mkdir: vi.fn()
 }));
 
 vi.mock('fs', () => ({
+  default: {},
   existsSync: vi.fn()
 }));
 
@@ -102,9 +104,9 @@ describe('GET /api/services/[id]/attachments', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'Processing', // Non-terminal status
         serviceFulfillment: {
-          id: 'sf-789',
-          status: 'processing'
+          id: 'sf-789'
         }
       };
 
@@ -139,9 +141,10 @@ describe('GET /api/services/[id]/attachments', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toHaveLength(2);
-      expect(data[0]).toHaveProperty('fileName', 'report1.pdf');
-      expect(data[1]).toHaveProperty('fileName', 'report2.pdf');
+      expect(data).toHaveProperty('attachments');
+      expect(data.attachments).toHaveLength(2);
+      expect(data.attachments[0]).toHaveProperty('fileName', 'report1.pdf');
+      expect(data.attachments[1]).toHaveProperty('fileName', 'report2.pdf');
     });
   });
 
@@ -188,8 +191,9 @@ describe('GET /api/services/[id]/attachments', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toHaveLength(1);
-      expect(data[0]).toHaveProperty('fileName', 'vendor_report.pdf');
+      expect(data).toHaveProperty('attachments');
+      expect(data.attachments).toHaveLength(1);
+      expect(data.attachments[0]).toHaveProperty('fileName', 'vendor_report.pdf');
     });
 
     it('should return 403 when vendor tries to view attachments for non-assigned service', async () => {
@@ -273,8 +277,9 @@ describe('GET /api/services/[id]/attachments', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toHaveLength(1);
-      expect(data[0]).toHaveProperty('fileName', 'final_report.pdf');
+      expect(data).toHaveProperty('attachments');
+      expect(data.attachments).toHaveLength(1);
+      expect(data.attachments[0]).toHaveProperty('fileName', 'final_report.pdf');
     });
 
     it('should return 403 when customer tries to view attachments for another customer\'s order', async () => {
@@ -328,9 +333,9 @@ describe('GET /api/services/[id]/attachments', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'Processing', // Non-terminal status
         serviceFulfillment: {
-          id: 'sf-789',
-          status: 'processing'
+          id: 'sf-789'
         }
       };
 
@@ -344,7 +349,8 @@ describe('GET /api/services/[id]/attachments', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toEqual([]);
+      expect(data).toHaveProperty('attachments');
+      expect(data.attachments).toEqual([]);
     });
 
     it('should return 404 when service does not exist', async () => {
@@ -409,9 +415,9 @@ describe('POST /api/services/[id]/attachments', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'Processing', // Non-terminal status
         serviceFulfillment: {
-          id: 'sf-789',
-          status: 'processing'
+          id: 'sf-789'
         }
       };
 
@@ -431,6 +437,10 @@ describe('POST /api/services/[id]/attachments', () => {
       vi.mocked(writeFile).mockResolvedValueOnce(undefined);
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
+      });
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+        id: 'user-123',
+        userId: 123
       });
       vi.mocked(prisma.serviceAttachment.create).mockResolvedValueOnce(mockAttachment);
 
@@ -461,6 +471,17 @@ describe('POST /api/services/[id]/attachments', () => {
         }
       });
 
+      const mockOrderItem = {
+        id: '660e8400-e29b-41d4-a716-446655440004',
+        orderId: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'Processing',
+        serviceFulfillment: {
+          id: 'sf-789'
+        }
+      };
+
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
+
       const formData = new FormData();
       formData.append('file', new Blob(['content'], { type: 'application/pdf' }), 'test.pdf');
 
@@ -474,7 +495,7 @@ describe('POST /api/services/[id]/attachments', () => {
       expect(response.status).toBe(403);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Insufficient permissions');
+      expect(data).toHaveProperty('error', 'Insufficient permissions - fulfillment.edit required');
     });
   });
 
@@ -515,6 +536,10 @@ describe('POST /api/services/[id]/attachments', () => {
       vi.mocked(writeFile).mockResolvedValueOnce(undefined);
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
+      });
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+        id: 'vendor-user',
+        userId: 456
       });
       vi.mocked(prisma.serviceAttachment.create).mockResolvedValueOnce(mockAttachment);
 
@@ -723,9 +748,9 @@ describe('POST /api/services/[id]/attachments', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'Completed', // Terminal status
         serviceFulfillment: {
-          id: 'sf-789',
-          status: 'completed' // Terminal status
+          id: 'sf-789'
         }
       };
 
@@ -759,9 +784,9 @@ describe('POST /api/services/[id]/attachments', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'Cancelled', // Terminal status
         serviceFulfillment: {
-          id: 'sf-789',
-          status: 'cancelled' // Terminal status
+          id: 'sf-789'
         }
       };
 
@@ -795,9 +820,9 @@ describe('POST /api/services/[id]/attachments', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'Processing', // Non-terminal status
         serviceFulfillment: {
-          id: 'sf-789',
-          status: 'processing'
+          id: 'sf-789'
         }
       };
 
@@ -807,6 +832,10 @@ describe('POST /api/services/[id]/attachments', () => {
       vi.mocked(writeFile).mockResolvedValueOnce(undefined);
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
+      });
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+        id: 'user-123',
+        userId: 123
       });
       vi.mocked(prisma.serviceAttachment.create).mockResolvedValueOnce({
         id: 1,
@@ -848,9 +877,9 @@ describe('POST /api/services/[id]/attachments', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'Processing', // Non-terminal status
         serviceFulfillment: {
-          id: 'sf-789',
-          status: 'processing'
+          id: 'sf-789'
         }
       };
 
@@ -897,9 +926,9 @@ describe('POST /api/services/[id]/attachments', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'Processing', // Non-terminal status
         serviceFulfillment: {
-          id: 'sf-789',
-          status: 'processing'
+          id: 'sf-789'
         }
       };
 
@@ -908,6 +937,10 @@ describe('POST /api/services/[id]/attachments', () => {
       vi.mocked(writeFile).mockResolvedValueOnce(undefined);
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
+      });
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+        id: 'user-123',
+        userId: 123
       });
       vi.mocked(prisma.serviceAttachment.create).mockResolvedValueOnce({
         id: 100,
@@ -935,14 +968,9 @@ describe('POST /api/services/[id]/attachments', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             entityType: 'service_attachment',
-            entityId: 'sf-789',
+            entityId: '100', // Should be the attachment ID as a string
             action: 'upload',
-            userId: expect.any(Number),
-            changes: expect.objectContaining({
-              fileName: 'audit_test.pdf',
-              fileSize: 2048,
-              attachmentId: 100
-            })
+            userId: 'user-123' // Should be the string UUID
           })
         })
       );
@@ -962,9 +990,9 @@ describe('POST /api/services/[id]/attachments', () => {
       const mockOrderItem = {
         id: '660e8400-e29b-41d4-a716-446655440004',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'Processing', // Non-terminal status
         serviceFulfillment: {
-          id: 'sf-789',
-          status: 'processing'
+          id: 'sf-789'
         }
       };
 

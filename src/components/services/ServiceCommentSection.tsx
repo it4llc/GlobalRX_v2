@@ -15,52 +15,37 @@ import { useTranslation } from '@/contexts/TranslationContext';
 import type { ServiceCommentWithRelations } from '@/types/comment-template';
 
 interface ServiceCommentSectionProps {
-  serviceId: string; // OrderItem ID for creating/updating comments (comments.orderItemId)
+  serviceId: string; // OrderItem ID - used for all comment operations
   orderId?: string;
   serviceName?: string;
   serviceType?: string;
   serviceStatus?: string;
-  serviceFulfillmentId?: string; // ServiceFulfillment ID for fetching comments in order mode (API response key)
-
-  /* ID USAGE EXPLANATION:
-   * - serviceId: Always OrderItem.id - used for comment CRUD operations
-   * - serviceFulfillmentId: Always ServicesFulfillment.id - used to lookup comments from order API response
-   * This dual-ID pattern was necessary to fix the comment display bug where IDs were mismatched */
 }
 
 // UUID validation regex for security - prevents injection attacks
+// FULFILLMENT ID STANDARDIZATION: All service IDs are now consistently UUIDs (OrderItem IDs)
 // SECURITY IMPROVEMENT (March 10, 2026): Added UUID validation to prevent injection
 // This regex ensures all service and fulfillment IDs match the expected UUID format
 // preventing potential SQL injection or path traversal attacks through malformed IDs
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Helper function to validate and resolve the correct service ID for API calls
-// CRITICAL BUG FIX (March 10, 2026): Implements ID resolution pattern for comment operations
-// This function addresses the complex ID mapping between ServiceFulfillment and OrderItem records
-// ensuring correct API routing while maintaining security through UUID validation
-function resolveAndValidateServiceId(
-  orderId: string | undefined,
-  serviceFulfillmentId: string | undefined,
-  serviceId: string
-): string {
-  // In order mode, use serviceFulfillmentId for API calls (API expects ServiceFulfillment ID)
-  // In single service mode, use serviceId directly
-  const apiServiceId = orderId && serviceFulfillmentId ? serviceFulfillmentId : serviceId;
-
+// Helper function to validate service ID for API calls
+// Ensures service IDs are valid UUIDs to prevent injection attacks
+function validateServiceId(serviceId: string): string {
   // Validate service ID format
-  if (!apiServiceId || apiServiceId === 'null' || apiServiceId === 'undefined') {
+  if (!serviceId || serviceId === 'null' || serviceId === 'undefined') {
     throw new Error('Cannot perform operation: Invalid service ID');
   }
 
   // Validate UUID format to prevent injection
-  if (!UUID_REGEX.test(apiServiceId)) {
-    throw new Error(`Cannot perform operation: Invalid service ID format: ${apiServiceId}`);
+  if (!UUID_REGEX.test(serviceId)) {
+    throw new Error(`Cannot perform operation: Invalid service ID format: ${serviceId}`);
   }
 
-  return apiServiceId;
+  return serviceId;
 }
 
-export function ServiceCommentSection({ serviceId, orderId, serviceName = "Service", serviceType, serviceStatus, serviceFulfillmentId }: ServiceCommentSectionProps) {
+export function ServiceCommentSection({ serviceId, orderId, serviceName = "Service", serviceType, serviceStatus }: ServiceCommentSectionProps) {
   const { user } = useAuth();
   const { t } = useTranslation();
 
@@ -69,13 +54,10 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
     if (serviceId && !UUID_REGEX.test(serviceId)) {
       clientLogger.error('Invalid serviceId format', { serviceId });
     }
-    if (serviceFulfillmentId && !UUID_REGEX.test(serviceFulfillmentId)) {
-      clientLogger.error('Invalid serviceFulfillmentId format', { serviceFulfillmentId });
-    }
     if (orderId && !UUID_REGEX.test(orderId)) {
       clientLogger.error('Invalid orderId format', { orderId });
     }
-  }, [serviceId, serviceFulfillmentId, orderId]);
+  }, [serviceId, orderId]);
   const {
     comments,
     commentsByService,
@@ -127,17 +109,15 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
     let serviceComments = comments;
 
     // If we're in order mode and have commentsByService, get comments for this specific service
-    if (orderId && commentsByService && serviceFulfillmentId) {
-      // CRITICAL FIX: Use serviceFulfillmentId to look up comments (API keys by ServiceFulfillment ID)
-      // This was the root cause of the comment display bug - API returns results keyed by
-      // ServicesFulfillment.id but UI was trying to use OrderItem.id as the lookup key
-      const serviceData = commentsByService[serviceFulfillmentId];
+    if (orderId && commentsByService) {
+      // Use serviceId (OrderItem ID) to look up comments
+      // API now consistently uses OrderItem IDs after fulfillment ID standardization
+      const serviceData = commentsByService[serviceId];
       serviceComments = serviceData?.comments || [];
 
       if (process.env.NODE_ENV === 'development') {
         clientLogger.info('Extracting service comments from order data', {
-          serviceId, // OrderItem ID (used for comment operations)
-          serviceFulfillmentId, // ServiceFulfillment ID (used as lookup key for API response)
+          serviceId, // OrderItem ID (used for both operations and lookups)
           extractedCommentsLength: serviceComments.length
         });
       }
@@ -158,15 +138,15 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
     isInternalOnly?: boolean;
   }) => {
     try {
-      // Resolve and validate the service ID for API call
-      const apiServiceId = resolveAndValidateServiceId(orderId, serviceFulfillmentId, serviceId);
+      // Validate the service ID for API call
+      const apiServiceId = validateServiceId(serviceId);
 
       // Log without PII (exclude data which contains comment text)
-      clientLogger.info('Creating comment', { apiServiceId, serviceId, serviceFulfillmentId, orderId });
+      clientLogger.info('Creating comment', { apiServiceId, serviceId, orderId });
       await createComment({ ...data, serviceId: apiServiceId });
       setIsCreateModalOpen(false);
     } catch (error) {
-      clientLogger.error('Failed to create comment', { error, serviceId, serviceFulfillmentId });
+      clientLogger.error('Failed to create comment', { error, serviceId });
       throw error;
     }
   };
@@ -178,8 +158,8 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
     if (!editingComment) return;
 
     try {
-      // Resolve and validate the service ID for API call
-      const apiServiceId = resolveAndValidateServiceId(orderId, serviceFulfillmentId, serviceId);
+      // Validate the service ID for API call
+      const apiServiceId = validateServiceId(serviceId);
 
       await updateComment(editingComment.id, { ...data, serviceId: apiServiceId });
       setEditingComment(null);
@@ -197,8 +177,8 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
   const confirmDelete = async () => {
     if (deleteConfirmId) {
       try {
-        // Resolve and validate the service ID for API call
-        const apiServiceId = resolveAndValidateServiceId(orderId, serviceFulfillmentId, serviceId);
+        // Validate the service ID for API call
+        const apiServiceId = validateServiceId(serviceId);
 
         // Use new signature with serviceId to avoid null ID issues
         await deleteComment(apiServiceId, deleteConfirmId);

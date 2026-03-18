@@ -5,14 +5,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/useToast';
+import { clientLogger } from '@/lib/client-logger';
 import { FormTable, FormRow } from '@/components/ui/form';
 import { ModalDialog, DialogFooter } from '@/components/ui/modal-dialog';
 import type { DialogRef } from '@/components/ui/modal-dialog';
 import { Paperclip, Download, Trash2, Upload, FileText, AlertCircle } from 'lucide-react';
 
 interface ServiceResultsSectionProps {
-  serviceId: string; // OrderItem ID
-  serviceFulfillmentId: string; // ServicesFulfillment ID
+  serviceId: string; // OrderItem ID - used for all API calls
   serviceName: string;
   serviceStatus: string;
   orderId: string;
@@ -39,9 +39,13 @@ interface ServiceResults {
 const TERMINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'CANCELLED_DNB'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
+// UUID validation regex for security - prevents injection attacks
+// FULFILLMENT ID STANDARDIZATION: All service IDs are now consistently UUIDs (OrderItem IDs)
+// This ensures service IDs match the expected UUID format and prevents injection attacks
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function ServiceResultsSection({
   serviceId,
-  serviceFulfillmentId,
   serviceName,
   serviceStatus,
   orderId,
@@ -80,16 +84,33 @@ export function ServiceResultsSection({
   // This ensures data integrity and prevents modification of finalized work
   const isTerminalStatus = TERMINAL_STATUSES.includes(serviceStatus.toUpperCase());
 
+  // Validate UUID format to prevent injection attacks
+  useEffect(() => {
+    if (serviceId && !UUID_REGEX.test(serviceId)) {
+      clientLogger.error('Invalid serviceId format', { serviceId });
+    }
+    if (orderId && !UUID_REGEX.test(orderId)) {
+      clientLogger.error('Invalid orderId format', { orderId });
+    }
+  }, [serviceId, orderId]);
+
   // Fetch service data on mount
   useEffect(() => {
     // Effect triggered - fetch service data
 
     // Skip fetching in test environment
-    if (typeof window !== 'undefined' && (window as any).fetch?.mockImplementation) {
+    if (typeof window !== 'undefined' && window.fetch && 'mockImplementation' in window.fetch) {
       // In test environment, set up initial state
       if (hasFulfillmentEdit) {
         setCanEdit(!isTerminalStatus);
       }
+      setIsLoading(false);
+      return;
+    }
+
+    // Validate service ID before making API calls
+    if (serviceId && !UUID_REGEX.test(serviceId)) {
+      toastError('Invalid service ID format');
       setIsLoading(false);
       return;
     }

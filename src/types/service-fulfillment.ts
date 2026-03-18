@@ -1,6 +1,7 @@
 // /GlobalRX_v2/src/types/service-fulfillment.ts
 
 import { ServiceStatus } from '@/constants/service-status';
+import { z } from 'zod';
 
 export interface ServiceFulfillment {
   id: string;
@@ -21,6 +22,37 @@ export interface ServiceFulfillment {
 
 // Re-export for backward compatibility
 export type { ServiceStatus };
+
+// Validation schema for status updates (for test compatibility)
+export const updateServiceStatusSchema = z.object({
+  status: z.enum([
+    'Draft',
+    'Submitted',
+    'Processing',
+    'Missing Information',
+    'Completed',
+    'Cancelled',
+    'Cancelled-DNB'
+  ]),
+  comment: z.string().max(1000, 'Comment must be 1000 characters or less').optional(),
+  confirmReopenTerminal: z.boolean().optional()
+}).refine(
+  (data) => {
+    if (data.confirmReopenTerminal !== undefined && typeof data.confirmReopenTerminal !== 'boolean') {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Invalid confirmation value'
+  }
+);
+
+// Helper function to check if a status is terminal
+const TERMINAL_STATUSES = ['Completed', 'Cancelled', 'Cancelled-DNB'];
+export const isTerminalStatus = (status: string): boolean => {
+  return TERMINAL_STATUSES.includes(status);
+};
 
 export interface ServiceAuditLog {
   id: string;
