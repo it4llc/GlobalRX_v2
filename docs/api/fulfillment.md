@@ -187,6 +187,85 @@ Authorization: Bearer {session-token}
 
 ---
 
+## POST /api/fulfillment/services/bulk-assign
+
+Assigns multiple services to a vendor in a single operation for efficient workflow management.
+
+### Authentication
+**Required:** Yes - Valid session with fulfillment management permissions
+
+### Permissions Required
+- **Internal Users Only:** `fulfillment.manage` or equivalent permissions
+- **Vendors/Customers:** Cannot perform bulk assignments (403 Forbidden)
+
+### Request Body
+
+```typescript
+{
+  serviceFulfillmentIds: string[],  // Array of service fulfillment record IDs
+  vendorId: string                  // Vendor to assign services to
+}
+```
+
+**CRITICAL:** The `serviceFulfillmentIds` field must contain service fulfillment record IDs (from the ServiceFulfillment table), NOT service type IDs. This ensures the API assigns the specific service instances rather than service types.
+
+### Request Example
+
+```http
+POST /api/fulfillment/services/bulk-assign
+Content-Type: application/json
+Authorization: Bearer {session-token}
+
+{
+  "serviceFulfillmentIds": [
+    "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "a47ac10b-58cc-4372-a567-0e02b2c3d480"
+  ],
+  "vendorId": "vendor-789"
+}
+```
+
+### Response Format
+
+```typescript
+{
+  updated: number  // Count of services successfully assigned
+}
+```
+
+### Status Codes
+
+- **200 OK:** Success with count of updated services
+- **400 Bad Request:** Invalid input data or deactivated vendor
+- **401 Unauthorized:** Missing or invalid authentication
+- **403 Forbidden:** Insufficient permissions (requires fulfillment.manage)
+- **404 Not Found:** Vendor not found
+- **500 Internal Server Error:** Database or server error
+
+### Business Rules
+
+1. **Permission Restriction:** Only internal/admin users can perform bulk assignments
+2. **Vendor Validation:** Vendor must exist and be active (not deactivated)
+3. **Service Validation:** All service fulfillment IDs must be valid and accessible
+4. **Atomic Operation:** Either all services are assigned or none are (transaction-based)
+5. **Audit Trail:** Each assignment is logged for compliance tracking
+
+### Recent Bug Fixes
+
+#### March 18, 2026: Field Name Standardization Bug Fix
+**Problem:** Frontend was sending `serviceIds` field instead of `serviceFulfillmentIds`, causing 400 Bad Request errors during bulk vendor assignment.
+
+**Root Cause:** Field name mismatch between frontend component and API expectation - the API correctly expects service fulfillment record IDs, not service type IDs.
+
+**Solution:** Fixed field name in `ServiceFulfillmentTable.tsx` line 675 from `serviceIds` to `serviceFulfillmentIds` and added regression test to prevent recurrence.
+
+**Impact:**
+- Bulk vendor assignment feature now works correctly
+- Added code comments explaining critical field name requirement
+- Comprehensive regression test ensures bug cannot reoccur
+
+---
+
 ## PATCH /api/fulfillment/orders/[id]/status
 
 Updates order status with comprehensive audit trails and automatic progression logic.
