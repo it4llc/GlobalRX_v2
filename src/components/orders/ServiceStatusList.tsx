@@ -7,6 +7,7 @@ import type { ServiceStatusListProps } from '@/types/service-status-display';
 import { serviceStatusListPropsSchema } from '@/types/service-status-display';
 import { getStatusColorClass } from '@/lib/schemas/serviceStatusSchemas';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { formatServiceStatus } from '@/lib/status-utils';
 
 /**
  * ServiceStatusList Component
@@ -30,11 +31,8 @@ import { useTranslation } from '@/contexts/TranslationContext';
  * maintaining table performance with truncation and pagination.
  */
 
-// Format status text for display - the status already comes in proper format from DB
-const formatStatusDisplay = (status: string): string => {
-  // Status values from DB are already properly formatted (e.g., 'Draft', 'Submitted', 'Missing Information')
-  return status;
-};
+// Status formatting now uses centralized utility from src/lib/status-utils.ts
+// This ensures consistent formatting regardless of how status is stored in DB
 
 // Truncate service names longer than 30 characters to prevent table layout issues
 // Business rule: 30 chars allows most service names while maintaining readable tables
@@ -114,8 +112,8 @@ export const ServiceStatusList: React.FC<ServiceStatusListComponentProps> = (pro
           // Don't fall back to code if name is null - show "Unknown Location" instead
         }
 
-        // Format status for display
-        const statusDisplay = formatStatusDisplay(item.status);
+        // Format status for display using centralized utility
+        const statusDisplay = formatServiceStatus(item.status);
         const statusColorClasses = getStatusColorClass(item.status);
 
         if (isMobile) {

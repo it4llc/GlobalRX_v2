@@ -11,9 +11,9 @@ import type { ServiceUser } from '@/types/service-results';
 // Interface for service results update data
 interface ServiceResultsUpdateData {
   results: string | null;
-  resultsLastModifiedBy: number;
+  resultsLastModifiedBy: string;
   resultsLastModifiedAt: Date;
-  resultsAddedBy?: number;
+  resultsAddedBy?: string;
   resultsAddedAt?: Date;
 }
 
@@ -230,31 +230,18 @@ export async function PUT(
     const updatedFulfillment = await prisma.$transaction(async (tx) => {
       const now = new Date();
 
-      // Get the user's integer userId for servicesFulfillment table
-      // Note: servicesFulfillment uses integer IDs while auditLog uses string UUIDs
-      const dbUser = await tx.user.findUnique({
-        where: { id: user.id },
-        select: { userId: true }
-      });
-
-      if (!dbUser || !dbUser.userId) {
-        throw new Error('User not found');
-      }
-
-      const userIdInt = dbUser.userId;
-
       // Prepare update data with audit trail tracking
       // We track both the initial creator and last modifier for business compliance
       const updateData: ServiceResultsUpdateData = {
         results: validation.data.results,
-        resultsLastModifiedBy: userIdInt,
+        resultsLastModifiedBy: user.id, // Now uses UUID directly
         resultsLastModifiedAt: now
       };
 
       // If this is the first time adding results, capture the original author
       // This business rule ensures we maintain an audit trail of who first entered results
       if (!fulfillment.resultsAddedBy && validation.data.results) {
-        updateData.resultsAddedBy = userIdInt;
+        updateData.resultsAddedBy = user.id; // Now uses UUID directly
         updateData.resultsAddedAt = now;
       }
 
@@ -271,7 +258,7 @@ export async function PUT(
           entityType: 'service_results',
           entityId: fulfillment.id,
           action,
-          userId: user.id // Use string UUID for audit log
+          userId: user.id
         }
       });
 

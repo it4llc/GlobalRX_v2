@@ -39,7 +39,7 @@ describe('useCommentTemplates', () => {
     { code: 'CRIMINAL', name: 'Criminal Background', category: 'Background' }
   ];
 
-  const mockStatuses = ['PASS', 'FAIL', 'PENDING', 'IN_PROGRESS', 'REVIEW', 'COMPLETED'];
+  const mockStatuses = ['PASS', 'FAIL', 'pending', 'in_progress', 'REVIEW', 'completed'];
 
   beforeEach(() => {
     vi.clearAllMocks();

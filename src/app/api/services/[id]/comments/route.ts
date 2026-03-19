@@ -66,10 +66,14 @@ export async function POST(
       return NextResponse.json({ error: 'User type not configured. Please contact support.' }, { status: 403 });
     }
 
-    // BUG FIX (March 9, 2026): Map ServiceFulfillment ID to OrderItem ID for validation
-    // The params.id is a ServiceFulfillment ID, but validateUserAccess expects an OrderItem ID
+    // Verify ServicesFulfillment exists for this OrderItem
+    // FULFILLMENT ID STANDARDIZATION: params.id is now consistently an OrderItem ID
+    // We validate that ServicesFulfillment exists for this OrderItem because:
+    // 1. Comments are stored against OrderItem but fulfillment tracking requires ServicesFulfillment
+    // 2. We do NOT auto-create missing ServicesFulfillment records to avoid masking data integrity issues
+    // 3. This ensures only services with proper fulfillment setup can receive comments
     const serviceFulfillment = await prisma.servicesFulfillment.findUnique({
-      where: { id: params.id },
+      where: { orderItemId: params.id },
       select: { orderItemId: true }
     });
 
@@ -78,7 +82,7 @@ export async function POST(
     }
 
     const hasAccess = await service.validateUserAccess(
-      serviceFulfillment.orderItemId,
+      params.id,
       session.user.id,
       session.user.userType
     );
@@ -120,7 +124,7 @@ export async function POST(
 
     // Step 5: Create the comment using the OrderItem ID
     const comment = await service.createComment(
-      serviceFulfillment.orderItemId,
+      params.id,
       validation.data,
       session.user.id
     );

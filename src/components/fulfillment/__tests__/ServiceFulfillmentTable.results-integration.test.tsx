@@ -223,7 +223,7 @@ describe('ServiceFulfillmentTable - Results Integration', () => {
             serviceId: '660e8400-e29b-41d4-a716-446655440001',
             serviceFulfillmentId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
             serviceName: 'Criminal Background Check',
-            serviceStatus: 'PROCESSING',
+            serviceStatus: 'processing',
             orderId: '550e8400-e29b-41d4-a716-446655440001',
             isCustomer: false
           }),

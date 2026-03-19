@@ -200,7 +200,6 @@ export async function GET(
               },
             },
             data: true,
-            documents: true,
             serviceFulfillment: {
               select: {
                 id: true,

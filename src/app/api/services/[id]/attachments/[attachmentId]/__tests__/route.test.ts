@@ -118,7 +118,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'report.pdf',
         filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/abc_report.pdf',
         fileSize: 1024000,
-        uploadedBy: 10,
+        uploadedBy: 'user-uuid-1',
         uploadedAt: new Date()
       };
 
@@ -176,7 +176,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'vendor_doc.pdf',
         filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/vendor_doc.pdf',
         fileSize: 500000,
-        uploadedBy: 30,
+        uploadedBy: 'vendor-user-uuid',
         uploadedAt: new Date()
       };
 
@@ -264,7 +264,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'final_report.pdf',
         filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/final_report.pdf',
         fileSize: 1500000,
-        uploadedBy: 10,
+        uploadedBy: 'user-uuid-1',
         uploadedAt: new Date()
       };
 
@@ -404,7 +404,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'wrong.pdf',
         filePath: 'uploads/wrong.pdf',
         fileSize: 1024,
-        uploadedBy: 10,
+        uploadedBy: 'user-uuid-1',
         uploadedAt: new Date()
       };
 
@@ -445,7 +445,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'missing.pdf',
         filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/missing.pdf',
         fileSize: 1024,
-        uploadedBy: 10,
+        uploadedBy: 'user-uuid-1',
         uploadedAt: new Date()
       };
 
@@ -490,7 +490,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'error.pdf',
         filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/error.pdf',
         fileSize: 1024,
-        uploadedBy: 10,
+        uploadedBy: 'user-uuid-1',
         uploadedAt: new Date()
       };
 
@@ -560,7 +560,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'to_delete.pdf',
         filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/to_delete.pdf',
         fileSize: 1024,
-        uploadedBy: 10,
+        uploadedBy: 'user-uuid-1',
         uploadedAt: new Date()
       };
 
@@ -657,7 +657,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'vendor_file.pdf',
         filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/vendor_file.pdf',
         fileSize: 2048,
-        uploadedBy: 30,
+        uploadedBy: 'vendor-user-uuid',
         uploadedAt: new Date()
       };
 
@@ -888,7 +888,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'missing.pdf',
         filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/missing.pdf',
         fileSize: 1024,
-        uploadedBy: 10,
+        uploadedBy: 'user-uuid-1',
         uploadedAt: new Date()
       };
 
@@ -947,7 +947,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'audit_delete.pdf',
         filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/audit_delete.pdf',
         fileSize: 2048,
-        uploadedBy: 10,
+        uploadedBy: 'user-uuid-1',
         uploadedAt: new Date()
       };
 
@@ -1033,7 +1033,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         fileName: 'protected.pdf',
         filePath: 'uploads/service-results/550e8400-e29b-41d4-a716-446655440002/item-123/protected.pdf',
         fileSize: 1024,
-        uploadedBy: 10,
+        uploadedBy: 'user-uuid-1',
         uploadedAt: new Date()
       };
 

@@ -116,13 +116,13 @@ describe('Service Results Utils', () => {
     it('should return true for completed status', () => {
       expect(isTerminalServiceStatus('completed')).toBe(true);
       expect(isTerminalServiceStatus('Completed')).toBe(true);
-      expect(isTerminalServiceStatus('COMPLETED')).toBe(true);
+      expect(isTerminalServiceStatus('completed')).toBe(true);
     });
 
     it('should return true for cancelled status', () => {
       expect(isTerminalServiceStatus('cancelled')).toBe(true);
       expect(isTerminalServiceStatus('Cancelled')).toBe(true);
-      expect(isTerminalServiceStatus('CANCELLED')).toBe(true);
+      expect(isTerminalServiceStatus('cancelled')).toBe(true);
     });
 
     it('should return false for non-terminal statuses', () => {

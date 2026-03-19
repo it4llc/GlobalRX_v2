@@ -39,7 +39,7 @@ describe('ServiceCommentSection', () => {
   const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
   const mockServiceName = 'Criminal Background Check';
   const mockServiceType = 'BACKGROUND_CHECK';
-  const mockServiceStatus = 'PROCESSING';
+  const mockServiceStatus = 'processing';
 
   const defaultMockHook = {
     comments: [],

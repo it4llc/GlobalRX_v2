@@ -1,33 +1,30 @@
-// /GlobalRX_v2/src/lib/schemas/serviceStatusSchemas.ts
+// /GlobalRx_v2/src/lib/schemas/serviceStatusSchemas.ts
 
 import { z } from 'zod';
 
-// Service status enum matching database values
+import { formatServiceStatus } from '@/lib/status-utils';
+import { SERVICE_STATUSES, SERVICE_STATUS_VALUES } from '@/constants/service-status';
+
+// Service status enum matching database values (lowercase to match DB)
+// Uses the single source of truth from service-status.ts
 export const ServiceStatusEnum = z.enum([
-  'Draft',
-  'Submitted',
-  'Processing',
-  'Missing Information',
-  'Completed',
-  'Cancelled',
-  'Cancelled-DNB'
+  SERVICE_STATUSES.DRAFT,
+  SERVICE_STATUSES.PENDING,
+  SERVICE_STATUSES.SUBMITTED,
+  SERVICE_STATUSES.PROCESSING,
+  SERVICE_STATUSES.MISSING_INFO,
+  SERVICE_STATUSES.COMPLETED,
+  SERVICE_STATUSES.CANCELLED,
+  SERVICE_STATUSES.CANCELLED_DNB
 ]);
 
 export type ServiceStatus = z.infer<typeof ServiceStatusEnum>;
 
 // Terminal statuses that require confirmation to reopen
-export const TERMINAL_STATUSES: ServiceStatus[] = ['Completed', 'Cancelled', 'Cancelled-DNB'];
+export const TERMINAL_STATUSES: ServiceStatus[] = ['completed', 'cancelled', 'cancelled_dnb'];
 
-// Export service status values for test compatibility
-export const SERVICE_STATUS_VALUES = [
-  'Draft',
-  'Submitted',
-  'Processing',
-  'Missing Information',
-  'Completed',
-  'Cancelled',
-  'Cancelled-DNB'
-] as const;
+// Re-export service status values from the single source of truth for test compatibility
+export { SERVICE_STATUS_VALUES };
 
 // Schema for updating service status via API
 export const updateServiceStatusSchema = z.object({
@@ -72,29 +69,33 @@ export function isTerminalStatus(status: string): boolean {
 }
 
 // Helper to format status for display
+// Delegates to centralized status utils for consistency
 export function formatStatusDisplay(status: string): string {
-  // Handle special cases
-  if (status === 'Cancelled-DNB') {
-    return 'Cancelled (DNB)';
-  }
-  return status;
+  return formatServiceStatus(status);
 }
 
 // Helper to get status color class
+// Uses lowercase status values to match database
 export function getStatusColorClass(status: string): string {
-  switch (status) {
-    case 'Draft':
+  // Normalize to lowercase for comparison
+  const normalizedStatus = status.toLowerCase();
+
+  switch (normalizedStatus) {
+    case 'draft':
       return 'bg-gray-100 text-gray-800';
-    case 'Submitted':
+    case 'pending':
+    case 'submitted':
       return 'bg-blue-100 text-blue-800';
-    case 'Processing':
+    case 'processing':
       return 'bg-yellow-100 text-yellow-800';
-    case 'Missing Information':
+    case 'missing_info':
+    case 'missing information':
       return 'bg-orange-100 text-orange-800';
-    case 'Completed':
+    case 'completed':
       return 'bg-green-100 text-green-800';
-    case 'Cancelled':
-    case 'Cancelled-DNB':
+    case 'cancelled':
+    case 'cancelled_dnb':
+    case 'cancelled-dnb':
       return 'bg-red-100 text-red-800';
     default:
       return 'bg-gray-100 text-gray-800';

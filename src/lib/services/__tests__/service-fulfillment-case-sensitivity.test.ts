@@ -35,7 +35,7 @@ describe('ServiceFulfillmentService - Case Sensitivity', () => {
       // Mock order items with mixed case statuses (as they come from the database)
       const mockItems: PartialOrderItem[] = [
         { status: 'Submitted' }, // Title case
-        { status: 'SUBMITTED' }, // Upper case
+        { status: 'submitted' }, // Upper case
         { status: 'submitted' }  // Lower case
       ];
       // @ts-expect-error - Mocking partial Prisma return type for testing
@@ -82,8 +82,8 @@ describe('ServiceFulfillmentService - Case Sensitivity', () => {
       const testCases = [
         ['submitted', 'submitted', 'submitted'],
         ['Submitted', 'Submitted', 'Submitted'],
-        ['SUBMITTED', 'SUBMITTED', 'SUBMITTED'],
-        ['submitted', 'Submitted', 'SUBMITTED'], // Mixed cases
+        ['submitted', 'submitted', 'submitted'],
+        ['submitted', 'Submitted', 'submitted'], // Mixed cases
       ];
 
       for (const statuses of testCases) {

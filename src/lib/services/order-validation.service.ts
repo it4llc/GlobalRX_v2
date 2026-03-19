@@ -254,8 +254,7 @@ export class OrderValidationService {
       include: {
         items: {
           include: {
-            data: true,
-            documents: true
+            data: true
           }
         }
       }
@@ -298,12 +297,8 @@ export class OrderValidationService {
     });
 
     // Extract uploaded documents
+    // NOTE: Documents model has been removed from schema
     const uploadedDocuments: Record<string, any> = {};
-    order.items.forEach(item => {
-      item.documents.forEach(doc => {
-        uploadedDocuments[doc.requirementId] = doc.fileUrl;
-      });
-    });
 
     const validationResult = await this.validateOrderRequirements({
       serviceItems,

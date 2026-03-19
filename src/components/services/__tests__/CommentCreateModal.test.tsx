@@ -46,21 +46,21 @@ describe('CommentCreateModal', () => {
       name: 'Document Request',
       templateText: 'Please provide [document type] by [date] for verification purposes.',
       serviceTypes: ['BACKGROUND_CHECK'],
-      statuses: ['PROCESSING']
+      statuses: ['processing']
     },
     {
       id: 'template-2',
       name: 'Processing Update',
       templateText: 'Your background check is currently being processed.',
       serviceTypes: ['BACKGROUND_CHECK'],
-      statuses: ['PROCESSING']
+      statuses: ['processing']
     },
     {
       id: 'template-3',
       name: 'Additional Info Required',
       templateText: 'We need [information] to complete the [service type] verification.',
       serviceTypes: ['BACKGROUND_CHECK'],
-      statuses: ['PROCESSING']
+      statuses: ['processing']
     }
   ];
 

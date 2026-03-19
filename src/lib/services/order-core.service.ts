@@ -558,7 +558,6 @@ export class OrderCoreService {
             service: true,
             location: true,
             data: true,
-            documents: true,
           },
           // CRITICAL: Always order by service name then creation time to prevent
           // services from changing display order when their status is updated.
@@ -824,7 +823,6 @@ export class OrderCoreService {
               },
             },
             data: true,
-            documents: true,
           },
         },
         statusHistory: {

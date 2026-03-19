@@ -17,6 +17,7 @@ import { useServiceComments } from '@/hooks/useServiceComments';
 import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
 import { UpdateServiceFulfillmentRequest } from '@/types/service-fulfillment';
 import clientLogger from '@/lib/client-logger';
+import { formatServiceStatus } from '@/lib/status-utils';
 
 interface ServiceFulfillment {
   id: string;
@@ -127,12 +128,7 @@ const statusColors: Record<string, string> = {
   [SERVICE_STATUSES.CANCELLED_DNB]: 'bg-red-100 text-red-800'
 };
 
-const formatStatus = (status: string): string => {
-  return status
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-};
+// Status formatting moved to centralized utility: src/lib/status-utils.ts
 
 const formatDate = (date: string | null): string => {
   if (!date) return '--';
@@ -672,8 +668,11 @@ export function ServiceFulfillmentTable({
         headers: {
           'Content-Type': 'application/json',
         },
+        // CRITICAL: Field name must match API expectation - 'serviceFulfillmentIds' not 'serviceIds'
+        // The bulk assign API expects an array of service fulfillment record IDs,
+        // not service type IDs, to identify which specific service instances to assign
         body: JSON.stringify({
-          serviceIds: Array.from(selectedServices),
+          serviceFulfillmentIds: Array.from(selectedServices),
           vendorId: selectedVendorId
         }),
       });
@@ -998,7 +997,7 @@ export function ServiceFulfillmentTable({
                         aria-label={`Status for ${service.service.name}`}
                       >
                         {SERVICE_STATUS_VALUES.map(status => (
-                          <option key={status} value={status}>{status}</option>
+                          <option key={status} value={status}>{formatServiceStatus(status)}</option>
                         ))}
                       </select>
                     ) : (
@@ -1006,7 +1005,7 @@ export function ServiceFulfillmentTable({
                         className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[service.status] || 'bg-gray-100 text-gray-800'}`}
                       >
                         {statusIcons[service.status]}
-                        {service.status}
+                        {formatServiceStatus(service.status)}
                       </span>
                     )}
                   </td>
@@ -1125,7 +1124,6 @@ export function ServiceFulfillmentTable({
                         {/* Results Section */}
                         <ServiceResultsSection
                           serviceId={service.orderItemId}
-                          serviceFulfillmentId={service.id}
                           serviceName={service.service.name}
                           serviceStatus={service.status.toUpperCase()}
                           orderId={orderId || ''}
@@ -1136,16 +1134,13 @@ export function ServiceFulfillmentTable({
                         <hr className="border-gray-200" />
 
                         {/* Comments Section */}
-                        {/* DUAL ID PATTERN: Pass both IDs to handle comment operations correctly
-                            - serviceId (orderItemId): Used for creating/updating comments (comments table uses orderItemId)
-                            - serviceFulfillmentId: Used for fetching comments in order context (API keys results by this) */}
+                        {/* Comment Section - Now uses only OrderItem ID after fulfillment ID standardization */}
                         <ServiceCommentSection
                           serviceId={service.orderItemId}
                           orderId={orderId}
                           serviceName={service.service.name}
                           serviceType={service.service.code || service.service.category || service.service.name || ''}
                           serviceStatus={service.status.toUpperCase()}
-                          serviceFulfillmentId={service.id}
                         />
                       </div>
                     </td>

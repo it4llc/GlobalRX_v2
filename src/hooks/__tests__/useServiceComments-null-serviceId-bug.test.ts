@@ -70,7 +70,7 @@ describe('useServiceComments - null serviceId bug fix', () => {
 
       // Render hook in order mode (serviceId is null)
       const { result } = renderHook(() =>
-        useServiceComments(null, mockOrderId, 'BACKGROUND_CHECK', 'PROCESSING')
+        useServiceComments(null, mockOrderId, 'BACKGROUND_CHECK', 'processing')
       );
 
       // Wait for initial fetch to complete
