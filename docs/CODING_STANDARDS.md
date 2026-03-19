@@ -49,10 +49,18 @@ prefers to understand what is being built and why before implementation begins.
 Do not jump straight to code — briefly explain the plan, then proceed.
 
 ### 1.5 Minimal Footprint
-
 Only change what is necessary to accomplish the task. Do not refactor unrelated
 code, rename things, or "clean up" files that are not part of the current task.
 Small, focused changes are safer and easier to review.
+Never create files that the architect's plan did not specify. If the architect
+says to modify one file, only that file is changed. If you believe a new file is
+genuinely needed that was not in the plan, stop immediately and explain why to
+Andy before creating anything.
+Never create files just to make tests pass. If a test requires a file that
+should not exist, the test is wrong and must be rewritten — not satisfied by
+creating the file. Creating ghost routes or duplicate service layers to satisfy
+tests introduces technical debt and bypasses the real application code path,
+meaning the tests prove nothing about how the app actually works.
 
 ### 1.6 Confirm Before Deleting Anything
 
@@ -1140,6 +1148,33 @@ vi.mock('fs/promises', () => {
 - Using default imports with object property access allows the mock to intercept calls
 
 ---
+
+11.5 API Route Test Verification
+Before writing any test for an API route, verify that the route actually exists
+in the codebase. Do not assume a route exists based on what the feature requires
+or what would make logical sense.
+Required check before writing API tests:
+bash# Verify the route file exists before writing tests for it
+find src/app/api -name "route.ts" | grep "the-path-you-expect"
+Rules:
+
+Tests must target the actual route path the application uses — not a path
+that you created to make tests pass
+For portal/customer features, routes live under /api/portal/
+For fulfillment features, routes live under /api/fulfillment/
+For admin features, routes live under /api/admin/
+Never create a new route file just to have something to write tests against
+
+Why this matters:
+A test that targets /api/orders/ when the application actually uses
+/api/portal/orders/ proves nothing. The real code path is never exercised,
+bugs are never caught, and the implementer may create a duplicate route just
+to make the test pass — introducing dead code and a false sense of security.
+When the route does not exist yet:
+If you are writing tests before implementation (TDD), make sure the test
+targets the path specified in the architect's plan — not a path you invented.
+Check docs/specs/ for the planned route before writing the test.
+
 
 ## SECTION 12: Monitoring and Observability Standards
 
