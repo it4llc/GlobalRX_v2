@@ -912,9 +912,10 @@ export function ServiceFulfillmentTable({
               const statusDisabled = false;
 
               const isExpanded = expandedRows.has(service.id);
-              // Comments are indexed by OrderItem ID, not ServicesFulfillment ID
-              // This is because ServiceComment.orderItemId links to OrderItem, not ServicesFulfillment
-              const commentCount = commentCounts[service.orderItemId] || { total: 0, internal: 0 };
+              // BUG FIX (March 19, 2026): Comments are indexed by ServicesFulfillment ID when it exists, OrderItem ID otherwise
+              // The API returns data keyed by service.id (ServiceFulfillment.id) for consistency
+              // Fixed comment count lookup to use correct service.id for proper display
+              const commentCount = commentCounts[service.id] || { total: 0, internal: 0 };
               const hasInternalComments = commentCount.internal > 0;
 
               return (
@@ -1136,9 +1137,12 @@ export function ServiceFulfillmentTable({
                         <hr className="border-gray-200" />
 
                         {/* Comments Section */}
-                        {/* Comment Section - Now uses only OrderItem ID after fulfillment ID standardization */}
+                        {/* BUG FIX (March 19, 2026): Fixed serviceId prop to ensure proper comment operations
+                            Previously caused comment creation failures due to ID mismatch
+                            ServiceCommentSection now receives correct service.id for API operations */}
                         <ServiceCommentSection
-                          serviceId={service.orderItemId}
+                          serviceId={service.id}
+                          orderItemId={service.orderItemId}
                           orderId={orderId}
                           serviceName={service.service.name}
                           serviceType={service.service.code || service.service.category || service.service.name || ''}

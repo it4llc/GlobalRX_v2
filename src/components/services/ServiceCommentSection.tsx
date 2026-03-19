@@ -15,7 +15,8 @@ import { useTranslation } from '@/contexts/TranslationContext';
 import type { ServiceCommentWithRelations } from '@/types/comment-template';
 
 interface ServiceCommentSectionProps {
-  serviceId: string; // OrderItem ID - used for all comment operations
+  serviceId: string; // ServiceFulfillment ID when it exists, OrderItem ID otherwise - used for comment lookup
+  orderItemId?: string; // OrderItem ID - used for API calls to create/update comments
   orderId?: string;
   serviceName?: string;
   serviceType?: string;
@@ -45,11 +46,12 @@ function validateServiceId(serviceId: string): string {
   return serviceId;
 }
 
-export function ServiceCommentSection({ serviceId, orderId, serviceName = "Service", serviceType, serviceStatus }: ServiceCommentSectionProps) {
+export function ServiceCommentSection({ serviceId, orderItemId, orderId, serviceName = "Service", serviceType, serviceStatus }: ServiceCommentSectionProps) {
   const { user } = useAuth();
   const { t } = useTranslation();
 
-  // Validate IDs to prevent injection issues
+  // Passive validation: Log invalid IDs for monitoring but don't block rendering
+  // Active validation: validateServiceId() throws errors during API operations
   React.useEffect(() => {
     if (serviceId && !UUID_REGEX.test(serviceId)) {
       clientLogger.error('Invalid serviceId format', { serviceId });
@@ -138,11 +140,11 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
     isInternalOnly?: boolean;
   }) => {
     try {
-      // Validate the service ID for API call
-      const apiServiceId = validateServiceId(serviceId);
+      // Use orderItemId for API call, or fallback to serviceId if not provided
+      const apiServiceId = validateServiceId(orderItemId || serviceId);
 
       // Log without PII (exclude data which contains comment text)
-      clientLogger.info('Creating comment', { apiServiceId, serviceId, orderId });
+      clientLogger.info('Creating comment', { apiServiceId, serviceId, orderItemId, orderId });
       await createComment({ ...data, serviceId: apiServiceId });
       setIsCreateModalOpen(false);
     } catch (error) {
@@ -158,8 +160,8 @@ export function ServiceCommentSection({ serviceId, orderId, serviceName = "Servi
     if (!editingComment) return;
 
     try {
-      // Validate the service ID for API call
-      const apiServiceId = validateServiceId(serviceId);
+      // Use orderItemId for API call, or fallback to serviceId if not provided
+      const apiServiceId = validateServiceId(orderItemId || serviceId);
 
       await updateComment(editingComment.id, { ...data, serviceId: apiServiceId });
       setEditingComment(null);

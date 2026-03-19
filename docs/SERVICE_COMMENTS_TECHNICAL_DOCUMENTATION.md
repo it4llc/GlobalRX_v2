@@ -749,6 +749,48 @@ export interface ServiceCommentResponse {
 - `src/components/fulfillment/OrderDetailsView.tsx` - ID mapping fix
 - `src/hooks/useServiceComments.ts` - Data extraction fix
 
+### Service Comment Display Bug Fix (March 19, 2026)
+
+**Issue:** Service comments stopped displaying after the "Fulfillment ID Standardization" feature was merged. Comments were not appearing in the fulfillment UI despite being stored correctly in the database.
+
+**Root Cause Analysis:**
+1. **Query Table Mismatch:** After fulfillment ID standardization, the API was still querying from ServicesFulfillment table, which missed items without fulfillment records
+2. **Status Field Removed:** serviceFulfillment.status field was removed during standardization, but API was still trying to access it
+3. **ID Mapping Inconsistency:** Frontend components expected specific ID patterns that were inconsistent with the new standardized approach
+
+**Solution Implemented:**
+1. **Database Query Fix:** `getOrderServiceComments()` method in service-comment-service.ts
+   - Changed from querying ServicesFulfillment to OrderItem table
+   - Ensures all order items are included regardless of fulfillment status
+   - Fixed status field access to use OrderItem.status instead of serviceFulfillment.status
+
+2. **Frontend ID Mapping Fix:** Updated OrderDetailsView.tsx
+   - Standardized ID mapping logic for ServiceFulfillmentTable
+   - Added clear documentation explaining the ID mapping strategy
+   - Ensured consistent serviceId prop passing to comment components
+
+3. **Comment Count Display Fix:** Updated ServiceFulfillmentTable.tsx
+   - Fixed comment count lookup to use correct service IDs
+   - Added comprehensive documentation for ID mapping pattern
+   - Improved serviceId prop passing to ServiceCommentSection
+
+4. **Hook Refetch Enhancement:** Modified useServiceComments.ts
+   - Added automatic refetch after comment creation in order mode
+   - Ensures UI stays synchronized with server state
+   - Enhanced error handling and validation
+
+**Technical Details:**
+- **Query Change:** OrderItem.findMany() with serviceFulfillment include, instead of ServicesFulfillment.findMany()
+- **Status Field:** Direct access to item.status, removing dependency on serviceFulfillment.status
+- **ID Strategy:** Hybrid approach using ServicesFulfillment.id when available, OrderItem.id as fallback
+- **Refetch Pattern:** Automatic server sync after comment operations in order context
+
+**Files Modified:**
+- `src/services/service-comment-service.ts` - Query fix and status field correction
+- `src/components/fulfillment/OrderDetailsView.tsx` - ID mapping standardization
+- `src/components/fulfillment/ServiceFulfillmentTable.tsx` - Comment count and serviceId fixes
+- `src/hooks/useServiceComments.ts` - Refetch enhancement for UI synchronization
+
 **Migration Notes:**
 - **Breaking Change:** Bulk order comments API response format changed
 - **Backward Compatible:** Individual service comment operations unchanged
