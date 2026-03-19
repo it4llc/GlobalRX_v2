@@ -262,8 +262,10 @@ export class ServiceCommentService {
       // This ensures UI can find comments using the ID it has available
       result[service.id] = {
         serviceName: service.service.name,
-        serviceStatus: service.status,
-        comments: comments,
+        // Status lives on OrderItem, not ServicesFulfillment
+        // ServicesFulfillment tracks vendor assignment, OrderItem tracks service state
+        serviceStatus: service.orderItem.status,
+        comments: comments as ServiceCommentWithRelations[],
         total: comments.length
       };
     }

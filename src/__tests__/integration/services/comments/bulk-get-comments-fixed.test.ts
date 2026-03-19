@@ -53,9 +53,9 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
           orderId: mockOrderId,
           orderItemId: 'order-item-1', // OrderItem ID
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Processing',
           orderItem: {
             id: 'order-item-1',
+            status: 'Processing',
             comments: [
               {
                 id: 'comment-1-1',
@@ -99,9 +99,9 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
           orderId: mockOrderId,
           orderItemId: 'order-item-2', // OrderItem ID
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
-          status: 'Completed',
           orderItem: {
             id: 'order-item-2',
+            status: 'Completed',
             comments: [
               {
                 id: 'comment-2-1',
@@ -175,9 +175,9 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
           orderId: mockOrderId,
           orderItemId: 'order-item-1',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Completed',
           orderItem: {
             id: 'order-item-1',
+            status: 'Completed',
             comments: [
               {
                 id: 'comment-status',
@@ -225,9 +225,9 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
           orderId: mockOrderId,
           orderItemId: 'order-item-1',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Processing',
           orderItem: {
             id: 'order-item-1',
+            status: 'Processing',
             comments: [
               // Only external comment should be included for customers
               {
@@ -294,7 +294,6 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
           orderId: mockOrderId,
           orderItemId: 'order-item-1',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Processing',
           orderItem: null // No orderItem linked
         },
         {
@@ -302,9 +301,9 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
           orderId: mockOrderId,
           orderItemId: 'order-item-2',
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
-          status: 'Processing',
           orderItem: {
             id: 'order-item-2',
+            status: 'Processing',
             comments: undefined // No comments array
           }
         }
@@ -334,9 +333,9 @@ describe('ServiceCommentService.getOrderServiceComments - Fixed Structure', () =
           orderId: mockOrderId,
           orderItemId: 'order-item-1',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Processing',
           orderItem: {
             id: 'order-item-1',
+            status: 'Processing',
             comments: [
               {
                 id: 'comment-1',

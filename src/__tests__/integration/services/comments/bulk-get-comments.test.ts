@@ -51,8 +51,9 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Processing',
-          comments: [
+          orderItem: {
+            status: 'Processing',
+            comments: [
             {
               id: 'comment-1-1',
               serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -74,13 +75,15 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
+            }
         },
         {
           id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
-          status: 'Completed',
-          comments: [
+          orderItem: {
+            status: 'Completed',
+            comments: [
             {
               id: 'comment-2-1',
               serviceId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -92,6 +95,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
+            }
         }
       ];
 
@@ -122,8 +126,9 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Processing',
-          comments: [
+          orderItem: {
+            status: 'Processing',
+            comments: [
             // Only external comment should be included for customers
             {
               id: 'comment-1-2',
@@ -136,13 +141,16 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
+            }
         },
         {
           id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
-          status: 'Processing',
-          comments: [] // No external comments
+          orderItem: {
+            status: 'Processing',
+            comments: [] // No external comments
+          }
         }
       ];
 
@@ -168,7 +176,9 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
         where: { orderId: mockOrderId },
         include: {
           service: true,
-          comments: {
+          orderItem: {
+            include: {
+              comments: {
             where: { isInternalOnly: false },
             orderBy: { createdAt: 'desc' },
             include: {
@@ -177,6 +187,10 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: true
             }
           }
+
+              }
+
+            }
         }
       });
     });
@@ -187,8 +201,9 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Processing',
-          comments: [
+          orderItem: {
+            status: 'Processing',
+            comments: [
             {
               id: 'comment-1-1',
               serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -210,6 +225,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
+            }
         }
       ];
 
@@ -230,7 +246,9 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
         where: { orderId: mockOrderId },
         include: {
           service: true,
-          comments: {
+          orderItem: {
+            include: {
+              comments: {
             where: {},
             orderBy: { createdAt: 'desc' },
             include: {
@@ -239,6 +257,10 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: true
             }
           }
+
+              }
+
+            }
         }
       });
     });
@@ -263,15 +285,19 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Draft',
-          comments: []
+          orderItem: {
+            status: 'Draft',
+            comments: []
+          }
         },
         {
           id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
-          status: 'Draft',
-          comments: []
+          orderItem: {
+            status: 'Draft',
+            comments: []
+          }
         }
       ];
 
@@ -295,8 +321,9 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Processing',
-          comments: [
+          orderItem: {
+            status: 'Processing',
+            comments: [
             {
               id: 'comment-1',
               serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -308,20 +335,24 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
+            }
         },
         {
           id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
-          status: 'Draft',
-          comments: []
+          orderItem: {
+            status: 'Draft',
+            comments: []
+          }
         },
         {
           id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-3', name: 'Education Verification', code: 'EDUVER' },
-          status: 'Completed',
-          comments: [
+          orderItem: {
+            status: 'Completed',
+            comments: [
             {
               id: 'comment-3-1',
               serviceId: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -343,6 +374,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
+            }
         }
       ];
 
@@ -368,8 +400,9 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Processing',
-          comments: [
+          orderItem: {
+            status: 'Processing',
+            comments: [
             {
               id: 'comment-newest',
               serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -401,6 +434,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
+            }
         }
       ];
 
@@ -442,8 +476,10 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
             code: 'BGCHECK',
             description: 'Criminal background verification'
           },
-          status: 'Processing',
-          comments: []
+          orderItem: {
+            status: 'Processing',
+            comments: []
+          }
         }
       ];
 
@@ -465,8 +501,9 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          status: 'Processing',
-          comments: [
+          orderItem: {
+            status: 'Processing',
+            comments: [
             {
               id: 'comment-1',
               serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -493,6 +530,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               }
             }
           ]
+            }
         }
       ];
 
@@ -518,15 +556,19 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
           id: 'unique-service-id-123',
           orderId: mockOrderId,
           service: { id: 'def-1', name: 'Test Service', code: 'TEST' },
-          status: 'Draft',
-          comments: []
+          orderItem: {
+            status: 'Draft',
+            comments: []
+          }
         },
         {
           id: 'another-service-id-456',
           orderId: mockOrderId,
           service: { id: 'def-2', name: 'Another Service', code: 'ANOTHER' },
-          status: 'Draft',
-          comments: []
+          orderItem: {
+            status: 'Draft',
+            comments: []
+          }
         }
       ];
 

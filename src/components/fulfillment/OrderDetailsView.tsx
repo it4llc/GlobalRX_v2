@@ -354,10 +354,10 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                     }, {} as Record<string, string>) || null;
 
                     return {
-                      // ID MAPPING FIX: Use ServiceFulfillment ID if available, otherwise fall back to OrderItem ID
-                      // This ensures ServiceFulfillmentTable gets the correct ID for comment lookups
-                      // ServiceFulfillment.id is what comments API keys results by
-                      id: item.serviceFulfillment?.id || item.id,
+                      // ID MAPPING FIX: Use OrderItem ID as the primary identifier
+                      // Comments are indexed by OrderItem ID, not ServiceFulfillment ID
+                      // ServiceFulfillmentTable needs OrderItem ID for comment lookups
+                      id: item.id,
                       orderId: order.id,
                       orderItemId: item.id,
                       serviceId: item.service?.id || '',
