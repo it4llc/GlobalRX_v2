@@ -109,38 +109,6 @@ model Service {
   @@map("services")
 }
 
-model DataField {
-  id           String  @id @default(uuid())
-  serviceId    String
-  label        String
-  shortName    String
-  dataType     String
-  instructions String?
-
-  @@map("data_fields")
-}
-
-model Document {
-  id           String  @id @default(uuid())
-  serviceId    String
-  name         String
-  instructions String?
-  scope        String
-  filePath     String?
-
-  @@map("documents")
-}
-
-model Translation {
-  id       String @id @default(uuid())
-  labelKey String
-  language String
-  value    String
-
-  @@unique([labelKey, language])
-  @@map("translations")
-}
-
 model Customer {
   id               String            @id @default(uuid())
   name             String
@@ -342,20 +310,6 @@ model CustomerUser {
 
   @@index([customerId])
   @@map("customer_users")
-}
-
-model OrderStatus {
-  id                  String   @id @default(uuid())
-  code                String   @unique
-  name                String
-  description         String?
-  color               String?
-  sequence            Int
-  isActive            Boolean  @default(true)
-  allowedNextStatuses Json?
-  createdAt           DateTime @default(now())
-
-  @@map("order_statuses")
 }
 
 model Order {
