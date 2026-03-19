@@ -664,12 +664,12 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 
 ---
 
-## Orphaned — Pending Removal
+## Orphaned — Removed
 
 ### DataField
 **Model:** `DataField`
 **Table:** `data_fields`
-**Status:** ORPHANED (empty, data lives in dsx_requirements)
+**Status:** REMOVED (Removed March 18, 2026 via migration remove_orphaned_tables)
 **Description:** Previously stored field definitions but was replaced by the unified DSXRequirement table where type='field'.
 
 **Columns:**
@@ -685,7 +685,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 ### Document
 **Model:** `Document`
 **Table:** `documents`
-**Status:** ORPHANED (empty, data lives in dsx_requirements)
+**Status:** REMOVED (Removed March 18, 2026 via migration remove_orphaned_tables)
 **Description:** Previously stored document requirements but was replaced by the unified DSXRequirement table where type='document'.
 
 **Columns:**
@@ -701,7 +701,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 ### Translation
 **Model:** `Translation`
 **Table:** `translations`
-**Status:** ORPHANED (empty, data lives in JSON files)
+**Status:** REMOVED (Removed March 18, 2026 via migration remove_orphaned_tables)
 **Description:** Was intended for database-driven translations but the application uses JSON files in src/translations/ instead.
 
 **Columns:**
@@ -715,7 +715,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 ### OrderStatus
 **Model:** `OrderStatus`
 **Table:** `order_statuses`
-**Status:** ORPHANED (empty, data lives in orders.statusCode field)
+**Status:** REMOVED (Removed March 18, 2026 via migration remove_orphaned_tables)
 **Description:** Was intended as a lookup table for order statuses but the application stores status directly as strings in orders.statusCode and tracks history in order_status_history.
 
 **Columns:**
