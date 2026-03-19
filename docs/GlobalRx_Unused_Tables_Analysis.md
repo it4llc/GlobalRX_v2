@@ -25,7 +25,7 @@ Tables fall into four categories:
 | customer_users | 0 | Yes | Yes | Likely dead code — users moved to User Admin |
 | data_fields | 0 | No | Partial | Orphaned — data stored in dsx_requirements |
 | documents | 0 | No | Types only | Orphaned — data stored in dsx_requirements |
-| order_documents | 0 | No | No | Placeholder — not implemented yet |
+| order_documents | 0 | No | No | Removed — confirmed orphaned, replaced by ServiceAttachment |
 | order_statuses | 0 | Yes | Yes | Orphaned — statuses stored as string in orders.statusCode, history in order_status_history |
 | package_services | 0 | No | Yes | Planned — needed when packages feature is built |
 | packages | 0 | Yes | Yes | Planned — packages feature not yet complete |
@@ -68,12 +68,14 @@ These tables are empty because the features that use them have not been fully bu
 - **Why Empty:** Same as workflows — dependent on Candidate Workflow feature.
 - **Action:** Keep. Will be used when Candidate Workflow is implemented.
 
-### order_documents
-- **Prisma Model:** OrderDocument
+### order_documents (REMOVED)
+- **Prisma Model:** OrderDocument (removed March 18, 2026)
+- **Rows:** 0
 - **API Routes:** None
 - **UI Components:** None
-- **Why Empty:** Document upload for orders is planned but not yet built.
-- **Action:** Keep as a placeholder for future document upload functionality.
+- **Investigation:** No code references existed anywhere in the codebase
+- **Replacement:** Functionality replaced by ServiceAttachment model
+- **Action Taken:** Table and Prisma model removed via migration `remove_order_document_table` on March 18, 2026
 
 ### city_mappings
 - **Prisma Model:** CityMapping
@@ -175,10 +177,10 @@ These tables exist in the schema but the functionality they were intended to sup
 ### No Action Needed
 - `packages`, `package_services` — keep for packages feature
 - `workflows`, `workflow_sections` — keep for Candidate Workflow feature
-- `order_documents` — keep as placeholder for document upload
 - `city_mappings` — keep as placeholder
 - `address_entries` — keep, not needed now but may be useful later
 - `service_audit_log` — active, will populate as platform is used
+- `order_data` — ACTIVE, contains 56 rows of production data (service-specific form field responses). Actively read by ServiceOrderDataService and displayed in fulfillment UI. Stores data that does NOT exist in ServicesFulfillment (company names, school addresses, degree types, etc.). Cannot be removed.
 
 ---
 
