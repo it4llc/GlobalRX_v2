@@ -5,8 +5,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import fsPromises from 'fs/promises';
+import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { isTerminalStatus } from '@/types/service-results';
@@ -254,8 +254,8 @@ export async function POST(
       orderItemId
     );
 
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    if (!fs.existsSync(uploadDir)) {
+      await fsPromises.mkdir(uploadDir, { recursive: true });
     }
 
     // Generate unique filename with original name preserved
@@ -268,7 +268,7 @@ export async function POST(
     try {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
+      await fsPromises.writeFile(filePath, buffer);
     } catch (error) {
       logger.error('Failed to save file:', { error, fileName });
       return NextResponse.json({ error: 'Failed to save file' }, { status: 500 });
@@ -276,26 +276,14 @@ export async function POST(
 
     // Save attachment record in database transaction
     const attachment = await prisma.$transaction(async (tx) => {
-      // Get the user's integer userId
-      const dbUser = await tx.user.findUnique({
-        where: { id: user.id },
-        select: { userId: true }
-      });
-
-      if (!dbUser || !dbUser.userId) {
-        throw new Error('User not found');
-      }
-
-      const userIdInt = dbUser.userId;
-
-      // Create attachment record
+      // Create attachment record using UUID directly
       const newAttachment = await tx.serviceAttachment.create({
         data: {
           serviceFulfillmentId: fulfillment.id,
           fileName: file.name,
           filePath: relativePath,
           fileSize: file.size,
-          uploadedBy: userIdInt
+          uploadedBy: user.id // Now uses UUID directly
         }
       });
 
@@ -305,7 +293,7 @@ export async function POST(
           entityType: 'service_attachment',
           entityId: newAttachment.id.toString(),
           action: 'upload',
-          userId: user.id // Use the string UUID for audit log
+          userId: user.id
         }
       });
 
