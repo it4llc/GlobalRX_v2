@@ -920,7 +920,6 @@ export class OrderService {
             service: true,
             location: true,
             data: true,
-            documents: true,
           },
         },
         statusHistory: {
