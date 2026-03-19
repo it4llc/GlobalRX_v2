@@ -90,36 +90,6 @@ These tables are empty because the features that use them have not been fully bu
 
 These tables exist in the schema but the application was refactored to store the same data in a different table. The old tables are empty and the old Prisma models still exist but are no longer used by any active route.
 
-### data_fields
-- **Prisma Model:** DataField
-- **Where Data Actually Lives:** `dsx_requirements` table (`type = 'field'`) — 17 records confirmed
-- **Active Routes:** `/api/data-rx/fields` reads from `dsx_requirements`, not `data_fields`
-- **Orphaned Route:** `/api/available-requirements` was querying `data_fields` — this route has been deleted
-- **Why Empty:** The platform was migrated from separate `data_fields` and `documents` tables to a unified `dsx_requirements` table. The old model was not removed.
-- **Action:** Candidate for removal in a future cleanup. The Prisma model and table can be dropped safely once confirmed no other references exist.
-
-### documents
-- **Prisma Model:** Document
-- **Where Data Actually Lives:** `dsx_requirements` table (`type = 'document'`) — 5 records confirmed
-- **Active Routes:** `/api/data-rx/documents` reads from `dsx_requirements`, not `documents`
-- **Why Empty:** Same migration as `data_fields` — moved to unified `dsx_requirements` table.
-- **Action:** Candidate for removal in a future cleanup alongside `data_fields`.
-
-### translations
-- **Prisma Model:** Translation
-- **Where Data Actually Lives:** JSON files in `src/translations/` (e.g. `en.json`, `es.json`)
-- **Active Routes:** None — translations are served from JSON files, not the database
-- **Why Empty:** The translation system was implemented using file-based JSON rather than database storage. The DB table was never used.
-- **Action:** Candidate for removal in a future cleanup. No impact on current functionality.
-
-### order_statuses
-- **Prisma Model:** OrderStatus
-- **API Routes:** Yes — `/api/fulfillment/orders/[id]/route.ts`
-- **UI Components:** Yes — `OrderStatusDropdown.tsx`, `OrderDetailsSidebar.tsx`, `order-status-progression.service.ts`
-- **Why Empty:** The application stores order status as a plain string directly in the `orders.statusCode` column using hardcoded constants from `src/constants/order-status.ts`. Order status history is tracked in the `order_status_history` table and is visible in the sidebar. The `order_statuses` lookup table was never used.
-- **Where Data Actually Lives:** `orders.statusCode` (string field) for current status. `order_status_history` table for history — confirmed working and visible in the sidebar.
-- **Action:** Candidate for removal in a future cleanup alongside `data_fields` and `documents`. The Prisma model and table can be dropped safely once confirmed no active code references `prisma.orderStatus`.
-
 ---
 
 ## Category 3: Likely Dead Code — Needs Verification
@@ -167,11 +137,14 @@ These tables exist in the schema but the functionality they were intended to sup
 ### Immediate — Already Done
 - Deleted orphaned `/api/available-requirements` route (was querying `data_fields` and `documents` tables that had no data)
 
+### Removed Tables (March 18, 2026)
+The following orphaned tables were removed via migration `remove_orphaned_tables` on March 18, 2026:
+- `data_fields` — data migrated to `dsx_requirements` table (`type = 'field'`)
+- `documents` — data migrated to `dsx_requirements` table (`type = 'document'`)
+- `translations` — application uses JSON files in `src/translations/`
+- `order_statuses` — status stored directly in `orders.statusCode`, history in `order_status_history`
+
 ### Future Cleanup Pass
-- Remove `data_fields` Prisma model and database table — data lives in `dsx_requirements`
-- Remove `documents` Prisma model and database table — data lives in `dsx_requirements`
-- Remove `translations` Prisma model and database table — app uses JSON files
-- Remove `order_statuses` Prisma model and database table — status stored in `orders.statusCode`, history in `order_status_history`
 - Investigate `customer_users` — confirm whether customer user management moved entirely to User Admin, then remove dead code if confirmed
 
 ### No Action Needed
