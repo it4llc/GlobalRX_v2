@@ -483,7 +483,7 @@ describe('ServiceFulfillmentTable - Expandable Row Behavior', () => {
           serviceId: '660e8400-e29b-41d4-a716-446655440001', // orderItemId
           serviceFulfillmentId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           serviceName: 'Criminal Background Check',
-          serviceStatus: 'PENDING',
+          serviceStatus: 'pending',
           orderId: mockOrderId
         }),
         expect.anything()

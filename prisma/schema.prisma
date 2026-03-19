@@ -421,7 +421,6 @@ model OrderItem {
   updatedAt          DateTime             @updatedAt
   updatedById        String?
   data               OrderData[]
-  documents          OrderDocument[]
   location           Country              @relation(fields: [locationId], references: [id])
   order              Order                @relation(fields: [orderId], references: [id])
   service            Service              @relation(fields: [serviceId], references: [id])
@@ -446,20 +445,6 @@ model OrderData {
   @@map("order_data")
 }
 
-model OrderDocument {
-  id           String    @id @default(uuid())
-  orderItemId  String
-  documentType String
-  fileName     String
-  filePath     String
-  fileSize     Int
-  mimeType     String
-  uploadedAt   DateTime  @default(now())
-  orderItem    OrderItem @relation(fields: [orderItemId], references: [id])
-
-  @@index([orderItemId])
-  @@map("order_documents")
-}
 
 model AuditLog {
   id         String   @id @default(uuid())
@@ -589,9 +574,9 @@ model ServicesFulfillment {
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
   results                String?              @db.Text
-  resultsAddedBy         Int?
+  resultsAddedBy         String?
   resultsAddedAt         DateTime?
-  resultsLastModifiedBy  Int?
+  resultsLastModifiedBy  String?
   resultsLastModifiedAt  DateTime?
   auditLogs              ServiceAuditLog[]
   attachments            ServiceAttachment[]
@@ -601,8 +586,8 @@ model ServicesFulfillment {
   order                  Order                @relation(fields: [orderId], references: [id])
   orderItem              OrderItem            @relation(fields: [orderItemId], references: [id])
   service                Service              @relation(fields: [serviceId], references: [id])
-  resultsAddedByUser     User?                @relation("ResultsAddedBy", fields: [resultsAddedBy], references: [userId])
-  resultsModifiedByUser  User?                @relation("ResultsModifiedBy", fields: [resultsLastModifiedBy], references: [userId])
+  resultsAddedByUser     User?                @relation("ResultsAddedBy", fields: [resultsAddedBy], references: [id])
+  resultsModifiedByUser  User?                @relation("ResultsModifiedBy", fields: [resultsLastModifiedBy], references: [id])
 
   @@index([orderId])
   @@index([orderItemId])
@@ -679,10 +664,10 @@ model ServiceAttachment {
   fileName             String               @db.VarChar(255)
   filePath             String               @db.VarChar(500)
   fileSize             Int
-  uploadedBy           Int
+  uploadedBy           String
   uploadedAt           DateTime             @default(now())
   serviceFulfillment   ServicesFulfillment  @relation(fields: [serviceFulfillmentId], references: [id], onDelete: Cascade)
-  uploadedByUser       User                 @relation("AttachmentUploadedBy", fields: [uploadedBy], references: [userId])
+  uploadedByUser       User                 @relation("AttachmentUploadedBy", fields: [uploadedBy], references: [id])
 
   @@index([serviceFulfillmentId])
   @@index([uploadedAt])

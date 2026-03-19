@@ -68,7 +68,7 @@ describe('PUT /api/services/[id]/status', () => {
     user: {
       id: mockUserId,
       email: 'user@example.com',
-      type: 'internal',
+      userType: 'internal',
       permissions: { fulfillment: true }
     }
   };
@@ -113,7 +113,7 @@ describe('PUT /api/services/[id]/status', () => {
         user: {
           id: mockUserId,
           email: 'user@example.com',
-          type: 'internal',
+          userType: 'internal',
           permissions: {}
         }
       };
@@ -139,7 +139,7 @@ describe('PUT /api/services/[id]/status', () => {
         user: {
           id: 'vendor-123',
           email: 'vendor@example.com',
-          type: 'vendor',
+          userType: 'vendor',
           permissions: { fulfillment: true }
         }
       };

@@ -1,5 +1,3 @@
-// .claude/agents/business-analyst.md
-
 ---
 name: business-analyst
 description: ALWAYS use this agent FIRST before any new feature or change is built. Turns plain English feature requests into a detailed written specification that all other agents depend on. MUST BE USED before the architect, test-writer, or implementer agents are invoked. MUST save the confirmed specification to docs/specs/ before finishing.

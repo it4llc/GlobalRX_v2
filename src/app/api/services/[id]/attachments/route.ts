@@ -5,14 +5,30 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import fsPromises from 'fs/promises';
+import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { isTerminalStatus } from '@/types/service-results';
 import type { ServiceUser } from '@/types/service-results';
 
-// GET /api/services/[id]/attachments - List attachments
+/**
+ * GET /api/services/[id]/attachments - List attachments for a service
+ *
+ * FULFILLMENT ID STANDARDIZATION: The [id] parameter is an OrderItem ID, not a Service ID.
+ * This endpoint lists attachments for a specific service instance within an order.
+ * The path uses "services" to align with user mental models but operates on OrderItems.
+ *
+ * Required permissions: fulfillment.view for internal users, or ownership for customers/vendors
+ *
+ * Returns: { attachments: ServiceAttachment[] }
+ *
+ * Errors:
+ *   401: Not authenticated
+ *   403: Insufficient permissions or no access to service
+ *   404: Service not found or ServicesFulfillment not found
+ *   500: Server error
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -28,6 +44,8 @@ export async function GET(
 
   try {
     // Fetch the service with fulfillment info
+    // FULFILLMENT ID STANDARDIZATION: We lookup OrderItem by ID, then validate ServicesFulfillment exists
+    // This ensures we only process attachments for services with proper fulfillment tracking
     const orderItem = await prisma.orderItem.findUnique({
       where: { id: orderItemId },
       include: {
@@ -35,7 +53,13 @@ export async function GET(
       }
     });
 
-    if (!orderItem || !orderItem.serviceFulfillment) {
+    if (!orderItem) {
+      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+    }
+
+    // FULFILLMENT ID STANDARDIZATION: We do NOT auto-create ServicesFulfillment records
+    // This prevents masking data integrity issues - if fulfillment doesn't exist, something is wrong
+    if (!orderItem.serviceFulfillment) {
       return NextResponse.json({ error: 'Service not found' }, { status: 404 });
     }
 
@@ -103,7 +127,32 @@ export async function GET(
   }
 }
 
-// POST /api/services/[id]/attachments - Upload attachment
+/**
+ * POST /api/services/[id]/attachments - Upload attachment for a service
+ *
+ * FULFILLMENT ID STANDARDIZATION: The [id] parameter is an OrderItem ID, not a Service ID.
+ * This endpoint uploads attachments for a specific service instance within an order.
+ *
+ * Business Rules:
+ * - Only PDF files allowed (max 5MB)
+ * - Customers cannot upload attachments (view only)
+ * - Vendors can only upload to their assigned services
+ * - Internal users with fulfillment.edit can upload to any service
+ * - Cannot upload to services in terminal status (completed/cancelled)
+ *
+ * Required permissions: fulfillment.edit for internal users, or vendor assignment for vendors
+ *
+ * Body: FormData with 'file' field containing PDF
+ * Returns: ServiceAttachment object
+ *
+ * Errors:
+ *   401: Not authenticated
+ *   403: Insufficient permissions or customers attempting upload
+ *   404: Service not found or ServicesFulfillment not found
+ *   400: Invalid file type or size
+ *   409: Service in terminal status
+ *   500: File save error or database error
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -152,7 +201,11 @@ export async function POST(
       }
     });
 
-    if (!orderItem || !orderItem.serviceFulfillment) {
+    if (!orderItem) {
+      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+    }
+
+    if (!orderItem.serviceFulfillment) {
       return NextResponse.json({ error: 'Service not found' }, { status: 404 });
     }
 
@@ -201,8 +254,8 @@ export async function POST(
       orderItemId
     );
 
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    if (!fs.existsSync(uploadDir)) {
+      await fsPromises.mkdir(uploadDir, { recursive: true });
     }
 
     // Generate unique filename with original name preserved
@@ -215,7 +268,7 @@ export async function POST(
     try {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
+      await fsPromises.writeFile(filePath, buffer);
     } catch (error) {
       logger.error('Failed to save file:', { error, fileName });
       return NextResponse.json({ error: 'Failed to save file' }, { status: 500 });
@@ -223,26 +276,14 @@ export async function POST(
 
     // Save attachment record in database transaction
     const attachment = await prisma.$transaction(async (tx) => {
-      // Get the user's integer userId
-      const dbUser = await tx.user.findUnique({
-        where: { id: user.id },
-        select: { userId: true }
-      });
-
-      if (!dbUser || !dbUser.userId) {
-        throw new Error('User not found');
-      }
-
-      const userIdInt = dbUser.userId;
-
-      // Create attachment record
+      // Create attachment record using UUID directly
       const newAttachment = await tx.serviceAttachment.create({
         data: {
           serviceFulfillmentId: fulfillment.id,
           fileName: file.name,
           filePath: relativePath,
           fileSize: file.size,
-          uploadedBy: userIdInt
+          uploadedBy: user.id // Now uses UUID directly
         }
       });
 
@@ -252,7 +293,7 @@ export async function POST(
           entityType: 'service_attachment',
           entityId: newAttachment.id.toString(),
           action: 'upload',
-          userId: user.id // Use the string UUID for audit log
+          userId: user.id
         }
       });
 

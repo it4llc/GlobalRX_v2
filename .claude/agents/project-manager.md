@@ -1,5 +1,3 @@
-// .claude/agents/project-manager.md
-
 ---
 name: project-manager
 description: ALWAYS use this agent BEFORE build-feature for any non-trivial request. Evaluates the scope of a feature request, pushes back if it is too large, and breaks it into a logical sequence of small self-contained phases. Each phase becomes its own /build-feature run. MUST BE USED before business-analyst on any request that involves more than one distinct piece of functionality.
