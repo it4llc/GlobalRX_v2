@@ -912,7 +912,9 @@ export function ServiceFulfillmentTable({
               const statusDisabled = false;
 
               const isExpanded = expandedRows.has(service.id);
-              const commentCount = commentCounts[service.id] || { total: 0, internal: 0 };
+              // Comments are indexed by OrderItem ID, not ServicesFulfillment ID
+              // This is because ServiceComment.orderItemId links to OrderItem, not ServicesFulfillment
+              const commentCount = commentCounts[service.orderItemId] || { total: 0, internal: 0 };
               const hasInternalComments = commentCount.internal > 0;
 
               return (
