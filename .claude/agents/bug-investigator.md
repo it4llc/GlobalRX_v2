@@ -1,5 +1,3 @@
-# .claude/agents/bug-investigator.md
-
 ---
 name: bug-investigator
 description: ALWAYS use this agent FIRST when a bug is reported. Investigates the root cause before any code is changed. Read-only — produces a written investigation report and proposed fix approach only. MUST BE USED before the test-writer and implementer when fixing bugs. Also used as Stage 1 of /fix-tests to categorize failing tests across the suite.
