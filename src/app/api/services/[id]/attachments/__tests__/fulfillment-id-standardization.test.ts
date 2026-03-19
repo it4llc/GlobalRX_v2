@@ -131,7 +131,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
           fileName: 'test1.pdf',
           filePath: 'uploads/test1.pdf',
           fileSize: 1024,
-          uploadedBy: 1,
+          uploadedBy: 'user-uuid-1',
           uploadedAt: new Date('2024-01-15T10:00:00Z')
         },
         {
@@ -139,7 +139,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
           fileName: 'test2.pdf',
           filePath: 'uploads/test2.pdf',
           fileSize: 2048,
-          uploadedBy: 2,
+          uploadedBy: 'user-uuid-2',
           uploadedAt: new Date('2024-01-16T10:00:00Z')
         }
       ];
@@ -245,9 +245,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         }
       };
 
-      const mockDbUser = {
-        userId: 1
-      };
+      // No need to mock user lookup anymore - we use UUID directly
 
       const mockNewAttachment = {
         id: 'attachment-new',
@@ -255,7 +253,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         fileName: 'test.pdf',
         filePath: 'uploads/service-results/order-456/order-item-123/uuid123_test.pdf',
         fileSize: 1024,
-        uploadedBy: 1
+        uploadedBy: 'user-123'
       };
 
       mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItem);
@@ -272,9 +270,6 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
       // Mock transaction
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         const tx = {
-          user: {
-            findUnique: vi.fn().mockResolvedValue(mockDbUser)
-          },
           serviceAttachment: {
             create: vi.fn().mockResolvedValue(mockNewAttachment)
           },

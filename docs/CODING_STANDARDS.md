@@ -1098,6 +1098,47 @@ src/
     └── __tests__/          # API route tests
 ```
 
+### 11.4 Mocking Node.js Built-in Modules (Vitest ESM Mode)
+
+When testing code that uses Node.js built-in modules (fs, fs/promises, path, crypto, etc.), special care must be taken due to ESM module binding limitations in Vitest:
+
+**Implementation Requirements:**
+- Route/implementation files MUST use default imports: `import fs from 'fs'`
+- Route code MUST call through the module object: `fs.existsSync()`, NOT `existsSync()`
+- Named imports like `import { existsSync } from 'fs'` will NOT work because the binding gets locked at import time
+
+**Test Mock Requirements:**
+- Mock factories MUST provide functions on BOTH the default object AND as named exports
+- This ensures compatibility with both implementation patterns and test utilities
+
+**Example Mock Pattern:**
+```javascript
+// For fs module
+vi.mock('fs', () => {
+  const existsSyncFn = vi.fn().mockReturnValue(false);
+  return {
+    default: { existsSync: existsSyncFn },
+    existsSync: existsSyncFn
+  };
+});
+
+// For fs/promises module
+vi.mock('fs/promises', () => {
+  const writeFileFn = vi.fn();
+  const mkdirFn = vi.fn();
+  return {
+    default: { writeFile: writeFileFn, mkdir: mkdirFn },
+    writeFile: writeFileFn,
+    mkdir: mkdirFn
+  };
+});
+```
+
+**Why This Pattern Is Required:**
+- Vitest in ESM mode cannot reliably override named export bindings from Node.js built-in modules
+- The production import creates a direct binding that cannot be mocked after import
+- Using default imports with object property access allows the mock to intercept calls
+
 ---
 
 ## SECTION 12: Monitoring and Observability Standards

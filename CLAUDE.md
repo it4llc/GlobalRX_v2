@@ -181,6 +181,24 @@ When refactoring existing code:
 3. **Extract business logic** into testable services/hooks
 4. **Ask before changing** any business behavior, even if it seems like a bug
 
+## Testing Patterns
+
+### Mocking Node.js Built-in Modules (Vitest ESM Mode)
+When mocking Node.js built-in modules (fs, fs/promises, path, crypto, etc.):
+- Route/implementation files MUST use default imports: `import fs from 'fs'`
+- Route code MUST call through the module object: `fs.existsSync()`, NOT `existsSync()`
+- Named imports like `import { existsSync } from 'fs'` will NOT work because the binding gets locked at import time
+- Test mock factories MUST put mock functions on BOTH the default object AND as named exports:
+```js
+vi.mock('fs', () => {
+  const existsSyncFn = vi.fn().mockReturnValue(false);
+  return {
+    default: { existsSync: existsSyncFn },
+    existsSync: existsSyncFn
+  };
+});
+```
+
 ## 🤖 Agent Workflow
 
 This project uses a team of specialized subagents to enforce TDD.
