@@ -309,7 +309,10 @@ export async function GET(
           assignedVendor: {
             select: {
               name: true,
-              email: true
+              // CRITICAL: VendorOrganization model uses 'contactEmail' field, NOT 'email'
+              // Bug fix 2026-03-19: Changed from 'email: true' to prevent Prisma field error
+              // See: docs/bug-fixes/2026-03-19-vendor-email-field-error.md
+              contactEmail: true
             }
           }
         }
