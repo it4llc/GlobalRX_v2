@@ -449,9 +449,9 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `createdAt` (DateTime, required): Creation timestamp
 - `updatedAt` (DateTime, required): Last modification timestamp
 - `results` (String, optional): Fulfillment results/findings
-- `resultsAddedBy` (String, optional): User who added results
+- `resultsAddedBy` (String, optional): User who added results (UUID reference to User.id)
 - `resultsAddedAt` (DateTime, optional): When results were added
-- `resultsLastModifiedBy` (String, optional): User who last modified results
+- `resultsLastModifiedBy` (String, optional): User who last modified results (UUID reference to User.id)
 - `resultsLastModifiedAt` (DateTime, optional): When results were last modified
 
 **Relationships:**
@@ -539,7 +539,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `fileName` (String, required): Original filename
 - `filePath` (String, required): Storage path on server
 - `fileSize` (Int, required): File size in bytes
-- `uploadedBy` (String, required): User who uploaded the file
+- `uploadedBy` (String, required): User who uploaded the file (UUID reference to User.id)
 - `uploadedAt` (DateTime, required): Upload timestamp
 
 **Relationships:**

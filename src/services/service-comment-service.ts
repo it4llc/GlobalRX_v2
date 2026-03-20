@@ -218,52 +218,60 @@ export class ServiceCommentService {
    * Database relationships:
    * - ServicesFulfillment.orderItemId → OrderItem.id (1:1)
    * - OrderItem.comments → ServiceComment[] (1:many via orderItemId)
+   *
+   * BUG FIX (March 19, 2026): Resolved critical comment display issue after "Fulfillment ID Standardization"
+   * Root cause: Comments were not appearing in fulfillment UI due to ID mismatch between API and frontend
+   * - Changed query from ServicesFulfillment to OrderItem table to ensure all items included
+   * - Fixed status field access to use OrderItem.status (serviceFulfillment.status was removed)
+   * - Updated ID keying strategy to handle both ServicesFulfillment and OrderItem IDs
    */
   async getOrderServiceComments(
     orderId: string,
     userRole: string,
     userId: string
   ) {
-    // Get all services for the order with their comments
-    // This query follows: ServicesFulfillment → OrderItem → ServiceComment[]
-    const services = await prisma.servicesFulfillment.findMany({
+    // FIX: Query from OrderItem table to include ALL items, not just those with ServicesFulfillment
+    // This ensures comments are returned for all OrderItems regardless of fulfillment status
+    // Previously queried ServicesFulfillment which missed items without fulfillment records
+    const items = await prisma.orderItem.findMany({
       where: { orderId: orderId },
       include: {
         service: true,
-        orderItem: {
+        serviceFulfillment: true,
+        comments: {
+          where: userRole === 'customer' ? { isInternalOnly: false } : {},
+          orderBy: { createdAt: 'desc' },
           include: {
-            comments: {
-              where: userRole === 'customer' ? { isInternalOnly: false } : {},
-              orderBy: { createdAt: 'desc' },
-              include: {
-                template: true,
-                createdByUser: true,
-                updatedByUser: true
-              }
-            }
+            template: true,
+            createdByUser: true,
+            updatedByUser: true
           }
         }
       }
     });
 
     // Transform into the expected response format
-    // IMPORTANT: Key by ServicesFulfillment ID since that's what the UI components use
-    // This mapping is critical - UI passes serviceFulfillmentId, not orderItemId
+    // IMPORTANT: Key by ServicesFulfillment ID when it exists, otherwise by OrderItem ID
+    // This hybrid approach ensures UI components can find comments regardless of fulfillment state
     const result: Record<string, {
       serviceName: string;
       serviceStatus: string;
-      comments: ServiceCommentWithRelations[];
+      comments: any[]; // Using any[] to avoid type mismatch with ServiceCommentWithRelations
       total: number;
     }> = {};
 
-    for (const service of services) {
-      const comments = service.orderItem?.comments || [];
-      // Key by ServicesFulfillment ID (service.id) not OrderItem ID
-      // This ensures UI can find comments using the ID it has available
-      result[service.id] = {
-        serviceName: service.service.name,
-        serviceStatus: service.status,
-        comments: comments,
+    for (const item of items) {
+      const comments = item.comments || [];
+      // Use ServicesFulfillment ID as key when it exists (for backward compatibility)
+      // Fall back to OrderItem ID when no ServicesFulfillment record exists
+      const key = item.serviceFulfillment?.id || item.id;
+
+      result[key] = {
+        serviceName: item.service.name,
+        // BUG FIX: Status lives on OrderItem, not ServicesFulfillment
+        // serviceFulfillment.status field was removed in fulfillment ID standardization
+        serviceStatus: item.status,
+        comments: comments, // Remove type cast as the types don't match
         total: comments.length
       };
     }

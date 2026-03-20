@@ -138,8 +138,9 @@ describe('ServiceFulfillmentTable - Expandable Row Behavior', () => {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
-            'f47ac10b-58cc-4372-a567-0e02b2c3d479': { total: 3, internal: 2 },
-            'a47ac10b-58cc-4372-a567-0e02b2c3d479': { total: 1, internal: 0 }
+            // Key by orderItemId, not ServicesFulfillment.id
+            '660e8400-e29b-41d4-a716-446655440001': { total: 3, internal: 2 },
+            '660e8400-e29b-41d4-a716-446655440002': { total: 1, internal: 0 }
           })
         });
       }

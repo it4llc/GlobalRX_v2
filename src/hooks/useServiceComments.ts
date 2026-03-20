@@ -209,17 +209,25 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
     }
   }, [serviceId, orderId, fetchServiceComments, fetchOrderComments]);
 
-  // Create a new comment
-  // CRITICAL FIX (March 10, 2026): Fixed comment creation issue in fulfillment section
-  // Previously, this function relied on hook's serviceId which was null in order mode,
-  // causing API calls to /api/services/null/comments (404 error)
-  //
-  // BUG FIXES IMPLEMENTED:
-  // 1. ID Mismatch Resolution: Now accepts explicit serviceId parameter for proper API routing
-  // 2. Template Loading: Fixed template availability checks when serviceType is undefined
-  // 3. UUID Validation: Added security validation to prevent injection attacks
-  // 4. TypeScript Compliance: Fixed all type errors with proper error handling
-  // 5. Logging Standards: Replaced console statements with structured logging
+  /**
+   * Create a new service comment with template validation and proper ID handling
+   *
+   * CRITICAL FIX (March 19, 2026): Fixed comment creation issue in fulfillment section
+   * Previously, this function relied on hook's serviceId which was null in order mode,
+   * causing API calls to /api/services/null/comments (404 error)
+   *
+   * BUG FIXES IMPLEMENTED:
+   * 1. ID Mismatch Resolution: Now accepts explicit serviceId parameter for proper API routing
+   * 2. Template Loading: Fixed template availability checks when serviceType is undefined
+   * 3. UUID Validation: Added security validation to prevent injection attacks
+   * 4. TypeScript Compliance: Fixed all type errors with proper error handling
+   * 5. Logging Standards: Replaced console statements with structured logging
+   * 6. Refetch After Creation: Added refetch in order mode to ensure UI consistency
+   *
+   * @param data - Comment data including templateId, finalText, and optional serviceId
+   * @returns Promise<void> - Resolves when comment is successfully created
+   * @throws Error when validation fails or user lacks permission
+   */
   const createComment = useCallback(async (data: CreateServiceCommentInput & { serviceId?: string }) => {
     // Check permissions
     if (user?.userType === 'customer') {
@@ -294,13 +302,20 @@ export function useServiceComments(serviceId: string | null, orderId?: string, s
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ));
       }
+
+      // CRITICAL FIX (March 10, 2026): Refetch after creation to sync with server state
+      // Only refetch in order mode to avoid unnecessary API calls
+      // This ensures commentsByService stays in sync after optimistic update
+      if (orderId) {
+        await fetchOrderComments();
+      }
     } catch (err) {
       if (err instanceof Error && (err.message.includes('cannot') || err.message.includes('required') || err.message.includes('must'))) {
         throw err; // Re-throw validation errors
       }
       throw new Error('Failed to create comment');
     }
-  }, [serviceId, user]);
+  }, [serviceId, user, orderId, fetchOrderComments]);
 
   // Update an existing comment
   // CRITICAL FIX (March 10, 2026): Modified to accept serviceId parameter for consistency with createComment fix

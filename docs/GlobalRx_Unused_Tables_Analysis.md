@@ -25,7 +25,7 @@ Tables fall into four categories:
 | customer_users | 0 | Yes | Yes | Likely dead code — users moved to User Admin |
 | data_fields | 0 | No | Partial | Orphaned — data stored in dsx_requirements |
 | documents | 0 | No | Types only | Orphaned — data stored in dsx_requirements |
-| order_documents | 0 | No | No | Removed — confirmed orphaned, replaced by ServiceAttachment |
+| order_documents | 0 | No | No | Removed March 19, 2026 — replaced by ServiceAttachment |
 | order_statuses | 0 | Yes | Yes | Orphaned — statuses stored as string in orders.statusCode, history in order_status_history |
 | package_services | 0 | No | Yes | Planned — needed when packages feature is built |
 | packages | 0 | Yes | Yes | Planned — packages feature not yet complete |
@@ -68,14 +68,6 @@ These tables are empty because the features that use them have not been fully bu
 - **Why Empty:** Same as workflows — dependent on Candidate Workflow feature.
 - **Action:** Keep. Will be used when Candidate Workflow is implemented.
 
-### order_documents (REMOVED)
-- **Prisma Model:** OrderDocument (removed March 18, 2026)
-- **Rows:** 0
-- **API Routes:** None
-- **UI Components:** None
-- **Investigation:** No code references existed anywhere in the codebase
-- **Replacement:** Functionality replaced by ServiceAttachment model
-- **Action Taken:** Table and Prisma model removed via migration `remove_order_document_table` on March 18, 2026
 
 ### city_mappings
 - **Prisma Model:** CityMapping
@@ -137,12 +129,17 @@ These tables exist in the schema but the functionality they were intended to sup
 ### Immediate — Already Done
 - Deleted orphaned `/api/available-requirements` route (was querying `data_fields` and `documents` tables that had no data)
 
-### Removed Tables (March 18, 2026)
-The following orphaned tables were removed via migration `remove_orphaned_tables` on March 18, 2026:
+### Removed Tables
+The following orphaned tables have been removed:
+
+#### March 18, 2026 (via migration `remove_orphaned_tables`):
 - `data_fields` — data migrated to `dsx_requirements` table (`type = 'field'`)
 - `documents` — data migrated to `dsx_requirements` table (`type = 'document'`)
 - `translations` — application uses JSON files in `src/translations/`
 - `order_statuses` — status stored directly in `orders.statusCode`, history in `order_status_history`
+
+#### March 19, 2026:
+- `order_documents` — replaced by ServiceAttachment model, no code references existed
 
 ### Future Cleanup Pass
 - Investigate `customer_users` — confirm whether customer user management moved entirely to User Admin, then remove dead code if confirmed
