@@ -49,11 +49,12 @@ import logger from '@/lib/logger';
 
 // Import validation schema and helpers from the types module
 import { updateServiceStatusSchema, isTerminalStatus } from '@/types/service-fulfillment';
+import { SERVICE_STATUSES } from '@/constants/service-status';
 
 // Terminal statuses that require confirmation to reopen
 // These statuses represent completed work that should not be accidentally reopened
 // Business rule: Users must explicitly confirm they want to reopen terminal statuses
-const TERMINAL_STATUSES = ['Completed', 'Cancelled', 'Cancelled-DNB'];
+const TERMINAL_STATUSES = [SERVICE_STATUSES.COMPLETED, SERVICE_STATUSES.CANCELLED, SERVICE_STATUSES.CANCELLED_DNB];
 
 // Type for ServiceComment audit entry data
 interface ServiceCommentData {

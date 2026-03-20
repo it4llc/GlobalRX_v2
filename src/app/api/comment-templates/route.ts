@@ -10,6 +10,7 @@ import {
 } from '@/lib/schemas/commentTemplateSchemas';
 import { z } from 'zod';
 import logger from '@/lib/logger';
+import { SERVICE_STATUSES } from '@/constants/service-status';
 
 /**
  * GET /api/comment-templates
@@ -90,23 +91,12 @@ export async function GET(request: NextRequest) {
 
       // First get templates that have availability for this service/status combination
 
-      // BUG FIX: Status case normalization required for proper filtering
-      // serviceStatus from order items is uppercase (e.g., "SUBMITTED", "MISSING INFORMATION", "CANCELLED-DNB")
-      // but availability status in database is title case (e.g., "Submitted", "Missing Information", "Cancelled-Dnb")
-      // This case mismatch was causing template queries to return empty results even when
-      // matching templates existed, leading to users seeing no comment templates available.
-      //
-      // Solution: Convert uppercase service status to title case before database lookup
-      // - Handle spaces: "MISSING INFORMATION" → "Missing Information"
-      // - Handle hyphens: "CANCELLED-DNB" → "Cancelled-Dnb" (preserve compound status names)
-      const normalizedStatus = serviceStatus
-        .split(' ')
-        .map(segment =>
-          segment.split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join('-')
-        )
-        .join(' ');
+      // BUG FIX (March 20, 2026): Status case normalization required for proper filtering
+      // Problem: Database had mixed casing (ALL CAPS, Title Case, lowercase) causing lookup failures
+      // Root cause: Status values came from different sources with inconsistent casing
+      // Solution: Normalize to lowercase to match database migration that standardized all statuses
+      // This ensures comment template filtering works regardless of how status values are passed
+      const normalizedStatus = serviceStatus.toLowerCase();
 
       logger.info('GET /api/comment-templates - Normalizing status', {
         originalStatus: serviceStatus,
@@ -173,16 +163,8 @@ export async function GET(request: NextRequest) {
           name: 'asc'
         }
       }),
-      // Use the new service status values
-      Promise.resolve([
-        { statusCode: 'Draft' },
-        { statusCode: 'Submitted' },
-        { statusCode: 'Processing' },
-        { statusCode: 'Missing Information' },
-        { statusCode: 'Completed' },
-        { statusCode: 'Cancelled' },
-        { statusCode: 'Cancelled-DNB' }
-      ])
+      // Use the correct lowercase service status values from constants
+      Promise.resolve(Object.values(SERVICE_STATUSES).map(status => ({ statusCode: status })))
     ]);
 
     // Transform services to include category

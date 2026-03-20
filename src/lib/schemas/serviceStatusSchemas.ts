@@ -5,8 +5,11 @@ import { z } from 'zod';
 import { formatServiceStatus } from '@/lib/status-utils';
 import { SERVICE_STATUSES, SERVICE_STATUS_VALUES } from '@/constants/service-status';
 
-// Service status enum matching database values (lowercase to match DB)
-// Uses the single source of truth from service-status.ts
+// BUG FIX (March 20, 2026): Service status enum uses lowercase constants for database consistency
+// Problem: Database had mixed casing causing three-way duplicates and validation failures
+// Root cause: Multiple schemas used hardcoded values instead of using SERVICE_STATUSES constants
+// Solution: All schemas now use lowercase constants from SERVICE_STATUSES for consistency
+// This ensures terminal status checks work correctly and prevents Add Comment button issues
 export const ServiceStatusEnum = z.enum([
   SERVICE_STATUSES.DRAFT,
   SERVICE_STATUSES.PENDING,
@@ -64,8 +67,9 @@ export const orderLockSchema = z.object({
 });
 
 // Helper to check if a status is terminal
+// Using lowercase comparison to match database values
 export function isTerminalStatus(status: string): boolean {
-  return TERMINAL_STATUSES.includes(status as ServiceStatus);
+  return TERMINAL_STATUSES.includes(status.toLowerCase() as ServiceStatus);
 }
 
 // Helper to format status for display
