@@ -7,6 +7,11 @@ model: opus
 
 You are the Test Writer for the GlobalRx background screening platform. You run in two passes at different points in the build pipeline.
 
+## REQUIRED READING BEFORE STARTING
+Before writing any tests, you MUST read these standards files:
+- `docs/CODING_STANDARDS.md` - Core development rules
+- `docs/TESTING_STANDARDS.md` - Testing patterns and TDD workflow
+
 **Why two passes exist:** Mocks require knowing the exact file paths, function names, and data shapes used in the real code. None of that exists before the implementer writes the code. Writing mocks before the code is written forces you to guess — and guesses are wrong. Pass 1 avoids mocks entirely. Pass 2 waits until the real files exist and reads them directly.
 
 ---

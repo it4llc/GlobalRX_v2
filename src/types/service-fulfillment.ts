@@ -1,6 +1,6 @@
 // /GlobalRX_v2/src/types/service-fulfillment.ts
 
-import { ServiceStatus } from '@/constants/service-status';
+import { ServiceStatus, SERVICE_STATUS_VALUES, SERVICE_STATUSES } from '@/constants/service-status';
 import { z } from 'zod';
 
 export interface ServiceFulfillment {
@@ -23,17 +23,12 @@ export interface ServiceFulfillment {
 // Re-export for backward compatibility
 export type { ServiceStatus };
 
-// Validation schema for status updates (for test compatibility)
+// BUG FIX (March 20, 2026): Status values case normalization
+// Problem: Database had mixed-case statuses (ALL CAPS, Title Case, lowercase) causing validation failures
+// Solution: Migration normalized all statuses to lowercase, schemas now use lowercase constants
+// This ensures consistent validation regardless of how status values are passed to the API
 export const updateServiceStatusSchema = z.object({
-  status: z.enum([
-    'Draft',
-    'Submitted',
-    'Processing',
-    'Missing Information',
-    'Completed',
-    'Cancelled',
-    'Cancelled-DNB'
-  ]),
+  status: z.enum(SERVICE_STATUS_VALUES as [string, ...string[]]),
   comment: z.string().max(1000, 'Comment must be 1000 characters or less').optional(),
   confirmReopenTerminal: z.boolean().optional()
 }).refine(
@@ -48,8 +43,11 @@ export const updateServiceStatusSchema = z.object({
   }
 );
 
-// Helper function to check if a status is terminal
-const TERMINAL_STATUSES = ['Completed', 'Cancelled', 'Cancelled-DNB'];
+// BUG FIX (March 20, 2026): Terminal status checking with lowercase constants
+// Problem: Mixed-case statuses in database caused isTerminalStatus checks to fail
+// Solution: Using lowercase constants ensures terminal status detection works correctly
+// This prevents Add Comment button from being incorrectly disabled
+const TERMINAL_STATUSES: string[] = [SERVICE_STATUSES.COMPLETED, SERVICE_STATUSES.CANCELLED, SERVICE_STATUSES.CANCELLED_DNB];
 export const isTerminalStatus = (status: string): boolean => {
   return TERMINAL_STATUSES.includes(status);
 };

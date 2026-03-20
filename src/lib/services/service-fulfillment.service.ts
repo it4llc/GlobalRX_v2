@@ -13,7 +13,8 @@ import type {
   ServiceUserWithoutId,
   ServiceWhereClause,
   ServiceUpdateData,
-  AuditChange
+  AuditChange,
+  isTerminalStatus
 } from '@/types/service-fulfillment';
 
 export class ServiceFulfillmentService {
@@ -548,7 +549,7 @@ export class ServiceFulfillmentService {
 
       // Check if all services are in terminal status
       return services.every(service =>
-        service.status === 'completed' || service.status === 'cancelled'
+        isTerminalStatus(service.status)
       );
     } catch (error) {
       logger.error('Error checking if all services are terminal', {
