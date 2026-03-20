@@ -90,14 +90,22 @@ export async function GET(request: NextRequest) {
 
       // First get templates that have availability for this service/status combination
 
-      // BUG FIX (March 8, 2026): Status case normalization required
-      // serviceStatus from order items is uppercase (e.g., "SUBMITTED", "MISSING INFORMATION")
-      // but availability status in database is title case (e.g., "Submitted", "Missing Information")
-      // This mismatch was causing template queries to return empty results
+      // BUG FIX: Status case normalization required for proper filtering
+      // serviceStatus from order items is uppercase (e.g., "SUBMITTED", "MISSING INFORMATION", "CANCELLED-DNB")
+      // but availability status in database is title case (e.g., "Submitted", "Missing Information", "Cancelled-Dnb")
+      // This case mismatch was causing template queries to return empty results even when
+      // matching templates existed, leading to users seeing no comment templates available.
+      //
       // Solution: Convert uppercase service status to title case before database lookup
+      // - Handle spaces: "MISSING INFORMATION" → "Missing Information"
+      // - Handle hyphens: "CANCELLED-DNB" → "Cancelled-Dnb" (preserve compound status names)
       const normalizedStatus = serviceStatus
         .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .map(segment =>
+          segment.split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join('-')
+        )
         .join(' ');
 
       logger.info('GET /api/comment-templates - Normalizing status', {
@@ -126,11 +134,17 @@ export async function GET(request: NextRequest) {
       if (availableTemplateIds.length > 0) {
         templateWhere.id = { in: availableTemplateIds.map(a => a.templateId) };
       } else {
-        // No templates have availability for this combination
+        // BUG FIX: Prevent returning ALL active templates when no matches found
+        // Previous behavior: When no availabilities matched the serviceType/status filter,
+        // the code would skip adding the 'id' filter, causing Prisma to return ALL active templates.
+        // This violated the API contract where filtering by service/status should only return
+        // templates that are available for that specific combination.
+        // Fix: Force empty result set by filtering on empty array when no matches found.
         logger.warn('GET /api/comment-templates - No templates available for service/status', {
           serviceType,
           serviceStatus
         });
+        templateWhere.id = { in: [] };
       }
     }
 
