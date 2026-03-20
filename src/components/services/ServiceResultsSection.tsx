@@ -10,6 +10,7 @@ import { FormTable, FormRow } from '@/components/ui/form';
 import { ModalDialog, DialogFooter } from '@/components/ui/modal-dialog';
 import type { DialogRef } from '@/components/ui/modal-dialog';
 import { Paperclip, Download, Trash2, Upload, FileText, AlertCircle } from 'lucide-react';
+import { SERVICE_STATUSES } from '@/constants/service-status';
 
 interface ServiceResultsSectionProps {
   serviceId: string; // OrderItem ID - used for all API calls
@@ -36,7 +37,7 @@ interface ServiceResults {
   assignedVendorId?: string | null;
 }
 
-const TERMINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'CANCELLED_DNB'];
+const TERMINAL_STATUSES = [SERVICE_STATUSES.COMPLETED, SERVICE_STATUSES.CANCELLED, SERVICE_STATUSES.CANCELLED_DNB];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 // UUID validation regex for security - prevents injection attacks
@@ -82,7 +83,7 @@ export function ServiceResultsSection({
   const hasFulfillmentEdit = checkPermission('fulfillment', 'edit');
   // Terminal statuses (completed, cancelled) prevent further editing as per business rules
   // This ensures data integrity and prevents modification of finalized work
-  const isTerminalStatus = TERMINAL_STATUSES.includes(serviceStatus.toUpperCase());
+  const isTerminalStatus = TERMINAL_STATUSES.includes(serviceStatus);
 
   // Validate UUID format to prevent injection attacks
   useEffect(() => {

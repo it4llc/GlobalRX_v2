@@ -1128,7 +1128,7 @@ export function ServiceFulfillmentTable({
                         <ServiceResultsSection
                           serviceId={service.orderItemId}
                           serviceName={service.service.name}
-                          serviceStatus={service.status.toUpperCase()}
+                          serviceStatus={service.status.toLowerCase()}
                           orderId={orderId || ''}
                           isCustomer={isCustomer}
                         />
@@ -1146,7 +1146,7 @@ export function ServiceFulfillmentTable({
                           orderId={orderId}
                           serviceName={service.service.name}
                           serviceType={service.service.code || service.service.category || service.service.name || ''}
-                          serviceStatus={service.status.toUpperCase()}
+                          serviceStatus={service.status.toLowerCase()} // BUG FIX (March 20, 2026): Pass lowercase status to match database normalization
                         />
                       </div>
                     </td>
@@ -1373,7 +1373,7 @@ export function ServiceFulfillmentTable({
       <ModalDialog
         ref={confirmReopenDialogRef}
         title={confirmReopenService?.currentStatus && confirmReopenService?.newStatus &&
-          ['Completed', 'Cancelled', 'Cancelled-DNB'].includes(confirmReopenService.newStatus)
+          [SERVICE_STATUSES.COMPLETED, SERVICE_STATUSES.CANCELLED, SERVICE_STATUSES.CANCELLED_DNB].includes(confirmReopenService.newStatus)
             ? "Change Closed Service Status"
             : "Re-open Closed Service"
         }
@@ -1405,7 +1405,7 @@ export function ServiceFulfillmentTable({
                 </div>
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-amber-800">
-                    {['Completed', 'Cancelled', 'Cancelled-DNB'].includes(confirmReopenService.newStatus)
+                    {[SERVICE_STATUSES.COMPLETED, SERVICE_STATUSES.CANCELLED, SERVICE_STATUSES.CANCELLED_DNB].includes(confirmReopenService.newStatus)
                       ? 'Changing Closed Service Status'
                       : 'Re-opening Closed Service'
                     }

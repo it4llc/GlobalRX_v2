@@ -386,7 +386,182 @@ await prisma.mapping.upsert({
 
 ---
 
-## SECTION 5: VendorOrganization Field Names
+## SECTION 5: Status Value Consistency Standard
+
+**CRITICAL:** All status values in the database must use consistent casing and be validated using constants to prevent validation failures and UI bugs.
+
+### 5.1 Status Casing Bug Pattern
+
+Mixed-case status values in the database cause widespread validation failures, UI bugs, and incorrect business logic execution. This pattern was identified and fixed in March 2026 when status values had three-way duplicates: ALL CAPS, Title Case, and lowercase.
+
+**Real-World Bug Example (Fixed March 20, 2026):**
+- Database contained "SUBMITTED", "Submitted", and "submitted" as separate values
+- Zod schemas used hardcoded Title Case values like "Submitted"
+- Frontend components received lowercase values from some APIs
+- Terminal status checks failed, causing Add Comment buttons to be incorrectly disabled
+- Comment template filtering broke due to case mismatches
+
+### 5.2 Root Cause Analysis
+
+**Multiple Problems Contributing to Status Inconsistency:**
+1. **Hardcoded Values in Schemas:** Zod schemas contained hardcoded status values instead of using constants
+2. **Inconsistent Data Entry:** Different parts of the system wrote status values with different casing
+3. **No Normalization:** API endpoints didn't normalize status values before database operations
+4. **Missing Validation:** Database constraints didn't enforce consistent casing
+
+### 5.3 Prevention Standards
+
+**Always Use Constants for Status Values:**
+```typescript
+// ✅ CORRECT - Use constants from single source of truth
+import { SERVICE_STATUSES } from '@/constants/service-status';
+
+export const serviceStatusSchema = z.enum([
+  SERVICE_STATUSES.COMPLETED,  // Uses lowercase constant
+  SERVICE_STATUSES.CANCELLED,
+  SERVICE_STATUSES.SUBMITTED
+]);
+
+// ❌ WRONG - Hardcoded values lead to inconsistency
+export const serviceStatusSchema = z.enum([
+  'Completed',  // Title case - won't match lowercase DB values
+  'Cancelled',
+  'Submitted'
+]);
+```
+
+**Always Normalize at API Boundaries:**
+```typescript
+// ✅ CORRECT - Normalize before database operations
+const normalizedStatus = inputStatus.toLowerCase();
+await prisma.service.updateMany({
+  where: { id: serviceId },
+  data: { status: normalizedStatus }
+});
+
+// ❌ WRONG - Use raw input without normalization
+await prisma.service.updateMany({
+  where: { id: serviceId },
+  data: { status: inputStatus }  // Could be any case
+});
+```
+
+**Define Status Constants in Single Location:**
+```typescript
+// /src/constants/service-status.ts
+export const SERVICE_STATUSES = {
+  DRAFT: 'draft',           // All lowercase for database consistency
+  SUBMITTED: 'submitted',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled'
+} as const;
+
+export const SERVICE_STATUS_VALUES = Object.values(SERVICE_STATUSES);
+```
+
+### 5.4 Required Migration Pattern
+
+When fixing status inconsistency, use this migration pattern:
+
+```sql
+-- Step 1: Standardize all status values to lowercase
+UPDATE order_items SET status = LOWER(status) WHERE status IS NOT NULL;
+UPDATE service_fulfillment SET status = LOWER(status) WHERE status IS NOT NULL;
+UPDATE comment_template_availability SET status = LOWER(status) WHERE status IS NOT NULL;
+
+-- Step 2: Verify no duplicates remain
+DO $$
+DECLARE
+  duplicate_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO duplicate_count
+  FROM (
+    SELECT status, COUNT(*) as cnt
+    FROM order_items
+    WHERE status IS NOT NULL
+    GROUP BY status
+    HAVING COUNT(*) > 1
+  ) duplicates;
+
+  IF duplicate_count > 0 THEN
+    RAISE WARNING 'Found % duplicate status values after normalization', duplicate_count;
+  END IF;
+END $$;
+```
+
+### 5.5 Testing Requirements
+
+**Always Test With Mixed Case Inputs:**
+```typescript
+// Test that API normalizes different case formats
+it('handles mixed case status values', async () => {
+  const testCases = ['COMPLETED', 'Completed', 'completed', 'CANCELLED', 'Cancelled'];
+
+  for (const statusInput of testCases) {
+    const response = await request(app)
+      .put(`/api/services/${serviceId}/status`)
+      .send({ status: statusInput });
+
+    expect(response.status).toBe(200);
+    // Verify status was normalized to lowercase in database
+    const service = await prisma.orderItem.findUnique({ where: { id: serviceId } });
+    expect(service.status).toBe(statusInput.toLowerCase());
+  }
+});
+```
+
+### 5.6 Code Review Checklist
+
+**When reviewing status-related code:**
+- [ ] Are status constants used instead of hardcoded strings?
+- [ ] Is input normalized before database operations?
+- [ ] Do Zod schemas reference constants, not hardcoded values?
+- [ ] Are status comparisons case-insensitive or normalized?
+- [ ] Do migrations handle existing inconsistent data?
+- [ ] Are tests covering different case formats?
+
+### 5.7 Common Violations to Prevent
+
+**❌ Never Do:**
+```typescript
+// Hardcoded values in schemas
+status: z.enum(['Completed', 'Submitted', 'Cancelled'])
+
+// No normalization before database queries
+await prisma.service.findMany({ where: { status: rawInput } })
+
+// Case-sensitive comparisons
+if (service.status === 'Completed') // Won't match lowercase DB value
+
+// Multiple constants for same concept
+const COMPLETED_STATUS = 'Completed';
+const completedStatus = 'completed';
+```
+
+**✅ Always Do:**
+```typescript
+// Use constants from single source
+status: z.enum(SERVICE_STATUS_VALUES)
+
+// Normalize at boundaries
+const normalizedStatus = status.toLowerCase();
+
+// Use helper functions for comparisons
+if (isTerminalStatus(service.status)) // Handles normalization internally
+
+// Single source of truth for constants
+import { SERVICE_STATUSES } from '@/constants/service-status';
+```
+
+**Files Fixed (March 20, 2026):**
+- Database migration: `/prisma/migrations/20260320121837_normalize_status_casing/migration.sql`
+- Schema updates: `/src/types/service-fulfillment.ts`, `/src/lib/schemas/*.ts`
+- API normalization: `/src/app/api/comment-templates/route.ts`, `/src/app/api/services/[id]/status/route.ts`
+- Component fixes: `/src/components/fulfillment/ServiceFulfillmentTable.tsx`
+
+---
+
+## SECTION 6: VendorOrganization Field Names
 
 The VendorOrganization model does not have an email field. The correct field name is contactEmail.
 
@@ -462,4 +637,8 @@ Steps to revert if needed
 - [ ] Customer codes are 3-4 alphanumeric characters
 - [ ] Checkbox logic uses boolean flags, not record deletion
 - [ ] Using correct VendorOrganization field names
+- [ ] Status values use constants, not hardcoded strings
+- [ ] Status values normalized before database operations
+- [ ] Zod schemas reference constants for status values
+- [ ] Terminal status checks use consistent casing
 - [ ] Migration documentation created for changes
