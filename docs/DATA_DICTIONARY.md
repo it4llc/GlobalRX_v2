@@ -359,17 +359,24 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `name` (String, required): Vendor organization name
 - `isActive` (Boolean, required): Whether vendor is currently active
 - `isPrimary` (Boolean, required): Whether this is a primary vendor
-- `contactEmail` (String, required): Primary contact email
+- `contactEmail` (String, required): Primary contact email **⚠️ CRITICAL: Use `contactEmail`, NOT `email`**
 - `contactPhone` (String, required): Primary contact phone
 - `address` (String, optional): Vendor address
 - `notes` (String, optional): Internal notes about vendor
 - `createdAt` (DateTime, required): Creation timestamp
 - `updatedAt` (DateTime, required): Last modification timestamp
 
+**⚠️ Field Name Warning:**
+- VendorOrganization uses `contactEmail` field
+- User model uses `email` field
+- **Bug fix 2026-03-19:** Incorrect field selection caused Prisma errors in fulfillment API
+- See: `/docs/bug-fixes/2026-03-19-vendor-email-field-error.md`
+
 **Relationships:**
 - Has many `User` (vendor users)
 - Has many `Order`, `ServicesFulfillment` (assigned work)
 
+⚠️ Common mistake: The contact email field is named contactEmail, NOT email. Always use contactEmail in Prisma select statements and API responses. Using email will cause a runtime error.
 ---
 
 ## Fulfillment
@@ -449,9 +456,9 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `createdAt` (DateTime, required): Creation timestamp
 - `updatedAt` (DateTime, required): Last modification timestamp
 - `results` (String, optional): Fulfillment results/findings
-- `resultsAddedBy` (String, optional): User who added results
+- `resultsAddedBy` (String, optional): User who added results (UUID reference to User.id)
 - `resultsAddedAt` (DateTime, optional): When results were added
-- `resultsLastModifiedBy` (String, optional): User who last modified results
+- `resultsLastModifiedBy` (String, optional): User who last modified results (UUID reference to User.id)
 - `resultsLastModifiedAt` (DateTime, optional): When results were last modified
 
 **Relationships:**
@@ -539,7 +546,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `fileName` (String, required): Original filename
 - `filePath` (String, required): Storage path on server
 - `fileSize` (Int, required): File size in bytes
-- `uploadedBy` (String, required): User who uploaded the file
+- `uploadedBy` (String, required): User who uploaded the file (UUID reference to User.id)
 - `uploadedAt` (DateTime, required): Upload timestamp
 
 **Relationships:**

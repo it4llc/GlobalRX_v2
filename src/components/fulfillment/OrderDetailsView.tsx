@@ -354,16 +354,17 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                     }, {} as Record<string, string>) || null;
 
                     return {
-                      // ID MAPPING FIX: Use ServiceFulfillment ID if available, otherwise fall back to OrderItem ID
-                      // This ensures ServiceFulfillmentTable gets the correct ID for comment lookups
-                      // ServiceFulfillment.id is what comments API keys results by
+                      // ID MAPPING FIX (March 19, 2026): Use ServiceFulfillment ID when it exists, OrderItem ID as fallback
+                      // Comments are indexed by ServiceFulfillment ID when it exists
+                      // ServiceFulfillmentTable needs the correct ID for comment lookups
+                      // This fixes the comment display bug where IDs didn't match between UI and API
                       id: item.serviceFulfillment?.id || item.id,
                       orderId: order.id,
                       orderItemId: item.id,
                       serviceId: item.service?.id || '',
                       locationId: item.location?.id || '',
-                      // BUG FIX: serviceFulfillment.status field no longer exists (removed in commit f1dddb96)
-                      // Use item.status directly as the single source of truth
+                      // BUG FIX (March 19, 2026): serviceFulfillment.status field no longer exists (removed in fulfillment ID standardization)
+                      // Use item.status directly as the single source of truth for service status
                       status: item.status || 'pending',
                       assignedVendorId: item.serviceFulfillment?.assignedVendorId || null,
                       vendorNotes: item.serviceFulfillment?.vendorNotes || null,

@@ -70,6 +70,66 @@ serving as a good reference implementation when this tech debt is addressed.
 
 ---
 
+### TD-002 — Race Condition in Comment Creation
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Service Comments / Hooks                    |
+| Severity    | Warning                                     |
+| Identified  | March 19, 2026 - Service Comment Bug Fix Stage 4 |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+In `useServiceComments.ts` lines 301-302, the refetch after comment creation could return stale data if another user creates a comment simultaneously. The current implementation performs an optimistic update followed by a refetch, but there's no synchronization mechanism to handle concurrent modifications.
+
+**Why deferred:**
+The current implementation works correctly for single-user scenarios and the optimistic update provides good UX. Implementing optimistic locking or robust synchronization would require significant changes to the backend and frontend state management.
+
+**When to fix:**
+Consider implementing optimistic locking or robust synchronization when revisiting the comment system for multi-user collaboration features.
+
+---
+
+### TD-003 — Type Safety Compromise in Service Comment Service
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Service Comments / API                      |
+| Severity    | Warning                                     |
+| Identified  | March 19, 2026 - Service Comment Bug Fix Stage 4 |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+In `service-comment-service.ts` line 252, using `any[]` for comments to avoid type mismatch reduces type safety. The ServiceCommentWithRelations type doesn't perfectly align with the Prisma query result.
+
+**Why deferred:**
+The type mismatch is due to complex Prisma relations and would require creating a proper type union or updating the ServiceCommentWithRelations type definition. The current workaround functions correctly.
+
+**When to fix:**
+Create a proper type union or update ServiceCommentWithRelations type when refactoring the comment system or during a TypeScript strict mode cleanup pass.
+
+---
+
+### TD-004 — Mixed ID Usage in Order Details View
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Fulfillment / Order Management              |
+| Severity    | Warning                                     |
+| Identified  | March 19, 2026 - Service Comment Bug Fix Stage 4 |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+In `OrderDetailsView.tsx` line 360, the hybrid approach using `ServicesFulfillment.id || OrderItem.id` is a temporary workaround. This dual ID pattern adds complexity and was the root cause of the comment display bug.
+
+**Why deferred:**
+This will be fully resolved when the ServicesFulfillment auto-creation feature is implemented, which will ensure every OrderItem always has a corresponding ServicesFulfillment record from creation.
+
+**When to fix:**
+Will be fully resolved when ServicesFulfillment auto-creation feature is implemented. Until then, the hybrid approach maintains backward compatibility.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_

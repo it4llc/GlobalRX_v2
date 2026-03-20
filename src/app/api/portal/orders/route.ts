@@ -1,9 +1,10 @@
-// src/app/api/portal/orders/route.ts
+// /GlobalRX_v2/src/app/api/portal/orders/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { OrderService } from '@/lib/services/order.service';
 import { z } from 'zod';
+import logger from '@/lib/logger';
 
 // Force dynamic route
 export const dynamic = 'force-dynamic';

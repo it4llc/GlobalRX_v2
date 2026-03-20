@@ -49,10 +49,18 @@ prefers to understand what is being built and why before implementation begins.
 Do not jump straight to code — briefly explain the plan, then proceed.
 
 ### 1.5 Minimal Footprint
-
 Only change what is necessary to accomplish the task. Do not refactor unrelated
 code, rename things, or "clean up" files that are not part of the current task.
 Small, focused changes are safer and easier to review.
+Never create files that the architect's plan did not specify. If the architect
+says to modify one file, only that file is changed. If you believe a new file is
+genuinely needed that was not in the plan, stop immediately and explain why to
+Andy before creating anything.
+Never create files just to make tests pass. If a test requires a file that
+should not exist, the test is wrong and must be rewritten — not satisfied by
+creating the file. Creating ghost routes or duplicate service layers to satisfy
+tests introduces technical debt and bypasses the real application code path,
+meaning the tests prove nothing about how the app actually works.
 
 ### 1.6 Confirm Before Deleting Anything
 
@@ -711,6 +719,17 @@ The DSX API permission migration revealed a critical security vulnerability:
 4. **Review ALL endpoints** when changing permission requirements
 5. **Document security-critical changes** with clear code comments explaining the fix
 
+### 9.6 No Secrets in Code
+
+Database URLs, API keys, passwords, and other secrets must only exist in
+environment variables (`.env.local`). Never hardcode secrets in any file
+that is committed to GitHub.
+
+### 9.7 Environment Variables Must Be Documented
+
+Every environment variable used in the project must be listed in `.env.example`
+with a description of what it is (but not its real value).
+
 ### 9.8 User Type Property Standard
 
 **CRITICAL:** Always use `session.user.userType` for user type checking. **Never use `session.user.type`.**
@@ -1007,16 +1026,15 @@ await prisma.mapping.upsert({
 - `/src/app/api/dsx/route.ts` (lines 291-305) - DSX matrix checkbox logic
 - `/src/app/api/dsx/__tests__/dsx-required-fields.test.ts` - Tests verifying correct behavior
 
-### 9.6 No Secrets in Code
+9.14 VendorOrganization Field Names
+The VendorOrganization model does not have an email field. The correct field name is contactEmail.
+Wrong:
+typescriptassignedVendor: { select: { email: true } }
+Correct:
+typescriptassignedVendor: { select: { contactEmail: true } }
+This mistake will not be caught by tests because Prisma mocks return whatever you tell them to — the error only appears at runtime when a real database query executes.
 
-Database URLs, API keys, passwords, and other secrets must only exist in
-environment variables (`.env.local`). Never hardcode secrets in any file
-that is committed to GitHub.
 
-### 9.7 Environment Variables Must Be Documented
-
-Every environment variable used in the project must be listed in `.env.example`
-with a description of what it is (but not its real value).
 
 ---
 
@@ -1140,6 +1158,33 @@ vi.mock('fs/promises', () => {
 - Using default imports with object property access allows the mock to intercept calls
 
 ---
+
+11.5 API Route Test Verification
+Before writing any test for an API route, verify that the route actually exists
+in the codebase. Do not assume a route exists based on what the feature requires
+or what would make logical sense.
+Required check before writing API tests:
+bash# Verify the route file exists before writing tests for it
+find src/app/api -name "route.ts" | grep "the-path-you-expect"
+Rules:
+
+Tests must target the actual route path the application uses — not a path
+that you created to make tests pass
+For portal/customer features, routes live under /api/portal/
+For fulfillment features, routes live under /api/fulfillment/
+For admin features, routes live under /api/admin/
+Never create a new route file just to have something to write tests against
+
+Why this matters:
+A test that targets /api/orders/ when the application actually uses
+/api/portal/orders/ proves nothing. The real code path is never exercised,
+bugs are never caught, and the implementer may create a duplicate route just
+to make the test pass — introducing dead code and a false sense of security.
+When the route does not exist yet:
+If you are writing tests before implementation (TDD), make sure the test
+targets the path specified in the architect's plan — not a path you invented.
+Check docs/specs/ for the planned route before writing the test.
+
 
 ## SECTION 12: Monitoring and Observability Standards
 
@@ -1367,6 +1412,245 @@ Steps to revert if needed
 
 ---
 
+## SECTION 10: DATABASE MIGRATIONS
+
+### 10.1 Migration Safety Patterns
+
+All database migrations must follow these safety patterns to ensure production reliability and data integrity.
+
+**CRITICAL REQUIREMENTS:**
+
+1. **Every migration must be idempotent** - safe to run multiple times
+2. **Include comprehensive logging** for monitoring and debugging
+3. **Implement verification logic** to confirm migration success
+4. **Document business requirements** in SQL comments
+5. **Use atomic operations** within transactions where possible
+
+### 10.2 Migration File Structure
+
+**GOOD Migration Template:**
+```sql
+-- /GlobalRX_v2/prisma/migrations/YYYYMMDD_descriptive_name/migration.sql
+
+-- Business requirement explanation: Why this migration is needed
+-- Data integrity improvement: What data consistency issue this solves
+-- Safe to run multiple times (idempotent)
+
+-- Start logging
+DO $$
+BEGIN
+  RAISE NOTICE 'Starting migration_name migration...';
+END $$;
+
+-- Main migration operation with idempotency protection
+INSERT INTO target_table (
+  id,
+  required_field,
+  optional_field
+)
+SELECT
+  gen_random_uuid(),
+  source.required_value,
+  NULL  -- Comment explaining why this defaults to NULL
+FROM source_table source
+LEFT JOIN target_table target ON target.foreign_key = source.id
+WHERE target.id IS NULL  -- Only insert if record doesn't exist
+ON CONFLICT (unique_constraint) DO NOTHING;
+
+-- Log results
+DO $$
+DECLARE
+  affected_count INTEGER;
+BEGIN
+  GET DIAGNOSTICS affected_count = ROW_COUNT;
+  RAISE NOTICE 'Migration affected % records', affected_count;
+END $$;
+
+-- Verification: Ensure migration achieved its goal
+DO $$
+DECLARE
+  expected_count INTEGER;
+  actual_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO expected_count FROM source_table;
+  SELECT COUNT(*) INTO actual_count FROM target_table;
+
+  IF expected_count != actual_count THEN
+    RAISE WARNING 'Verification failed: Expected %, got %', expected_count, actual_count;
+  ELSE
+    RAISE NOTICE 'Verification passed: % records confirmed', actual_count;
+  END IF;
+END $$;
+
+-- Final summary
+DO $$
+BEGIN
+  RAISE NOTICE 'Migration_name completed successfully';
+END $$;
+```
+
+### 10.3 Migration Documentation Requirements
+
+**In SQL Comments:**
+- Explain business requirement driving the migration
+- Document why specific default values are chosen
+- Explain any complex WHERE clauses or JOINs
+- Note any potential performance considerations
+
+**Business Logic Comments:**
+```sql
+-- Business rule: ServicesFulfillment records start unassigned (assignedVendorId = NULL)
+-- to allow manual vendor assignment based on service requirements and vendor availability.
+-- This prevents automatic assignments that might not match business requirements.
+assignedVendorId: NULL,
+```
+
+### 10.4 Idempotency Patterns
+
+**For INSERT operations:**
+```sql
+-- Use ON CONFLICT to prevent duplicate insertions
+INSERT INTO table_name (unique_field, other_field)
+SELECT value1, value2
+FROM source_table
+ON CONFLICT (unique_field) DO NOTHING;
+```
+
+**For UPDATE operations:**
+```sql
+-- Use WHERE clauses to only update records that need updating
+UPDATE table_name
+SET field = new_value
+WHERE field != new_value  -- Only update if different
+  AND condition_for_migration;
+```
+
+**For UPSERT operations:**
+```sql
+-- Use ON CONFLICT with DO UPDATE for complex upserts
+INSERT INTO table_name (key, field1, field2)
+VALUES (value1, value2, value3)
+ON CONFLICT (key) DO UPDATE SET
+  field2 = EXCLUDED.field2
+WHERE table_name.field2 != EXCLUDED.field2;  -- Only update if different
+```
+
+### 10.5 Verification Requirements
+
+Every migration must include verification logic:
+
+**Count Verification:**
+```sql
+-- Verify expected vs actual record counts
+DECLARE
+  source_count INTEGER;
+  target_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO source_count FROM source_table WHERE condition;
+  SELECT COUNT(*) INTO target_count FROM target_table WHERE condition;
+
+  IF source_count != target_count THEN
+    RAISE WARNING 'Count mismatch: Source %, Target %', source_count, target_count;
+  END IF;
+END
+```
+
+**Data Integrity Verification:**
+```sql
+-- Verify no orphaned records exist
+DECLARE
+  orphaned_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO orphaned_count
+  FROM child_table c
+  LEFT JOIN parent_table p ON p.id = c.parent_id
+  WHERE p.id IS NULL;
+
+  IF orphaned_count > 0 THEN
+    RAISE WARNING 'Found % orphaned records', orphaned_count;
+  ELSE
+    RAISE NOTICE 'No orphaned records found';
+  END IF;
+END
+```
+
+### 10.6 Logging Standards
+
+**Required log messages:**
+- Migration start: `'Starting migration_name migration...'`
+- Progress updates: `'Processed % records'` or `'Created % new records'`
+- Verification results: `'Verification passed: % records confirmed'`
+- Migration completion: `'Migration_name completed successfully'`
+
+**Warning conditions:**
+- Verification failures: `RAISE WARNING 'Verification failed: ...'`
+- Unexpected counts: `RAISE WARNING 'Count mismatch: Expected %, got %'`
+- Data inconsistencies: `RAISE WARNING 'Found % inconsistent records'`
+
+### 10.7 Performance Considerations
+
+**For large data migrations:**
+- Consider batch processing for tables with > 10,000 records
+- Use efficient indexes for JOIN and WHERE operations
+- Monitor transaction log size during migration
+- Plan for maintenance window if migration affects production performance
+
+**Example batch processing:**
+```sql
+-- Process in batches to avoid long-running transactions
+DO $$
+DECLARE
+  batch_size INTEGER := 1000;
+  processed INTEGER := 0;
+  batch_count INTEGER;
+BEGIN
+  LOOP
+    -- Process one batch
+    INSERT INTO target_table (...)
+    SELECT ... FROM source_table
+    WHERE id > processed
+    ORDER BY id
+    LIMIT batch_size;
+
+    GET DIAGNOSTICS batch_count = ROW_COUNT;
+    processed := processed + batch_count;
+
+    RAISE NOTICE 'Processed % records (batch of %)', processed, batch_count;
+
+    EXIT WHEN batch_count < batch_size;
+  END LOOP;
+END $$;
+```
+
+### 10.8 Common Migration Anti-Patterns to Avoid
+
+**❌ NEVER DO:**
+```sql
+-- No verification
+INSERT INTO table_name SELECT * FROM source_table;
+
+-- No idempotency protection
+INSERT INTO table_name VALUES (...);
+
+-- No logging
+ALTER TABLE table_name ADD COLUMN new_field TEXT;
+
+-- Destructive operations without safeguards
+DELETE FROM table_name WHERE condition;
+```
+
+**✅ ALWAYS DO:**
+```sql
+-- Comprehensive migration with all safety patterns
+-- Include business requirement comments
+-- Use idempotent operations
+-- Add verification logic
+-- Include detailed logging
+-- Document the "why" not just the "what"
+```
+
+---
+
 ## QUICK REFERENCE CHECKLIST
 
 ### TypeScript Planning (BEFORE writing code):
@@ -1403,3 +1687,4 @@ Steps to revert if needed
 - [ ] **NEW:** Documentation updated for new features or API changes
 - [ ] **NEW:** Complex business logic has explanatory comments
 - [ ] **NEW:** .env.example updated if new environment variables added
+- [ ] **NEW:** Database migrations follow safety patterns (idempotent, logged, verified)
