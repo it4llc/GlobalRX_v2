@@ -719,6 +719,17 @@ The DSX API permission migration revealed a critical security vulnerability:
 4. **Review ALL endpoints** when changing permission requirements
 5. **Document security-critical changes** with clear code comments explaining the fix
 
+### 9.6 No Secrets in Code
+
+Database URLs, API keys, passwords, and other secrets must only exist in
+environment variables (`.env.local`). Never hardcode secrets in any file
+that is committed to GitHub.
+
+### 9.7 Environment Variables Must Be Documented
+
+Every environment variable used in the project must be listed in `.env.example`
+with a description of what it is (but not its real value).
+
 ### 9.8 User Type Property Standard
 
 **CRITICAL:** Always use `session.user.userType` for user type checking. **Never use `session.user.type`.**
@@ -1015,16 +1026,15 @@ await prisma.mapping.upsert({
 - `/src/app/api/dsx/route.ts` (lines 291-305) - DSX matrix checkbox logic
 - `/src/app/api/dsx/__tests__/dsx-required-fields.test.ts` - Tests verifying correct behavior
 
-### 9.6 No Secrets in Code
+9.14 VendorOrganization Field Names
+The VendorOrganization model does not have an email field. The correct field name is contactEmail.
+Wrong:
+typescriptassignedVendor: { select: { email: true } }
+Correct:
+typescriptassignedVendor: { select: { contactEmail: true } }
+This mistake will not be caught by tests because Prisma mocks return whatever you tell them to — the error only appears at runtime when a real database query executes.
 
-Database URLs, API keys, passwords, and other secrets must only exist in
-environment variables (`.env.local`). Never hardcode secrets in any file
-that is committed to GitHub.
 
-### 9.7 Environment Variables Must Be Documented
-
-Every environment variable used in the project must be listed in `.env.example`
-with a description of what it is (but not its real value).
 
 ---
 
