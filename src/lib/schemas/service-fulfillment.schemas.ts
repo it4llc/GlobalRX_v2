@@ -3,16 +3,11 @@
 import { z } from 'zod';
 import { SERVICE_STATUS_VALUES } from '@/constants/service-status';
 
-// Service status enum schema - uses the constants for validation
-export const serviceStatusSchema = z.enum([
-  'Draft',
-  'Submitted',
-  'Processing',
-  'Missing Information',
-  'Completed',
-  'Cancelled',
-  'Cancelled-DNB'
-] as const);
+// BUG FIX (March 20, 2026): Service status schema now uses lowercase constants
+// Problem: Mixed-case statuses in database caused Zod validation failures when schemas used Title Case
+// Solution: All schemas now use SERVICE_STATUS_VALUES constants (lowercase) for consistent validation
+// This prevents validation errors when status values come from different sources with different casing
+export const serviceStatusSchema = z.enum(SERVICE_STATUS_VALUES as [string, ...string[]]);
 
 // Change type enum schema for audit logging
 export const changeTypeSchema = z.enum([
