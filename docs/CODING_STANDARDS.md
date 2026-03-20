@@ -835,8 +835,70 @@ if (userType === 'vendor') {
 - Forgetting to handle null/undefined foreign key relationships
 - Over-filtering data that users with broader permissions should see
 - Not considering the "unassigned" workflow state in business logic
+- **Returning all records when no filter matches** - When filtering by conditional criteria and no matches are found, ensure you return an empty result set rather than all records
 
-### 9.11 API Response Format Handling Standard
+### 9.11 API Filter Empty Results Standard
+
+**CRITICAL:** When implementing conditional filtering (e.g., filtering by service type and status), always handle the "no matches" case explicitly to prevent unintended data exposure.
+
+**Common Bug Pattern:**
+API endpoints that filter data based on user-provided criteria often fail to handle the case where no records match the filter. Without explicit handling, the query returns ALL records instead of an empty set.
+
+**Real-World Bug Example (Fixed March 20, 2026):**
+The comment templates API filtered templates by service type and status. When no template availabilities matched the criteria, the filter was skipped entirely, causing ALL active templates to be returned instead of the expected empty array.
+
+**Bug Pattern Example:**
+```typescript
+// ❌ WRONG - Returns all records when no matches found
+const templateWhere: TemplateWhereClause = { isActive: true };
+
+if (availableTemplateIds.length > 0) {
+  templateWhere.id = { in: availableTemplateIds.map(a => a.templateId) };
+  // Bug: If no IDs match, no filter is applied = all active templates returned
+}
+```
+
+**Correct Empty Results Pattern:**
+```typescript
+// ✅ CORRECT - Explicitly handle empty results
+const templateWhere: TemplateWhereClause = { isActive: true };
+
+if (availableTemplateIds.length > 0) {
+  templateWhere.id = { in: availableTemplateIds.map(a => a.templateId) };
+} else {
+  // CRITICAL: Force empty result set when no matches found
+  // This ensures the API contract is honored: filtering should only return
+  // records that match the criteria, not all records when none match.
+  templateWhere.id = { in: [] };
+}
+```
+
+**Prevention Guidelines:**
+- Always test filtering endpoints with criteria that match zero records
+- Document the expected behavior when no results match the filter
+- Use explicit empty array filters (`{ in: [] }`) rather than skipping filter entirely
+- Consider whether "no matches" should return empty array or throw an error
+- Test the complete user flow: what should users see when no data matches their filter?
+
+**Standard Patterns:**
+```typescript
+// For ID-based filtering
+if (matchingIds.length > 0) {
+  where.id = { in: matchingIds };
+} else {
+  where.id = { in: [] }; // Force empty results
+}
+
+// For existence-based filtering
+if (hasMatchingCriteria) {
+  where.foreignKey = { not: null };
+} else {
+  // Be explicit about what should happen
+  where.id = { in: [] }; // Or throw error if no matches is invalid
+}
+```
+
+### 9.12 API Response Format Handling Standard
 
 **CRITICAL:** Always handle API responses defensively to prevent crashes when response format changes from arrays to paginated responses.
 
@@ -897,7 +959,7 @@ fetch('/api/endpoint')
   .then(data => setItems(handleApiResponse(data)))
 ```
 
-### 9.12 Database Query Ordering Standard
+### 9.13 Database Query Ordering Standard
 
 **CRITICAL:** Always include explicit `orderBy` clauses in Prisma queries that return multiple records to ensure consistent display order across operations.
 
@@ -974,7 +1036,7 @@ orderBy: [
 - `/src/app/api/fulfillment/route.ts` (lines 143-146)
 - `/src/app/api/fulfillment/orders/[id]/route.ts` (lines 220-223)
 
-### 9.13 Checkbox/Toggle UI Logic Standard
+### 9.14 Checkbox/Toggle UI Logic Standard
 
 **CRITICAL:** When building checkbox or toggle interfaces that control database records, ensure that "unchecked" means "optional" or "disabled", NOT "deleted".
 
@@ -1026,7 +1088,7 @@ await prisma.mapping.upsert({
 - `/src/app/api/dsx/route.ts` (lines 291-305) - DSX matrix checkbox logic
 - `/src/app/api/dsx/__tests__/dsx-required-fields.test.ts` - Tests verifying correct behavior
 
-9.14 VendorOrganization Field Names
+### 9.15 VendorOrganization Field Names
 The VendorOrganization model does not have an email field. The correct field name is contactEmail.
 Wrong:
 typescriptassignedVendor: { select: { email: true } }
