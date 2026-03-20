@@ -512,7 +512,30 @@ Every API endpoint must have:
  */
 ```
 
-### 14.4 README Updates
+### 14.4 Business Logic Documentation
+
+When implementing deduplication logic or data merging algorithms:
+
+**Document the merge strategy clearly:**
+- **OR logic** - Use when the most restrictive rule should win (e.g., required fields)
+- **AND logic** - Use when all conditions must be met
+- **First-wins** - Only use when order matters and later entries should be ignored
+- **Last-wins** - Only use when the most recent value should override
+
+**Example: Requirements Deduplication**
+```typescript
+// BUG PREVENTION: When merging requirements from multiple services,
+// use OR logic for 'required' fields - if ANY service requires the field,
+// it should be marked as required in the UI.
+//
+// WRONG: First-wins logic (can hide required asterisks)
+// RIGHT: OR logic (most restrictive requirement wins)
+if (existingField && isRequired) {
+  existingField.required = true; // OR logic: required if ANY service needs it
+}
+```
+
+### 14.5 README Updates
 
 Update README.md when:
 - Adding new dependencies
@@ -520,7 +543,7 @@ Update README.md when:
 - Adding new npm scripts
 - Changing deployment process
 
-### 14.5 Feature Documentation
+### 14.6 Feature Documentation
 
 For significant features, create a markdown file in `/docs/features/`:
 
