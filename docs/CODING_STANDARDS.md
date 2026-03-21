@@ -70,7 +70,50 @@ before taking the action.
 
 ---
 
-## SECTION 2: Component & Styling Standards
+## SECTION 2: React Hook Patterns
+
+### 2.1 Data Loading in useEffect
+
+When loading data in React hooks, carefully consider the conditions that trigger loading:
+
+**Common Bug Pattern to Avoid:**
+```typescript
+// ❌ WRONG - Prevents necessary data loading in edit mode
+useEffect(() => {
+  if (session?.user?.customerId && !editOrderId) {
+    fetchAvailableServices(); // Bug: Services won't load when editing
+  }
+}, [session, editOrderId, fetchAvailableServices]);
+```
+
+**Correct Pattern:**
+```typescript
+// ✅ CORRECT - Load data when needed regardless of mode
+useEffect(() => {
+  if (session?.user?.customerId) {
+    fetchAvailableServices(); // Services load in both create and edit modes
+  }
+}, [session, fetchAvailableServices]);
+```
+
+**Rule:** If data is needed in both create and edit modes, don't add edit-mode conditions that prevent loading. Only add conditions that actually determine whether the data is needed.
+
+### 2.2 Import Dependencies
+
+**All imports must be present before using APIs:**
+```typescript
+// ❌ WRONG - Missing import causes runtime error
+// Using logger.error() without importing logger
+
+// ✅ CORRECT - Import all dependencies
+import logger from '@/lib/logger';
+```
+
+**Rule:** Always import what you use. TypeScript will catch missing imports during build, but runtime errors can still occur if imports are forgotten during development.
+
+---
+
+## SECTION 3: Component & Styling Standards
 
 **See [COMPONENT_STANDARDS.md](COMPONENT_STANDARDS.md) for complete component and styling rules.**
 

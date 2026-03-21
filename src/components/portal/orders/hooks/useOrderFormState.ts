@@ -7,6 +7,37 @@ import { useOrderRequirements } from './useOrderRequirements';
 import { useOrderValidation } from './useOrderValidation';
 import clientLogger from '@/lib/client-logger';
 
+// Type definitions for order data from API
+interface OrderService {
+  id: string;
+  name: string;
+  category?: string;
+}
+
+interface OrderLocation {
+  id: string;
+  name: string;
+}
+
+interface OrderDataEntry {
+  fieldName: string;
+  fieldValue: string;
+}
+
+interface OrderItem {
+  id: string;
+  service: OrderService;
+  location: OrderLocation;
+  data?: OrderDataEntry[];
+}
+
+interface OrderSubjectField {
+  id: string;
+  name: string;
+  displayName?: string;
+  required?: boolean;
+}
+
 /**
  * Central state management hook for the order form
  * Combines all the extracted business logic hooks
@@ -147,8 +178,8 @@ export function useOrderFormState() {
       setLoadingServices(true);
       const response = await fetch('/api/portal/services');
       if (response.ok) {
-        const services = await response.json();
-        setAvailableServices(services);
+        const data = await response.json();
+        setAvailableServices(data.services || data);
       } else {
         clientLogger.error('Failed to fetch services');
         setErrors({ submit: 'Failed to load available services' });
@@ -235,7 +266,7 @@ export function useOrderFormState() {
       setIsEditMode(true);
 
       // Populate service items using cart hook
-      const serviceItems = order.items.map((item: any) => ({
+      const serviceItems = order.items.map((item: OrderItem) => ({
         serviceId: item.service.id,
         serviceName: item.service.name,
         locationId: item.location.id,
@@ -257,12 +288,12 @@ export function useOrderFormState() {
       if (order.items && order.items.length > 0) {
         const searchFields: Record<string, Record<string, any>> = {};
 
-        order.items.forEach((item: any, index: number) => {
+        order.items.forEach((item: OrderItem, index: number) => {
           const itemId = serviceItems[index].itemId;
           searchFields[itemId] = {};
 
           if (item.data && item.data.length > 0) {
-            item.data.forEach((dataEntry: any) => {
+            item.data.forEach((dataEntry: OrderDataEntry) => {
               searchFields[itemId][dataEntry.fieldName] = dataEntry.fieldValue;
             });
           }
@@ -288,7 +319,7 @@ export function useOrderFormState() {
             const subjectData = JSON.parse(storedSubject);
             const fieldValues: Record<string, any> = {};
 
-            data.subjectFields.forEach((field: any) => {
+            data.subjectFields.forEach((field: OrderSubjectField) => {
               // Map field names to stored data
               const fieldNameLower = field.name.toLowerCase();
 
@@ -333,10 +364,14 @@ export function useOrderFormState() {
    * Initialize form state on mount
    */
   useEffect(() => {
-    if (session?.user?.customerId && !editOrderId) {
+    // BUG FIX: Always load services when customer session exists, regardless of edit mode
+    // Previous bug: Services wouldn't load when editing draft orders because of the
+    // !editOrderId condition, causing the services dropdown to be empty during editing.
+    // Fix: Removed !editOrderId condition - services are needed in both create and edit modes.
+    if (session?.user?.customerId) {
       fetchAvailableServices();
     }
-  }, [session, editOrderId, fetchAvailableServices]);
+  }, [session, fetchAvailableServices]);
 
   /**
    * Load order for editing if edit mode
@@ -350,10 +385,13 @@ export function useOrderFormState() {
   return {
     // State
     step,
+    currentStep: step, // Alias for backward compatibility
     isEditMode,
     isLoadingOrder,
+    loading: isLoadingOrder, // Alias for backward compatibility
     isSubmitting,
     errors,
+    error: errors.submit || errors.general, // Alias for backward compatibility
     subjectInfo,
     notes,
     subjectFieldValues,
@@ -363,17 +401,20 @@ export function useOrderFormState() {
     selectedCountry,
     availableServices,
     loadingServices,
+    servicesLoading: loadingServices, // Alias for backward compatibility
     availableLocations,
     loadingLocations,
     sublocations,
     showMissingRequirementsDialog,
     missingRequirements,
+    editOrderId, // Expose the edit order ID
 
     // Computed state
     formData: getFormData(),
 
     // Actions
     setStep,
+    setCurrentStep: setStep, // Alias for backward compatibility
     setIsSubmitting,
     updateSubject,
     setNotes,
