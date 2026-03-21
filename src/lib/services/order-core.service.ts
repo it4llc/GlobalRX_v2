@@ -545,16 +545,17 @@ export class OrderCoreService {
     reason: string,
     bypassValidation: boolean = false
   ) {
-    // If customerId is provided, include it in the query
-    const whereClause = customerId
-      ? { id: orderId, customerId }
-      : { id: orderId };
-
-    const order = await prisma.order.findFirst({
-      where: whereClause,
+    // Fetch the order to verify it exists and customer has access
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
     });
 
     if (!order) {
+      throw new Error('Order not found');
+    }
+
+    // If customerId is provided, verify it matches
+    if (customerId && order.customerId !== customerId) {
       throw new Error('Order not found');
     }
 
@@ -746,10 +747,9 @@ export class OrderCoreService {
    * Get a single order by ID
    */
   static async getOrderById(orderId: string, customerId: string) {
-    return prisma.order.findFirst({
+    const order = await prisma.order.findUnique({
       where: {
         id: orderId,
-        customerId,
       },
       include: {
         customer: true,
@@ -804,6 +804,13 @@ export class OrderCoreService {
         },
       },
     });
+
+    // Verify customer has access to this order
+    if (order && order.customerId !== customerId) {
+      return null;
+    }
+
+    return order;
   }
 
   /**
@@ -818,15 +825,13 @@ export class OrderCoreService {
     }>
   ) {
     // First check if order exists and is in draft status
-    const order = await prisma.order.findFirst({
+    const order = await prisma.order.findUnique({
       where: {
         id: orderId,
-        customerId,
-        statusCode: 'draft',
       },
     });
 
-    if (!order) {
+    if (!order || order.customerId !== customerId || order.statusCode !== 'draft') {
       throw new Error('Order not found or cannot be edited');
     }
 
@@ -840,15 +845,13 @@ export class OrderCoreService {
    * Submit an order (change status from draft to submitted)
    */
   static async submitOrder(orderId: string, customerId: string, userId: string) {
-    const order = await prisma.order.findFirst({
+    const order = await prisma.order.findUnique({
       where: {
         id: orderId,
-        customerId,
-        statusCode: 'draft',
       },
     });
 
-    if (!order) {
+    if (!order || order.customerId !== customerId || order.statusCode !== 'draft') {
       throw new Error('Order not found or already submitted');
     }
 
@@ -870,15 +873,13 @@ export class OrderCoreService {
    * Delete a draft order
    */
   static async deleteOrder(orderId: string, customerId: string) {
-    const order = await prisma.order.findFirst({
+    const order = await prisma.order.findUnique({
       where: {
         id: orderId,
-        customerId,
-        statusCode: 'draft',
       },
     });
 
-    if (!order) {
+    if (!order || order.customerId !== customerId || order.statusCode !== 'draft') {
       throw new Error('Order not found or cannot be deleted');
     }
 
