@@ -3,10 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { OrderService } from '@/lib/services/order.service';
+import { OrderCoreService } from '@/lib/services/order-core.service';
 import { z } from 'zod';
+import logger from '@/lib/logger'; // BUG FIX: Added missing logger import - was causing runtime errors when error logging attempted
 
 // Force dynamic route
 export const dynamic = 'force-dynamic';
+
 
 // Schema for updating an order - now supports full order updates
 const updateOrderSchema = z.object({
@@ -96,55 +99,113 @@ export async function PUT(
 
     // For full order updates (with service items), use the comprehensive update method
     if (validatedData.serviceItems || validatedData.subjectFieldValues || validatedData.searchFieldValues) {
-      // First get the existing order to preserve the order number
-      const existingOrder = await OrderService.getOrderById(params.id, customerId);
-      if (!existingOrder) {
-        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-      }
-
-      // Use a transaction to delete the old order and create the updated one
+      // Use a transaction to update the order in place
       const { prisma } = await import('@/lib/prisma');
 
       const updatedOrder = await prisma.$transaction(async (tx) => {
-        // First get all order items for this order
-        const orderItems = await tx.orderItem.findMany({
-          where: { orderId: params.id },
-          select: { id: true }
+        // 1. Verify order exists, belongs to customer, and is a draft
+        const existingOrder = await tx.order.findUnique({
+          where: { id: params.id },
+          include: { items: { select: { id: true } } }
         });
 
-        // Delete related order data entries for each order item
-        if (orderItems.length > 0) {
+        if (!existingOrder || existingOrder.customerId !== customerId || existingOrder.statusCode !== 'draft') {
+          throw new Error('Order not found or cannot be edited');
+        }
+
+        // 2. Delete old order data and items (but NOT the order itself)
+        if (existingOrder.items.length > 0) {
+          // Delete order data entries for existing items
           await tx.orderData.deleteMany({
             where: {
-              orderItemId: {
-                in: orderItems.map((item: any) => item.id)
-              }
+              orderItemId: { in: existingOrder.items.map((item: { id: string }) => item.id) }
             }
+          });
+
+          // Delete services fulfillment records for existing items
+          await tx.servicesFulfillment.deleteMany({
+            where: {
+              orderItemId: { in: existingOrder.items.map((item: { id: string }) => item.id) }
+            }
+          });
+
+          // Delete existing order items
+          await tx.orderItem.deleteMany({
+            where: { orderId: params.id }
           });
         }
 
-        // Delete related order items
-        await tx.orderItem.deleteMany({
-          where: { orderId: params.id }
+        // 3. Update the order record itself (subject, notes, status)
+        const updateData: Record<string, any> = {};
+        if (validatedData.subject || validatedData.subjectFieldValues) {
+          // Merge basic subject with dynamic fields from DSX requirements
+          // This resolves ID-based values to actual names and normalizes field names
+          const normalizedSubject = await OrderCoreService.normalizeSubjectData(
+            validatedData.subject || existingOrder.subject as any,
+            validatedData.subjectFieldValues,
+            session.user.id
+          );
+          updateData.subject = normalizedSubject;
+        }
+        if (validatedData.notes !== undefined) {
+          updateData.notes = validatedData.notes;
+        }
+        if (validatedData.status) {
+          updateData.statusCode = validatedData.status;
+        }
+
+        const updatedOrder = await tx.order.update({
+          where: { id: params.id },
+          data: updateData,
+          include: {
+            customer: { select: { id: true, name: true } },
+            user: { select: { id: true, email: true, firstName: true, lastName: true } },
+          }
         });
 
-        // Delete the old order
-        await tx.order.delete({
-          where: { id: params.id }
-        });
+        // 4. Create new order items with fulfillment records
+        if (validatedData.serviceItems && validatedData.serviceItems.length > 0) {
+          for (const serviceItem of validatedData.serviceItems) {
+            const orderItem = await tx.orderItem.create({
+              data: {
+                orderId: params.id,
+                serviceId: serviceItem.serviceId,
+                locationId: serviceItem.locationId,
+                status: 'pending',
+              },
+            });
 
-        // Create the updated order with the same order number
-        return OrderService.createCompleteOrder({
-          customerId,
-          userId: session.user.id,
-          serviceItems: validatedData.serviceItems || [],
-          subject: validatedData.subject || {},
-          subjectFieldValues: validatedData.subjectFieldValues,
-          searchFieldValues: validatedData.searchFieldValues,
-          uploadedDocuments: validatedData.uploadedDocuments,
-          notes: validatedData.notes,
-          status: validatedData.status,
-        });
+            // Create ServicesFulfillment record (required 1:1 with OrderItem)
+            await tx.servicesFulfillment.create({
+              data: {
+                orderId: params.id,
+                orderItemId: orderItem.id,
+                serviceId: serviceItem.serviceId,
+                locationId: serviceItem.locationId,
+                assignedVendorId: null,
+              },
+            });
+
+            // Create order data entries for search fields
+            const searchFields = validatedData.searchFieldValues?.[serviceItem.itemId];
+            if (searchFields) {
+              for (const [fieldName, fieldValue] of Object.entries(searchFields)) {
+                if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+                  await tx.orderData.create({
+                    data: {
+                      orderItemId: orderItem.id,
+                      fieldName,
+                      fieldValue: typeof fieldValue === 'string' ? fieldValue : JSON.stringify(fieldValue),
+                      fieldType: 'search',
+                    },
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        return updatedOrder;
       });
 
       return NextResponse.json(updatedOrder);
@@ -156,7 +217,7 @@ export async function PUT(
         validatedData
       );
 
-      return NextResponse.json(order);
+      return NextResponse.json({ order });
     }
   } catch (error: unknown) {
     if (error instanceof z.ZodError) {
