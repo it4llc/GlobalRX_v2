@@ -37,6 +37,10 @@ vi.mock('@/lib/prisma', () => ({
     dSXMapping: {
       findMany: vi.fn(),
     },
+    servicesFulfillment: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
+    },
     $transaction: vi.fn(),
     vendorOrganization: {
       findFirst: vi.fn(),
@@ -317,7 +321,9 @@ describe('Order Services Refactor - TDD Tests', () => {
                   return { id: 'new-order', statusCode: 'draft' };
                 }),
               },
-              orderItem: { create: vi.fn() },
+              orderItem: { create: vi.fn().mockResolvedValue({ id: 'item1', orderId: 'new-order' }) },
+              orderData: { create: vi.fn() },
+              servicesFulfillment: { create: vi.fn() },
             };
             return callback(tx as any);
           }
@@ -385,17 +391,33 @@ describe('Order Services Refactor - TDD Tests', () => {
             const customerId = 'customer123';
             const userId = 'user123';
 
-            vi.mocked(prisma.order.findFirst).mockResolvedValueOnce({
+            vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
               id: orderId,
+              customerId: customerId,
               statusCode: from,
             } as any);
 
+            // Mock the order update and history create to be called during transaction
+            vi.mocked(prisma.order.update).mockResolvedValueOnce({
+              id: orderId,
+              customerId,
+              statusCode: nextStatus,
+            } as any);
+
+            vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
+              id: 'history1',
+              orderId,
+              fromStatus: from,
+              toStatus: nextStatus,
+            } as any);
+
             vi.mocked(prisma.$transaction).mockImplementationOnce(async (operations) => {
-              // Handle both array and callback forms
-              if (typeof operations === 'function') {
-                return operations;
+              // Execute the operations and return their results
+              const results = [];
+              for (const op of operations) {
+                results.push(await op);
               }
-              return Array.isArray(operations) ? operations : [operations];
+              return results;
             });
 
             const result = await updateOrderStatus(orderId, customerId, userId, nextStatus, 'Test reason');
@@ -412,18 +434,29 @@ describe('Order Services Refactor - TDD Tests', () => {
         const userId = 'user123';
 
         // Only one call to find order in more_info_needed state
-        vi.mocked(prisma.order.findFirst).mockResolvedValueOnce({
+        vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
           id: orderId,
+          customerId: customerId,
           statusCode: 'more_info_needed',
         } as any);
 
-        // Mock the single transaction with multiple operations
-        vi.mocked(prisma.$transaction).mockResolvedValueOnce([
-          { statusCode: 'submitted' },      // First update
-          { id: 'history1' },               // First history record
-          { statusCode: 'processing' },     // Second update
-          { id: 'history2' },               // Second history record
-        ] as any);
+        // Mock the four operations for the double transition
+        vi.mocked(prisma.order.update)
+          .mockResolvedValueOnce({ id: orderId, statusCode: 'submitted' } as any)
+          .mockResolvedValueOnce({ id: orderId, statusCode: 'processing' } as any);
+
+        vi.mocked(prisma.orderStatusHistory.create)
+          .mockResolvedValueOnce({ id: 'history1', fromStatus: 'more_info_needed', toStatus: 'submitted' } as any)
+          .mockResolvedValueOnce({ id: 'history2', fromStatus: 'submitted', toStatus: 'processing' } as any);
+
+        vi.mocked(prisma.$transaction).mockImplementationOnce(async (operations) => {
+          // Execute all 4 operations and return their results
+          const results = [];
+          for (const op of operations) {
+            results.push(await op);
+          }
+          return results;
+        });
 
         // Use the actual service method that handles this special case
         const { OrderCoreService } = await import('@/lib/services/order-core.service');
@@ -440,15 +473,33 @@ describe('Order Services Refactor - TDD Tests', () => {
         const userId = 'user123';
         const reason = 'Missing documentation for background check';
 
-        vi.mocked(prisma.order.findFirst).mockResolvedValueOnce({
+        vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
           id: orderId,
+          customerId: customerId,
           statusCode: 'submitted',
         } as any);
 
-        let capturedOperations: any[] = [];
+        // Mock the update and history operations
+        vi.mocked(prisma.order.update).mockResolvedValueOnce({
+          id: orderId,
+          statusCode: 'more_info_needed'
+        } as any);
+
+        vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
+          id: 'history1',
+          orderId,
+          fromStatus: 'submitted',
+          toStatus: 'more_info_needed',
+          reason
+        } as any);
+
         vi.mocked(prisma.$transaction).mockImplementationOnce(async (operations) => {
-          capturedOperations = Array.isArray(operations) ? operations : [operations];
-          return capturedOperations;
+          // Execute the operations
+          const results = [];
+          for (const op of operations) {
+            results.push(await op);
+          }
+          return results;
         });
 
         await updateOrderStatus(orderId, customerId, userId, 'more_info_needed', reason);
@@ -474,8 +525,9 @@ describe('Order Services Refactor - TDD Tests', () => {
         ];
 
         for (const { from, to } of invalidTransitions) {
-          vi.mocked(prisma.order.findFirst).mockResolvedValueOnce({
+          vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
             id: 'order123',
+            customerId: 'customer123',
             statusCode: from,
           } as any);
 
@@ -489,14 +541,31 @@ describe('Order Services Refactor - TDD Tests', () => {
         const states = ['draft', 'submitted', 'processing', 'more_info_needed', 'completed'];
 
         for (const fromState of states) {
-          vi.mocked(prisma.order.findFirst).mockResolvedValueOnce({
+          vi.mocked(prisma.order.findUnique).mockResolvedValueOnce({
             id: 'order123',
+            customerId: 'customer123',
             statusCode: fromState,
           } as any);
 
+          vi.mocked(prisma.order.update).mockResolvedValueOnce({
+            id: 'order123',
+            statusCode: 'cancelled'
+          } as any);
+
+          vi.mocked(prisma.orderStatusHistory.create).mockResolvedValueOnce({
+            id: 'history1',
+            orderId: 'order123',
+            fromStatus: fromState,
+            toStatus: 'cancelled'
+          } as any);
+
           vi.mocked(prisma.$transaction).mockImplementationOnce(async (operations) => {
-            // Return the operations array as if they were executed
-            return Array.isArray(operations) ? operations : [operations];
+            // Execute the operations
+            const results = [];
+            for (const op of operations) {
+              results.push(await op);
+            }
+            return results;
           });
 
           const result = await updateOrderStatus('order123', 'customer123', 'user123', 'cancelled', 'Cancelled by user');
