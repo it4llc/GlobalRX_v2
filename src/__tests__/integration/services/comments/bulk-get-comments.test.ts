@@ -46,14 +46,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
 
   describe('multiple services with comments', () => {
     it('should return all comments for all services for internal users', async () => {
-      const mockServices = [
+      const mockOrderItems = [
         {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Processing',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          orderItem: {
-            status: 'Processing',
-            comments: [
+          serviceFulfillment: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: [
             {
               id: 'comment-1-1',
               serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -75,15 +75,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
-            }
         },
         {
           id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Completed',
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
-          orderItem: {
-            status: 'Completed',
-            comments: [
+          serviceFulfillment: { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: [
             {
               id: 'comment-2-1',
               serviceId: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -95,11 +94,10 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
-            }
         }
       ];
 
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValue(mockServices as any);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue(mockOrderItems as any);
 
       const result = await service.getOrderServiceComments(
         mockOrderId,
@@ -121,14 +119,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
     });
 
     it('should filter internal comments for customer users', async () => {
-      const mockServices = [
+      const mockOrderItems = [
         {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Processing',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          orderItem: {
-            status: 'Processing',
-            comments: [
+          serviceFulfillment: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: [
             // Only external comment should be included for customers
             {
               id: 'comment-1-2',
@@ -141,20 +139,18 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
-            }
         },
         {
           id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Processing',
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
-          orderItem: {
-            status: 'Processing',
-            comments: [] // No external comments
-          }
+          serviceFulfillment: { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: [] // No external comments
         }
       ];
 
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValue(mockServices as any);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue(mockOrderItems as any);
 
       const result = await service.getOrderServiceComments(
         mockOrderId,
@@ -172,13 +168,12 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
       expect(result['a47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(0);
 
       // Verify the query filtered by isInternalOnly
-      expect(prisma.servicesFulfillment.findMany).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findMany).toHaveBeenCalledWith({
         where: { orderId: mockOrderId },
         include: {
           service: true,
-          orderItem: {
-            include: {
-              comments: {
+          serviceFulfillment: true,
+          comments: {
             where: { isInternalOnly: false },
             orderBy: { createdAt: 'desc' },
             include: {
@@ -187,23 +182,19 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: true
             }
           }
-
-              }
-
-            }
         }
       });
     });
 
     it('should return all comments for vendor users', async () => {
-      const mockServices = [
+      const mockOrderItems = [
         {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Processing',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          orderItem: {
-            status: 'Processing',
-            comments: [
+          serviceFulfillment: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: [
             {
               id: 'comment-1-1',
               serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -225,11 +216,10 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
-            }
         }
       ];
 
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValue(mockServices as any);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue(mockOrderItems as any);
 
       const result = await service.getOrderServiceComments(
         mockOrderId,
@@ -242,13 +232,12 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
       expect(result['f47ac10b-58cc-4372-a567-0e02b2c3d479'].total).toBe(2);
 
       // Verify the query didn't filter by isInternalOnly
-      expect(prisma.servicesFulfillment.findMany).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findMany).toHaveBeenCalledWith({
         where: { orderId: mockOrderId },
         include: {
           service: true,
-          orderItem: {
-            include: {
-              comments: {
+          serviceFulfillment: true,
+          comments: {
             where: {},
             orderBy: { createdAt: 'desc' },
             include: {
@@ -257,10 +246,6 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: true
             }
           }
-
-              }
-
-            }
         }
       });
     });
@@ -268,7 +253,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
 
   describe('empty and edge cases', () => {
     it('should return empty object when order has no services', async () => {
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue([]);
 
       const result = await service.getOrderServiceComments(
         mockOrderId,
@@ -280,28 +265,26 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
     });
 
     it('should handle services with no comments', async () => {
-      const mockServices = [
+      const mockOrderItems = [
         {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Draft',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          orderItem: {
-            status: 'Draft',
-            comments: []
-          }
+          serviceFulfillment: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: []
         },
         {
           id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Draft',
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
-          orderItem: {
-            status: 'Draft',
-            comments: []
-          }
+          serviceFulfillment: { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: []
         }
       ];
 
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValue(mockServices as any);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue(mockOrderItems as any);
 
       const result = await service.getOrderServiceComments(
         mockOrderId,
@@ -316,14 +299,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
     });
 
     it('should handle mixed scenario - some services with comments, some without', async () => {
-      const mockServices = [
+      const mockOrderItems = [
         {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Processing',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          orderItem: {
-            status: 'Processing',
-            comments: [
+          serviceFulfillment: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: [
             {
               id: 'comment-1',
               serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -335,24 +318,22 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
-            }
         },
         {
           id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Draft',
           service: { id: 'def-2', name: 'Drug Test', code: 'DRUGTEST' },
-          orderItem: {
-            status: 'Draft',
-            comments: []
-          }
+          serviceFulfillment: { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: []
         },
         {
           id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Completed',
           service: { id: 'def-3', name: 'Education Verification', code: 'EDUVER' },
-          orderItem: {
-            status: 'Completed',
-            comments: [
+          serviceFulfillment: { id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: [
             {
               id: 'comment-3-1',
               serviceId: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -374,11 +355,10 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
-            }
         }
       ];
 
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValue(mockServices as any);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue(mockOrderItems as any);
 
       const result = await service.getOrderServiceComments(
         mockOrderId,
@@ -395,14 +375,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
 
   describe('comment sorting', () => {
     it('should sort comments newest first within each service', async () => {
-      const mockServices = [
+      const mockOrderItems = [
         {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Processing',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          orderItem: {
-            status: 'Processing',
-            comments: [
+          serviceFulfillment: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: [
             {
               id: 'comment-newest',
               serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -434,11 +414,10 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               updatedByUser: null
             }
           ]
-            }
         }
       ];
 
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValue(mockServices as any);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue(mockOrderItems as any);
 
       const result = await service.getOrderServiceComments(
         mockOrderId,
@@ -452,7 +431,7 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
       expect(comments[2].id).toBe('comment-oldest');
 
       // Verify orderBy was included in query
-      expect(prisma.servicesFulfillment.findMany).toHaveBeenCalledWith(
+      expect(prisma.orderItem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           include: expect.objectContaining({
             comments: expect.objectContaining({
@@ -466,24 +445,23 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
 
   describe('response structure', () => {
     it('should include service details in response', async () => {
-      const mockServices = [
+      const mockOrderItems = [
         {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Processing',
           service: {
             id: 'def-1',
             name: 'Background Check',
             code: 'BGCHECK',
             description: 'Criminal background verification'
           },
-          orderItem: {
-            status: 'Processing',
-            comments: []
-          }
+          serviceFulfillment: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: []
         }
       ];
 
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValue(mockServices as any);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue(mockOrderItems as any);
 
       const result = await service.getOrderServiceComments(
         mockOrderId,
@@ -496,14 +474,14 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
     });
 
     it('should include comment details with template and user info', async () => {
-      const mockServices = [
+      const mockOrderItems = [
         {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           orderId: mockOrderId,
+          status: 'Processing',
           service: { id: 'def-1', name: 'Background Check', code: 'BGCHECK' },
-          orderItem: {
-            status: 'Processing',
-            comments: [
+          serviceFulfillment: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+          comments: [
             {
               id: 'comment-1',
               serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
@@ -530,11 +508,10 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
               }
             }
           ]
-            }
         }
       ];
 
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValue(mockServices as any);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue(mockOrderItems as any);
 
       const result = await service.getOrderServiceComments(
         mockOrderId,
@@ -551,28 +528,26 @@ describe('ServiceCommentService.getOrderServiceComments', () => {
     });
 
     it('should use service ID as key in result object', async () => {
-      const mockServices = [
+      const mockOrderItems = [
         {
           id: 'unique-service-id-123',
           orderId: mockOrderId,
+          status: 'Draft',
           service: { id: 'def-1', name: 'Test Service', code: 'TEST' },
-          orderItem: {
-            status: 'Draft',
-            comments: []
-          }
+          serviceFulfillment: { id: 'unique-service-id-123' },
+          comments: []
         },
         {
           id: 'another-service-id-456',
           orderId: mockOrderId,
+          status: 'Draft',
           service: { id: 'def-2', name: 'Another Service', code: 'ANOTHER' },
-          orderItem: {
-            status: 'Draft',
-            comments: []
-          }
+          serviceFulfillment: { id: 'another-service-id-456' },
+          comments: []
         }
       ];
 
-      vi.mocked(prisma.servicesFulfillment.findMany).mockResolvedValue(mockServices as any);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue(mockOrderItems as any);
 
       const result = await service.getOrderServiceComments(
         mockOrderId,
