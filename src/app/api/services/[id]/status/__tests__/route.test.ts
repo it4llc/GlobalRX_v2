@@ -20,10 +20,15 @@ import { PUT } from '../route';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { OrderLockService } from '@/lib/services/order-lock.service';
+import { updateServiceStatusSchema, isTerminalStatus } from '@/types/service-fulfillment';
 
 // Mock dependencies
 vi.mock('next-auth', () => ({
   getServerSession: vi.fn()
+}));
+
+vi.mock('@/lib/auth', () => ({
+  authOptions: {}
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -35,6 +40,12 @@ vi.mock('@/lib/prisma', () => ({
     serviceComment: {
       create: vi.fn()
     },
+    order: {
+      findUnique: vi.fn()
+    },
+    orderStatusHistory: {
+      create: vi.fn()
+    },
     $transaction: vi.fn()
   }
 }));
@@ -43,20 +54,36 @@ vi.mock('@/lib/logger', () => ({
   default: {
     info: vi.fn(),
     error: vi.fn(),
-    warn: vi.fn()
+    warn: vi.fn(),
+    debug: vi.fn()
   }
+}));
+
+vi.mock('@/constants/service-status', () => ({
+  SERVICE_STATUSES: {
+    COMPLETED: 'completed',
+    CANCELLED: 'cancelled',
+    CANCELLED_DNB: 'cancelled_dnb'
+  }
+}));
+
+vi.mock('@/types/service-fulfillment', () => ({
+  updateServiceStatusSchema: {
+    safeParse: vi.fn()
+  },
+  isTerminalStatus: vi.fn()
 }));
 
 // Mock OrderLockService
 const mockCheckLock = vi.fn();
 const mockAcquireLock = vi.fn();
+const mockReleaseLock = vi.fn();
 
 vi.mock('@/lib/services/order-lock.service', () => ({
-  OrderLockService: vi.fn(function() {
-    return {
-      checkLock: mockCheckLock,
-      acquireLock: mockAcquireLock
-    };
+  OrderLockService: vi.fn().mockImplementation(function() {
+    this.checkLock = mockCheckLock;
+    this.acquireLock = mockAcquireLock;
+    this.releaseLock = mockReleaseLock;
   })
 }));
 
@@ -76,7 +103,7 @@ describe('PUT /api/services/[id]/status', () => {
   const mockService = {
     id: mockServiceId,
     orderId: mockOrderId,
-    status: 'Draft',
+    status: 'draft',
     productType: 'Background Check',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -88,6 +115,12 @@ describe('PUT /api/services/[id]/status', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock implementations
+    (updateServiceStatusSchema.safeParse as any).mockReturnValue({
+      success: true,
+      data: {}
+    });
+    (isTerminalStatus as any).mockReturnValue(false);
   });
 
   describe('authentication', () => {
@@ -97,7 +130,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -123,7 +156,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -149,7 +182,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -167,6 +200,16 @@ describe('PUT /api/services/[id]/status', () => {
     });
 
     it('should return 400 when status is missing', async () => {
+      (updateServiceStatusSchema.safeParse as any).mockReturnValue({
+        success: false,
+        error: {
+          errors: [{
+            path: ['status'],
+            message: 'Required'
+          }]
+        }
+      });
+
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({})
@@ -180,6 +223,16 @@ describe('PUT /api/services/[id]/status', () => {
     });
 
     it('should return 400 when status is invalid', async () => {
+      (updateServiceStatusSchema.safeParse as any).mockReturnValue({
+        success: false,
+        error: {
+          errors: [{
+            path: [],
+            message: "Invalid enum value. Expected 'draft' | 'pending' | 'submitted' | 'processing' | 'missing_info' | 'completed' | 'cancelled' | 'cancelled_dnb', received 'InvalidStatus'"
+          }]
+        }
+      });
+
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
@@ -195,10 +248,20 @@ describe('PUT /api/services/[id]/status', () => {
     });
 
     it('should return 400 when comment exceeds 1000 characters', async () => {
+      (updateServiceStatusSchema.safeParse as any).mockReturnValue({
+        success: false,
+        error: {
+          errors: [{
+            path: ['comment'],
+            message: 'String must contain at most 1000 characters'
+          }]
+        }
+      });
+
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing',
+          status: 'processing',
           comment: 'a'.repeat(1001)
         })
       });
@@ -211,12 +274,18 @@ describe('PUT /api/services/[id]/status', () => {
     });
 
     it('should return 404 when service does not exist', async () => {
+      (updateServiceStatusSchema.safeParse as any).mockReturnValue({
+        success: true,
+        data: {
+          status: 'processing'
+        }
+      });
       (prisma.orderItem.findUnique as any).mockResolvedValue(null);
 
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -232,6 +301,10 @@ describe('PUT /api/services/[id]/status', () => {
     beforeEach(() => {
       (getServerSession as any).mockResolvedValue(mockSession);
       (prisma.orderItem.findUnique as any).mockResolvedValue(mockService);
+      (updateServiceStatusSchema.safeParse as any).mockImplementation((data: any) => ({
+        success: true,
+        data
+      }));
     });
 
     it('should check lock status before allowing status change', async () => {
@@ -263,7 +336,7 @@ describe('PUT /api/services/[id]/status', () => {
         id: 'comment-123',
         orderItemId: mockServiceId,
         isStatusChange: true,
-        statusChangedFrom: 'Draft',
+        statusChangedFrom: 'draft',
         statusChangedTo: 'Processing',
         comment: null,
         createdBy: mockUserId,
@@ -273,7 +346,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -299,7 +372,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -340,7 +413,7 @@ describe('PUT /api/services/[id]/status', () => {
         id: 'comment-123',
         orderItemId: mockServiceId,
         isStatusChange: true,
-        statusChangedFrom: 'Draft',
+        statusChangedFrom: 'draft',
         statusChangedTo: 'Processing',
         createdBy: mockUserId,
         createdAt: new Date()
@@ -349,7 +422,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -369,12 +442,16 @@ describe('PUT /api/services/[id]/status', () => {
       (prisma.$transaction as any).mockImplementation(async (fn: any) => {
         return await fn(prisma);
       });
+      (updateServiceStatusSchema.safeParse as any).mockImplementation((data: any) => ({
+        success: true,
+        data
+      }));
     });
 
     it('should update service status and create audit entry', async () => {
       (prisma.orderItem.update as any).mockResolvedValue({
         ...mockService,
-        status: 'Processing',
+        status: 'processing',
         updatedAt: new Date(),
         updatedById: mockUserId
       });
@@ -383,9 +460,9 @@ describe('PUT /api/services/[id]/status', () => {
         id: 'comment-123',
         orderItemId: mockServiceId,
         isStatusChange: true,
-        statusChangedFrom: 'Draft',
-        statusChangedTo: 'Processing',
-        comment: null,
+        statusChangedFrom: 'draft',
+        statusChangedTo: 'processing',
+        comment: 'Status changed from draft to processing',
         createdBy: mockUserId,
         createdAt: new Date()
       };
@@ -395,7 +472,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -403,15 +480,15 @@ describe('PUT /api/services/[id]/status', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.service.status).toBe('Processing');
+      expect(data.service.status).toBe('processing');
       expect(data.auditEntry.isStatusChange).toBe(true);
-      expect(data.auditEntry.statusChangedFrom).toBe('Draft');
-      expect(data.auditEntry.statusChangedTo).toBe('Processing');
+      expect(data.auditEntry.statusChangedFrom).toBe('draft');
+      expect(data.auditEntry.statusChangedTo).toBe('processing');
 
       expect(prisma.orderItem.update).toHaveBeenCalledWith({
         where: { id: mockServiceId },
         data: {
-          status: 'Processing',
+          status: 'processing',
           updatedAt: expect.any(Date),
           updatedById: mockUserId
         }
@@ -421,9 +498,9 @@ describe('PUT /api/services/[id]/status', () => {
         data: {
           orderItemId: mockServiceId,
           isStatusChange: true,
-          statusChangedFrom: 'Draft',
-          statusChangedTo: 'Processing',
-          comment: expect.stringMatching(/Status changed from Draft to Processing/),
+          statusChangedFrom: 'draft',
+          statusChangedTo: 'processing',
+          comment: expect.stringMatching(/Status changed from draft to processing/),
           createdBy: mockUserId,
           createdAt: expect.any(Date),
           isInternalOnly: false
@@ -434,15 +511,15 @@ describe('PUT /api/services/[id]/status', () => {
     it('should include optional comment with status change', async () => {
       (prisma.orderItem.update as any).mockResolvedValue({
         ...mockService,
-        status: 'Missing Information'
+        status: 'missing_info'
       });
 
       (prisma.serviceComment.create as any).mockResolvedValue({
         id: 'comment-123',
         orderItemId: mockServiceId,
         isStatusChange: true,
-        statusChangedFrom: 'Draft',
-        statusChangedTo: 'Missing Information',
+        statusChangedFrom: 'draft',
+        statusChangedTo: 'missing_info',
         comment: 'Status changed from Draft to Missing Information. Additional context: Need driver license copy',
         createdBy: mockUserId,
         createdAt: new Date()
@@ -451,7 +528,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Missing Information',
+          status: 'missing_info',
           comment: 'Need driver license copy'
         })
       });
@@ -472,15 +549,18 @@ describe('PUT /api/services/[id]/status', () => {
     it('should require confirmation when changing from terminal status', async () => {
       const completedService = {
         ...mockService,
-        status: 'Completed'
+        status: 'completed'
       };
 
       (prisma.orderItem.findUnique as any).mockResolvedValue(completedService);
+      (isTerminalStatus as any).mockImplementation((status: string) =>
+        status === 'completed' || status === 'cancelled' || status === 'cancelled_dnb'
+      );
 
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -490,28 +570,28 @@ describe('PUT /api/services/[id]/status', () => {
       expect(response.status).toBe(409);
       expect(data.error).toContain('confirmation required');
       expect(data.requiresConfirmation).toBe(true);
-      expect(data.currentStatus).toBe('Completed');
-      expect(data.message).toContain('This service is currently Completed');
+      expect(data.currentStatus).toBe('completed');
+      expect(data.message).toContain('This service is currently completed');
     });
 
     it('should allow reopening terminal status with confirmation', async () => {
       const completedService = {
         ...mockService,
-        status: 'Completed'
+        status: 'completed'
       };
 
       (prisma.orderItem.findUnique as any).mockResolvedValue(completedService);
       (prisma.orderItem.update as any).mockResolvedValue({
         ...completedService,
-        status: 'Processing'
+        status: 'processing'
       });
       (prisma.serviceComment.create as any).mockResolvedValue({
         id: 'comment-123',
         orderItemId: mockServiceId,
         isStatusChange: true,
-        statusChangedFrom: 'Completed',
-        statusChangedTo: 'Processing',
-        comment: 'Status changed from Completed to Processing (reopened)',
+        statusChangedFrom: 'completed',
+        statusChangedTo: 'processing',
+        comment: 'Status changed from completed to processing (reopened)',
         createdBy: mockUserId,
         createdAt: new Date()
       });
@@ -519,7 +599,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing',
+          status: 'processing',
           confirmReopenTerminal: true
         })
       });
@@ -528,23 +608,26 @@ describe('PUT /api/services/[id]/status', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.service.status).toBe('Processing');
-      expect(data.auditEntry.statusChangedFrom).toBe('Completed');
+      expect(data.service.status).toBe('processing');
+      expect(data.auditEntry.statusChangedFrom).toBe('completed');
       expect(data.auditEntry.comment).toContain('reopened');
     });
 
     it('should handle all terminal statuses (Cancelled, Cancelled-DNB)', async () => {
       const cancelledService = {
         ...mockService,
-        status: 'Cancelled-DNB'
+        status: 'cancelled_dnb'
       };
 
       (prisma.orderItem.findUnique as any).mockResolvedValue(cancelledService);
+      (isTerminalStatus as any).mockImplementation((status: string) =>
+        status === 'completed' || status === 'cancelled' || status === 'cancelled_dnb'
+      );
 
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -553,7 +636,7 @@ describe('PUT /api/services/[id]/status', () => {
 
       expect(response.status).toBe(409);
       expect(data.requiresConfirmation).toBe(true);
-      expect(data.currentStatus).toBe('Cancelled-DNB');
+      expect(data.currentStatus).toBe('cancelled_dnb');
     });
   });
 
@@ -566,12 +649,16 @@ describe('PUT /api/services/[id]/status', () => {
       (prisma.$transaction as any).mockImplementation(async (fn: any) => {
         return await fn(prisma);
       });
+      (updateServiceStatusSchema.safeParse as any).mockImplementation((data: any) => ({
+        success: true,
+        data
+      }));
     });
 
     it('should return updated service with audit entry', async () => {
       const updatedService = {
         ...mockService,
-        status: 'Processing',
+        status: 'processing',
         updatedAt: new Date(),
         updatedById: mockUserId
       };
@@ -580,9 +667,9 @@ describe('PUT /api/services/[id]/status', () => {
         id: 'comment-123',
         orderItemId: mockServiceId,
         isStatusChange: true,
-        statusChangedFrom: 'Draft',
-        statusChangedTo: 'Processing',
-        comment: 'Status changed from Draft to Processing',
+        statusChangedFrom: 'draft',
+        statusChangedTo: 'processing',
+        comment: 'Status changed from draft to processing',
         createdBy: mockUserId,
         createdAt: new Date(),
         createdByUser: {
@@ -599,7 +686,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -610,7 +697,7 @@ describe('PUT /api/services/[id]/status', () => {
       expect(data).toHaveProperty('service');
       expect(data).toHaveProperty('auditEntry');
       expect(data.service.id).toBe(mockServiceId);
-      expect(data.service.status).toBe('Processing');
+      expect(data.service.status).toBe('processing');
       expect(data.auditEntry.isStatusChange).toBe(true);
     });
   });
@@ -621,6 +708,10 @@ describe('PUT /api/services/[id]/status', () => {
       (prisma.orderItem.findUnique as any).mockResolvedValue(mockService);
       mockCheckLock.mockResolvedValue({ isLocked: false, canEdit: true });
       mockAcquireLock.mockResolvedValue({ success: true });
+      (updateServiceStatusSchema.safeParse as any).mockImplementation((data: any) => ({
+        success: true,
+        data
+      }));
     });
 
     it('should handle database transaction errors', async () => {
@@ -629,7 +720,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
@@ -650,7 +741,7 @@ describe('PUT /api/services/[id]/status', () => {
       const request = new Request('http://localhost/api/services/service-123/status', {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'Processing'
+          status: 'processing'
         })
       });
 
