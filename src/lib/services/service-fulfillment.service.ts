@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { ServiceAuditService } from './service-audit.service';
 import logger from '@/lib/logger';
+import { isTerminalStatus } from '@/types/service-fulfillment';
 import type {
   ServiceFulfillment,
   ServiceFulfillmentWithRelations,
@@ -13,8 +14,7 @@ import type {
   ServiceUserWithoutId,
   ServiceWhereClause,
   ServiceUpdateData,
-  AuditChange,
-  isTerminalStatus
+  AuditChange
 } from '@/types/service-fulfillment';
 
 export class ServiceFulfillmentService {
