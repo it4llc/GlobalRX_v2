@@ -54,8 +54,8 @@ vi.mock('@/lib/logger', () => ({
 describe('ServiceCommentService.createComment', () => {
   let service: ServiceCommentService;
   const mockUserId = 'user-123';
-  const mockServiceId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';
-  const mockTemplateId = 'template-123';
+  const mockOrderItemId = 'c47ac10b-58cc-4372-a567-0e02b2c3d479';  // OrderItem ID, not Service ID
+  const mockTemplateId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';  // Valid UUID
   const mockOrderId = '550e8400-e29b-41d4-a716-446655440001';
   const mockCustomerId = 'customer-123';
   const mockVendorId = 'vendor-123';
@@ -84,7 +84,7 @@ describe('ServiceCommentService.createComment', () => {
     it('should reject empty comment text', async () => {
       await expect(
         service.createComment(
-          mockServiceId,
+          mockOrderItemId,
           {
             templateId: mockTemplateId,
             finalText: ''
@@ -97,7 +97,7 @@ describe('ServiceCommentService.createComment', () => {
     it('should reject whitespace-only comment text', async () => {
       await expect(
         service.createComment(
-          mockServiceId,
+          mockOrderItemId,
           {
             templateId: mockTemplateId,
             finalText: '   \n\t   '
@@ -110,7 +110,7 @@ describe('ServiceCommentService.createComment', () => {
     it('should reject comment text exceeding 1000 characters', async () => {
       await expect(
         service.createComment(
-          mockServiceId,
+          mockOrderItemId,
           {
             templateId: mockTemplateId,
             finalText: 'a'.repeat(1001)
@@ -124,8 +124,8 @@ describe('ServiceCommentService.createComment', () => {
       const longText = 'a'.repeat(1000);
 
       // Setup mocks for successful creation
-      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue({
-        id: mockServiceId,
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue({
+        id: mockOrderItemId,
         serviceId: 'service-def-123',
         orderId: mockOrderId,
         status: 'Processing',
@@ -153,14 +153,14 @@ describe('ServiceCommentService.createComment', () => {
 
       const mockComment = {
         id: 'comment-123',
-        serviceId: mockServiceId,
+        orderItemId: mockOrderItemId,
         templateId: mockTemplateId,
         finalText: longText,
         isInternalOnly: true,
         createdBy: mockUserId,
         createdAt: new Date(),
         template: { shortName: 'TEST', longName: 'Test Template' },
-        createdByUser: { name: 'Test User', email: 'test@example.com' },
+        createdByUser: { firstName: 'Test', lastName: 'User', email: 'test@example.com' },
         updatedByUser: null
       };
 
@@ -168,7 +168,7 @@ describe('ServiceCommentService.createComment', () => {
       setupTransactionMock(mockComment);
 
       const result = await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: longText
@@ -182,11 +182,11 @@ describe('ServiceCommentService.createComment', () => {
 
   describe('service validation', () => {
     it('should reject when service does not exist', async () => {
-      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(null);
 
       await expect(
         service.createComment(
-          mockServiceId,
+          mockOrderItemId,
           {
             templateId: mockTemplateId,
             finalText: 'Valid comment'
@@ -197,8 +197,8 @@ describe('ServiceCommentService.createComment', () => {
     });
 
     it('should accept when service exists', async () => {
-      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue({
-        id: mockServiceId,
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue({
+        id: mockOrderItemId,
         serviceId: 'service-def-123',
         orderId: mockOrderId,
         status: 'Processing',
@@ -221,9 +221,9 @@ describe('ServiceCommentService.createComment', () => {
 
       const mockComment = {
         id: 'comment-123',
-        serviceId: mockServiceId,
+        orderItemId: mockOrderItemId,
         template: {},
-        createdByUser: {},
+        createdByUser: { firstName: 'Test', lastName: 'User', email: 'test@example.com' },
         updatedByUser: null
       };
 
@@ -231,7 +231,7 @@ describe('ServiceCommentService.createComment', () => {
       setupTransactionMock(mockComment);
 
       const result = await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: 'Valid comment'
@@ -246,8 +246,8 @@ describe('ServiceCommentService.createComment', () => {
   describe('template validation', () => {
     beforeEach(() => {
       // Setup service exists mock
-      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue({
-        id: mockServiceId,
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue({
+        id: mockOrderItemId,
         serviceId: 'service-def-123',
         orderId: mockOrderId,
         status: 'Processing',
@@ -265,7 +265,7 @@ describe('ServiceCommentService.createComment', () => {
 
       await expect(
         service.createComment(
-          mockServiceId,
+          mockOrderItemId,
           {
             templateId: mockTemplateId,
             finalText: 'Valid comment'
@@ -283,7 +283,7 @@ describe('ServiceCommentService.createComment', () => {
 
       await expect(
         service.createComment(
-          mockServiceId,
+          mockOrderItemId,
           {
             templateId: mockTemplateId,
             finalText: 'Valid comment'
@@ -303,7 +303,7 @@ describe('ServiceCommentService.createComment', () => {
 
       await expect(
         service.createComment(
-          mockServiceId,
+          mockOrderItemId,
           {
             templateId: mockTemplateId,
             finalText: 'Valid comment'
@@ -329,7 +329,7 @@ describe('ServiceCommentService.createComment', () => {
       const mockComment = {
         id: 'comment-123',
         template: {},
-        createdByUser: {},
+        createdByUser: { firstName: 'Test', lastName: 'User', email: 'test@example.com' },
         updatedByUser: null
       };
 
@@ -337,7 +337,7 @@ describe('ServiceCommentService.createComment', () => {
       setupTransactionMock(mockComment);
 
       const result = await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: 'Valid comment'
@@ -362,12 +362,12 @@ describe('ServiceCommentService.createComment', () => {
       setupTransactionMock({
         id: 'comment-123',
         template: {},
-        createdByUser: {},
+        createdByUser: { firstName: 'Test', lastName: 'User', email: 'test@example.com' },
         updatedByUser: null
       });
 
       await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: 'Valid comment'
@@ -383,8 +383,8 @@ describe('ServiceCommentService.createComment', () => {
   describe('visibility defaults', () => {
     beforeEach(() => {
       // Setup all validations to pass
-      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue({
-        id: mockServiceId,
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue({
+        id: mockOrderItemId,
         serviceId: 'service-def-123',
         orderId: mockOrderId,
         status: 'Processing',
@@ -415,6 +415,7 @@ describe('ServiceCommentService.createComment', () => {
               capturedData = args.data;
               return Promise.resolve({
                 id: 'comment-123',
+                orderItemId: mockOrderItemId,
                 isInternalOnly: true,
                 template: {},
                 createdByUser: {},
@@ -430,7 +431,7 @@ describe('ServiceCommentService.createComment', () => {
       });
 
       await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: 'Test comment'
@@ -451,6 +452,7 @@ describe('ServiceCommentService.createComment', () => {
               capturedData = args.data;
               return Promise.resolve({
                 id: 'comment-123',
+                orderItemId: mockOrderItemId,
                 isInternalOnly: false,
                 template: {},
                 createdByUser: {},
@@ -466,7 +468,7 @@ describe('ServiceCommentService.createComment', () => {
       });
 
       await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: 'Test comment',
@@ -487,6 +489,7 @@ describe('ServiceCommentService.createComment', () => {
               capturedData = args.data;
               return Promise.resolve({
                 id: 'comment-123',
+                orderItemId: mockOrderItemId,
                 isInternalOnly: true,
                 template: {},
                 createdByUser: {},
@@ -502,7 +505,7 @@ describe('ServiceCommentService.createComment', () => {
       });
 
       await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: 'Test comment',
@@ -518,8 +521,8 @@ describe('ServiceCommentService.createComment', () => {
   describe('audit trail', () => {
     beforeEach(() => {
       // Setup all validations to pass
-      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue({
-        id: mockServiceId,
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue({
+        id: mockOrderItemId,
         serviceId: 'service-def-123',
         orderId: mockOrderId,
         status: 'Processing',
@@ -550,9 +553,10 @@ describe('ServiceCommentService.createComment', () => {
               capturedData = args.data;
               return Promise.resolve({
                 id: 'comment-123',
+                orderItemId: mockOrderItemId,
                 createdBy: mockUserId,
                 template: {},
-                createdByUser: { id: mockUserId },
+                createdByUser: { id: mockUserId, firstName: 'Test', lastName: 'User', email: 'test@example.com' },
                 updatedByUser: null
               });
             })
@@ -565,7 +569,7 @@ describe('ServiceCommentService.createComment', () => {
       });
 
       await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: 'Test comment'
@@ -579,12 +583,13 @@ describe('ServiceCommentService.createComment', () => {
     it('should not set updatedBy or updatedAt on creation', async () => {
       const mockComment = {
         id: 'comment-123',
+        orderItemId: mockOrderItemId,
         createdBy: mockUserId,
         createdAt: new Date(),
         updatedBy: null,
         updatedAt: null,
         template: {},
-        createdByUser: {},
+        createdByUser: { firstName: 'Test', lastName: 'User', email: 'test@example.com' },
         updatedByUser: null
       };
 
@@ -592,7 +597,7 @@ describe('ServiceCommentService.createComment', () => {
       setupTransactionMock(mockComment);
 
       const result = await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: 'Test comment'
@@ -609,8 +614,8 @@ describe('ServiceCommentService.createComment', () => {
   describe('response structure', () => {
     beforeEach(() => {
       // Setup all validations to pass
-      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue({
-        id: mockServiceId,
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue({
+        id: mockOrderItemId,
         serviceId: 'service-def-123',
         orderId: mockOrderId,
         status: 'Processing',
@@ -635,7 +640,7 @@ describe('ServiceCommentService.createComment', () => {
     it('should include template details in response', async () => {
       const mockComment = {
         id: 'comment-123',
-        serviceId: mockServiceId,
+        orderItemId: mockOrderItemId,
         templateId: mockTemplateId,
         finalText: 'Test comment',
         isInternalOnly: true,
@@ -648,7 +653,8 @@ describe('ServiceCommentService.createComment', () => {
         },
         createdByUser: {
           id: mockUserId,
-          name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
           email: 'test@example.com'
         },
         updatedByUser: null
@@ -658,7 +664,7 @@ describe('ServiceCommentService.createComment', () => {
       setupTransactionMock(mockComment);
 
       const result = await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: 'Test comment'
@@ -674,7 +680,7 @@ describe('ServiceCommentService.createComment', () => {
     it('should include user details in response', async () => {
       const mockComment = {
         id: 'comment-123',
-        serviceId: mockServiceId,
+        orderItemId: mockOrderItemId,
         templateId: mockTemplateId,
         finalText: 'Test comment',
         isInternalOnly: true,
@@ -687,7 +693,8 @@ describe('ServiceCommentService.createComment', () => {
         },
         createdByUser: {
           id: mockUserId,
-          name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
           email: 'test@example.com'
         },
         updatedByUser: null
@@ -697,7 +704,7 @@ describe('ServiceCommentService.createComment', () => {
       setupTransactionMock(mockComment);
 
       const result = await service.createComment(
-        mockServiceId,
+        mockOrderItemId,
         {
           templateId: mockTemplateId,
           finalText: 'Test comment'
@@ -706,7 +713,8 @@ describe('ServiceCommentService.createComment', () => {
       );
 
       expect(result.createdByUser).toBeDefined();
-      expect(result.createdByUser.name).toBe('Test User');
+      expect(result.createdByUser.firstName).toBe('Test');
+      expect(result.createdByUser.lastName).toBe('User');
       expect(result.createdByUser.email).toBe('test@example.com');
     });
   });
