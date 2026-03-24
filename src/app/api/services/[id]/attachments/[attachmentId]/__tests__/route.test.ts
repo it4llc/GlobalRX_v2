@@ -4,8 +4,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET, DELETE } from '../route';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import { readFile, unlink } from 'fs/promises';
-import * as fs from 'fs';
+import fsPromises from 'fs/promises';
+import fs from 'fs';
 
 // Mock dependencies
 vi.mock('next-auth', () => ({
@@ -55,16 +55,23 @@ vi.mock('@/lib/prisma', () => ({
   }
 }));
 
-vi.mock('fs/promises', () => ({
-  default: {},
-  readFile: vi.fn(),
-  unlink: vi.fn()
-}));
+vi.mock('fs/promises', () => {
+  const readFileFn = vi.fn();
+  const unlinkFn = vi.fn();
+  return {
+    default: { readFile: readFileFn, unlink: unlinkFn },
+    readFile: readFileFn,
+    unlink: unlinkFn
+  };
+});
 
-vi.mock('fs', () => ({
-  default: {},
-  existsSync: vi.fn(() => true)
-}));
+vi.mock('fs', () => {
+  const existsSyncFn = vi.fn(() => true);
+  return {
+    default: { existsSync: existsSyncFn },
+    existsSync: existsSyncFn
+  };
+});
 
 // Mock path module
 vi.mock('path', () => ({
@@ -128,7 +135,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
       // existsSync is already mocked to return true in the mock setup above
       // Mock readFile to return the content
-      vi.mocked(readFile).mockResolvedValueOnce(mockFileContent);
+      vi.mocked(fsPromises.readFile).mockResolvedValueOnce(mockFileContent);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
       const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
@@ -187,7 +194,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       // Mock existsSync to return true for any path (since path.join creates a full path)
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock readFile to return the content for any path
-      vi.mocked(readFile).mockResolvedValueOnce(mockFileContent);
+      vi.mocked(fsPromises.readFile).mockResolvedValueOnce(mockFileContent);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
       const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
@@ -276,7 +283,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       // Mock existsSync to return true for any path (since path.join creates a full path)
       vi.mocked(fs.existsSync).mockImplementation(() => true);
       // Mock readFile to return the content for any path
-      vi.mocked(readFile).mockImplementation(() => Promise.resolve(mockFileContent));
+      vi.mocked(fsPromises.readFile).mockImplementation(() => Promise.resolve(mockFileContent));
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
       const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
@@ -499,7 +506,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
       // Mock existsSync to return true for any path
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock readFile to reject with an error
-      vi.mocked(readFile).mockRejectedValueOnce(new Error('Permission denied'));
+      vi.mocked(fsPromises.readFile).mockRejectedValueOnce(new Error('Permission denied'));
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
       const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
@@ -569,7 +576,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       // Mock existsSync to return true for any path
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock unlink to succeed
-      vi.mocked(unlink).mockResolvedValueOnce(undefined);
+      vi.mocked(fsPromises.unlink).mockResolvedValueOnce(undefined);
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
       });
@@ -588,7 +595,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       expect(data).toHaveProperty('message', 'Attachment deleted successfully');
 
       // Verify file deletion was attempted
-      expect(unlink).toHaveBeenCalled();
+      expect(fsPromises.unlink).toHaveBeenCalled();
 
       // Verify database record was deleted
       expect(prisma.serviceAttachment.delete).toHaveBeenCalledWith({
@@ -666,7 +673,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       // Mock existsSync to return true for any path
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock unlink to succeed
-      vi.mocked(unlink).mockResolvedValueOnce(undefined);
+      vi.mocked(fsPromises.unlink).mockResolvedValueOnce(undefined);
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
       });
@@ -910,7 +917,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       expect(response.status).toBe(200);
 
       // File deletion should NOT be attempted
-      expect(unlink).not.toHaveBeenCalled();
+      expect(fsPromises.unlink).not.toHaveBeenCalled();
 
       // Database record should still be deleted
       expect(prisma.serviceAttachment.delete).toHaveBeenCalledWith({
@@ -956,7 +963,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       // Mock existsSync to return true for any path
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock unlink to succeed
-      vi.mocked(unlink).mockResolvedValueOnce(undefined);
+      vi.mocked(fsPromises.unlink).mockResolvedValueOnce(undefined);
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
       });
@@ -1042,7 +1049,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       // Mock existsSync to return true for any path
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock unlink to fail with permission error
-      vi.mocked(unlink).mockRejectedValueOnce(new Error('Permission denied'));
+      vi.mocked(fsPromises.unlink).mockRejectedValueOnce(new Error('Permission denied'));
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
       });

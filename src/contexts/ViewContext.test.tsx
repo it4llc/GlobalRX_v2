@@ -32,7 +32,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: {
             global_config: true,
             candidate_workflow: true
@@ -57,7 +57,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: {
             user_admin: true,
             candidate_workflow: true
@@ -90,7 +90,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '2',
-          type: 'internal',
+          userType: 'internal',
           permissions: {
             candidate_workflow: true
           }
@@ -114,7 +114,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '2',
-          type: 'internal',
+          userType: 'internal',
           permissions: {
             candidate_workflow: true
           }
@@ -141,7 +141,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '3',
-          type: 'vendor',
+          userType: 'vendor',
           vendorId: 'vendor-123',
           permissions: {}
         },
@@ -162,7 +162,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '3',
-          type: 'vendor',
+          userType: 'vendor',
           vendorId: 'vendor-123',
           permissions: {
             global_config: true,
@@ -188,7 +188,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '4',
-          type: 'customer',
+          userType: 'customer',
           customerId: 'customer-123',
           permissions: {
             candidate_workflow: true
@@ -243,7 +243,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: {
             global_config: true
           }
@@ -264,7 +264,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: {
             customer_config: true,
             candidate_workflow: true
@@ -286,7 +286,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: {
             user_admin: true,
             candidate_workflow: true
@@ -308,7 +308,7 @@ describe('ViewContext', () => {
       vi.mocked(useAuth).mockReturnValue({
         user: {
           id: '1',
-          type: 'internal',
+          userType: 'internal',
           permissions: {
             user_admin: true
             // Missing candidate_workflow

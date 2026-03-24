@@ -102,7 +102,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       const mockService = {
         id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         orderId: '550e8400-e29b-41d4-a716-446655440002',
-        status: 'Processing',
+        status: 'processing',
         assignedVendorId: 'vendor-789'
       };
 
@@ -131,7 +131,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
       const mockService = {
         id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: 'vendor-123',
-        status: 'Submitted'
+        status: 'submitted'
       };
 
       vi.mocked(ServiceFulfillmentService.getServiceById).mockResolvedValueOnce(mockService);
@@ -237,7 +237,7 @@ describe('GET /api/fulfillment/services/[id]', () => {
         orderItemId: '660e8400-e29b-41d4-a716-446655440006',
         serviceId: 'service-type-1',
         locationId: 'location-1',
-        status: 'Processing',
+        status: 'processing',
         assignedVendorId: 'vendor-123',
         vendorNotes: 'Working on verification',
         internalNotes: 'Rush order',
@@ -313,7 +313,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'Processing' })
+        body: JSON.stringify({ status: 'processing' })
       });
       const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
@@ -337,7 +337,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
       const updatedService = {
         id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
-        status: 'Processing'
+        status: 'processing'
       };
 
       vi.mocked(ServiceFulfillmentService.updateService).mockResolvedValueOnce(updatedService);
@@ -349,7 +349,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
           'x-forwarded-for': '192.168.1.1',
           'user-agent': 'Test Browser'
         },
-        body: JSON.stringify({ status: 'Processing' })
+        body: JSON.stringify({ status: 'processing' })
       });
       const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
@@ -368,7 +368,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
       expect(ServiceFulfillmentService.updateService).toHaveBeenCalledWith(
         'c47ac10b-58cc-4372-a567-0e02b2c3d479',
-        { status: 'Processing' },
+        { status: 'processing' },
         expect.objectContaining({
           id: 'user-123',
           userType: 'internal',
@@ -394,7 +394,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const updatedService = {
         id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
         assignedVendorId: 'vendor-123',
-        status: 'Processing',
+        status: 'processing',
         vendorNotes: 'Updated notes'
       };
 
@@ -404,7 +404,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'Processing',
+          status: 'processing',
           vendorNotes: 'Updated notes'
         })
       });
@@ -483,7 +483,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'Processing' })
+        body: JSON.stringify({ status: 'processing' })
       });
       const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
@@ -558,7 +558,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const request = new Request('http://localhost:3000/api/fulfillment/services/', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'Processing' })
+        body: JSON.stringify({ status: 'processing' })
       });
       const params = { params: { id: '' } };
 
@@ -598,27 +598,20 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
     });
 
     it('should return 404 when service does not exist', async () => {
-      vi.mocked(ServiceFulfillmentService.updateService).mockImplementationOnce(() =>
-        Promise.reject(new Error('Service with ID non-existent not found'))
+      // Clear and reset the mock to ensure clean state
+      vi.mocked(ServiceFulfillmentService.updateService).mockReset();
+      vi.mocked(ServiceFulfillmentService.updateService).mockRejectedValueOnce(
+        new Error('Service with ID non-existent not found')
       );
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/non-existent', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'Processing' })
+        body: JSON.stringify({ status: 'processing' })
       });
       const params = { params: { id: 'non-existent' } };
 
       const response = await PATCH(request, params);
-
-      // Debug if not 404
-      if (response.status !== 404) {
-        const errorData = await response.json();
-        console.log('Service not found test error:', response.status, errorData);
-        // Check if the mock was even called
-        console.log('Mock called:', vi.mocked(ServiceFulfillmentService.updateService).mock.calls.length);
-      }
-
       expect(response.status).toBe(404);
 
       const data = await response.json();
@@ -660,7 +653,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
     it('should allow multiple field updates in single request', async () => {
       const updatedService = {
         id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
-        status: 'Completed',
+        status: 'completed',
         vendorNotes: 'All checks passed',
         internalNotes: 'Approved for hire',
         completedAt: new Date().toISOString()
@@ -674,7 +667,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'Completed',
+          status: 'completed',
           vendorNotes: 'All checks passed',
           internalNotes: 'Approved for hire'
         })
@@ -693,7 +686,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
       const data = await response.json();
       expect(data).toEqual(updatedService);
-      expect(data.status).toBe('Completed');
+      expect(data.status).toBe('completed');
       expect(data.completedAt).toBeDefined();
     });
 
@@ -749,7 +742,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
       vi.mocked(ServiceFulfillmentService.updateService).mockResolvedValueOnce({
         id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
-        status: 'Processing'
+        status: 'processing'
       });
 
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
@@ -760,7 +753,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
           'x-real-ip': '192.168.1.1',
           'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
         },
-        body: JSON.stringify({ status: 'Processing' })
+        body: JSON.stringify({ status: 'processing' })
       });
       const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
@@ -768,7 +761,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
 
       expect(ServiceFulfillmentService.updateService).toHaveBeenCalledWith(
         'c47ac10b-58cc-4372-a567-0e02b2c3d479',
-        { status: 'Processing' },
+        { status: 'processing' },
         expect.any(Object),
         expect.objectContaining({
           ipAddress: '10.0.0.1',
@@ -801,7 +794,7 @@ describe('PATCH /api/fulfillment/services/[id]', () => {
       const request = new Request('http://localhost:3000/api/fulfillment/services/service-123', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'Processing' })
+        body: JSON.stringify({ status: 'processing' })
       });
       const params = { params: { id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' } };
 
