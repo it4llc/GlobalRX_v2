@@ -5,8 +5,7 @@ import {
   vendorOrganizationSchema,
   createVendorOrganizationSchema,
   updateVendorOrganizationSchema,
-  vendorUserSchema,
-  assignOrderToVendorSchema
+  vendorUserSchema
 } from '@/lib/schemas/vendorSchemas';
 
 describe('Vendor Schemas', () => {
@@ -285,59 +284,67 @@ describe('Vendor Schemas', () => {
     });
   });
 
-  describe('assignOrderToVendorSchema', () => {
+  // SKIPPED: assignOrderToVendorSchema was removed during migration to service fulfillment model
+  // The schema has been replaced with bulkAssignSchema in service-fulfillment.schemas.ts
+  // which uses serviceFulfillmentIds instead of orderId
+  describe.skip('assignOrderToVendorSchema', () => {
     describe('valid data', () => {
-      it('should pass with vendor assignment', () => {
+      it.skip('should pass with vendor assignment', () => {
         const validData = {
           orderId: '550e8400-e29b-41d4-a716-446655440001',
           vendorId: 'vendor-456',
           assignmentNotes: 'Expedited processing requested'
         };
 
-        const result = assignOrderToVendorSchema.safeParse(validData);
-        expect(result.success).toBe(true);
+        // Schema no longer exists - test skipped
+        // const result = assignOrderToVendorSchema.safeParse(validData);
+        // expect(result.success).toBe(true);
       });
 
-      it('should pass with null vendorId for internal assignment', () => {
+      it.skip('should pass with null vendorId for internal assignment', () => {
         const validData = {
           orderId: '550e8400-e29b-41d4-a716-446655440001',
           vendorId: null,
           assignmentNotes: 'Reassigned to internal team'
         };
 
-        const result = assignOrderToVendorSchema.safeParse(validData);
-        expect(result.success).toBe(true);
+        // Schema no longer exists - test skipped
+        // const result = assignOrderToVendorSchema.safeParse(validData);
+        // expect(result.success).toBe(true);
       });
 
-      it('should pass without optional notes', () => {
+      it.skip('should pass without optional notes', () => {
         const validData = {
           orderId: '550e8400-e29b-41d4-a716-446655440001',
           vendorId: 'vendor-456'
         };
 
-        const result = assignOrderToVendorSchema.safeParse(validData);
-        expect(result.success).toBe(true);
+        // Schema no longer exists - test skipped
+        // const result = assignOrderToVendorSchema.safeParse(validData);
+        // expect(result.success).toBe(true);
       });
     });
 
     describe('invalid data', () => {
-      it('should fail without orderId', () => {
+      it.skip('should fail without orderId', () => {
         const invalidData = {
           vendorId: 'vendor-456'
         };
 
-        const result = assignOrderToVendorSchema.safeParse(invalidData);
-        expect(result.success).toBe(false);
+        // Schema no longer exists - test skipped
+        // const result = assignOrderToVendorSchema.safeParse(invalidData);
+        // expect(result.success).toBe(false);
       });
 
-      it('should fail with empty orderId', () => {
+      it.skip('should fail with empty orderId', () => {
         const invalidData = {
           orderId: '',
           vendorId: 'vendor-456'
         };
 
-        const result = assignOrderToVendorSchema.safeParse(invalidData);
-        expect(result.success).toBe(false);
+        // Schema no longer exists - test skipped
+        // const result = assignOrderToVendorSchema.safeParse(invalidData);
+        // expect(result.success).toBe(false);
       });
     });
   });
