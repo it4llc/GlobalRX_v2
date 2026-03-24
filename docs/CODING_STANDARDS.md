@@ -555,7 +555,42 @@ Every API endpoint must have:
  */
 ```
 
-### 14.4 Business Logic Documentation
+### 14.4 Data Key Consistency
+
+When working with form field data, API responses, or any data structures where objects can be referenced by different keys, **ensure consistent key usage throughout the data flow**.
+
+**Common Bug Pattern to Avoid:**
+```typescript
+// ❌ WRONG - Inconsistent keying causes data loss in forms
+// Draft order data comes with field names as keys
+const draftData = { "School Name": "Harvard", "Email": "test@example.com" };
+
+// But form expects field IDs as keys
+const formFields = { "uuid-123": "Harvard", "uuid-456": "test@example.com" };
+
+// This mismatch causes field values to not appear when editing drafts
+```
+
+**Correct Pattern:**
+```typescript
+// ✅ CORRECT - Remap keys consistently before using data
+const remapFieldNamesToIds = (fieldsByName: Record<string, any>, fieldDefinitions: Field[]) => {
+  const remapped: Record<string, any> = {};
+
+  Object.entries(fieldsByName).forEach(([fieldName, fieldValue]) => {
+    const matchingField = fieldDefinitions.find(field => field.name === fieldName);
+    if (matchingField) {
+      remapped[matchingField.id] = fieldValue; // Use ID as key, not name
+    }
+  });
+
+  return remapped;
+};
+```
+
+**Rule:** When field data can be referenced by both name and ID, always establish which key type the consuming code expects and transform data accordingly before use.
+
+### 14.5 Business Logic Documentation
 
 When implementing deduplication logic or data merging algorithms:
 
@@ -578,7 +613,7 @@ if (existingField && isRequired) {
 }
 ```
 
-### 14.5 README Updates
+### 14.6 README Updates
 
 Update README.md when:
 - Adding new dependencies
@@ -586,7 +621,7 @@ Update README.md when:
 - Adding new npm scripts
 - Changing deployment process
 
-### 14.6 Feature Documentation
+### 14.7 Feature Documentation
 
 For significant features, create a markdown file in `/docs/features/`:
 
