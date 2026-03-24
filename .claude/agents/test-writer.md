@@ -91,6 +91,77 @@ on the spec file — not on assumptions.
 
 ---
 
+## Bug Fix Regression Tests — CRITICAL RULES
+
+When writing tests for a bug fix (via `/fix-bug` or any bug fix pipeline),
+regression tests follow different rules than new feature tests. Get this wrong
+and the test is useless.
+
+### The One Rule
+
+**A regression test ALWAYS asserts the CORRECT behavior — the behavior that
+should exist AFTER the fix is applied.**
+
+This means:
+- The test FAILS before the fix (proving the bug exists)
+- The test PASSES after the fix (proving the bug is resolved)
+- The test requires ZERO modifications between those two states
+
+### What "proves the bug exists" actually means
+
+- **CORRECT:** Write a test that expects correct output → test fails now because
+  the bug produces wrong output → implementer fixes the code → test passes.
+  The failing test IS the proof the bug exists.
+- **WRONG:** Write a test that expects buggy output → test passes now → have to
+  rewrite the test after the fix. This is backwards and defeats the purpose.
+
+### Verify the actual output, not the function calls
+
+Regression tests must check the **end result**, not whether intermediate
+functions were called:
+
+- **CORRECT:** Assert that the final state/output matches expected values
+- **WRONG:** Assert that `setSearchFieldValues` was called with certain arguments
+- **WRONG:** Assert that a mock function was invoked N times
+
+If the test would still pass when the bug is reintroduced, the test is useless.
+The litmus test: delete the fix code → does the test fail? If not, rewrite it.
+
+### Example — correct regression test
+
+```typescript
+// Bug: field values stored by name but looked up by ID, so fields appear blank
+// This test asserts CORRECT behavior — it will FAIL before the fix
+
+it('REGRESSION TEST: draft order search fields are keyed by field ID not field name', () => {
+  // Setup: API returns data with fieldName: "School Name"
+  // Setup: Requirements return field with id: "uuid-123", name: "School Name"
+
+  // Act: load the order for editing
+
+  // Assert CORRECT behavior (will fail before fix, pass after):
+  expect(searchFieldValues[itemId]["uuid-123"]).toBe("U of W");
+
+  // Do NOT assert buggy behavior like:
+  // expect(searchFieldValues[itemId]["School Name"]).toBe("U of W");  // WRONG
+});
+```
+
+### Self-check before submitting regression tests
+
+Before reporting tests as complete, answer these three questions:
+1. Does each regression test assert the CORRECT (post-fix) behavior? If it
+   asserts the buggy behavior, rewrite it.
+2. Will each regression test FAIL right now without the fix applied? If it
+   passes before the fix, it cannot prove the bug exists. Rewrite it.
+3. Will each regression test PASS after the fix WITHOUT any modifications
+   to the test? If the test needs to be changed after the fix, it was
+   written wrong. Rewrite it.
+
+If the answer to all three is yes, the regression test is correct.
+
+---
+
 ## Platform reference
 
 **Tech stack:** Next.js 14, TypeScript (strict mode), Prisma, PostgreSQL, NextAuth.js, Zod, React Hook Form
