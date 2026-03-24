@@ -136,6 +136,7 @@ When this agent is invoked as part of the /fix-bug pipeline, these additional ru
 - **The regression test must pass naturally.** Every bug fix will have a test labeled `// REGRESSION TEST:`. This test must go from failing to passing as a direct result of the code fix. If it is still failing after the fix, the fix is incomplete — do not move on.
 - **Never delete or modify the regression test.** It must remain exactly as the test-writer wrote it. If the regression test seems wrong, stop and flag it for review. Do not change it.
 - **Confirm the regression test by name in your completion report.** You must explicitly list the regression test name and confirm it is passing.
+- **Scan for duplicate patterns after every fix.** After applying a fix to any file, immediately search that same file for other code paths that handle the same type of data or follow the same pattern. If the fix changes how a value is processed (e.g., adding JSON.parse, remapping keys, adding null checks, changing a lookup), grep the file for other places that process the same type of value using the old pattern. Apply the same fix to ALL instances, not just the first one found. In your completion report, list every location you found and fixed. Example: if you add JSON.parse for address block values in the search field remapping, also check the subject field remapping in the same function — both handle the same data types. Fixing only one code path while leaving an identical broken path is an incomplete fix.
 
 ---
 
@@ -312,6 +313,11 @@ if (package.disabled) { ... }
 ## Regression Test Confirmation (bug fixes only)
 [If this was a bug fix, list the regression test by name and confirm it is PASSING.
 If this was not a bug fix, write: "Not applicable — this was a feature build."]
+
+## Duplicate Pattern Scan (bug fixes only)
+[List every location in the modified file(s) where the same pattern was found.
+For each location, state whether the fix was applied or not applicable.
+If no duplicate patterns exist, state: "No duplicate patterns found."]
 
 ## Files Created
 - [list each new file]

@@ -190,13 +190,43 @@ export async function PUT(
             const searchFields = validatedData.searchFieldValues?.[serviceItem.itemId];
             if (searchFields) {
               for (const [fieldName, fieldValue] of Object.entries(searchFields)) {
-                if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+                // Save all field values except undefined (which means the field doesn't exist)
+                // This ensures optional empty fields are saved and can be restored when editing
+                // Bug fix: Previously filtered out null and empty values, causing optional address blocks to not restore
+                if (fieldValue !== undefined) {
                   await tx.orderData.create({
                     data: {
                       orderItemId: orderItem.id,
                       fieldName,
                       fieldValue: typeof fieldValue === 'string' ? fieldValue : JSON.stringify(fieldValue),
                       fieldType: 'search',
+                    },
+                  });
+                }
+              }
+            }
+          }
+
+          // Save subject field values to order_data table to preserve structured data (like address blocks)
+          // This ensures address blocks aren't flattened and can be properly restored when editing
+          // We store these with the first order item since subject fields apply to the entire order
+          if (validatedData.subjectFieldValues && validatedData.serviceItems.length > 0) {
+            // Get the first order item we just created to associate subject fields with
+            const firstOrderItem = await tx.orderItem.findFirst({
+              where: { orderId: params.id },
+              orderBy: { createdAt: 'asc' }
+            });
+
+            if (firstOrderItem) {
+              for (const [fieldId, fieldValue] of Object.entries(validatedData.subjectFieldValues)) {
+                // Save all field values except undefined
+                if (fieldValue !== undefined) {
+                  await tx.orderData.create({
+                    data: {
+                      orderItemId: firstOrderItem.id,
+                      fieldName: fieldId, // Store the field UUID directly
+                      fieldValue: typeof fieldValue === 'string' ? fieldValue : JSON.stringify(fieldValue),
+                      fieldType: 'subject', // Mark as subject field for proper restoration
                     },
                   });
                 }
