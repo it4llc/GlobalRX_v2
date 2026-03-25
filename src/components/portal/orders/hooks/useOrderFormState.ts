@@ -256,6 +256,16 @@ export function useOrderFormState() {
 
   /**
    * Load existing order for editing
+   *
+   * Handles the complex process of loading a draft order and restoring all field values,
+   * including proper parsing of address block fields from JSON strings back to objects.
+   *
+   * Address Block Bug Fix:
+   * - Search-level address blocks: Parsed from JSON strings in field remapping callback
+   * - Subject-level address blocks: Parsed from JSON strings stored in order_data
+   * - Both types maintain structure (street1, city, etc. as separate properties)
+   *
+   * @param orderId - The ID of the order to load for editing
    */
   const loadOrderForEdit = useCallback(async (orderId: string) => {
     if (!session?.user?.customerId) return;
@@ -400,14 +410,18 @@ export function useOrderFormState() {
                 if (fieldValue === null) {
                   processedValue = undefined;
                 }
-                // Parse JSON strings for address_block fields
+                // Address Block JSON Parsing Fix:
+                // Address block fields are stored as JSON strings in the database but need
+                // to be objects for the AddressBlockInput component to display them properly.
+                // This parsing ensures fields like {street1: "123 Main", city: "Boston"}
+                // are restored as objects instead of strings.
                 else if (field.dataType === 'address_block') {
                   // Only parse if it's a string that looks like JSON
                   if (typeof fieldValue === 'string' && fieldValue.startsWith('{') && fieldValue.endsWith('}')) {
                     try {
                       processedValue = JSON.parse(fieldValue);
                     } catch {
-                      // If parsing fails, keep original value
+                      // If parsing fails, keep original value (graceful degradation)
                       processedValue = fieldValue;
                     }
                   }
@@ -457,14 +471,16 @@ export function useOrderFormState() {
                   if (fieldValue === null) {
                     processedValue = undefined;
                   }
-                  // Parse JSON strings for address_block fields
+                  // Address Block JSON Parsing Fix (Search Fields):
+                  // Same logic as subject fields - parse JSON strings back to objects
+                  // for proper display in AddressBlockInput components
                   else if (matchingField.dataType === 'address_block') {
                     // Only parse if it's a string that looks like JSON
                     if (typeof fieldValue === 'string' && fieldValue.startsWith('{') && fieldValue.endsWith('}')) {
                       try {
                         processedValue = JSON.parse(fieldValue);
                       } catch {
-                        // If parsing fails, keep original value
+                        // If parsing fails, keep original value (graceful degradation)
                         processedValue = fieldValue;
                       }
                     }
