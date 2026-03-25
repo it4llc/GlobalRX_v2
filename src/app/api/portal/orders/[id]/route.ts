@@ -269,6 +269,13 @@ export async function PUT(
                       fieldName: documentId, // Use document requirement ID as field name
                       fieldValue: JSON.stringify(documentMetadata), // Store metadata as JSON
                       fieldType: 'document', // Distinguishes from regular search field data
+                    },
+                  });
+                }
+              }
+            }
+          }
+
           // Subject-Level Address Block Support:
           // Save subject field values to order_data table to preserve structured data
           //
@@ -278,7 +285,7 @@ export async function PUT(
           // city, postalCode as separate properties) instead of being flattened.
           //
           // We associate these with the first order item for database design compatibility.
-          if (validatedData.subjectFieldValues && validatedData.serviceItems.length > 0) {
+          if (validatedData.subjectFieldValues && validatedData.serviceItems && validatedData.serviceItems.length > 0) {
             // Get the first order item we just created to associate subject fields with
             const firstOrderItem = await tx.orderItem.findFirst({
               where: { orderId: params.id },

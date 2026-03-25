@@ -349,14 +349,15 @@ export function useOrderFormState() {
                 }
               } else {
                 // Regular search field data
-              // Check if this is a subject field (stored with fieldType: 'subject')
-              if (dataEntry.fieldType === 'subject') {
-                // Subject fields are order-level, not item-specific
-                // fieldName is the field UUID, fieldValue may need JSON parsing for address blocks
-                subjectFieldsById[dataEntry.fieldName] = dataEntry.fieldValue;
-              } else {
-                // Search fields are item-specific
-                searchFieldsByName[itemId][dataEntry.fieldName] = dataEntry.fieldValue;
+                // Check if this is a subject field (stored with fieldType: 'subject')
+                if (dataEntry.fieldType === 'subject') {
+                  // Subject fields are order-level, not item-specific
+                  // fieldName is the field UUID, fieldValue may need JSON parsing for address blocks
+                  subjectFieldsById[dataEntry.fieldName] = dataEntry.fieldValue;
+                } else {
+                  // Search fields are item-specific
+                  searchFieldsByName[itemId][dataEntry.fieldName] = dataEntry.fieldValue;
+                }
               }
             });
           }
