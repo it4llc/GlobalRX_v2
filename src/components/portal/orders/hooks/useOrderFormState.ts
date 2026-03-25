@@ -38,6 +38,15 @@ interface OrderSubjectField {
   required?: boolean;
 }
 
+interface OrderSearchField {
+  id: string;
+  name: string;
+  dataType?: string;
+  required?: boolean;
+  serviceId?: string;
+  locationId?: string;
+}
+
 /**
  * Central state management hook for the order form
  * Combines all the extracted business logic hooks
@@ -284,27 +293,35 @@ export function useOrderFormState() {
       // Update notes
       setNotes(order.notes || '');
 
-      // Load field values from order data
-      if (order.items && order.items.length > 0) {
-        const searchFields: Record<string, Record<string, any>> = {};
+      // Load field values from order data - store temporarily for remapping
+      let searchFieldsByName: Record<string, Record<string, any>> = {};
 
+      if (order.items && order.items.length > 0) {
         order.items.forEach((item: OrderItem, index: number) => {
           const itemId = serviceItems[index].itemId;
-          searchFields[itemId] = {};
+          searchFieldsByName[itemId] = {};
 
           if (item.data && item.data.length > 0) {
             item.data.forEach((dataEntry: OrderDataEntry) => {
-              searchFields[itemId][dataEntry.fieldName] = dataEntry.fieldValue;
+              searchFieldsByName[itemId][dataEntry.fieldName] = dataEntry.fieldValue;
             });
           }
         });
 
-        setSearchFieldValues(searchFields);
+        // BUG FIX: Don't set searchFieldValues here - they will be set after remapping to field IDs in the callback
+        // ISSUE: Form expects field values keyed by UUID (field.id) but draft data comes with field names as keys
+        // This caused DSX field values to not appear when editing draft orders
+        // SOLUTION: Store field data temporarily and remap field names -> field IDs after requirements load
       }
 
       // Store the order subject data for later field mapping
       if (order.subject) {
         sessionStorage.setItem(`order_${orderId}_subject`, JSON.stringify(order.subject));
+      }
+
+      // Store the search field values for later remapping
+      if (Object.keys(searchFieldsByName).length > 0) {
+        sessionStorage.setItem(`order_${orderId}_searchFields`, JSON.stringify(searchFieldsByName));
       }
 
       // Start at step 2 since we already have services selected
@@ -344,6 +361,36 @@ export function useOrderFormState() {
 
             setSubjectFieldValues(fieldValues);
             sessionStorage.removeItem(`order_${orderId}_subject`);
+          }
+
+          // Remap search field values from field names to field IDs
+          // This fixes the bug where DSX field values don't appear when editing draft orders
+          const storedSearchFields = sessionStorage.getItem(`order_${orderId}_searchFields`);
+          if (data.searchFields && data.searchFields.length > 0 && storedSearchFields) {
+            const searchFieldsByName = JSON.parse(storedSearchFields);
+            const remappedSearchFieldValues: Record<string, Record<string, any>> = {};
+
+            // For each item in the cart
+            Object.keys(searchFieldsByName).forEach((itemId) => {
+              remappedSearchFieldValues[itemId] = {};
+              const itemFieldValues = searchFieldsByName[itemId];
+
+              // For each field name/value pair in that item
+              Object.entries(itemFieldValues).forEach(([fieldName, fieldValue]) => {
+                // Find the matching field in data.searchFields where field.name === fieldName
+                const matchingField = data.searchFields.find((field: OrderSearchField) => field.name === fieldName);
+
+                if (matchingField) {
+                  // Use field.id as the key in the new object
+                  remappedSearchFieldValues[itemId][matchingField.id] = fieldValue;
+                }
+                // If no matching field is found, the value is ignored (doesn't exist in requirements)
+              });
+            });
+
+            // Update the search field values with the remapped object
+            setSearchFieldValues(remappedSearchFieldValues);
+            sessionStorage.removeItem(`order_${orderId}_searchFields`);
           }
         });
       }

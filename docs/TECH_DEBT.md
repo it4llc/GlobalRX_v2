@@ -130,6 +130,62 @@ Will be fully resolved when ServicesFulfillment auto-creation feature is impleme
 
 ---
 
+### TD-005 — SessionStorage Security Concern in Order Form State
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Orders / Form State Management              |
+| Severity    | Warning                                     |
+| Identified  | March 24, 2026 - Draft Order DSX Bug Fix Stage 4 |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+In `useOrderFormState.ts`, the fix for the DSX field values bug uses sessionStorage to temporarily store field values during the remapping process (field names to field IDs). This introduces potential security concerns:
+- Field values might contain sensitive data (education details, employment history, etc.)
+- SessionStorage persists across page refreshes and could expose data if user navigates away before remapping completes
+- No cleanup if the user cancels the operation or closes the browser mid-process
+
+**Why deferred:**
+The current implementation works correctly and follows the same pattern already used for subject fields. Changing this would require refactoring both search field and subject field remapping logic.
+
+**When to fix:**
+Consider refactoring when implementing a broader state management solution or security audit. Could keep data in component state or use a more temporary storage mechanism.
+
+**Potential race condition:**
+The remapping relies on the callback being called after requirements are fetched. If the callback fails or is not invoked for any reason, the sessionStorage items will persist indefinitely.
+
+**Recommendation:**
+Add a cleanup mechanism in a `useEffect` cleanup function or error handler.
+
+---
+
+### TD-006 — Code Duplication in Field Remapping Logic
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Orders / Form State Management              |
+| Severity    | Warning                                     |
+| Identified  | March 24, 2026 - Draft Order DSX Bug Fix Stage 4 |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+In `useOrderFormState.ts`, the remapping logic for search fields (lines 367-391) is very similar to the existing subject field remapping logic (lines 331-361). Both follow the same pattern:
+- Store data in sessionStorage with field names as keys
+- Wait for requirements to load
+- Remap from field names to field IDs
+- Clean up sessionStorage
+
+**Why deferred:**
+The duplication is functional and both implementations work correctly. Extracting a utility function would be a refactoring task beyond the scope of the bug fix.
+
+**When to fix:**
+Extract into a reusable utility function when refactoring the order form state management or during a code quality improvement pass.
+
+**Recommendation:**
+Create a generic `remapFieldNamesToIds` utility function that can handle both search fields and subject fields consistently.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
