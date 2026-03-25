@@ -31,13 +31,9 @@ const updateOrderSchema = z.object({
     phone: z.string().optional(),
     address: z.string().optional(),
   }).optional(),
-  subjectFieldValues: z.record(z.string()).optional(),
-  searchFieldValues: z.record(z.record(z.string())).optional(),
-  uploadedDocuments: z.record(z.object({
-    fileName: z.string(),
-    filePath: z.string(),
-    fileSize: z.number(),
-  })).optional(),
+  subjectFieldValues: z.record(z.any()).optional(),
+  searchFieldValues: z.record(z.record(z.any())).optional(),
+  uploadedDocuments: z.record(z.any()).optional(),
   notes: z.string().optional(),
   status: z.enum(['draft', 'submitted']).optional(),
 });
