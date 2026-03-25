@@ -166,7 +166,7 @@ export async function PUT(
         }
 
         // 3. Update the order record itself (subject, notes, status)
-        const updateData: Record<string, any> = {};
+        const updateData: Record<string, unknown> = {};
         if (validatedData.subject || validatedData.subjectFieldValues) {
           // Merge basic subject with dynamic fields from DSX requirements
           // This resolves ID-based values to actual names and normalizes field names
@@ -247,6 +247,35 @@ export async function PUT(
             }
           }
 
+          // 5. Save document metadata in order_data
+          if (validatedData.uploadedDocuments) {
+            // Get the first order item to associate documents with
+            // Documents are typically per-case, so we associate with the first item
+            const firstOrderItem = await tx.orderItem.findFirst({
+              where: { orderId: params.id },
+              select: { id: true }
+            });
+
+            if (firstOrderItem) {
+              for (const [documentId, documentMetadata] of Object.entries(validatedData.uploadedDocuments)) {
+                if (documentMetadata && typeof documentMetadata === 'object') {
+                  // BUG FIX: Save document metadata as order_data with fieldType='document'
+                  // CONTEXT: Documents are now uploaded immediately when selected (not when order saves)
+                  // The upload endpoint returns JSON-serializable metadata, not File objects
+                  // This metadata is stored in order_data to persist with draft orders
+                  await tx.orderData.create({
+                    data: {
+                      orderItemId: firstOrderItem.id,
+                      fieldName: documentId, // Use document requirement ID as field name
+                      fieldValue: JSON.stringify(documentMetadata), // Store metadata as JSON
+                      fieldType: 'document', // Distinguishes from regular search field data
+                    },
+                  });
+                }
+              }
+            }
+          }
+
           // Subject-Level Address Block Support:
           // Save subject field values to order_data table to preserve structured data
           //
@@ -256,7 +285,7 @@ export async function PUT(
           // city, postalCode as separate properties) instead of being flattened.
           //
           // We associate these with the first order item for database design compatibility.
-          if (validatedData.subjectFieldValues && validatedData.serviceItems.length > 0) {
+          if (validatedData.subjectFieldValues && validatedData.serviceItems && validatedData.serviceItems.length > 0) {
             // Get the first order item we just created to associate subject fields with
             const firstOrderItem = await tx.orderItem.findFirst({
               where: { orderId: params.id },

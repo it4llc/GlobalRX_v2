@@ -489,9 +489,93 @@ All features handling personal data must support:
 
 ---
 
-## SECTION 15: Documentation Standards
+## SECTION 15: File Upload Patterns
 
-### 15.1 When Documentation is Required
+### 15.1 File Object Serialization Issues
+
+**NEVER store File objects in state that will be JSON serialized**
+
+File objects cannot be JSON serialized. When `JSON.stringify()` is called on data containing File objects, they become empty `{}` objects, causing data loss.
+
+**Common Bug Pattern to Avoid:**
+```typescript
+// ❌ WRONG - File objects in state get lost during JSON serialization
+const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
+
+// When saving draft data that includes uploadedFiles:
+const draftData = {
+  subject: {...},
+  services: [...],
+  uploadedFiles  // File objects become {} when JSON.stringify() is called
+};
+fetch('/api/save-draft', {
+  body: JSON.stringify(draftData) // Files are lost here
+});
+```
+
+**Correct Pattern: Immediate Upload with Metadata Storage**
+```typescript
+// ✅ CORRECT - Upload immediately, store only JSON-serializable metadata
+const [uploadedDocuments, setUploadedDocuments] = useState<Record<string, {
+  fileName: string;
+  filePath: string;
+  fileSize: number;
+  mimeType?: string;
+  uploadedAt?: string;
+}>>({});
+
+// Upload file immediately when selected:
+const handleFileSelect = async (file: File, documentId: string) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('documentId', documentId);
+
+  const response = await fetch('/api/uploads', {
+    method: 'POST',
+    body: formData  // Use FormData for uploads, not JSON
+  });
+
+  const result = await response.json();
+  // Store only serializable metadata, not the File object
+  setUploadedDocuments(prev => ({
+    ...prev,
+    [documentId]: result.metadata
+  }));
+};
+```
+
+**Rule:** Always upload files immediately when selected and store only JSON-serializable metadata in component state. Never defer file uploads until form submission.
+
+### 15.2 FormData vs JSON for File Uploads
+
+**File uploads MUST use FormData, not JSON**
+
+```typescript
+// ✅ CORRECT - Use FormData for file uploads
+const formData = new FormData();
+formData.append('file', file);
+formData.append('documentId', documentId);
+
+fetch('/api/uploads', {
+  method: 'POST',
+  body: formData  // Browser automatically sets correct Content-Type
+});
+
+// ❌ WRONG - Cannot send files as JSON
+fetch('/api/uploads', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ file, documentId }) // File object becomes {}
+});
+```
+
+**Rule:** Use FormData for any request that includes file uploads. Let the browser automatically set the Content-Type header.
+
+---
+
+## SECTION 16: Documentation Standards
+
+### 16.1 When Documentation is Required
 
 Documentation must be created or updated in these situations:
 
@@ -502,7 +586,7 @@ Documentation must be created or updated in these situations:
 5. **Breaking Changes** - Document migration path
 6. **Configuration Changes** - Update .env.example
 
-### 15.2 Code Comments
+### 16.2 Code Comments
 
 **When to add comments:**
 - Complex algorithms or business rules
@@ -529,7 +613,7 @@ Documentation must be created or updated in these situations:
 const name = formData.name;
 ```
 
-### 15.3 API Documentation
+### 16.3 API Documentation
 
 Every API endpoint must have:
 
@@ -555,7 +639,7 @@ Every API endpoint must have:
  */
 ```
 
-### 14.4 Data Key Consistency
+### 16.4 Data Key Consistency
 
 When working with form field data, API responses, or any data structures where objects can be referenced by different keys, **ensure consistent key usage throughout the data flow**.
 
@@ -590,7 +674,7 @@ const remapFieldNamesToIds = (fieldsByName: Record<string, any>, fieldDefinition
 
 **Rule:** When field data can be referenced by both name and ID, always establish which key type the consuming code expects and transform data accordingly before use.
 
-### 14.5 Business Logic Documentation
+### 16.5 Business Logic Documentation
 
 When implementing deduplication logic or data merging algorithms:
 
@@ -613,7 +697,7 @@ if (existingField && isRequired) {
 }
 ```
 
-### 14.6 README Updates
+### 16.6 README Updates
 
 Update README.md when:
 - Adding new dependencies
@@ -621,7 +705,7 @@ Update README.md when:
 - Adding new npm scripts
 - Changing deployment process
 
-### 14.7 Feature Documentation
+### 16.7 Feature Documentation
 
 For significant features, create a markdown file in `/docs/features/`:
 
