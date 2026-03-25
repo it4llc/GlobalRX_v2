@@ -458,6 +458,9 @@ export class OrderCoreService {
         },
       });
 
+      // Store the first order item ID for subject fields
+      let firstOrderItemId: string | null = null;
+
       // Create order items for each service+location combination
       for (const serviceItem of data.serviceItems) {
         const orderItem = await tx.orderItem.create({
@@ -468,6 +471,11 @@ export class OrderCoreService {
             status: 'pending',
           },
         });
+
+        // Store the first order item ID for subject fields
+        if (!firstOrderItemId) {
+          firstOrderItemId = orderItem.id;
+        }
 
         // Auto-create ServicesFulfillment record immediately to ensure data integrity.
         // This must happen in the same transaction to prevent orphaned OrderItems
@@ -499,7 +507,10 @@ export class OrderCoreService {
           const resolvedSearchFields = await FieldResolverService.resolveFieldValues(searchFields);
 
           for (const [fieldName, fieldValue] of Object.entries(resolvedSearchFields)) {
-            if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+            // Save all field values except undefined (which means the field doesn't exist)
+            // This ensures optional empty fields are saved and can be restored when editing
+            // Bug fix: Previously filtered out null and empty values, causing optional address blocks to not restore
+            if (fieldValue !== undefined) {
               // Store the resolved value, not the raw ID
               await tx.orderData.create({
                 data: {
@@ -516,6 +527,27 @@ export class OrderCoreService {
         // TODO: Handle document uploads for this order item
         // const documents = data.uploadedDocuments?.[serviceItem.itemId];
         // if (documents) { ... }
+      }
+
+      // Save subject field values to order_data table to preserve structured data (like address blocks)
+      // This ensures address blocks aren't flattened and can be properly restored when editing
+      // Subject fields apply to the entire order, so we associate them with the first order item
+      if (data.subjectFieldValues && firstOrderItemId) {
+        // Do NOT resolve subject field values - we need to keep the field UUIDs as keys
+        // so they can be directly mapped back when loading
+        for (const [fieldId, fieldValue] of Object.entries(data.subjectFieldValues)) {
+          // Save all field values except undefined
+          if (fieldValue !== undefined) {
+            await tx.orderData.create({
+              data: {
+                orderItemId: firstOrderItemId,
+                fieldName: fieldId, // Store the field UUID directly
+                fieldValue: typeof fieldValue === 'string' ? fieldValue : JSON.stringify(fieldValue),
+                fieldType: 'subject', // Mark as subject field for proper restoration
+              },
+            });
+          }
+        }
       }
 
       // Return order with validation result attached

@@ -808,7 +808,10 @@ export class OrderService {
           const resolvedSearchFields = await this.resolveFieldValues(searchFields);
 
           for (const [fieldName, fieldValue] of Object.entries(resolvedSearchFields)) {
-            if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+            // Save all field values except undefined (which means the field doesn't exist)
+            // This ensures optional empty fields are saved and can be restored when editing
+            // Bug fix: Previously filtered out null and empty values, causing optional address blocks to not restore
+            if (fieldValue !== undefined) {
               // Store the resolved value, not the raw ID
               await tx.orderData.create({
                 data: {

@@ -22,6 +22,29 @@ handled during a future pass on the affected area.
 
 ---
 
+### TD-002 — Address Block JSON Parsing Missing in Order Validation Service
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Order Validation Service                   |
+| Severity    | Warning                                     |
+| Identified  | March 24, 2026 - Address Block Persistence Fix Stage 4 |
+| Identified by | Code Reviewer                            |
+
+**Description:**
+`order-validation.service.ts` line 295 assigns `data.fieldValue` directly without checking if it needs JSON parsing for address_block fields. While this service is primarily for validation and may not display address blocks, it could cause issues if address block validation logic is added later. This follows the exact same pattern as the bug that was just fixed in useOrderFormState.ts.
+
+**Why deferred:**
+The validation service currently works at the string level and doesn't need to inspect the internal structure of address blocks. The fix is not critical for current functionality.
+
+**When to fix:**
+Address when adding validation logic that needs to inspect address block structure (e.g., validating that required address fields like street1 or city are present).
+
+**Pattern to apply:**
+Follow the same JSON parsing pattern implemented in `useOrderFormState.ts` lines 384-416.
+
+---
+
 ### TD-001 — Hardcoded Text Strings in Fulfillment ID Standardization Files
 
 | Field       | Detail                                      |
