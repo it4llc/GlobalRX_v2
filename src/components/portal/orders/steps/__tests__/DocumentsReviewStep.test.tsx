@@ -4,6 +4,32 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { DocumentsReviewStep } from '../DocumentsReviewStep';
 
+// Mock translation context
+vi.mock('@/contexts/TranslationContext', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: any) => {
+      const translations: Record<string, string> = {
+        'documents_review_title': 'Documents & Review',
+        'documents_review_description': 'Upload any required documents and review your order before submitting.',
+        'required_documents_notice': 'Required documents must be uploaded before submission',
+        'required_documents_heading': 'Required Documents',
+        'choose_file': 'Choose File',
+        'change_file': 'Change File',
+        'order_summary': 'Order Summary',
+        'subject_information': 'Subject Information',
+        'missing': 'Missing',
+        'not_provided': 'Not provided',
+        'services_count': `Services (${params?.count || 0})`,
+        'search': 'Search',
+        'documents': 'Documents',
+        'missing_required': 'Missing (Required)',
+        'not_uploaded': 'Not uploaded',
+      };
+      return translations[key] || key;
+    },
+  }),
+}));
+
 describe('DocumentsReviewStep - Display Bugs', () => {
   const mockOnNext = vi.fn();
   const mockOnBack = vi.fn();
@@ -37,7 +63,12 @@ describe('DocumentsReviewStep - Display Bugs', () => {
     },
     searchFieldValues: {},
     uploadedDocuments: {
-      doc1: { name: 'drivers-license.pdf', size: 1024 },
+      doc1: {
+        fileName: 'drivers-license.pdf',
+        filePath: '/tmp/drivers-license.pdf',
+        fileSize: 1024,
+        originalName: 'drivers-license.pdf'
+      },
     },
     serviceItems: [
       { itemId: '1', serviceName: 'Criminal Search', locationName: 'New York County' },

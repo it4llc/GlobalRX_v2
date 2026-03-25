@@ -25,6 +25,7 @@ interface OrderLocation {
 interface OrderDataEntry {
   fieldName: string;
   fieldValue: string;
+  fieldType?: string;
 }
 
 interface OrderItem {
@@ -83,9 +84,21 @@ export function useOrderFormState() {
   const [notes, setNotes] = useState('');
 
   // Field values state
-  const [subjectFieldValues, setSubjectFieldValues] = useState<Record<string, any>>({});
-  const [searchFieldValues, setSearchFieldValues] = useState<Record<string, Record<string, any>>>({});
-  const [uploadedDocuments, setUploadedDocuments] = useState<Record<string, File>>({});
+  const [subjectFieldValues, setSubjectFieldValues] = useState<Record<string, string | number | boolean | object>>({});
+  const [searchFieldValues, setSearchFieldValues] = useState<Record<string, Record<string, string | number | boolean | object>>>({});
+  const [uploadedDocuments, setUploadedDocuments] = useState<Record<string, {
+    fileName: string;
+    filePath: string;
+    fileSize: number;
+    documentId?: string;
+    filename?: string;
+    originalName?: string;
+    storagePath?: string;
+    mimeType?: string;
+    size?: number;
+    uploadedAt?: string;
+    uploadedBy?: string;
+  }>>({});
 
   // Service and location selection
   const [selectedServiceForLocation, setSelectedServiceForLocation] = useState<AvailableService | null>(null);
@@ -310,6 +323,7 @@ export function useOrderFormState() {
 
       // Load field values from order data - store temporarily for remapping
       let searchFieldsByName: Record<string, Record<string, any>> = {};
+      let documentMetadata: Record<string, any> = {};
       let subjectFieldsById: Record<string, any> = {};
 
       if (order.items && order.items.length > 0) {
@@ -319,14 +333,31 @@ export function useOrderFormState() {
 
           if (item.data && item.data.length > 0) {
             item.data.forEach((dataEntry: OrderDataEntry) => {
-              // Check if this is a subject field (stored with fieldType: 'subject')
-              if (dataEntry.fieldType === 'subject') {
-                // Subject fields are order-level, not item-specific
-                // fieldName is the field UUID, fieldValue may need JSON parsing for address blocks
-                subjectFieldsById[dataEntry.fieldName] = dataEntry.fieldValue;
+              // BUG FIX: Separate document data from search field data when loading drafts
+              // CONTEXT: Documents are now stored as order_data entries with fieldType='document'
+              // containing JSON-serialized metadata (not File objects which can't be serialized)
+              if (dataEntry.fieldType === 'document') {
+                // Parse document metadata from JSON
+                try {
+                  const metadata = JSON.parse(dataEntry.fieldValue);
+                  documentMetadata[dataEntry.fieldName] = metadata;
+                } catch (error) {
+                  clientLogger.warn('Failed to parse document metadata', {
+                    fieldName: dataEntry.fieldName,
+                    fieldValue: dataEntry.fieldValue,
+                  });
+                }
               } else {
-                // Search fields are item-specific
-                searchFieldsByName[itemId][dataEntry.fieldName] = dataEntry.fieldValue;
+                // Regular search field data
+                // Check if this is a subject field (stored with fieldType: 'subject')
+                if (dataEntry.fieldType === 'subject') {
+                  // Subject fields are order-level, not item-specific
+                  // fieldName is the field UUID, fieldValue may need JSON parsing for address blocks
+                  subjectFieldsById[dataEntry.fieldName] = dataEntry.fieldValue;
+                } else {
+                  // Search fields are item-specific
+                  searchFieldsByName[itemId][dataEntry.fieldName] = dataEntry.fieldValue;
+                }
               }
             });
           }
@@ -336,6 +367,14 @@ export function useOrderFormState() {
         // ISSUE: Form expects field values keyed by UUID (field.id) but draft data comes with field names as keys
         // This caused DSX field values to not appear when editing draft orders
         // SOLUTION: Store field data temporarily and remap field names -> field IDs after requirements load
+      }
+
+      // BUG FIX: Load document metadata into state for display when editing drafts
+      // CONTEXT: Documents are uploaded immediately when selected and their metadata
+      // is stored in order_data. When editing a draft, this metadata is loaded back
+      // into component state so uploaded documents appear in the UI.
+      if (Object.keys(documentMetadata).length > 0) {
+        setUploadedDocuments(documentMetadata);
       }
 
       // Store the order subject data for later field mapping

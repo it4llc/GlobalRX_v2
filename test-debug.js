@@ -1,70 +1,53 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { ServiceCommentSection } from './src/components/services/ServiceCommentSection.tsx';
+import { vi } from 'vitest';
+import { getServerSession } from 'next-auth';
+import { POST } from './src/app/api/portal/uploads/route.js';
+import { NextRequest } from 'next/server';
+import fs from 'fs';
 
 // Mock dependencies
-vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: vi.fn(() => ({
-    user: { id: 'user-123', userType: 'admin', permissions: { fulfillment: true }},
-    checkPermission: vi.fn().mockReturnValue(true)
-  }))
+vi.mock('next-auth', () => ({
+  getServerSession: vi.fn().mockResolvedValue({
+    user: { id: 'user-123', email: 'test@example.com', name: 'Test User' }
+  })
 }));
 
-vi.mock('@/hooks/useToast', () => ({
-  useToast: vi.fn(() => ({ show: vi.fn(), error: vi.fn(), success: vi.fn() }))
-}));
-
-vi.mock('@/contexts/TranslationContext', () => ({
-  useTranslation: vi.fn(() => ({ t: (key) => key }))
-}));
-
-global.fetch = vi.fn((url) => {
-  console.log('Fetch called with:', url);
-  if (url.includes('/orders/') && url.includes('/services/comments')) {
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({
-        commentsByService: {
-          'order-item-123': {
-            serviceName: 'Background Check',
-            serviceStatus: 'IN_PROGRESS',
-            comments: [{
-              id: 'comment-1',
-              orderItemId: 'order-item-123',
-              templateId: 'template-1',
-              finalText: 'First comment',
-              isInternalOnly: false,
-              createdAt: '2024-01-15T10:00:00Z',
-              template: { shortName: 'INFO', longName: 'Information' },
-              createdByUser: { name: 'Test User', email: 'test@example.com' }
-            }],
-            total: 1
-          }
-        }
-      })
-    });
-  }
-  if (url.includes('/comment-templates')) {
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve([{ id: 'template-1', shortName: 'INFO', text: 'Info', isActive: true }])
-    });
-  }
-  return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+vi.mock('fs', () => {
+  const existsSyncFn = vi.fn().mockReturnValue(false);
+  const mkdirSyncFn = vi.fn();
+  const writeFileSyncFn = vi.fn();
+  
+  return {
+    default: {
+      existsSync: existsSyncFn,
+      mkdirSync: mkdirSyncFn,
+      writeFileSync: writeFileSyncFn
+    },
+    existsSync: existsSyncFn,
+    mkdirSync: mkdirSyncFn,
+    writeFileSync: writeFileSyncFn
+  };
 });
 
-describe('Debug Test', () => {
-  it('should render comments', async () => {
-    const { container } = render(
-      <ServiceCommentSection
-        serviceId="order-item-123"
-        orderId="order-789"
-        serviceName="Background Check"
-        serviceStatus="IN_PROGRESS"
-      />
-    );
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log('Rendered HTML:', container.innerHTML);
+// Test
+async function test() {
+  const mockFile = new File(['test content'], 'test-document.pdf', {
+    type: 'application/pdf'
   });
-});
+  
+  const formData = new FormData();
+  formData.append('file', mockFile);
+  formData.append('documentId', 'doc-123');
+  
+  const request = new NextRequest('http://localhost:3000/api/portal/uploads', {
+    method: 'POST',
+    body: formData,
+  });
+  
+  const response = await POST(request);
+  const data = await response.json();
+  
+  console.log('Status:', response.status);
+  console.log('Data:', JSON.stringify(data, null, 2));
+}
+
+test().catch(console.error);

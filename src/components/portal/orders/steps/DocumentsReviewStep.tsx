@@ -4,6 +4,7 @@
 import React from 'react';
 import { DocumentTemplateButton } from '../DocumentTemplateButton';
 import { clientLogger } from '@/lib/client-logger';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 // Types for order requirements and service items
 interface DocumentRequirement {
@@ -34,13 +35,25 @@ interface OrderRequirements {
   searchFields: unknown[]; // Specific type depends on implementation
 }
 
+// Type for uploaded document metadata (not File object)
+interface UploadedDocumentMetadata {
+  documentId: string;
+  filename: string;
+  originalName: string;
+  storagePath: string;
+  mimeType?: string;
+  size?: number;
+  uploadedAt?: string;
+  uploadedBy?: string;
+}
+
 interface DocumentsReviewStepProps {
   requirements: OrderRequirements;
   serviceItems: ServiceItem[];
   subjectFieldValues: Record<string, unknown>;
   searchFieldValues: Record<string, Record<string, unknown>>;
-  uploadedDocuments: Record<string, File>;
-  onDocumentUpload: (documentId: string, file: File) => void;
+  uploadedDocuments: Record<string, UploadedDocumentMetadata>;
+  onDocumentUpload: (documentId: string, metadata: UploadedDocumentMetadata) => void;
   checkMissingRequirements?: () => {
     isValid: boolean;
     missing: {
@@ -60,24 +73,26 @@ export function DocumentsReviewStep({
   onDocumentUpload,
   checkMissingRequirements
 }: DocumentsReviewStepProps) {
+  const { t } = useTranslation();
+
   return (
     <div>
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        Documents & Review
+        {t('documents_review_title')}
       </h3>
       <p className="text-gray-600 mb-4">
-        Upload any required documents and review your order before submitting.
+        {t('documents_review_description')}
       </p>
       {requirements.documents.some((d) => d.required) && (
         <p className="text-sm text-gray-500 mb-6">
-          <span className="text-red-500">*</span> Required documents must be uploaded before submission
+          <span className="text-red-500">*</span> {t('required_documents_notice')}
         </p>
       )}
 
       {/* Documents Section */}
       {requirements.documents.length > 0 && (
         <div className="mb-8">
-          <h4 className="text-md font-medium text-gray-900 mb-4">Required Documents</h4>
+          <h4 className="text-md font-medium text-gray-900 mb-4">{t('required_documents_heading')}</h4>
           <div className="space-y-4">
             {requirements.documents.map((document) => {
               // Parse documentData to check for PDF template
@@ -143,10 +158,50 @@ export function DocumentsReviewStep({
                     <input
                       type="file"
                       id={`doc-${document.id}`}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          onDocumentUpload(document.id, file);
+                          // BUG FIX: Upload file immediately to server instead of storing File object
+                          // PROBLEM: File objects can't be JSON serialized - when draft orders save,
+                          // JSON.stringify() turns File objects into empty {}, losing documents
+                          // SOLUTION: Upload immediately when file is selected, store only metadata
+                          try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            formData.append('documentId', document.id);
+
+                            // If replacing an existing document, include the old file path
+                            const existingDoc = uploadedDocuments[document.id];
+                            if (existingDoc && existingDoc.storagePath) {
+                              formData.append('previousFile', existingDoc.storagePath);
+                            }
+
+                            const response = await fetch('/api/portal/uploads', {
+                              method: 'POST',
+                              body: formData,
+                            });
+
+                            if (response.ok) {
+                              const result = await response.json();
+                              // BUG FIX: Pass metadata to parent, not the File object
+                              // This ensures state contains only JSON-serializable data
+                              onDocumentUpload(document.id, result.metadata);
+                            } else {
+                              // Handle upload error
+                              const error = await response.json();
+                              clientLogger.error('Document upload failed', {
+                                documentId: document.id,
+                                error: error.error || 'Unknown error',
+                              });
+                              // TODO: Show error message to user
+                            }
+                          } catch (error) {
+                            clientLogger.error('Document upload error', {
+                              documentId: document.id,
+                              error: error instanceof Error ? error.message : String(error),
+                            });
+                            // TODO: Show error message to user
+                          }
                         }
                       }}
                       className="hidden"
@@ -155,11 +210,11 @@ export function DocumentsReviewStep({
                       htmlFor={`doc-${document.id}`}
                       className="cursor-pointer inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                     >
-                      {uploadedDocuments[document.id] ? 'Change File' : 'Choose File'}
+                      {uploadedDocuments[document.id] ? t('change_file') : t('choose_file')}
                     </label>
                     {uploadedDocuments[document.id] && (
                       <p className="text-xs text-green-600 mt-1">
-                        {uploadedDocuments[document.id].name}
+                        {uploadedDocuments[document.id].originalName || uploadedDocuments[document.id].filename}
                       </p>
                     )}
                   </div>
@@ -173,7 +228,7 @@ export function DocumentsReviewStep({
 
       {/* Order Summary */}
       <div className="bg-gray-50 rounded-lg p-6">
-        <h4 className="text-md font-medium text-gray-900 mb-4">Order Summary</h4>
+        <h4 className="text-md font-medium text-gray-900 mb-4">{t('order_summary')}</h4>
 
         {/* BUG FIX: Section ordering corrected (March 14, 2026)
             Subject Information now appears BEFORE Services section
@@ -182,7 +237,7 @@ export function DocumentsReviewStep({
         {/* Subject Fields Summary */}
         {requirements.subjectFields.length > 0 && (
           <div className="mb-4">
-            <h5 className="text-sm font-medium text-gray-700 mb-2">Subject Information</h5>
+            <h5 className="text-sm font-medium text-gray-700 mb-2">{t('subject_information')}</h5>
             <div className="space-y-1">
               {requirements.subjectFields.map((field) => {
                 const value = subjectFieldValues[field.id];
@@ -205,7 +260,7 @@ export function DocumentsReviewStep({
                     <span className="text-gray-600">{field.name}:</span>
                     <span className={((!value || isEmptyAddressBlock) && field.required) ? 'text-red-600 font-medium' : 'font-medium'}>
                       {!value || isEmptyAddressBlock ? (
-                        field.required ? 'Missing' : 'Not provided'
+                        field.required ? t('missing') : t('not_provided')
                       ) : Array.isArray(value) ? (
                         value.join(', ')
                       ) : (typeof value === 'object' && value !== null) ? (
@@ -213,7 +268,7 @@ export function DocumentsReviewStep({
                         value.street1 || value.city || value.state || value.postalCode ? (
                           `${value.street1 || ''} ${value.city || ''} ${value.state || ''} ${value.postalCode || ''}`.trim()
                         ) : (
-                          'Missing'
+                          t('missing')
                         )
                       ) : (
                         value
@@ -228,12 +283,12 @@ export function DocumentsReviewStep({
 
         {/* Service Items */}
         <div className="mb-4">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">Services ({serviceItems.length})</h5>
+          <h5 className="text-sm font-medium text-gray-700 mb-2">{t('services_count', { count: serviceItems.length })}</h5>
           <div className="space-y-2">
             {serviceItems.map((item) => (
               <div key={item.itemId} className="flex justify-between text-sm">
                 <span>{item.serviceName}: <span className="font-medium text-blue-700">{item.locationName}</span></span>
-                <span className="text-gray-400">Search</span>
+                <span className="text-gray-400">{t('search')}</span>
               </div>
             ))}
           </div>
@@ -242,17 +297,17 @@ export function DocumentsReviewStep({
         {/* Documents Summary */}
         {requirements.documents.length > 0 && (
           <div className="mb-4">
-            <h5 className="text-sm font-medium text-gray-700 mb-2">Documents</h5>
+            <h5 className="text-sm font-medium text-gray-700 mb-2">{t('documents')}</h5>
             <div className="space-y-1">
               {requirements.documents.map((document) => {
-                const file = uploadedDocuments[document.id];
+                const docMetadata = uploadedDocuments[document.id];
                 return (
                   <div key={document.id} className="flex justify-between text-sm">
                     {/* BUG FIX: Removed asterisks from document names in order summary (March 14, 2026)
                         Same reasoning as field names - this is a read-only summary display */}
                     <span className="text-gray-600">{document.name}:</span>
-                    <span className={file ? 'text-green-600' : (document.required ? 'text-red-600 font-medium' : 'text-gray-400')}>
-                      {file ? file.name : (document.required ? 'Missing (Required)' : 'Not uploaded')}
+                    <span className={docMetadata ? 'text-green-600' : (document.required ? 'text-red-600 font-medium' : 'text-gray-400')}>
+                      {docMetadata ? (docMetadata.originalName || docMetadata.filename || docMetadata.fileName) : (document.required ? t('missing_required') : t('not_uploaded'))}
                     </span>
                   </div>
                 );
