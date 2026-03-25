@@ -1,7 +1,9 @@
-// /GlobalRX_v2/src/components/portal/orders/hooks/useOrderFormState.ts
+// /GlobalRx_v2/src/components/portal/orders/hooks/useOrderFormState.ts
+
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { OrderFormState, OrderFormData, SubjectInfo, AvailableService, AvailableLocation } from '../types';
 import { useServiceCart } from './useServiceCart';
 import { useOrderRequirements } from './useOrderRequirements';
@@ -37,6 +39,7 @@ interface OrderSubjectField {
   id: string;
   name: string;
   displayName?: string;
+  dataType?: string;
   required?: boolean;
 }
 
@@ -58,6 +61,7 @@ export function useOrderFormState() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
   const editOrderId = searchParams.get('edit');
 
   // Basic form state
@@ -205,13 +209,13 @@ export function useOrderFormState() {
         setAvailableServices(data.services || data);
       } else {
         clientLogger.error('Failed to fetch services');
-        setErrors({ submit: 'Failed to load available services' });
+        setErrors({ submit: t('error.failedToLoadServices') });
       }
     } catch (error: unknown) {
       clientLogger.error('Error fetching services', {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      setErrors({ submit: 'Failed to load available services' });
+      setErrors({ submit: t('error.failedToLoadServices') });
     } finally {
       setLoadingServices(false);
     }
@@ -265,6 +269,16 @@ export function useOrderFormState() {
 
   /**
    * Load existing order for editing
+   *
+   * Handles the complex process of loading a draft order and restoring all field values,
+   * including proper parsing of address block fields from JSON strings back to objects.
+   *
+   * Address Block Bug Fix:
+   * - Search-level address blocks: Parsed from JSON strings in field remapping callback
+   * - Subject-level address blocks: Parsed from JSON strings stored in order_data
+   * - Both types maintain structure (street1, city, etc. as separate properties)
+   *
+   * @param orderId - The ID of the order to load for editing
    */
   const loadOrderForEdit = useCallback(async (orderId: string) => {
     if (!session?.user?.customerId) return;
@@ -280,7 +294,7 @@ export function useOrderFormState() {
 
       // Check if order is a draft
       if (order.statusCode !== 'draft') {
-        setErrors({ submit: 'Only draft orders can be edited' });
+        setErrors({ submit: t('error.onlyDraftOrdersCanBeEdited') });
         router.push('/portal/orders');
         return;
       }
@@ -310,6 +324,7 @@ export function useOrderFormState() {
       // Load field values from order data - store temporarily for remapping
       let searchFieldsByName: Record<string, Record<string, any>> = {};
       let documentMetadata: Record<string, any> = {};
+      let subjectFieldsById: Record<string, any> = {};
 
       if (order.items && order.items.length > 0) {
         order.items.forEach((item: OrderItem, index: number) => {
@@ -334,6 +349,13 @@ export function useOrderFormState() {
                 }
               } else {
                 // Regular search field data
+              // Check if this is a subject field (stored with fieldType: 'subject')
+              if (dataEntry.fieldType === 'subject') {
+                // Subject fields are order-level, not item-specific
+                // fieldName is the field UUID, fieldValue may need JSON parsing for address blocks
+                subjectFieldsById[dataEntry.fieldName] = dataEntry.fieldValue;
+              } else {
+                // Search fields are item-specific
                 searchFieldsByName[itemId][dataEntry.fieldName] = dataEntry.fieldValue;
               }
             });
@@ -355,8 +377,13 @@ export function useOrderFormState() {
       }
 
       // Store the order subject data for later field mapping
-      if (order.subject) {
-        sessionStorage.setItem(`order_${orderId}_subject`, JSON.stringify(order.subject));
+      // Merge basic subject data with any subject field data from order_data
+      if (order.subject || Object.keys(subjectFieldsById).length > 0) {
+        const mergedSubjectData = {
+          ...order.subject,
+          ...subjectFieldsById // Subject fields from order_data take precedence (they're not flattened)
+        };
+        sessionStorage.setItem(`order_${orderId}_subject`, JSON.stringify(mergedSubjectData));
       }
 
       // Store the search field values for later remapping
@@ -379,23 +406,77 @@ export function useOrderFormState() {
             data.subjectFields.forEach((field: OrderSubjectField) => {
               // Map field names to stored data
               const fieldNameLower = field.name.toLowerCase();
+              let fieldValue: string | Record<string, any> | undefined = undefined;
 
-              if (subjectData[field.name]) {
-                fieldValues[field.id] = subjectData[field.name];
+              // FIRST: Check if we have a value stored by field UUID (from order_data)
+              // This takes highest priority as it preserves structured data
+              if (subjectData[field.id]) {
+                fieldValue = subjectData[field.id];
+              }
+              // Then try to get the field value based on field name mapping
+              else if (subjectData[field.name]) {
+                fieldValue = subjectData[field.name];
               } else if (fieldNameLower.includes('first') && fieldNameLower.includes('name') && subjectData.firstName) {
-                fieldValues[field.id] = subjectData.firstName;
+                fieldValue = subjectData.firstName;
               } else if (fieldNameLower.includes('last') && fieldNameLower.includes('name') && subjectData.lastName) {
-                fieldValues[field.id] = subjectData.lastName;
+                fieldValue = subjectData.lastName;
               } else if (fieldNameLower.includes('middle') && fieldNameLower.includes('name') && subjectData.middleName) {
-                fieldValues[field.id] = subjectData.middleName;
+                fieldValue = subjectData.middleName;
               } else if (fieldNameLower.includes('email') && subjectData.email) {
-                fieldValues[field.id] = subjectData.email;
+                fieldValue = subjectData.email;
               } else if (fieldNameLower.includes('phone') && subjectData.phone) {
-                fieldValues[field.id] = subjectData.phone;
+                fieldValue = subjectData.phone;
               } else if ((fieldNameLower.includes('birth') || fieldNameLower.includes('dob')) && subjectData.dateOfBirth) {
-                fieldValues[field.id] = subjectData.dateOfBirth;
-              } else if (fieldNameLower.includes('address') && subjectData.address) {
-                fieldValues[field.id] = subjectData.address;
+                fieldValue = subjectData.dateOfBirth;
+              } else if (fieldNameLower.includes('address')) {
+                // For address fields, check if there's a matching field in subjectData
+                // First try exact match with field name
+                if (subjectData[field.name]) {
+                  fieldValue = subjectData[field.name];
+                }
+                // Then try the generic 'address' property
+                else if (subjectData.address) {
+                  fieldValue = subjectData.address;
+                }
+              }
+
+              // Process the field value - handle null and parse JSON for address_block fields
+              if (fieldValue !== undefined) {
+                let processedValue = fieldValue;
+
+                // Handle null values - convert to undefined for consistency
+                if (fieldValue === null) {
+                  processedValue = undefined;
+                }
+                // Address Block JSON Parsing Fix:
+                // Address block fields are stored as JSON strings in the database but need
+                // to be objects for the AddressBlockInput component to display them properly.
+                // This parsing ensures fields like {street1: "123 Main", city: "Boston"}
+                // are restored as objects instead of strings.
+                else if (field.dataType === 'address_block') {
+                  // Only parse if it's a string that looks like JSON
+                  if (typeof fieldValue === 'string' && fieldValue.startsWith('{') && fieldValue.endsWith('}')) {
+                    try {
+                      processedValue = JSON.parse(fieldValue);
+                    } catch {
+                      // If parsing fails, keep original value (graceful degradation)
+                      processedValue = fieldValue;
+                    }
+                  }
+                }
+                // For fields without explicit dataType, check if value looks like JSON and try to parse
+                // This handles backward compatibility for fields where dataType isn't specified
+                else if (!field.dataType && typeof fieldValue === 'string' &&
+                         fieldValue.startsWith('{') && fieldValue.endsWith('}')) {
+                  try {
+                    processedValue = JSON.parse(fieldValue);
+                  } catch {
+                    // If parsing fails, keep original value
+                    processedValue = fieldValue;
+                  }
+                }
+
+                fieldValues[field.id] = processedValue;
               }
             });
 
@@ -421,8 +502,41 @@ export function useOrderFormState() {
                 const matchingField = data.searchFields.find((field: OrderSearchField) => field.name === fieldName);
 
                 if (matchingField) {
+                  // Check if this is an address_block field that needs JSON parsing
+                  let processedValue = fieldValue;
+
+                  // Handle null values - convert to undefined for consistency
+                  if (fieldValue === null) {
+                    processedValue = undefined;
+                  }
+                  // Address Block JSON Parsing Fix (Search Fields):
+                  // Same logic as subject fields - parse JSON strings back to objects
+                  // for proper display in AddressBlockInput components
+                  else if (matchingField.dataType === 'address_block') {
+                    // Only parse if it's a string that looks like JSON
+                    if (typeof fieldValue === 'string' && fieldValue.startsWith('{') && fieldValue.endsWith('}')) {
+                      try {
+                        processedValue = JSON.parse(fieldValue);
+                      } catch {
+                        // If parsing fails, keep original value (graceful degradation)
+                        processedValue = fieldValue;
+                      }
+                    }
+                  }
+                  // For fields without explicit dataType, check if value looks like JSON and try to parse
+                  // This handles backward compatibility for fields where dataType isn't specified
+                  else if (!matchingField.dataType && typeof fieldValue === 'string' &&
+                           fieldValue.startsWith('{') && fieldValue.endsWith('}')) {
+                    try {
+                      processedValue = JSON.parse(fieldValue);
+                    } catch {
+                      // If parsing fails, keep original value
+                      processedValue = fieldValue;
+                    }
+                  }
+
                   // Use field.id as the key in the new object
-                  remappedSearchFieldValues[itemId][matchingField.id] = fieldValue;
+                  remappedSearchFieldValues[itemId][matchingField.id] = processedValue;
                 }
                 // If no matching field is found, the value is ignored (doesn't exist in requirements)
               });
@@ -438,7 +552,7 @@ export function useOrderFormState() {
       clientLogger.error('Error loading order for edit', {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      setErrors({ submit: 'Failed to load order for editing' });
+      setErrors({ submit: t('error.failedToLoadOrder') });
     } finally {
       setIsLoadingOrder(false);
     }

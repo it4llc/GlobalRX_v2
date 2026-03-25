@@ -1,9 +1,11 @@
-// /GlobalRX_v2/src/app/api/portal/orders/[id]/route.ts
+// /GlobalRx_v2/src/app/api/portal/orders/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { OrderService } from '@/lib/services/order.service';
 import { OrderCoreService } from '@/lib/services/order-core.service';
+import { SubjectInfo } from '@/components/portal/orders/types';
 import { z } from 'zod';
 import logger from '@/lib/logger'; // BUG FIX: Added missing logger import - was causing runtime errors when error logging attempted
 
@@ -79,7 +81,35 @@ export async function GET(
 
 /**
  * PUT /api/portal/orders/[id]
- * Update a draft order
+ *
+ * Updates a draft order with service items, subject information, and field values.
+ * Handles both search-level and subject-level address block persistence.
+ *
+ * Required permissions: Must be authenticated customer user with order ownership
+ *
+ * Body: {
+ *   serviceItems?: Array<{serviceId, serviceName, locationId, locationName, itemId}>,
+ *   subject?: SubjectInfo,
+ *   subjectFieldValues?: Record<string, any>,
+ *   searchFieldValues?: Record<string, Record<string, any>>,
+ *   notes?: string,
+ *   status?: 'draft' | 'submitted'
+ * }
+ *
+ * Returns: Updated order object
+ *
+ * Business Logic:
+ * - Only draft orders can be edited (enforced at database level)
+ * - Address block fields are stored as JSON strings and parsed on retrieval
+ * - Subject fields are stored in order_data table with fieldType: 'subject'
+ * - Search fields are stored per order item with fieldType: 'search'
+ * - Empty values (null, '') are preserved for optional address blocks
+ *
+ * Errors:
+ *   401: Not authenticated or wrong user type
+ *   404: Customer not found or order not found/not owned/not draft
+ *   400: Invalid request data
+ *   500: Server error during update
  */
 export async function PUT(
   request: NextRequest,
@@ -145,7 +175,7 @@ export async function PUT(
           // Merge basic subject with dynamic fields from DSX requirements
           // This resolves ID-based values to actual names and normalizes field names
           const normalizedSubject = await OrderCoreService.normalizeSubjectData(
-            validatedData.subject || existingOrder.subject as any,
+            validatedData.subject || (existingOrder.subject as SubjectInfo),
             validatedData.subjectFieldValues,
             session.user.id
           );
@@ -194,7 +224,20 @@ export async function PUT(
             const searchFields = validatedData.searchFieldValues?.[serviceItem.itemId];
             if (searchFields) {
               for (const [fieldName, fieldValue] of Object.entries(searchFields)) {
-                if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+                // Address Block Persistence Fix: Save all field values except undefined
+                //
+                // CRITICAL BUG FIX: Previously this code used:
+                // if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '')
+                //
+                // This caused optional address blocks to be lost when editing draft orders because:
+                // 1. User fills out optional address block in new order
+                // 2. Order saved as draft with empty/null address block fields stored
+                // 3. User edits draft order - empty fields filtered out by old condition
+                // 4. Address block data not restored, user loses their work
+                //
+                // NEW LOGIC: Only filter out undefined (field doesn't exist in form)
+                // Allow null and empty strings to be saved for optional address block fields
+                if (fieldValue !== undefined) {
                   await tx.orderData.create({
                     data: {
                       orderItemId: orderItem.id,
@@ -230,6 +273,32 @@ export async function PUT(
                       fieldName: documentId, // Use document requirement ID as field name
                       fieldValue: JSON.stringify(documentMetadata), // Store metadata as JSON
                       fieldType: 'document', // Distinguishes from regular search field data
+          // Subject-Level Address Block Support:
+          // Save subject field values to order_data table to preserve structured data
+          //
+          // FEATURE: Subject fields (like "Residence Address") must be stored separately from
+          // search fields because they apply to the entire order, not individual services.
+          // Address blocks are stored as JSON strings to preserve their structure (street1,
+          // city, postalCode as separate properties) instead of being flattened.
+          //
+          // We associate these with the first order item for database design compatibility.
+          if (validatedData.subjectFieldValues && validatedData.serviceItems.length > 0) {
+            // Get the first order item we just created to associate subject fields with
+            const firstOrderItem = await tx.orderItem.findFirst({
+              where: { orderId: params.id },
+              orderBy: { createdAt: 'asc' }
+            });
+
+            if (firstOrderItem) {
+              for (const [fieldId, fieldValue] of Object.entries(validatedData.subjectFieldValues)) {
+                // Save all field values except undefined
+                if (fieldValue !== undefined) {
+                  await tx.orderData.create({
+                    data: {
+                      orderItemId: firstOrderItem.id,
+                      fieldName: fieldId, // Store the field UUID directly
+                      fieldValue: typeof fieldValue === 'string' ? fieldValue : JSON.stringify(fieldValue),
+                      fieldType: 'subject', // Mark as subject field for proper restoration
                     },
                   });
                 }

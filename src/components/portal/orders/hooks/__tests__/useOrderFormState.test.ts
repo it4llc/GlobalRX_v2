@@ -380,7 +380,7 @@ describe('useOrderFormState - Infinite Loop Bug', () => {
 
       // EXPECTED: Should redirect and show error
       expect(mockRouter.push).toHaveBeenCalledWith('/portal/orders');
-      expect(result.current.errors.submit).toBe('Only draft orders can be edited');
+      expect(result.current.errors.submit).toBe('error.onlyDraftOrdersCanBeEdited');
       expect(result.current.isEditMode).toBe(false);
     });
 
