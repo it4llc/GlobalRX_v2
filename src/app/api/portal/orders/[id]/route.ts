@@ -77,7 +77,35 @@ export async function GET(
 
 /**
  * PUT /api/portal/orders/[id]
- * Update a draft order
+ *
+ * Updates a draft order with service items, subject information, and field values.
+ * Handles both search-level and subject-level address block persistence.
+ *
+ * Required permissions: Must be authenticated customer user with order ownership
+ *
+ * Body: {
+ *   serviceItems?: Array<{serviceId, serviceName, locationId, locationName, itemId}>,
+ *   subject?: SubjectInfo,
+ *   subjectFieldValues?: Record<string, any>,
+ *   searchFieldValues?: Record<string, Record<string, any>>,
+ *   notes?: string,
+ *   status?: 'draft' | 'submitted'
+ * }
+ *
+ * Returns: Updated order object
+ *
+ * Business Logic:
+ * - Only draft orders can be edited (enforced at database level)
+ * - Address block fields are stored as JSON strings and parsed on retrieval
+ * - Subject fields are stored in order_data table with fieldType: 'subject'
+ * - Search fields are stored per order item with fieldType: 'search'
+ * - Empty values (null, '') are preserved for optional address blocks
+ *
+ * Errors:
+ *   401: Not authenticated or wrong user type
+ *   404: Customer not found or order not found/not owned/not draft
+ *   400: Invalid request data
+ *   500: Server error during update
  */
 export async function PUT(
   request: NextRequest,
@@ -192,9 +220,19 @@ export async function PUT(
             const searchFields = validatedData.searchFieldValues?.[serviceItem.itemId];
             if (searchFields) {
               for (const [fieldName, fieldValue] of Object.entries(searchFields)) {
-                // Save all field values except undefined (which means the field doesn't exist)
-                // This ensures optional empty fields are saved and can be restored when editing
-                // Bug fix: Previously filtered out null and empty values, causing optional address blocks to not restore
+                // Address Block Persistence Fix: Save all field values except undefined
+                //
+                // CRITICAL BUG FIX: Previously this code used:
+                // if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '')
+                //
+                // This caused optional address blocks to be lost when editing draft orders because:
+                // 1. User fills out optional address block in new order
+                // 2. Order saved as draft with empty/null address block fields stored
+                // 3. User edits draft order - empty fields filtered out by old condition
+                // 4. Address block data not restored, user loses their work
+                //
+                // NEW LOGIC: Only filter out undefined (field doesn't exist in form)
+                // Allow null and empty strings to be saved for optional address block fields
                 if (fieldValue !== undefined) {
                   await tx.orderData.create({
                     data: {
@@ -209,9 +247,15 @@ export async function PUT(
             }
           }
 
-          // Save subject field values to order_data table to preserve structured data (like address blocks)
-          // This ensures address blocks aren't flattened and can be properly restored when editing
-          // We store these with the first order item since subject fields apply to the entire order
+          // Subject-Level Address Block Support:
+          // Save subject field values to order_data table to preserve structured data
+          //
+          // FEATURE: Subject fields (like "Residence Address") must be stored separately from
+          // search fields because they apply to the entire order, not individual services.
+          // Address blocks are stored as JSON strings to preserve their structure (street1,
+          // city, postalCode as separate properties) instead of being flattened.
+          //
+          // We associate these with the first order item for database design compatibility.
           if (validatedData.subjectFieldValues && validatedData.serviceItems.length > 0) {
             // Get the first order item we just created to associate subject fields with
             const firstOrderItem = await tx.orderItem.findFirst({
