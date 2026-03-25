@@ -1,4 +1,4 @@
-// src/app/api/portal/orders/[id]/route.ts
+// /GlobalRX_v2/src/app/api/portal/orders/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -29,9 +29,13 @@ const updateOrderSchema = z.object({
     phone: z.string().optional(),
     address: z.string().optional(),
   }).optional(),
-  subjectFieldValues: z.record(z.any()).optional(),
-  searchFieldValues: z.record(z.record(z.any())).optional(),
-  uploadedDocuments: z.record(z.any()).optional(),
+  subjectFieldValues: z.record(z.string()).optional(),
+  searchFieldValues: z.record(z.record(z.string())).optional(),
+  uploadedDocuments: z.record(z.object({
+    fileName: z.string(),
+    filePath: z.string(),
+    fileSize: z.number(),
+  })).optional(),
   notes: z.string().optional(),
   status: z.enum(['draft', 'submitted']).optional(),
 });
@@ -136,7 +140,7 @@ export async function PUT(
         }
 
         // 3. Update the order record itself (subject, notes, status)
-        const updateData: Record<string, any> = {};
+        const updateData: Record<string, unknown> = {};
         if (validatedData.subject || validatedData.subjectFieldValues) {
           // Merge basic subject with dynamic fields from DSX requirements
           // This resolves ID-based values to actual names and normalizes field names
@@ -197,6 +201,35 @@ export async function PUT(
                       fieldName,
                       fieldValue: typeof fieldValue === 'string' ? fieldValue : JSON.stringify(fieldValue),
                       fieldType: 'search',
+                    },
+                  });
+                }
+              }
+            }
+          }
+
+          // 5. Save document metadata in order_data
+          if (validatedData.uploadedDocuments) {
+            // Get the first order item to associate documents with
+            // Documents are typically per-case, so we associate with the first item
+            const firstOrderItem = await tx.orderItem.findFirst({
+              where: { orderId: params.id },
+              select: { id: true }
+            });
+
+            if (firstOrderItem) {
+              for (const [documentId, documentMetadata] of Object.entries(validatedData.uploadedDocuments)) {
+                if (documentMetadata && typeof documentMetadata === 'object') {
+                  // BUG FIX: Save document metadata as order_data with fieldType='document'
+                  // CONTEXT: Documents are now uploaded immediately when selected (not when order saves)
+                  // The upload endpoint returns JSON-serializable metadata, not File objects
+                  // This metadata is stored in order_data to persist with draft orders
+                  await tx.orderData.create({
+                    data: {
+                      orderItemId: firstOrderItem.id,
+                      fieldName: documentId, // Use document requirement ID as field name
+                      fieldValue: JSON.stringify(documentMetadata), // Store metadata as JSON
+                      fieldType: 'document', // Distinguishes from regular search field data
                     },
                   });
                 }

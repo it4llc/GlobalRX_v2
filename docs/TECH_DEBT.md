@@ -186,6 +186,76 @@ Create a generic `remapFieldNamesToIds` utility function that can handle both se
 
 ---
 
+### TD-007 — Missing User Feedback for Document Upload Failures
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Orders / Document Upload                    |
+| Severity    | Warning                                     |
+| Identified  | March 25, 2026 - Document Persistence Bug Fix Stage 4 |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+In `DocumentsReviewStep.tsx` lines 188 and 195, there are TODO comments indicating that error messages are not shown to users when document uploads fail. While errors are logged to the console, users receive no visual feedback when a document upload fails.
+
+**Why deferred:**
+The core bug fix (document persistence) works correctly. Adding user feedback UI is an enhancement beyond the scope of the bug fix.
+
+**When to fix:**
+Add proper error UI components when implementing a broader error handling strategy or during UX improvements pass.
+
+**Recommendation:**
+Display a toast notification or inline error message when upload fails.
+
+---
+
+### TD-008 — File Cleanup for Orphaned Draft Documents
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Orders / Document Upload                    |
+| Severity    | Warning                                     |
+| Identified  | March 25, 2026 - Document Persistence Bug Fix Stage 4 |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+When draft orders are deleted or documents are replaced, the old files remain on disk in the `uploads/draft-documents/` directory. There is no cleanup mechanism for orphaned files.
+
+**Why deferred:**
+The document persistence feature works correctly. File cleanup is a storage optimization issue, not a functional bug.
+
+**When to fix:**
+Implement during a storage optimization pass or when adding a scheduled cleanup job system.
+
+**Recommendation:**
+- Add a cleanup endpoint that removes orphaned files when documents are replaced
+- Consider a scheduled job that removes files not referenced by any order_data entries
+
+---
+
+### TD-009 — No Upload Progress Indication for Large Files
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Orders / Document Upload                    |
+| Severity    | Minor                                       |
+| Identified  | March 25, 2026 - Document Persistence Bug Fix Stage 4 |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+For large files (up to 10MB limit), users have no visual indication that an upload is in progress. The UI doesn't provide feedback during the upload process.
+
+**Why deferred:**
+The upload functionality works correctly for typical document sizes. Progress indication is a UX enhancement.
+
+**When to fix:**
+Add when implementing a comprehensive loading/progress indicator system across the application.
+
+**Recommendation:**
+Add a loading spinner or progress bar during file upload, especially for files over 1MB.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
