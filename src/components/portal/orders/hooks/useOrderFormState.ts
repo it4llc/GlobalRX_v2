@@ -1,6 +1,9 @@
+// /GlobalRx_v2/src/components/portal/orders/hooks/useOrderFormState.ts
+
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { OrderFormState, OrderFormData, SubjectInfo, AvailableService, AvailableLocation } from '../types';
 import { useServiceCart } from './useServiceCart';
 import { useOrderRequirements } from './useOrderRequirements';
@@ -57,6 +60,7 @@ export function useOrderFormState() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
   const editOrderId = searchParams.get('edit');
 
   // Basic form state
@@ -192,13 +196,13 @@ export function useOrderFormState() {
         setAvailableServices(data.services || data);
       } else {
         clientLogger.error('Failed to fetch services');
-        setErrors({ submit: 'Failed to load available services' });
+        setErrors({ submit: t('error.failedToLoadServices') });
       }
     } catch (error: unknown) {
       clientLogger.error('Error fetching services', {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      setErrors({ submit: 'Failed to load available services' });
+      setErrors({ submit: t('error.failedToLoadServices') });
     } finally {
       setLoadingServices(false);
     }
@@ -267,7 +271,7 @@ export function useOrderFormState() {
 
       // Check if order is a draft
       if (order.statusCode !== 'draft') {
-        setErrors({ submit: 'Only draft orders can be edited' });
+        setErrors({ submit: t('error.onlyDraftOrdersCanBeEdited') });
         router.push('/portal/orders');
         return;
       }
@@ -354,7 +358,7 @@ export function useOrderFormState() {
             data.subjectFields.forEach((field: OrderSubjectField) => {
               // Map field names to stored data
               const fieldNameLower = field.name.toLowerCase();
-              let fieldValue: any = undefined;
+              let fieldValue: string | Record<string, any> | undefined = undefined;
 
               // FIRST: Check if we have a value stored by field UUID (from order_data)
               // This takes highest priority as it preserves structured data
@@ -494,7 +498,7 @@ export function useOrderFormState() {
       clientLogger.error('Error loading order for edit', {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      setErrors({ submit: 'Failed to load order for editing' });
+      setErrors({ submit: t('error.failedToLoadOrder') });
     } finally {
       setIsLoadingOrder(false);
     }

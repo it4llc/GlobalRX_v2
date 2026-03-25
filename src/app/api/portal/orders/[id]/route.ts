@@ -1,9 +1,11 @@
-// src/app/api/portal/orders/[id]/route.ts
+// /GlobalRx_v2/src/app/api/portal/orders/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { OrderService } from '@/lib/services/order.service';
 import { OrderCoreService } from '@/lib/services/order-core.service';
+import { SubjectInfo } from '@/components/portal/orders/types';
 import { z } from 'zod';
 import logger from '@/lib/logger'; // BUG FIX: Added missing logger import - was causing runtime errors when error logging attempted
 
@@ -141,7 +143,7 @@ export async function PUT(
           // Merge basic subject with dynamic fields from DSX requirements
           // This resolves ID-based values to actual names and normalizes field names
           const normalizedSubject = await OrderCoreService.normalizeSubjectData(
-            validatedData.subject || existingOrder.subject as any,
+            validatedData.subject || (existingOrder.subject as SubjectInfo),
             validatedData.subjectFieldValues,
             session.user.id
           );
