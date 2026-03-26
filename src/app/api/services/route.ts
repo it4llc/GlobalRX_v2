@@ -29,7 +29,17 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * pageSize;
 
     // Build the filter
-    const filter: any = {};
+    interface ServiceFilter {
+      OR?: Array<{
+        name?: { contains: string; mode: "insensitive" };
+        description?: { contains: string; mode: "insensitive" };
+      }>;
+      category?: { contains: string; mode: "insensitive" };
+      functionalityType?: string;
+      disabled?: boolean;
+    }
+
+    const filter: ServiceFilter = {};
     
     if (search) {
       filter.OR = [
@@ -79,7 +89,7 @@ export async function GET(request: NextRequest) {
 
     // Add a placeholder usage count for each service
     // This will be replaced with actual package counts in the future
-    const servicesWithUsage = services.map((service: any) => {
+    const servicesWithUsage = services.map((service) => {
       return {
         ...service,
         usage: 0 // Placeholder value
@@ -105,12 +115,36 @@ export async function GET(request: NextRequest) {
       functionalityTypes: VALID_FUNCTIONALITY_TYPES, // Include valid functionality types in the response
     });
   } catch (error: unknown) {
-    logger.error('Error fetching services', { error: error.message, stack: error.stack });
+    // Properly handle error types
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
+    logger.error('Error fetching services', {
+      error: errorMessage,
+      stack: errorStack
+    });
+
     return NextResponse.json(
       { error: "Error fetching services" },
       { status: 500 }
     );
   }
+}
+
+// Helper function to generate a unique code from service name
+// BUG FIX: The Service model requires a non-null unique 'code' field, but the original
+// POST endpoint didn't provide one, causing 500 errors. This function auto-generates
+// codes from service names to ensure the database constraint is satisfied.
+function generateServiceCode(name: string): string {
+  // Convert service names to uppercase alphanumeric codes (matching existing pattern: BGCHECK, DRUGTEST)
+  const baseCode = name
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, '') // Remove special characters for code compatibility
+    .replace(/\s+/g, '') // Remove spaces to create single-word codes
+    .slice(0, 20); // Limit length for database compatibility and readability
+
+  // Fallback to generic code if name results in empty string after processing
+  return baseCode || 'SERVICE';
 }
 
 // POST: Create a new service
@@ -137,25 +171,61 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate functionalityType
-    const validFunctionalityType = VALID_FUNCTIONALITY_TYPES.includes(functionalityType) 
-      ? functionalityType 
+    const validFunctionalityType = VALID_FUNCTIONALITY_TYPES.includes(functionalityType)
+      ? functionalityType
       : "other"; // Default to "other" if invalid
 
-    // Create new service
-    const newService = await prisma.service.create({
-      data: {
-        name,
-        category,
-        description,
-        functionalityType: validFunctionalityType,
-        createdById: userId,
-        updatedById: userId,
-      },
+    // Generate a unique code from the service name
+    // BUG FIX: Auto-generate the required 'code' field to prevent 500 errors
+    let baseCode = generateServiceCode(name);
+    let code = baseCode;
+    let suffix = 1;
+    const maxAttempts = 10; // Prevent infinite loop in case of many conflicts
+
+    // Retry logic to handle unique constraint violations on the code field
+    // If the generated code already exists, append a numeric suffix (e.g., BGCHECK1, BGCHECK2)
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        // Create new service with generated code - this was the missing piece that caused the bug
+        const newService = await prisma.service.create({
+          data: {
+            name,
+            category,
+            description,
+            functionalityType: validFunctionalityType,
+            code, // This field was missing in the original implementation
+            createdById: userId,
+            updatedById: userId,
+          },
+        });
+
+        return NextResponse.json(newService, { status: 201 });
+      } catch (createError: unknown) {
+        // Handle Prisma unique constraint violations (P2002) by trying with numeric suffix
+        if (createError && typeof createError === 'object' && 'code' in createError && createError.code === 'P2002') {
+          // Generate new code with numeric suffix to ensure uniqueness
+          code = baseCode + suffix;
+          suffix++;
+          // Continue to next attempt with the new code
+        } else {
+          // Re-throw any other error to be handled by outer catch
+          throw createError;
+        }
+      }
+    }
+
+    // If we exhausted all attempts, throw an error
+    throw new Error('Unable to generate unique service code after multiple attempts');
+  } catch (error: unknown) {
+    // Properly handle error types
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
+    logger.error('Error creating service', {
+      error: errorMessage,
+      stack: errorStack
     });
 
-    return NextResponse.json(newService, { status: 201 });
-  } catch (error: unknown) {
-    logger.error('Error creating service', { error: error.message, stack: error.stack });
     return NextResponse.json(
       { error: "Error creating service" },
       { status: 500 }
