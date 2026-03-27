@@ -83,7 +83,8 @@ export default function CustomerPackages({ customerId, customerName: initialCust
   });
   
   // Permissions
-  const canEdit = checkPermission('customers', 'edit');
+  // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
+  const canEdit = checkPermission('customer_config', 'edit');
   
   // Handle toggle for disabled packages
   const handleToggleDisabled = useCallback((checked: boolean) => {

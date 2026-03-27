@@ -117,6 +117,36 @@ import logger from '@/lib/logger';
 
 **See [COMPONENT_STANDARDS.md](COMPONENT_STANDARDS.md) for complete component and styling rules.**
 
+### 3.1 Dialog Component Standards
+
+**Dialog components must support declarative control via props:**
+
+All modal, dialog, drawer, and popup components must accept an `open` prop that controls visibility state. This prevents integration issues where parent components need to manage dialog state predictably.
+
+**Required pattern:**
+```typescript
+interface DialogProps {
+  open?: boolean;  // Declarative control
+  onClose?: () => void;
+  // ... other props
+}
+
+// In component implementation:
+useEffect(() => {
+  if (open !== undefined && dialogRef.current) {
+    if (open) {
+      dialogRef.current.showModal();
+    } else {
+      dialogRef.current.close();
+    }
+  }
+}, [open]);
+```
+
+**Backward compatibility:** When adding declarative control to existing imperative-only components, maintain full backward compatibility. Components should work identically when the `open` prop is not provided.
+
+**Why this rule exists:** The ModalDialog component originally only supported imperative control via refs (showModal/close methods). Components trying to use it declaratively with an `open` prop failed silently, causing difficult-to-debug integration issues.
+
 ---
 
 ## SECTION 4: File Naming and Organization

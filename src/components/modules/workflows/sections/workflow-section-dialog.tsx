@@ -95,9 +95,9 @@ export function WorkflowSectionDialog({
   const { t } = useTranslation();
   const { fetchWithAuth, checkPermission } = useAuth();
   
-  // Check both workflows and customers permissions
-  const canEdit = checkPermission('workflows', 'edit') || 
-                 checkPermission('customers', 'edit') || 
+  // Check customer_config permissions
+  // BUG FIX: Changed from 'workflows'/'customers' to 'customer_config' to match User Admin permission key
+  const canEdit = checkPermission('customer_config', 'edit') ||
                  checkPermission('admin');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -178,14 +178,13 @@ export function WorkflowSectionDialog({
     
     clientLogger.info('Permission check before submitting:', {
       canEdit,
-      'workflows.edit': checkPermission('workflows', 'edit'),
-      'customers.edit': checkPermission('customers', 'edit'),
+      'customer_config.edit': checkPermission('customer_config', 'edit'),
       'admin': checkPermission('admin')
     });
     
     // Check permissions one more time
     if (!canEdit) {
-      setError('You do not have permission to edit workflow sections. Required permission: workflows.edit or customers.edit');
+      setError('You do not have permission to edit workflow sections. Required permission: customer_config');
       setIsSubmitting(false);
       return;
     }
