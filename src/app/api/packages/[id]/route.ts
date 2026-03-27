@@ -33,7 +33,15 @@ export async function GET(
     }
 
     // Check permissions
-    if (!session.user.permissions?.customers?.view) {
+    // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
+    const hasCustomerConfigPermission =
+      session.user.permissions?.customer_config ||
+      session.user.permissions?.customer_config?.edit ||
+      session.user.permissions?.customer_config?.view ||
+      session.user.permissions?.customer_config?.['*'] ||
+      (Array.isArray(session.user.permissions?.customer_config) && session.user.permissions.customer_config.includes('*'));
+
+    if (!hasCustomerConfigPermission && !session.user.permissions?.admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -100,7 +108,15 @@ export async function PUT(
     }
 
     // Check permissions
-    if (!session.user.permissions?.customers?.edit) {
+    // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
+    const hasCustomerConfigPermission =
+      session.user.permissions?.customer_config ||
+      session.user.permissions?.customer_config?.edit ||
+      session.user.permissions?.customer_config?.view ||
+      session.user.permissions?.customer_config?.['*'] ||
+      (Array.isArray(session.user.permissions?.customer_config) && session.user.permissions.customer_config.includes('*'));
+
+    if (!hasCustomerConfigPermission && !session.user.permissions?.admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -254,7 +270,15 @@ export async function DELETE(
     }
 
     // Check permissions
-    if (!session.user.permissions?.customers?.edit) {
+    // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
+    const hasCustomerConfigPermission =
+      session.user.permissions?.customer_config ||
+      session.user.permissions?.customer_config?.edit ||
+      session.user.permissions?.customer_config?.view ||
+      session.user.permissions?.customer_config?.['*'] ||
+      (Array.isArray(session.user.permissions?.customer_config) && session.user.permissions.customer_config.includes('*'));
+
+    if (!hasCustomerConfigPermission && !session.user.permissions?.admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

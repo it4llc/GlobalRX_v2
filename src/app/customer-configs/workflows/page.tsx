@@ -1,4 +1,5 @@
 "use client";
+import React from 'react';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from "react";
@@ -37,13 +38,14 @@ export default function WorkflowsPage() {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | undefined>(undefined);
 
   // For array-based permissions, we just need to check for the resource, not the specific action
-  const canManageWorkflows = checkPermission("workflows") || checkPermission("admin");
-  // For editing, we still want to check for edit permission if available, but workflows permission is enough
-  const canEditWorkflows = checkPermission("workflows") || checkPermission("admin");
+  // BUG FIX: Changed from 'workflows' to 'customer_config' to match User Admin permission key
+  const canManageWorkflows = checkPermission("customer_config") || checkPermission("admin");
+  // For editing, we still want to check for edit permission if available, but customer_config permission is enough
+  const canEditWorkflows = checkPermission("customer_config") || checkPermission("admin");
   
   // Debug permission checks
   clientLogger.info("Workflow Permission Check:", {
-    hasWorkflowsPermission: checkPermission("workflows"),
+    hasCustomerConfigPermission: checkPermission("customer_config"),
     hasAdminPermission: checkPermission("admin"),
     canManageWorkflows,
     canEditWorkflows

@@ -1,5 +1,5 @@
-// src/components/ui/modal-dialog.tsx
-import React, { forwardRef, useImperativeHandle, useRef } from 'react';
+// /GlobalRX_v2/src/components/ui/modal-dialog.tsx
+import React, { forwardRef, useImperativeHandle, useRef, useEffect, useLayoutEffect } from 'react';
 import { Button } from './button';
 
 // Dialog reference interface
@@ -14,6 +14,7 @@ interface ModalDialogProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+  open?: boolean;
   onClose?: () => void;
 }
 
@@ -28,8 +29,13 @@ interface DialogFooterProps {
 }
 
 // Modal dialog component
+// DUAL CONTROL PATTERN: This component supports both imperative (ref.showModal/close)
+// and declarative (open prop) control modes. The bug fix added declarative support
+// while maintaining full backward compatibility with existing ref-based usage.
+// When open prop is undefined, only ref control works. When open prop is defined,
+// it overrides ref control to provide predictable state management.
 export const ModalDialog = forwardRef<DialogRef, ModalDialogProps>(
-  ({ title, children, footer, maxWidth = 'md', onClose }, ref) => {
+  ({ title, children, footer, maxWidth = 'md', open, onClose }, ref) => {
     const dialogRef = useRef<HTMLDialogElement>(null);
 
     // Size map for max-width utility classes
@@ -46,7 +52,12 @@ export const ModalDialog = forwardRef<DialogRef, ModalDialogProps>(
     useImperativeHandle(ref, () => ({
       showModal: () => {
         if (dialogRef.current) {
-          dialogRef.current.showModal();
+          try {
+            dialogRef.current.showModal();
+          } catch (error) {
+            // showModal() throws error if dialog is already open
+            // Ignore this error and continue
+          }
         }
       },
       close: () => {
@@ -55,6 +66,47 @@ export const ModalDialog = forwardRef<DialogRef, ModalDialogProps>(
         }
       }
     }));
+
+    // Declarative control via open prop
+    useEffect(() => {
+      if (open !== undefined && dialogRef.current) {
+        if (open) {
+          try {
+            dialogRef.current.showModal();
+          } catch (error) {
+            // showModal() throws error if dialog is already open
+            // Ignore this error and continue
+          }
+        } else {
+          dialogRef.current.close();
+        }
+      }
+    }, [open]);
+
+    // Ensure declarative state is maintained when open prop is defined
+    useEffect(() => {
+      if (open !== undefined && dialogRef.current) {
+        // Use setTimeout to ensure this runs after all other effects
+        const timeoutId = setTimeout(() => {
+          if (!dialogRef.current) return;
+
+          const currentlyOpen = dialogRef.current.hasAttribute('open');
+
+          // If declarative and actual state don't match, fix it
+          if (open && !currentlyOpen) {
+            try {
+              dialogRef.current.showModal();
+            } catch (error) {
+              // Ignore error if dialog is already open
+            }
+          } else if (!open && currentlyOpen) {
+            dialogRef.current.close();
+          }
+        }, 0);
+
+        return () => clearTimeout(timeoutId);
+      }
+    }); // Run after every render to catch any state changes
 
     // Handle closing the dialog
     const handleClose = () => {

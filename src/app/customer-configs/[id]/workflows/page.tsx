@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
@@ -47,8 +48,9 @@ export default function CustomerWorkflowsPage() {
   
 
   // Permission checks - allow access with either workflow or customer permissions
-  const canManageWorkflows = checkPermission('workflows') || checkPermission('customers') || checkPermission('admin');
-  const canEditWorkflows = checkPermission('workflows') || checkPermission('customers', 'edit') || checkPermission('admin');
+  // BUG FIX: Changed from 'workflows'/'customers' to 'customer_config' to match User Admin permission key
+  const canManageWorkflows = checkPermission('customer_config') || checkPermission('admin');
+  const canEditWorkflows = checkPermission('customer_config', 'edit') || checkPermission('admin');
 
   // Helper function to refresh workflows
   const fetchWorkflows = async () => {
