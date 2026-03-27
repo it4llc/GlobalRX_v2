@@ -20,8 +20,9 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to view workflows
-    if (!session.user.permissions?.workflows?.view && !session.user.permissions?.admin) {
+    // Check if user has permission to view workflows via customer_config permission
+    // BUG FIX: Changed from 'workflows' to 'customer_config' to match User Admin permission key
+    if (!session.user.permissions?.customer_config && !session.user.permissions?.admin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -82,8 +83,9 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to edit workflows
-    if (!session.user.permissions?.workflows?.edit && !session.user.permissions?.admin) {
+    // Check if user has permission to edit workflows via customer_config permission
+    // BUG FIX: Changed from 'workflows' to 'customer_config' to match User Admin permission key
+    if (!session.user.permissions?.customer_config && !session.user.permissions?.admin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -204,8 +206,9 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to edit workflows
-    if (!session.user.permissions?.workflows?.edit && !session.user.permissions?.admin) {
+    // Check if user has permission to edit workflows via customer_config permission
+    // BUG FIX: Changed from 'workflows' to 'customer_config' to match User Admin permission key
+    if (!session.user.permissions?.customer_config && !session.user.permissions?.admin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -1,5 +1,6 @@
 // /GlobalRX_v2/src/app/customer-configs/packages/page.tsx
 'use client';
+import React from 'react';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useState, useEffect } from 'react';
@@ -26,7 +27,8 @@ export default function CustomerPackagesPage() {
   const [error, setError] = useState<string | null>(null);
   
   // Check if user has permission to view customers
-  const canView = checkPermission('customers', 'view');
+  // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
+  const canView = checkPermission('customer_config', 'view');
   
   useEffect(() => {
     const fetchCustomers = async () => {

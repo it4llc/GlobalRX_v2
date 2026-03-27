@@ -53,9 +53,9 @@ export function WorkflowSectionList({
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
   
-  // Check permissions for both workflows and customers
-  const canEdit = checkPermission('workflows', 'edit') || 
-                  checkPermission('customers', 'edit') || 
+  // Check permissions for customer_config
+  // BUG FIX: Changed from 'workflows'/'customers' to 'customer_config' to match User Admin permission key
+  const canEdit = checkPermission('customer_config', 'edit') ||
                   checkPermission('admin');
 
   // Fetch sections
