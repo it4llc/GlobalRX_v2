@@ -23,8 +23,10 @@ const packageUpdateSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -33,26 +35,35 @@ export async function GET(
     }
 
     // Check permissions
-    if (!session.user.permissions?.customers?.view) {
+    // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
+    const permissions = session.user.permissions as any;
+    const hasCustomerConfigPermission =
+      permissions?.customer_config ||
+      permissions?.customer_config?.edit ||
+      permissions?.customer_config?.view ||
+      permissions?.customer_config?.['*'] ||
+      (Array.isArray(permissions?.customer_config) && permissions.customer_config.includes('*'));
+
+    if (!hasCustomerConfigPermission && !permissions?.admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Get package with related data
     const pkg = await prisma.package.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         customer: true,
-        services: {
+        packageServices: {
           include: {
             service: true
           }
         }
       }
-    });
+    }) as any;
 
     if (!pkg) {
       return NextResponse.json(
-        { error: `Package with ID ${params.id} not found` },
+        { error: `Package with ID ${id} not found` },
         { status: 404 }
       );
     }
@@ -67,7 +78,7 @@ export async function GET(
       createdAt: pkg.createdAt,
       updatedAt: pkg.updatedAt,
       // Transform services to match the expected format in the form
-      services: pkg.services.map((ps: any) => ({
+      services: pkg.packageServices.map((ps: any) => ({
         serviceId: ps.serviceId,
         scope: ps.scope
       }))
@@ -75,7 +86,7 @@ export async function GET(
 
     return NextResponse.json(formattedPackage);
   } catch (error: unknown) {
-    logger.error(`Error in GET /api/packages/${params.id}:`, error);
+    logger.error(`Error in GET /api/packages/${id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -90,8 +101,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -100,13 +113,22 @@ export async function PUT(
     }
 
     // Check permissions
-    if (!session.user.permissions?.customers?.edit) {
+    // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
+    const permissions = session.user.permissions as any;
+    const hasCustomerConfigPermission =
+      permissions?.customer_config ||
+      permissions?.customer_config?.edit ||
+      permissions?.customer_config?.view ||
+      permissions?.customer_config?.['*'] ||
+      (Array.isArray(permissions?.customer_config) && permissions.customer_config.includes('*'));
+
+    if (!hasCustomerConfigPermission && !permissions?.admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Check if package exists
     const existingPackage = await prisma.package.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         customer: {
           include: {
@@ -122,7 +144,7 @@ export async function PUT(
 
     if (!existingPackage) {
       return NextResponse.json(
-        { error: `Package with ID ${params.id} not found` },
+        { error: `Package with ID ${id} not found` },
         { status: 404 }
       );
     }
@@ -184,7 +206,7 @@ export async function PUT(
     const updatedPackage = await prisma.$transaction(async (tx) => {
       // Update the package
       const pkg = await tx.package.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           name: data.name,
           description: data.description,
@@ -195,7 +217,7 @@ export async function PUT(
       if (data.services) {
         // Delete existing relationships
         await tx.packageService.deleteMany({
-          where: { packageId: params.id }
+          where: { packageId: id }
         });
 
         // Create new relationships
@@ -203,7 +225,7 @@ export async function PUT(
           data.services.map((serviceItem: any) =>
             tx.packageService.create({
               data: {
-                packageId: params.id,
+                packageId: id,
                 serviceId: serviceItem.serviceId,
                 scope: serviceItem.scope
               }
@@ -217,7 +239,7 @@ export async function PUT(
 
     // Get the updated package with services
     const packageWithServices = await prisma.package.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         services: {
           include: {
@@ -229,7 +251,7 @@ export async function PUT(
 
     return NextResponse.json(packageWithServices);
   } catch (error: unknown) {
-    logger.error(`Error in PUT /api/packages/${params.id}:`, error);
+    logger.error(`Error in PUT /api/packages/${id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -244,8 +266,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -254,30 +278,39 @@ export async function DELETE(
     }
 
     // Check permissions
-    if (!session.user.permissions?.customers?.edit) {
+    // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
+    const permissions = session.user.permissions as any;
+    const hasCustomerConfigPermission =
+      permissions?.customer_config ||
+      permissions?.customer_config?.edit ||
+      permissions?.customer_config?.view ||
+      permissions?.customer_config?.['*'] ||
+      (Array.isArray(permissions?.customer_config) && permissions.customer_config.includes('*'));
+
+    if (!hasCustomerConfigPermission && !permissions?.admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Check if package exists
     const packageExists = await prisma.package.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!packageExists) {
       return NextResponse.json(
-        { error: `Package with ID ${params.id} not found` },
+        { error: `Package with ID ${id} not found` },
         { status: 404 }
       );
     }
 
     // Delete package - cascade will handle service relationships
     await prisma.package.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    logger.error(`Error in DELETE /api/packages/${params.id}:`, error);
+    logger.error(`Error in DELETE /api/packages/${id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
