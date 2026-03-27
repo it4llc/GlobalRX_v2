@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
       permissions: session.user.permissions
     });
 
-    // Check if user has permission to access workflows (either directly or via customers permission)
-    if (!hasPermission(session.user, "workflows", "view") && 
-        !hasPermission(session.user, "customers", "view") && 
+    // Check if user has permission to access workflows via customer_config permission
+    // BUG FIX: Changed from 'workflows'/'customers' to 'customer_config' to match User Admin permission key
+    if (!hasPermission(session.user, "customer_config", "view") &&
         !hasPermission(session.user, "admin")) {
       logger.warn('Workflows API: User lacks permission', { userId: session.user.id });
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -123,9 +123,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to create workflows (either directly or via customers permission)
-    if (!hasPermission(session.user, "workflows", "edit") && 
-        !hasPermission(session.user, "customers", "edit") && 
+    // Check if user has permission to create workflows via customer_config permission
+    // BUG FIX: Changed from 'workflows'/'customers' to 'customer_config' to match User Admin permission key
+    if (!hasPermission(session.user, "customer_config", "edit") &&
         !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
