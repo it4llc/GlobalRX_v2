@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 import { workflowUpdateSchema } from "@/types/workflow";
 import { hasPermission } from "@/lib/permission-utils";
+import logger from '@/lib/logger';
 
 // GET: Fetch a single workflow by ID
 export async function GET(
@@ -20,9 +21,9 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to view workflows (either directly or via customers permission)
-    if (!hasPermission(session.user, "workflows", "view") && 
-        !hasPermission(session.user, "customers", "view") && 
+    // Check if user has permission to view workflows via customer_config permission
+    // BUG FIX: Changed from 'workflows'/'customers' to 'customer_config' to match User Admin permission key
+    if (!hasPermission(session.user, "customer_config", "view") &&
         !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -125,9 +126,9 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to edit workflows (either directly or via customers permission)
-    if (!hasPermission(session.user, "workflows", "edit") && 
-        !hasPermission(session.user, "customers", "edit") && 
+    // Check if user has permission to edit workflows via customer_config permission
+    // BUG FIX: Changed from 'workflows'/'customers' to 'customer_config' to match User Admin permission key
+    if (!hasPermission(session.user, "customer_config", "edit") &&
         !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -240,10 +241,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to delete workflows (either directly or via customers permission)
-    if (!hasPermission(session.user, "workflows", "delete") && 
-        !hasPermission(session.user, "workflows", "edit") && 
-        !hasPermission(session.user, "customers", "edit") && 
+    // Check if user has permission to delete workflows via customer_config permission
+    // BUG FIX: Changed from 'workflows'/'customers' to 'customer_config' to match User Admin permission key
+    if (!hasPermission(session.user, "customer_config", "delete") &&
+        !hasPermission(session.user, "customer_config", "edit") &&
         !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
