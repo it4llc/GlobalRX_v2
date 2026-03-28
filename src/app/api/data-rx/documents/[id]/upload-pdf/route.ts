@@ -38,7 +38,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
  *   - 404: Document not found
  *   - 400: Invalid file (not PDF, too large, or missing)
  */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -49,11 +49,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
 
+    const { id } = await params;
+
     // Check permissions - must have Data Rx access
     if (!canAccessDataRx(session.user)) {
       logger.warn('User attempted to upload PDF without Data Rx permission', {
         userId: session.user.id,
-        documentId: params.id
+        documentId: id
       });
       return NextResponse.json(
         { error: 'Forbidden - Insufficient permissions' },
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Check if the document requirement exists
     const document = await prisma.dSXRequirement.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         name: true,
@@ -123,7 +125,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     
     // Generate a unique filename
     const timestamp = Date.now();
-    const filename = `${params.id}_${timestamp}.pdf`;
+    const filename = `${id}_${timestamp}.pdf`;
     const filePath = join(uploadDir, filename);
 
     // Save the file
@@ -138,7 +140,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           : document.documentData;
       }
     } catch (e) {
-      logger.warn('Failed to parse existing documentData', { documentId: params.id });
+      logger.warn('Failed to parse existing documentData', { documentId: id });
     }
     
     // Update documentData with PDF metadata
@@ -151,7 +153,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Update the DSXRequirement record with PDF information in documentData
     await prisma.dSXRequirement.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         documentData: JSON.stringify(updatedDocumentData),
         updatedAt: new Date(),
@@ -159,7 +161,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
 
     logger.info('PDF template uploaded successfully', {
-      documentId: params.id,
+      documentId: id,
       filename: filename,
       fileSize: pdfFile.size,
       originalName: pdfFile.name,

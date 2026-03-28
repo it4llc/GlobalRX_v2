@@ -36,8 +36,10 @@ import logger from '@/lib/logger';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderId } = await params;
+
   try {
     // Step 1: Authentication check - ALWAYS required
     const session = await getServerSession(authOptions);
@@ -45,7 +47,7 @@ export async function GET(
       logger.warn('Unauthorized access attempt to order comments', {
         hasSession: !!session,
         hasUser: !!(session?.user),
-        orderId: params.id
+        orderId: orderId
       });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -55,7 +57,7 @@ export async function GET(
     const userType = session.user.userType || 'internal';
 
     const hasAccess = await service.validateOrderAccess(
-      params.id,
+      orderId,
       session.user.id,
       userType
     );
@@ -66,7 +68,7 @@ export async function GET(
 
     // Step 3: Get all service comments for the order
     const serviceComments = await service.getOrderServiceComments(
-      params.id,
+      orderId,
       userType,
       session.user.id
     );
@@ -80,7 +82,7 @@ export async function GET(
     };
 
     logger.info('Retrieved service comments for order', {
-      orderId: params.id,
+      orderId: orderId,
       userType,
       serviceCount: Object.keys(serviceComments).length,
       services: Object.entries(serviceComments).map(([id, data]) => {
@@ -146,7 +148,7 @@ export async function GET(
     }
 
     logger.info('Sending transformed response', {
-      orderId: params.id,
+      orderId: orderId,
       serviceCount: Object.keys(transformedResponse).length,
       services: Object.entries(transformedResponse).map(([id, data]) => ({
         id,
@@ -161,7 +163,7 @@ export async function GET(
   } catch (error) {
     logger.error('Error retrieving order service comments', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      orderId: params.id
+      orderId: orderId
     });
 
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

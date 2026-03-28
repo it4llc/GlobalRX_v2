@@ -8,15 +8,15 @@ import { prisma } from '@/lib/prisma';
 // GET: Fetch a single service by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: serviceId } = await params;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const serviceId = params.id;
 
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
@@ -70,8 +70,10 @@ export async function GET(
 // PUT: Update a service
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: serviceId } = await params;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -80,8 +82,6 @@ export async function PUT(
 
     // Get current user ID from session
     const userId = session.user.id;
-
-    const serviceId = params.id;
     const body = await request.json();
     const { name, category, description, functionalityType } = body;
 

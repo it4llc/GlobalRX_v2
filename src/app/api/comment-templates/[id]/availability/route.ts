@@ -23,8 +23,10 @@ import logger from '@/lib/logger';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   // Auth check
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -39,7 +41,7 @@ export async function GET(
   try {
     // Check template exists
     const template = await prisma.commentTemplate.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     });
 
     if (!template) {
@@ -48,7 +50,7 @@ export async function GET(
 
     // Get availabilities
     const availabilities = await prisma.commentTemplateAvailability.findMany({
-      where: { templateId: params.id },
+      where: { templateId: id },
       orderBy: [
         { serviceCode: 'asc' },
         { status: 'asc' }
@@ -57,7 +59,7 @@ export async function GET(
 
     return NextResponse.json({ availabilities }, { status: 200 });
   } catch (error) {
-    logger.error('Error fetching availability', { error, templateId: params.id });
+    logger.error('Error fetching availability', { error, templateId: id });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -91,8 +93,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   // Auth check
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -107,7 +111,7 @@ export async function PUT(
   try {
     // Check template exists
     const template = await prisma.commentTemplate.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     });
 
     if (!template) {
@@ -131,7 +135,7 @@ export async function PUT(
     const result = await prisma.$transaction(async (tx) => {
       // Delete all existing availability records for this template
       await tx.commentTemplateAvailability.deleteMany({
-        where: { templateId: params.id }
+        where: { templateId: id }
       });
 
       // Create new availability records from the current grid state
@@ -139,7 +143,7 @@ export async function PUT(
       if (validation.data.availabilities.length > 0) {
         await tx.commentTemplateAvailability.createMany({
           data: validation.data.availabilities.map(a => ({
-            templateId: params.id,
+            templateId: id,
             serviceCode: a.serviceCode,
             status: a.status
           }))
@@ -148,7 +152,7 @@ export async function PUT(
 
       // Return the complete updated availability list for UI refresh
       return await tx.commentTemplateAvailability.findMany({
-        where: { templateId: params.id },
+        where: { templateId: id },
         orderBy: [
           { serviceCode: 'asc' },
           { status: 'asc' }
@@ -158,7 +162,7 @@ export async function PUT(
 
     return NextResponse.json({ availabilities: result }, { status: 200 });
   } catch (error) {
-    logger.error('Error updating availability', { error, templateId: params.id });
+    logger.error('Error updating availability', { error, templateId: id });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

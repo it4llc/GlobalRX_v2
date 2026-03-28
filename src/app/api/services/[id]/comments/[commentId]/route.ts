@@ -34,8 +34,10 @@ import logger from '@/lib/logger';
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; commentId: string } }
+  { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
+  const { id: orderItemId, commentId } = await params;
+
   try {
     // Step 1: Authentication check
     const session = await getServerSession(authOptions);
@@ -52,7 +54,7 @@ export async function PUT(
     // Step 3: Validate user has access to the service
     const service = new ServiceCommentService();
     const hasAccess = await service.validateUserAccess(
-      params.id,
+      orderItemId,
       session.user.id,
       userType
     );
@@ -91,7 +93,7 @@ export async function PUT(
 
     // Step 5: Update the comment
     const updatedComment = await service.updateComment(
-      params.commentId,
+      commentId,
       validation.data,
       session.user.id
     );
@@ -137,7 +139,7 @@ export async function PUT(
 
     logger.error('Error updating service comment', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      commentId: params.commentId
+      commentId: commentId
     });
 
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -186,7 +188,7 @@ export async function DELETE(
     // Step 3: Validate user has access to the service
     const service = new ServiceCommentService();
     const hasAccess = await service.validateUserAccess(
-      params.id,
+      orderItemId,
       session.user.id,
       userType
     );
@@ -196,7 +198,7 @@ export async function DELETE(
     }
 
     // Step 4: Delete the comment
-    await service.deleteComment(params.commentId, session.user.id);
+    await service.deleteComment(commentId, session.user.id);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
@@ -209,7 +211,7 @@ export async function DELETE(
 
     logger.error('Error deleting service comment', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      commentId: params.commentId
+      commentId: commentId
     });
 
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

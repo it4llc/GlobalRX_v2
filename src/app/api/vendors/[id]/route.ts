@@ -10,7 +10,7 @@ import logger from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
@@ -19,7 +19,7 @@ export async function GET(
   }
 
   try {
-    const vendorId = params.id;
+    const { id: vendorId } = await params;
 
     const vendor = await prisma.vendorOrganization.findUnique({
       where: { id: vendorId }
@@ -46,7 +46,7 @@ export async function GET(
   } catch (error) {
     logger.error('Error fetching vendor', {
       event: 'vendor_fetch_error',
-      vendorId: params.id,
+      vendorId: vendorId,
       userId: session.user.id,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -60,7 +60,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
@@ -74,7 +74,7 @@ export async function PUT(
   }
 
   try {
-    const vendorId = params.id;
+    const { id: vendorId } = await params;
 
     // Check if vendor exists
     const existingVendor = await prisma.vendorOrganization.findUnique({
@@ -146,7 +146,7 @@ export async function PUT(
   } catch (error) {
     logger.error('Error updating vendor', {
       event: 'vendor_update_error',
-      vendorId: params.id,
+      vendorId: vendorId,
       userId: session.user.id,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -160,7 +160,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
@@ -174,7 +174,7 @@ export async function DELETE(
   }
 
   try {
-    const vendorId = params.id;
+    const { id: vendorId } = await params;
 
     // Check if vendor exists
     const existingVendor = await prisma.vendorOrganization.findUnique({
@@ -229,7 +229,7 @@ export async function DELETE(
   } catch (error) {
     logger.error('Error deleting vendor', {
       event: 'vendor_delete_error',
-      vendorId: params.id,
+      vendorId: vendorId,
       userId: session.user.id,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
