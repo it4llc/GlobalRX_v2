@@ -279,6 +279,152 @@ Add a loading spinner or progress bar during file upload, especially for files o
 
 ---
 
+### TD-010 — Inline Styles in Checkbox Component
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | UI Components / Checkbox                    |
+| Severity    | Critical (Standards Violation)              |
+| Identified  | March 28, 2026 - Education Verification Bug Fix Stage 5 |
+| Identified by | Standards Checker                         |
+
+**Description:**
+`src/components/ui/checkbox.tsx` lines 35-48 and 54 contain inline styles that violate the "no inline styles — ever" rule in CODING_STANDARDS.md. The component uses `style={{ height: '16px', width: '16px', ... }}` instead of Tailwind classes.
+
+**Why deferred:**
+The component functions correctly with inline styles. The bug fix for the infinite loop is the priority, and styling changes could be handled in a separate cleanup pass.
+
+**When to fix:**
+During a UI components standardization pass or when the checkbox component needs other modifications.
+
+**Recommendation:**
+Replace inline styles with Tailwind classes: `h-4 w-4 min-h-[16px] min-w-[16px] max-h-[16px] max-w-[16px] flex items-center justify-center flex-shrink-0 box-border`
+
+---
+
+### TD-011 — Hardcoded Text in Scope Selector Component
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Customer Components / Scope Selector        |
+| Severity    | Critical (Standards Violation)              |
+| Identified  | March 28, 2026 - Education Verification Bug Fix Stage 5 |
+| Identified by | Standards Checker                         |
+
+**Description:**
+`src/components/modules/customer/scope-selector.tsx` lines 91, 141, and 215 contain hardcoded "Scope:" text that should use the translation system per CODING_STANDARDS.md.
+
+**Why deferred:**
+The component works correctly with hardcoded English text. Fixing would require updating all test mocks that use this component.
+
+**When to fix:**
+During an internationalization pass or when the scope-selector component needs other modifications.
+
+**Recommendation:**
+- Import `useTranslation` hook
+- Replace "Scope:" with `{t('common.scope')}`
+- Add translation key to all language files
+
+---
+
+### TD-012 — Missing File Header Comments
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Multiple Components                          |
+| Severity    | Warning (Standards Violation)               |
+| Identified  | March 28, 2026 - Education Verification Bug Fix Stage 5 |
+| Identified by | Standards Checker                         |
+
+**Description:**
+The following files are missing file path header comments as required by CODING_STANDARDS.md:
+- `src/components/ui/checkbox.tsx` (already has it, false positive)
+- `src/components/modules/customer/package-dialog-new.tsx`
+
+**Why deferred:**
+Missing comments don't affect functionality. Low priority compared to fixing actual bugs.
+
+**When to fix:**
+During any future modification to these files.
+
+**Recommendation:**
+Add `// src/components/modules/customer/package-dialog-new.tsx` as the first line.
+
+---
+
+### TD-013 — Extensive Use of 'any' Types in Package Dialog
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Customer Components / Package Dialog         |
+| Severity    | Warning (TypeScript Standards)              |
+| Identified  | March 28, 2026 - Education Verification Bug Fix Stage 5 |
+| Identified by | Standards Checker                         |
+
+**Description:**
+`src/components/modules/customer/package-dialog-new.tsx` has multiple uses of `any` type on lines 25, 61, 150, 153, 158, 230, 252, 263, 282, 514, violating the "No any types" rule in CODING_STANDARDS.md.
+
+**Why deferred:**
+These are pre-existing violations not introduced by the bug fix. Fixing would require extensive type definitions and could introduce new issues.
+
+**When to fix:**
+During a TypeScript strict mode cleanup pass or when refactoring the package dialog component.
+
+**Recommendation:**
+Define proper TypeScript interfaces for all data structures used in the component.
+
+---
+
+### TD-014 — Incomplete Next.js 15 Dynamic Routes Migration
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | API Routes / Next.js 15                     |
+| Severity    | Critical (Will cause runtime errors)        |
+| Identified  | March 28, 2026 - Education Verification Bug Fix Stage 4 |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+While reviewing the bug fix, the code reviewer identified that many API routes still use the old Next.js pattern of directly destructuring params without awaiting. At least 15 dynamic route files need the `await params` pattern applied, including:
+- `/src/app/api/users/[id]/route.ts` (line 53)
+- And many others throughout the API routes directory
+
+**Why deferred:**
+Not related to the Education Verification infinite loop bug. Fixing all routes would expand the scope significantly beyond the current bug fix.
+
+**When to fix:**
+URGENT - Should be addressed in a separate bug fix cycle as these routes will fail at runtime when accessed.
+
+**Recommendation:**
+- Create a migration script to identify all dynamic routes needing updates
+- Apply the `await params` pattern consistently across all routes
+- Add regression tests for each migrated route
+
+---
+
+### TD-015 — Complex Ref Handling in PackageDialog
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Customer Components / Package Dialog         |
+| Severity    | Warning (Code Complexity)                   |
+| Identified  | March 28, 2026 - Education Verification Bug Fix Stage 4 |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+`src/components/modules/customer/package-dialog-new.tsx` uses refs (`scopesRef` and `selectedServiceIdsRef`) to stabilize the `handleScopeChange` callback. While this works, it adds complexity compared to using `useCallback` with proper dependencies.
+
+**Why deferred:**
+The current implementation successfully fixes the infinite loop bug. Refactoring to a simpler pattern is not critical.
+
+**When to fix:**
+During a code simplification pass or when the component needs other modifications.
+
+**Recommendation:**
+Consider using `useCallback` with proper dependency array instead of refs for callback stabilization.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_

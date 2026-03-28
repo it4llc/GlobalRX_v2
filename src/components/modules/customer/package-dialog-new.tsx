@@ -235,7 +235,15 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
     setValue('services', formServices, { shouldValidate: true, shouldDirty: true });
   }, [selectedServiceIds, scopes, setValue]);
   
-  // Use refs to hold the latest values without causing re-renders
+  // BUG FIX: Stabilized callback to prevent infinite re-render loops
+  //
+  // The handleScopeChange callback was being recreated on every render because
+  // it depended on state values (scopes, selectedServiceIds) that change frequently.
+  // This caused the ScopeSelector component to re-render constantly when the
+  // callback was passed as a prop, contributing to the infinite loop issue.
+  //
+  // SOLUTION: Use refs to hold the latest values without causing re-renders,
+  // making the callback stable and preventing unnecessary component updates.
   const scopesRef = useRef(scopes);
   const selectedServiceIdsRef = useRef(selectedServiceIds);
 

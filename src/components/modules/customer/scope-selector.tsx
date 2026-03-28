@@ -46,6 +46,15 @@ export function ScopeSelector({
   const isFirstRender = useRef(true);
 
   // Update the parent component when scope changes
+  //
+  // BUG FIX: This useEffect was causing infinite re-render loops when used
+  // in the Education verification service checkbox. The issue was that
+  // onChange was being called on every render without checking if the scope
+  // values had actually changed, causing a cascade of re-renders between
+  // ScopeSelector, Checkbox, and PackageDialog components.
+  //
+  // SOLUTION: Added proper value comparison and first-render tracking to only
+  // trigger onChange when scope values actually change or on initial setup.
   useEffect(() => {
     // Build scope object based on type
     const scopeObj: { type: string; quantity?: number; years?: number } = { type: scopeType };

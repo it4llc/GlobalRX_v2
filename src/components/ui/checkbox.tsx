@@ -16,7 +16,12 @@ const Checkbox = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
   CheckboxProps
 >(({ className, style, indeterminate, ...props }, ref) => {
-  // Use React.useImperativeHandle for stable ref combining
+  // BUG FIX: Replaced unstable ref-combining useEffect with useImperativeHandle
+  //
+  // The original implementation used useEffect to combine refs, which could
+  // trigger unnecessary re-renders and contribute to infinite render loops.
+  // useImperativeHandle provides a more stable pattern for ref forwarding
+  // that doesn't cause re-renders when the ref value changes.
   const innerRef = React.useRef<HTMLButtonElement>(null);
 
   React.useImperativeHandle(ref, () => innerRef.current as HTMLButtonElement, []);
