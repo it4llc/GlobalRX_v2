@@ -69,6 +69,23 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// For routes with dynamic parameters (Next.js 15 Migration)
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  // CRITICAL: Next.js 15 requires params to be awaited before use
+  const { id } = await params;
+
+  // Step 1: Always check authentication first
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Continue with regular route logic...
+}
 ```
 
 ### 1.3 HTTP Status Codes
@@ -519,7 +536,77 @@ with a description of what it is (but not its real value).
 
 ---
 
-## SECTION 11: API Documentation
+## SECTION 11: Next.js 15 Migration Requirements
+
+**CRITICAL:** Next.js 15 introduced breaking changes to API route parameter handling that must be addressed in all dynamic route handlers.
+
+### 11.1 Dynamic Route Parameters are Now Promises
+
+In Next.js 15, the `params` object passed to API route handlers is now a Promise that must be awaited before accessing its properties. This is a breaking change from Next.js 14.
+
+**Next.js 14 (Old Pattern):**
+```typescript
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }  // Synchronous object
+) {
+  const { id } = params; // Direct access worked in Next.js 14
+  // ...rest of handler
+}
+```
+
+**Next.js 15 (Required Pattern):**
+```typescript
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }  // Now a Promise
+) {
+  const { id } = await params; // MUST await before accessing properties
+  // ...rest of handler
+}
+```
+
+### 11.2 Migration Impact
+
+**Files Fixed (March 27, 2026):**
+- `/src/app/api/packages/[id]/route.ts` - Fixed GET, PUT, DELETE handlers
+- `/src/app/api/customers/[id]/packages/route.ts` - Fixed GET, POST handlers
+
+**Runtime Error Before Fix:**
+Attempting to destructure properties from `params` without awaiting would cause runtime errors:
+```
+TypeError: Cannot destructure property 'id' of 'params' as it is undefined
+```
+
+### 11.3 Required Changes for All Dynamic Routes
+
+For any API route with dynamic segments (`[id]`, `[slug]`, etc.):
+
+1. **Update the TypeScript interface** to indicate params is a Promise
+2. **Add await before destructuring** params properties
+3. **Add explanatory comments** about the Next.js 15 requirement
+4. **Test the route handlers** to ensure they work correctly
+
+**Standard Comment Pattern:**
+```typescript
+// Next.js 15 Migration: params is now a Promise that must be awaited
+// before accessing its properties. This prevents runtime errors
+// when destructuring { id } from the params object.
+const { id } = await params;
+```
+
+### 11.4 Regression Test Requirements
+
+When fixing Next.js 15 params issues, comprehensive regression tests must be written to prevent future breakage:
+
+- Test that all handlers correctly extract parameters from awaited params
+- Test that handlers don't crash with runtime errors
+- Test business logic continues to work correctly after the fix
+- Add tests that would fail if someone accidentally removes the `await` keyword
+
+---
+
+## SECTION 12: API Documentation
 
 Every API endpoint must have:
 
@@ -565,3 +652,6 @@ Every API endpoint must have:
 - [ ] No hardcoded secrets (use environment variables)
 - [ ] Environment variables documented in .env.example
 - [ ] API endpoint has JSDoc documentation
+- [ ] **Next.js 15 Migration:** Dynamic route params are awaited before use
+- [ ] **Next.js 15 Migration:** TypeScript interface shows params as Promise
+- [ ] **Next.js 15 Migration:** Regression tests verify params handling
