@@ -235,25 +235,46 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
     setValue('services', formServices, { shouldValidate: true, shouldDirty: true });
   }, [selectedServiceIds, scopes, setValue]);
   
-  // Handle scope changes
+  // BUG FIX: Stabilized callback to prevent infinite re-render loops
+  //
+  // The handleScopeChange callback was being recreated on every render because
+  // it depended on state values (scopes, selectedServiceIds) that change frequently.
+  // This caused the ScopeSelector component to re-render constantly when the
+  // callback was passed as a prop, contributing to the infinite loop issue.
+  //
+  // SOLUTION: Use refs to hold the latest values without causing re-renders,
+  // making the callback stable and preventing unnecessary component updates.
+  const scopesRef = useRef(scopes);
+  const selectedServiceIdsRef = useRef(selectedServiceIds);
+
+  // Update refs when values change
+  useEffect(() => {
+    scopesRef.current = scopes;
+  }, [scopes]);
+
+  useEffect(() => {
+    selectedServiceIdsRef.current = selectedServiceIds;
+  }, [selectedServiceIds]);
+
+  // Handle scope changes - now stable because it doesn't depend on changing values
   const handleScopeChange = useCallback((serviceId: string, scope: any) => {
-    // Update scopes
+    // Update scopes using the current ref value
     const newScopes = {
-      ...scopes,
+      ...scopesRef.current,
       [serviceId]: scope
     };
-    
+
     setScopes(newScopes);
     setIsDirty(true);
-    
-    // Update form directly
-    const formServices = selectedServiceIds.map((id: any) => ({
+
+    // Update form directly using current ref values
+    const formServices = selectedServiceIdsRef.current.map((id: any) => ({
       serviceId: id,
       scope: newScopes[id] || null
     }));
-    
+
     setValue('services', formServices, { shouldValidate: true, shouldDirty: true });
-  }, [scopes, selectedServiceIds, setValue]);
+  }, [setValue]);
   
   // Form submission handler
   const onSubmit = useCallback(async (data: PackageFormValues) => {

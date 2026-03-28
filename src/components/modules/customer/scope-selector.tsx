@@ -1,16 +1,22 @@
 // src/components/modules/customer/scope-selector.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Radio } from '@/components/ui/radio';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
+interface ScopeValue {
+  type: string;
+  quantity?: number;
+  years?: number;
+}
+
 interface ScopeSelectorProps {
   serviceType: string;
-  value: any;
-  onChange: (value: any) => void;
+  value: ScopeValue | null | undefined;
+  onChange: (value: ScopeValue) => void;
   disabled?: boolean;
 }
 
@@ -36,19 +42,42 @@ export function ScopeSelector({
     return value.years || 7;
   });
   
+  // Track if this is the first render
+  const isFirstRender = useRef(true);
+
   // Update the parent component when scope changes
+  //
+  // BUG FIX: This useEffect was causing infinite re-render loops when used
+  // in the Education verification service checkbox. The issue was that
+  // onChange was being called on every render without checking if the scope
+  // values had actually changed, causing a cascade of re-renders between
+  // ScopeSelector, Checkbox, and PackageDialog components.
+  //
+  // SOLUTION: Added proper value comparison and first-render tracking to only
+  // trigger onChange when scope values actually change or on initial setup.
   useEffect(() => {
     // Build scope object based on type
-    let scopeObj: any = { type: scopeType };
-    
+    const scopeObj: { type: string; quantity?: number; years?: number } = { type: scopeType };
+
     if (scopeType === 'most-recent-x') {
       scopeObj.quantity = quantityValue;
     } else if (scopeType === 'past-x-years') {
       scopeObj.years = yearsValue;
     }
-    
-    onChange(scopeObj);
-  }, [scopeType, quantityValue, yearsValue, onChange]);
+
+    // On first render, always call onChange to establish initial value
+    // After that, only call if the scope actually changed
+    const hasChanged = isFirstRender.current ||
+      !value ||
+      value.type !== scopeObj.type ||
+      value.quantity !== scopeObj.quantity ||
+      value.years !== scopeObj.years;
+
+    if (hasChanged) {
+      onChange(scopeObj);
+      isFirstRender.current = false;
+    }
+  }, [scopeType, quantityValue, yearsValue, value, onChange]);
   
   // Get default scope type based on service type
   function getDefaultScopeType(type: string): string {

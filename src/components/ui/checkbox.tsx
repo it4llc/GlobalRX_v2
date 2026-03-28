@@ -16,17 +16,15 @@ const Checkbox = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
   CheckboxProps
 >(({ className, style, indeterminate, ...props }, ref) => {
-  // Use a ref to access the DOM element
+  // BUG FIX: Replaced unstable ref-combining useEffect with useImperativeHandle
+  //
+  // The original implementation used useEffect to combine refs, which could
+  // trigger unnecessary re-renders and contribute to infinite render loops.
+  // useImperativeHandle provides a more stable pattern for ref forwarding
+  // that doesn't cause re-renders when the ref value changes.
   const innerRef = React.useRef<HTMLButtonElement>(null);
-  
-  // Combine refs
-  React.useEffect(() => {
-    if (typeof ref === 'function') {
-      ref(innerRef.current);
-    } else if (ref) {
-      ref.current = innerRef.current;
-    }
-  }, [ref]);
+
+  React.useImperativeHandle(ref, () => innerRef.current as HTMLButtonElement, []);
   
   // Apply indeterminate state using CSS
   const indeterminateClass = indeterminate ? "after:content-[''] after:block after:w-2/3 after:h-0.5 after:bg-current after:absolute after:top-1/2 after:-translate-y-1/2" : "";

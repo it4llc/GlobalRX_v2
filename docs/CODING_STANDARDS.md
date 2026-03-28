@@ -111,6 +111,63 @@ import logger from '@/lib/logger';
 
 **Rule:** Always import what you use. TypeScript will catch missing imports during build, but runtime errors can still occur if imports are forgotten during development.
 
+### 2.3 Preventing Infinite Render Loops
+
+When components pass callbacks to child components that update state, infinite render loops can occur if the callbacks are recreated on every render.
+
+**Common Bug Pattern to Avoid:**
+```typescript
+// ❌ WRONG - Callback recreated on every render, causing infinite loops
+const [scopes, setScopes] = useState({});
+const [selectedIds, setSelectedIds] = useState([]);
+
+const handleScopeChange = (id: string, scope: any) => {
+  const newScopes = { ...scopes, [id]: scope };
+  setScopes(newScopes);
+  // Update form with selectedIds and newScopes
+};
+
+return (
+  <ScopeSelector
+    onChange={handleScopeChange} // This callback changes every render
+  />
+);
+```
+
+**Correct Pattern:**
+```typescript
+// ✅ CORRECT - Use refs to stabilize callbacks
+const [scopes, setScopes] = useState({});
+const [selectedIds, setSelectedIds] = useState([]);
+
+// Store latest values in refs to avoid dependency on state
+const scopesRef = useRef(scopes);
+const selectedIdsRef = useRef(selectedIds);
+
+useEffect(() => { scopesRef.current = scopes; }, [scopes]);
+useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
+
+// Stable callback that doesn't change on every render
+const handleScopeChange = useCallback((id: string, scope: any) => {
+  const newScopes = { ...scopesRef.current, [id]: scope };
+  setScopes(newScopes);
+  // Use refs for latest values instead of state
+}, []); // No dependencies = stable callback
+
+return (
+  <ScopeSelector
+    onChange={handleScopeChange} // This callback is stable
+  />
+);
+```
+
+**Additional Rules:**
+- Always compare values before calling `onChange` in child components' `useEffect` hooks
+- Use `useRef` to track first render and avoid unnecessary initial calls
+- Consider using `useImperativeHandle` instead of `useEffect` for ref forwarding
+
+**Rule:** When state updates trigger callbacks passed to child components, use refs to hold latest values and create stable callbacks with `useCallback` to prevent infinite re-render loops.
+
 ---
 
 ## SECTION 3: Component & Styling Standards
