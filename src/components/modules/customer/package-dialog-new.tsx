@@ -235,25 +235,38 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
     setValue('services', formServices, { shouldValidate: true, shouldDirty: true });
   }, [selectedServiceIds, scopes, setValue]);
   
-  // Handle scope changes
+  // Use refs to hold the latest values without causing re-renders
+  const scopesRef = useRef(scopes);
+  const selectedServiceIdsRef = useRef(selectedServiceIds);
+
+  // Update refs when values change
+  useEffect(() => {
+    scopesRef.current = scopes;
+  }, [scopes]);
+
+  useEffect(() => {
+    selectedServiceIdsRef.current = selectedServiceIds;
+  }, [selectedServiceIds]);
+
+  // Handle scope changes - now stable because it doesn't depend on changing values
   const handleScopeChange = useCallback((serviceId: string, scope: any) => {
-    // Update scopes
+    // Update scopes using the current ref value
     const newScopes = {
-      ...scopes,
+      ...scopesRef.current,
       [serviceId]: scope
     };
-    
+
     setScopes(newScopes);
     setIsDirty(true);
-    
-    // Update form directly
-    const formServices = selectedServiceIds.map((id: any) => ({
+
+    // Update form directly using current ref values
+    const formServices = selectedServiceIdsRef.current.map((id: any) => ({
       serviceId: id,
       scope: newScopes[id] || null
     }));
-    
+
     setValue('services', formServices, { shouldValidate: true, shouldDirty: true });
-  }, [scopes, selectedServiceIds, setValue]);
+  }, [setValue]);
   
   // Form submission handler
   const onSubmit = useCallback(async (data: PackageFormValues) => {
