@@ -39,8 +39,11 @@ interface ParsedDocumentData {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  // Get params before try block so it's accessible in catch block
+  const { id } = await params;
+
   try {
     // Step 1: Always check authentication first
     const session = await getServerSession(authOptions);
@@ -54,13 +57,13 @@ export async function GET(
     }
 
     // Step 3: Validate document ID format
-    if (!UUID_REGEX.test(params.id)) {
+    if (!UUID_REGEX.test(id)) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
     // Step 4: Fetch document from database
     const document = await prisma.dSXRequirement.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!document) {
@@ -99,7 +102,7 @@ export async function GET(
     // Reject paths containing directory traversal patterns
     if (documentData.pdfPath.includes('..') || documentData.pdfPath.includes('~')) {
       logger.warn('Potential path traversal attempt', {
-        documentId: params.id,
+        documentId: id,
         pdfPath: documentData.pdfPath,
         userId: session.user?.id
       });
@@ -130,7 +133,7 @@ export async function GET(
     // Ensure resolved path is within the application directory
     if (!resolvedPath.startsWith(baseDir)) {
       logger.warn('Path traversal prevented', {
-        documentId: params.id,
+        documentId: id,
         resolvedPath,
         baseDir,
         userId: session.user?.id
@@ -148,7 +151,7 @@ export async function GET(
     } catch (statError) {
       // File doesn't exist
       logger.warn('Template file not found', {
-        documentId: params.id,
+        documentId: id,
         resolvedPath,
         error: statError instanceof Error ? statError.message : String(statError)
       });
@@ -161,7 +164,7 @@ export async function GET(
     // Check file size to prevent DoS attacks
     if (stats.size > MAX_FILE_SIZE) {
       logger.warn('Template file too large', {
-        documentId: params.id,
+        documentId: id,
         fileSize: stats.size,
         maxSize: MAX_FILE_SIZE
       });
@@ -199,7 +202,7 @@ export async function GET(
     logger.error('Error downloading template', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
-      documentId: params.id
+      documentId: id
     });
     return NextResponse.json(
       { error: 'Internal server error' },
