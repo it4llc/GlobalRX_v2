@@ -23,8 +23,10 @@ const packageUpdateSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -47,7 +49,7 @@ export async function GET(
 
     // Get package with related data
     const pkg = await prisma.package.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         customer: true,
         services: {
@@ -60,7 +62,7 @@ export async function GET(
 
     if (!pkg) {
       return NextResponse.json(
-        { error: `Package with ID ${params.id} not found` },
+        { error: `Package with ID ${id} not found` },
         { status: 404 }
       );
     }
@@ -83,7 +85,7 @@ export async function GET(
 
     return NextResponse.json(formattedPackage);
   } catch (error: unknown) {
-    logger.error(`Error in GET /api/packages/${params.id}:`, error);
+    logger.error(`Error in GET /api/packages/${id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -98,8 +100,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -122,7 +126,7 @@ export async function PUT(
 
     // Check if package exists
     const existingPackage = await prisma.package.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         customer: {
           include: {
@@ -138,7 +142,7 @@ export async function PUT(
 
     if (!existingPackage) {
       return NextResponse.json(
-        { error: `Package with ID ${params.id} not found` },
+        { error: `Package with ID ${id} not found` },
         { status: 404 }
       );
     }
@@ -200,7 +204,7 @@ export async function PUT(
     const updatedPackage = await prisma.$transaction(async (tx) => {
       // Update the package
       const pkg = await tx.package.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           name: data.name,
           description: data.description,
@@ -211,7 +215,7 @@ export async function PUT(
       if (data.services) {
         // Delete existing relationships
         await tx.packageService.deleteMany({
-          where: { packageId: params.id }
+          where: { packageId: id }
         });
 
         // Create new relationships
@@ -219,7 +223,7 @@ export async function PUT(
           data.services.map((serviceItem: any) =>
             tx.packageService.create({
               data: {
-                packageId: params.id,
+                packageId: id,
                 serviceId: serviceItem.serviceId,
                 scope: serviceItem.scope
               }
@@ -233,7 +237,7 @@ export async function PUT(
 
     // Get the updated package with services
     const packageWithServices = await prisma.package.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         services: {
           include: {
@@ -245,7 +249,7 @@ export async function PUT(
 
     return NextResponse.json(packageWithServices);
   } catch (error: unknown) {
-    logger.error(`Error in PUT /api/packages/${params.id}:`, error);
+    logger.error(`Error in PUT /api/packages/${id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }
@@ -260,8 +264,9 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -284,24 +289,24 @@ export async function DELETE(
 
     // Check if package exists
     const packageExists = await prisma.package.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!packageExists) {
       return NextResponse.json(
-        { error: `Package with ID ${params.id} not found` },
+        { error: `Package with ID ${id} not found` },
         { status: 404 }
       );
     }
 
     // Delete package - cascade will handle service relationships
     await prisma.package.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    logger.error(`Error in DELETE /api/packages/${params.id}:`, error);
+    logger.error(`Error in DELETE /api/packages/${id}:`, error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

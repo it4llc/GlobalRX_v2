@@ -25,7 +25,7 @@ const packageSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
 
@@ -113,8 +113,10 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -135,7 +137,7 @@ export async function POST(
 
     // Check if customer exists
     const customer = await prisma.customer.findUnique({
-      where: { id: id },
+      where: { id },
       include: {
         services: {
           include: {
