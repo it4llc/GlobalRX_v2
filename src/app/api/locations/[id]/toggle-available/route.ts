@@ -8,18 +8,18 @@ import { authOptions } from "@/lib/auth";
 // Toggle location status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
-    logger.info(`API: PATCH /api/locations/${params.id}/toggle-available called`);
-    
+    logger.info(`API: PATCH /api/locations/${id}/toggle-available called`);
+
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const id = params.id;
 
     // Get current location to check its status
     const currentLocation = await prisma.country.findUnique({

@@ -38,8 +38,10 @@ import logger from '@/lib/logger';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderItemId } = await params;
+
   try {
     // Step 1: Authentication check - ALWAYS first
     const session = await getServerSession(authOptions);
@@ -73,7 +75,7 @@ export async function POST(
     // 2. We do NOT auto-create missing ServicesFulfillment records to avoid masking data integrity issues
     // 3. This ensures only services with proper fulfillment setup can receive comments
     const serviceFulfillment = await prisma.servicesFulfillment.findUnique({
-      where: { orderItemId: params.id },
+      where: { orderItemId: orderItemId },
       select: { orderItemId: true }
     });
 
@@ -82,7 +84,7 @@ export async function POST(
     }
 
     const hasAccess = await service.validateUserAccess(
-      params.id,
+      orderItemId,
       session.user.id,
       session.user.userType
     );
@@ -99,7 +101,7 @@ export async function POST(
       logger.error('Comment validation failed', {
         body,
         errors: validation.error.errors,
-        serviceId: params.id
+        serviceId: orderItemId
       });
       const errorMessage = validation.error.errors[0]?.message || 'Invalid input';
       const field = validation.error.errors[0]?.path[0];
@@ -124,7 +126,7 @@ export async function POST(
 
     // Step 5: Create the comment using the OrderItem ID
     const comment = await service.createComment(
-      params.id,
+      orderItemId,
       validation.data,
       session.user.id
     );
@@ -173,7 +175,7 @@ export async function POST(
 
     logger.error('Error creating service comment', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      serviceId: params.id
+      serviceId: orderItemId
     });
 
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
