@@ -22,11 +22,17 @@ const packageSchema = z.object({
  * @route GET /api/customers/[id]/packages
  * @desc Get all packages for a specific customer
  * @access Private - Requires customers.view permission
+ *
+ * CRITICAL: Next.js 15 requires params to be awaited before use.
+ * In Next.js 15 App Router, the params object is a Promise that must be
+ * awaited before accessing its properties. This is a breaking change
+ * from Next.js 14 where params was a synchronous object.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Next.js 15 Migration: params is now a Promise that must be awaited
   const { id } = await params;
 
   try {
@@ -110,11 +116,18 @@ export async function GET(
  * @route POST /api/customers/[id]/packages
  * @desc Create a new package for a customer
  * @access Private - Requires customers.edit permission
+ *
+ * CRITICAL: Next.js 15 requires params to be awaited before use.
+ * This endpoint was broken before the fix because it attempted to use
+ * the id from params without awaiting the Promise first.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Next.js 15 Migration: params is now a Promise that must be awaited
+  // BEFORE the fix: accessing id from params without await caused runtime errors
+  // AFTER the fix: properly await params to extract id safely
   const { id } = await params;
 
   try {

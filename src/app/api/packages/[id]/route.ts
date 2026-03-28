@@ -20,11 +20,19 @@ const packageUpdateSchema = z.object({
  * @route GET /api/packages/[id]
  * @desc Get a specific package by ID
  * @access Private - Requires customers.view permission
+ *
+ * CRITICAL: Next.js 15 requires params to be awaited before use.
+ * In Next.js 15 App Router, the params object is a Promise that must be
+ * awaited before accessing its properties. Failure to await results in
+ * runtime errors when trying to access params.id directly.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Next.js 15 Migration: params is now a Promise that must be awaited
+  // before accessing its properties. This prevents runtime errors
+  // when destructuring { id } from the params object.
   const { id } = await params;
 
   try {
@@ -97,11 +105,14 @@ export async function GET(
  * @route PUT /api/packages/[id]
  * @desc Update a specific package
  * @access Private - Requires customers.edit permission
+ *
+ * CRITICAL: Next.js 15 requires params to be awaited before use.
  */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Next.js 15 Migration: await params before accessing properties
   const { id } = await params;
 
   try {
@@ -261,11 +272,14 @@ export async function PUT(
  * @route DELETE /api/packages/[id]
  * @desc Delete a package
  * @access Private - Requires customers.edit permission
+ *
+ * CRITICAL: Next.js 15 requires params to be awaited before use.
  */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Next.js 15 Migration: await params before accessing properties
   const { id } = await params;
   try {
     // Check authentication
