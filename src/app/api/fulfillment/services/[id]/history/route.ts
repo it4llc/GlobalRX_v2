@@ -8,9 +8,9 @@ import { ServiceFulfillmentService } from '@/lib/services/service-fulfillment.se
 import logger from '@/lib/logger';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
@@ -31,6 +31,8 @@ interface RouteParams {
  *   404: Service not found
  */
 export async function GET(request: Request, { params }: RouteParams) {
+  const { id } = await params;
+
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
@@ -38,7 +40,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 
   // Step 2: Check if service ID is provided
-  if (!params.id) {
+  if (!id) {
     return NextResponse.json({ error: 'Service ID is required' }, { status: 400 });
   }
 
@@ -70,7 +72,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   try {
     // Check if service exists
     const service = await ServiceFulfillmentService.getServiceById(
-      params.id,
+      id,
       {
         userType,
         vendorId: session.user.vendorId || undefined
@@ -98,12 +100,12 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // Step 6: Fetch history
-    const history = await ServiceAuditService.getHistory(params.id, limit);
+    const history = await ServiceAuditService.getHistory(id, limit);
 
     // Add no-cache headers for sensitive audit data
     const response = NextResponse.json(
       {
-        serviceId: params.id,
+        serviceId: id,
         history,
         totalEntries: history.length
       },
@@ -132,7 +134,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     logger.error('Error fetching service history', {
       error: errorMessage,
-      serviceId: params.id,
+      serviceId: id,
       userId: session.user.id
     });
     return NextResponse.json(

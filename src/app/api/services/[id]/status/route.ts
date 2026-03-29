@@ -72,8 +72,10 @@ interface ServiceCommentData {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: serviceId } = await params;
+
   let orderId: string | undefined;
   let userId: string | undefined;
   let skipLocking = false;
@@ -126,7 +128,6 @@ export async function PUT(
     }
 
     const { status: newStatus, comment, confirmReopenTerminal } = validation.data;
-    const serviceId = params.id;
     userId = session.user.id;
 
     // Step 4: Get service and check if it exists

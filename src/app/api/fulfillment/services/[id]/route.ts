@@ -11,9 +11,9 @@ import { getServerTranslations } from '@/lib/i18n/server-translations';
 import logger from '@/lib/logger';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
@@ -33,6 +33,8 @@ interface RouteParams {
  *   404: Service not found
  */
 export async function GET(request: Request, { params }: RouteParams) {
+  const { id } = await params;
+
   // Get translation function
   const t = await getServerTranslations(request);
 
@@ -43,7 +45,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 
   // Step 2: Check if service ID is provided
-  if (!params.id) {
+  if (!id) {
     return NextResponse.json({ error: t('api.errors.serviceIdRequired') }, { status: 400 });
   }
 
@@ -75,7 +77,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   // Step 4: Fetch service
   try {
     const service = await ServiceFulfillmentService.getServiceById(
-      params.id,
+      id,
       {
         userType,
         vendorId: session.user.vendorId || undefined,
@@ -96,7 +98,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         logger.warn('Customer attempted to access service from another customer', {
           customerId: session.user.customerId,
           orderCustomerId: order.customerId,
-          serviceId: params.id
+          serviceId: id
         });
         return NextResponse.json({ error: t('api.errors.serviceNotFound') }, { status: 404 });
       }
@@ -151,7 +153,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       // Order data is supplementary - its absence shouldn't break the entire fulfillment workflow
       logger.error('Error fetching order data for service', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        serviceId: params.id,
+        serviceId: id,
         orderItemId: service.orderItemId
       });
       // Business Rule 8: If no order data exists, orderData should be empty object
@@ -175,7 +177,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     logger.error('Error fetching service', {
       error: errorMessage,
-      serviceId: params.id,
+      serviceId: id,
       userId: session.user.id
     });
     return NextResponse.json(
@@ -208,6 +210,8 @@ export async function GET(request: Request, { params }: RouteParams) {
  *   400: Invalid input
  */
 export async function PATCH(request: Request, { params }: RouteParams) {
+  const { id } = await params;
+
   // Get translation function
   const t = await getServerTranslations(request);
 
@@ -218,7 +222,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 
   // Step 2: Check if service ID is provided
-  if (!params.id) {
+  if (!id) {
     return NextResponse.json({ error: t('api.errors.serviceIdRequired') }, { status: 400 });
   }
 
@@ -344,7 +348,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const userAgent = request.headers.get('user-agent') || null;
 
     const updatedService = await ServiceFulfillmentService.updateService(
-      params.id,
+      id,
       updates,
       {
         id: session.user.id,
@@ -369,7 +373,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     logger.error('Error updating service', {
       error: errorMessage,
-      serviceId: params.id,
+      serviceId: id,
       userId: session.user.id
     });
 

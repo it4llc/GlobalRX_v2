@@ -19,15 +19,16 @@ interface ServiceResultsUpdateData {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderItemId } = await params;
+
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const orderItemId = params.id;
   const user = session.user as ServiceUser;
 
   logger.info('Fetching service results:', {
@@ -136,8 +137,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderItemId } = await params;
+
   // Step 1: Authentication check - ALWAYS first
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -145,7 +148,6 @@ export async function PUT(
   }
 
   const user = session.user as ServiceUser;
-  const { id: orderItemId } = params;
 
   try {
     // Parse request body

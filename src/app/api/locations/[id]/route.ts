@@ -8,8 +8,10 @@ import { authOptions } from "@/lib/auth";
 // Update a location by ID
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -17,7 +19,6 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const id = params.id;
     const data = await request.json();
 
     // Validate required fields
