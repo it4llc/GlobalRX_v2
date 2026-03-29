@@ -8,8 +8,10 @@ import { prisma } from '@/lib/prisma';
 // PATCH: Toggle the disabled status of a service
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: serviceId } = await params;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -18,8 +20,6 @@ export async function PATCH(
 
     // Get current user ID from session
     const userId = session.user.id;
-
-    const serviceId = params.id;
 
     // Find the current service
     const service = await prisma.service.findUnique({

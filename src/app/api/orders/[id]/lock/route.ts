@@ -23,8 +23,10 @@ import logger from '@/lib/logger';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderId } = await params;
+
   try {
     // Step 1: Authentication check
     const session = await getServerSession(authOptions);
@@ -45,7 +47,6 @@ export async function POST(
       );
     }
 
-    const orderId = params.id;
     const userId = session.user.id;
 
     // Step 3: Acquire lock
@@ -71,7 +72,7 @@ export async function POST(
 
   } catch (error) {
     logger.error('Failed to acquire order lock via API', {
-      orderId: params.id,
+      orderId: orderId,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
 
@@ -101,8 +102,10 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderId } = await params;
+
   try {
     // Step 1: Authentication check
     const session = await getServerSession(authOptions);
@@ -123,7 +126,6 @@ export async function DELETE(
       );
     }
 
-    const orderId = params.id;
     const userId = session.user.id;
     const isAdmin = session.user.permissions?.admin === true || session.user.type === 'admin';
 
@@ -165,7 +167,7 @@ export async function DELETE(
 
   } catch (error) {
     logger.error('Failed to release order lock via API', {
-      orderId: params.id,
+      orderId: orderId,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
 
@@ -192,8 +194,10 @@ export async function DELETE(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderId } = await params;
+
   try {
     // Step 1: Authentication check
     const session = await getServerSession(authOptions);
@@ -214,7 +218,6 @@ export async function GET(
       );
     }
 
-    const orderId = params.id;
     const userId = session.user.id;
 
     // Step 3: Check lock status
@@ -225,7 +228,7 @@ export async function GET(
 
   } catch (error) {
     logger.error('Failed to check order lock via API', {
-      orderId: params.id,
+      orderId: orderId,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
 

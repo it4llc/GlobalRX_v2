@@ -52,8 +52,10 @@ import type {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderId } = await params;
+
   try {
     // Step 1: Authentication check - ALWAYS first
     const session = await getServerSession(authOptions);
@@ -62,7 +64,6 @@ export async function GET(
     }
 
     // Step 2: Validate order ID parameter
-    const orderId = params.id;
     if (!orderId) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
@@ -451,7 +452,7 @@ export async function GET(
     const errorDetails = {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      orderId: params.id,
+      orderId: orderId,
       userId: (await getServerSession(authOptions))?.user?.id
     };
 
