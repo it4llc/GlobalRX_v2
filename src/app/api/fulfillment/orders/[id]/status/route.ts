@@ -31,8 +31,10 @@ const updateStatusSchema = z.object({
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderId } = await params;
+
   // Step 1: Always check authentication first
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
@@ -70,7 +72,6 @@ export async function PATCH(
   }
 
   // Step 3: Validate order ID
-  const orderId = params.id;
   if (!orderId) {
     return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
   }

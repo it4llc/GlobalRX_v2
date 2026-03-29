@@ -23,8 +23,10 @@ import logger from '@/lib/logger';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   // Auth check
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -38,7 +40,7 @@ export async function GET(
 
   try {
     const template = await prisma.commentTemplate.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         availabilities: true
       }
@@ -56,7 +58,7 @@ export async function GET(
 
     return NextResponse.json(sanitizedTemplate, { status: 200 });
   } catch (error) {
-    logger.error('Error fetching comment template', { error, templateId: params.id });
+    logger.error('Error fetching comment template', { error, templateId: id });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -83,8 +85,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   // Step 1: Auth check
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -98,7 +102,7 @@ export async function PUT(
 
   // Step 3: Check if template exists
   const existing = await prisma.commentTemplate.findUnique({
-    where: { id: params.id }
+    where: { id: id }
   });
 
   if (!existing) {
@@ -125,7 +129,7 @@ export async function PUT(
         where: {
           shortName: validation.data.shortName,
           isActive: true,
-          id: { not: params.id }
+          id: { not: id }
         }
       });
 
@@ -139,7 +143,7 @@ export async function PUT(
 
     // Update the template
     const updated = await prisma.commentTemplate.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...validation.data,
         updatedBy: session.user.id
@@ -151,7 +155,7 @@ export async function PUT(
 
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
-    logger.error('Error updating comment template', { error, templateId: params.id });
+    logger.error('Error updating comment template', { error, templateId: id });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -175,8 +179,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   // Auth check
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -191,7 +197,7 @@ export async function DELETE(
   try {
     // Get the template
     const template = await prisma.commentTemplate.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     });
 
     if (!template) {
@@ -203,7 +209,7 @@ export async function DELETE(
       // This ensures that any existing references to this template remain valid
       // and historical data integrity is maintained
       await prisma.commentTemplate.update({
-        where: { id: params.id },
+        where: { id: id },
         data: {
           isActive: false,
           updatedBy: session.user.id
@@ -221,12 +227,12 @@ export async function DELETE(
       await prisma.$transaction(async (tx) => {
         // First delete all availability records to avoid foreign key constraint violation
         await tx.commentTemplateAvailability.deleteMany({
-          where: { templateId: params.id }
+          where: { templateId: id }
         });
 
         // Then delete the template itself
         await tx.commentTemplate.delete({
-          where: { id: params.id }
+          where: { id: id }
         });
       });
 
@@ -236,7 +242,7 @@ export async function DELETE(
       );
     }
   } catch (error) {
-    logger.error('Error deleting comment template', { error, templateId: params.id });
+    logger.error('Error deleting comment template', { error, templateId: id });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
