@@ -10,8 +10,10 @@ import { hasPermission } from "@/lib/permission-utils";
 // GET: Fetch a single workflow by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: workflowId } = await params;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -22,8 +24,6 @@ export async function GET(
     if (!hasPermission(session.user, "workflows", "view") && !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    const workflowId = params.id;
 
     // Use raw SQL to fetch workflow
     try {
@@ -65,8 +65,10 @@ export async function GET(
 // PUT: Update a workflow
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: workflowId } = await params;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -79,7 +81,6 @@ export async function PUT(
     }
 
     const userId = session.user.id;
-    const workflowId = params.id;
     const body = await request.json();
     
     // Validate request body using Zod schema
@@ -172,8 +173,10 @@ export async function PUT(
 // DELETE: Delete a workflow
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: workflowId } = await params;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -185,7 +188,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const workflowId = params.id;
 
     // Check if workflow exists
     const existingWorkflowResult = await prisma.$queryRaw`
