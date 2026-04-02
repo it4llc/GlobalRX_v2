@@ -10,7 +10,7 @@ import logger from '@/lib/logger';
 // GET: Fetch a single workflow by ID
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get params safely
@@ -114,7 +114,7 @@ export async function GET(
 // PUT: Update a workflow
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get params safely
@@ -229,7 +229,7 @@ export async function PUT(
 // DELETE: Delete a workflow
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get params safely
