@@ -9,7 +9,7 @@ import { workflowSectionUpdateSchema } from "@/types/workflow";
 // GET: Fetch a single section by ID
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string; sectionId: string } }
+  context: { params: Promise<{ id: string; sectionId: string }> }
 ) {
   try {
     // Get params safely
@@ -72,7 +72,7 @@ export async function GET(
 // PUT: Update a section
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string; sectionId: string } }
+  context: { params: Promise<{ id: string; sectionId: string }> }
 ) {
   try {
     // Get params safely
@@ -195,7 +195,7 @@ export async function PUT(
 // DELETE: Delete a section
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string; sectionId: string } }
+  context: { params: Promise<{ id: string; sectionId: string }> }
 ) {
   try {
     // Get params safely

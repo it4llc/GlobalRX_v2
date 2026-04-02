@@ -9,7 +9,7 @@ import { workflowSectionCreateSchema } from "@/types/workflow";
 // GET: Fetch all sections for a workflow
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get params safely
@@ -66,7 +66,7 @@ export async function GET(
 // POST: Create a new section for a workflow
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get params safely
@@ -134,7 +134,7 @@ export async function POST(
 // PATCH: Update section order for multiple sections
 export async function PATCH(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get params safely
