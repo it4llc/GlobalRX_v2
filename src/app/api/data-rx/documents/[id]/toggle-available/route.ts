@@ -35,7 +35,9 @@ import { canAccessDataRx } from '@/lib/auth-utils';
  *   - 404: Document not found
  *   - 400: Missing document ID
  */
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -48,7 +50,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
-    const { id } = params;
     if (!id) {
       return NextResponse.json({ error: "Document ID is required" }, { status: 400 });
     }
