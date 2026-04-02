@@ -8,7 +8,7 @@ import { canManageCustomers } from '@/lib/auth-utils';
 // GET: Fetch workflows for a specific customer
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);

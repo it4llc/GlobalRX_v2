@@ -33,8 +33,10 @@ const updateDocumentSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -46,7 +48,7 @@ export async function GET(
     if (!canAccessDataRx(session.user)) {
       logger.warn('User attempted to fetch document without Data Rx permission', {
         userId: session.user.id,
-        documentId: params.id
+        documentId: id
       });
       return NextResponse.json(
         { error: 'Forbidden - Insufficient permissions' },
@@ -56,7 +58,7 @@ export async function GET(
 
     // Fetch the document
     const document = await prisma.dSXRequirement.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       select: {
         id: true,
         name: true,
@@ -80,7 +82,7 @@ export async function GET(
           ? JSON.parse(document.documentData)
           : document.documentData;
       } catch (e) {
-        logger.warn('Failed to parse documentData', { documentId: params.id });
+        logger.warn('Failed to parse documentData', { documentId: id });
         parsedDocumentData = {};
       }
     }
@@ -130,8 +132,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -143,7 +147,7 @@ export async function PUT(
     if (!canAccessDataRx(session.user)) {
       logger.warn('User attempted to update document without Data Rx permission', {
         userId: session.user.id,
-        documentId: params.id
+        documentId: id
       });
       return NextResponse.json(
         { error: 'Forbidden - Insufficient permissions' },
@@ -166,7 +170,7 @@ export async function PUT(
 
     // Fetch existing document to preserve PDF metadata
     const existingDocument = await prisma.dSXRequirement.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       select: {
         id: true,
         type: true,
@@ -186,7 +190,7 @@ export async function PUT(
           ? JSON.parse(existingDocument.documentData)
           : existingDocument.documentData;
       } catch (e) {
-        logger.warn('Failed to parse existing documentData', { documentId: params.id });
+        logger.warn('Failed to parse existing documentData', { documentId: id });
       }
     }
 
@@ -200,7 +204,7 @@ export async function PUT(
 
     // Update the document
     await prisma.dSXRequirement.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         name: documentName,
         documentData: JSON.stringify(updatedDocumentData),
@@ -209,7 +213,7 @@ export async function PUT(
     });
 
     logger.info('Updated document', {
-      documentId: params.id,
+      documentId: id,
       documentName,
       userId: session.user.id
     });

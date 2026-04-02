@@ -170,8 +170,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; commentId: string } }
+  { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
+  const { id: orderItemId, commentId } = await params;
+
   try {
     // Step 1: Authentication check
     const session = await getServerSession(authOptions);

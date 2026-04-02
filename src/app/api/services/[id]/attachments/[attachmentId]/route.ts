@@ -15,8 +15,10 @@ import { hasPermission } from '@/lib/permission-utils';
 // GET /api/services/[id]/attachments/[attachmentId] - Download attachment
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; attachmentId: string } }
+  { params }: { params: Promise<{ id: string; attachmentId: string }> }
 ) {
+  const { id: orderItemId, attachmentId } = await params;
+
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -24,7 +26,6 @@ export async function GET(
   }
 
   const user = session.user as ServiceUser;
-  const { id: orderItemId, attachmentId } = params;
 
   try {
     // Fetch the service with fulfillment info
@@ -133,8 +134,10 @@ export async function GET(
 // DELETE /api/services/[id]/attachments/[attachmentId] - Delete attachment
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; attachmentId: string } }
+  { params }: { params: Promise<{ id: string; attachmentId: string }> }
 ) {
+  const { id: orderItemId, attachmentId } = await params;
+
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -142,7 +145,6 @@ export async function DELETE(
   }
 
   const user = session.user as ServiceUser;
-  const { id: orderItemId, attachmentId } = params;
 
   try {
     // Check authorization first

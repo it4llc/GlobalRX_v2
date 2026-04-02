@@ -8,8 +8,10 @@ import { z } from 'zod';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     const session = await auth();
 
@@ -49,8 +51,6 @@ export async function GET(
         !hasUserAdminModule && !hasGlobalConfigModule) {
       return NextResponse.json({ message: 'Forbidden: Admin or user management permission required' }, { status: 403 });
     }
-
-    const { id } = params;
 
     const user = await prisma.user.findUnique({
       where: { id },
@@ -81,8 +81,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     const session = await auth();
 
@@ -123,7 +125,6 @@ export async function PUT(
       return NextResponse.json({ message: 'Forbidden: Admin or user management permission required' }, { status: 403 });
     }
 
-    const { id } = params;
     const body = await request.json();
 
     // Define validation schema for user updates
@@ -245,8 +246,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     const session = await auth();
 
@@ -287,7 +290,6 @@ export async function DELETE(
       return NextResponse.json({ message: 'Forbidden: Admin or user management permission required' }, { status: 403 });
     }
 
-    const { id } = params;
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({

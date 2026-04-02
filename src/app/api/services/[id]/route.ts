@@ -127,8 +127,10 @@ export async function PUT(
 // PATCH: Typically used for partial updates, but we'll use it specifically for toggling disabled state
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: serviceId } = await params;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -138,7 +140,6 @@ export async function PATCH(
     // Get current user ID from session
     const userId = session.user.id;
 
-    const serviceId = params.id;
     const body = await request.json();
     
     // Check if the request is to toggle the disabled state
