@@ -28,7 +28,9 @@ function standardizeFieldData(fieldData: any): any {
 }
 
 // GET handler to fetch a specific field
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -40,8 +42,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     if (!canAccessDataRx(session.user)) {
       return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
-
-    const { id } = params;
     if (!id) {
       return NextResponse.json({ error: "Field ID is required" }, { status: 400 });
     }
@@ -115,7 +115,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PUT handler to update a field with version history
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -128,7 +130,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 });
     }
 
-    const { id } = params;
     if (!id) {
       return NextResponse.json({ error: "Field ID is required" }, { status: 400 });
     }

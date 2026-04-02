@@ -31,8 +31,10 @@ import type { ServiceUser } from '@/types/service-results';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderItemId } = await params;
+
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -40,7 +42,6 @@ export async function GET(
   }
 
   const user = session.user as ServiceUser;
-  const { id: orderItemId } = params;
 
   try {
     // Fetch the service with fulfillment info
@@ -155,8 +156,10 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: orderItemId } = await params;
+
   // Step 1: Authentication check
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -164,7 +167,6 @@ export async function POST(
   }
 
   const user = session.user as ServiceUser;
-  const { id: orderItemId } = params;
 
   try {
     // Check authorization first before processing file
