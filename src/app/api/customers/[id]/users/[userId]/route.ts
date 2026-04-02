@@ -34,7 +34,7 @@ const customerUserUpdateSchema = z.object({
  */
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string; userId: string } }
+  context: { params: Promise<{ id: string; userId: string }> }
 ) {
   try {
     // Get params safely
@@ -156,7 +156,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string; userId: string } }
+  context: { params: Promise<{ id: string; userId: string }> }
 ) {
   try {
     // Get params safely

@@ -39,7 +39,7 @@ const customerUpdateSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   // Get params safely
   const params = await context.params;
@@ -142,7 +142,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   // Get params safely
   const params = await context.params;
@@ -397,7 +397,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   // Get params safely
   const params = await context.params;
