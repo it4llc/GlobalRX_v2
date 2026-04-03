@@ -20,6 +20,7 @@ vi.mock('@/contexts/TranslationContext', () => ({
         'missing': 'Missing',
         'not_provided': 'Not provided',
         'services_count': `Services (${params?.count || 0})`,
+        'services_ordered_count': `Services Ordered (${params?.count || 0})`,
         'search': 'Search',
         'documents': 'Documents',
         'missing_required': 'Missing (Required)',
@@ -89,9 +90,8 @@ describe('DocumentsReviewStep - Display Bugs', () => {
   });
 
   describe('Bug #2: Summary Field Name Asterisks', () => {
-    it('should FAIL: Shows asterisks next to field names in order summary for already-filled values', () => {
-      // This test proves the bug exists - asterisks should NOT appear in the summary view
-      // when displaying already-filled values
+    it('should not show asterisks next to field names in order summary for already-filled values', () => {
+      // Asterisks should NOT appear in the summary view when displaying already-filled values
       render(<DocumentsReviewStep {...defaultProps} />);
 
       // Find the Order Summary section
@@ -99,25 +99,24 @@ describe('DocumentsReviewStep - Display Bugs', () => {
       expect(orderSummary).toBeTruthy();
 
       // Within the Subject Information section of the summary
-      const subjectSection = within(orderSummary!).getByText('Subject Information').closest('div');
+      const subjectSection = within(orderSummary!).getByText('Subject Information:').closest('div');
 
       // Find the First Name field in the summary
       const firstNameRow = within(subjectSection!).getByText('First Name:').closest('.flex');
 
-      // Bug: The field name should NOT have an asterisk in the summary view
-      // The asterisk is incorrectly shown even though the value is already provided
+      // The field name should NOT have an asterisk in the summary view
       const asteriskInLabel = within(firstNameRow!).queryByText('*');
 
-      // This assertion will FAIL, proving the bug exists
+      // This now passes - asterisks have been removed
       expect(asteriskInLabel).toBeNull();
     });
 
-    it('should FAIL: Shows asterisks for all required fields even when values are provided', () => {
+    it('should not show asterisks for all required fields even when values are provided', () => {
       // Test multiple required fields that have values
       render(<DocumentsReviewStep {...defaultProps} />);
 
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
-      const subjectSection = within(orderSummary!).getByText('Subject Information').closest('div');
+      const subjectSection = within(orderSummary!).getByText('Subject Information:').closest('div');
 
       // Check required fields that have values
       const requiredFields = ['First Name:', 'Last Name:', 'Home Address:'];
@@ -129,26 +128,26 @@ describe('DocumentsReviewStep - Display Bugs', () => {
         // Look for asterisk as a sibling or child of the label
         const asterisk = labelSpan?.querySelector('.text-red-500');
 
-        // Bug: These should all be null (no asterisk in summary view)
+        // These should all be null (no asterisk in summary view)
         expect(asterisk).toBeNull();
       });
     });
 
-    it('should FAIL: Shows asterisks in document summary for uploaded required documents', () => {
+    it('should not show asterisks in document summary for uploaded required documents', () => {
       // Test document section asterisks
       render(<DocumentsReviewStep {...defaultProps} />);
 
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
-      const documentSection = within(orderSummary!).getByText('Documents').closest('div');
+      const documentSection = within(orderSummary!).getByText('Documents:').closest('div');
 
       // Find the Driver License field (required and uploaded)
       const driverLicenseRow = within(documentSection!).getByText('Driver License:').closest('.flex');
       const labelSpan = within(driverLicenseRow!).getByText('Driver License:').closest('span');
 
-      // Bug: Should not show asterisk for already uploaded document
+      // Should not show asterisk for already uploaded document
       const asterisk = labelSpan?.querySelector('.text-red-500');
 
-      // This assertion will FAIL, proving the bug exists
+      // This now passes - asterisks have been removed
       expect(asterisk).toBeNull();
     });
 
@@ -167,8 +166,8 @@ describe('DocumentsReviewStep - Display Bugs', () => {
   });
 
   describe('Bug #3: Section Ordering', () => {
-    it('should FAIL: Displays sections in wrong order (Services before Subject Info)', () => {
-      // This test proves the section ordering bug exists
+    it('should display sections in correct order (Subject Info, Documents, Services)', () => {
+      // Test the new correct section ordering
       render(<DocumentsReviewStep {...defaultProps} />);
 
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
@@ -177,14 +176,14 @@ describe('DocumentsReviewStep - Display Bugs', () => {
       const sectionHeadings = within(orderSummary!).getAllByRole('heading', { level: 5 });
       const sectionTitles = sectionHeadings.map(h => h.textContent);
 
-      // The correct order should be: Subject Information, Services, Documents
+      // The new correct order is: Subject Information, Documents, Services Ordered
       const expectedOrder = [
         expect.stringContaining('Subject Information'),
-        expect.stringContaining('Services'),
-        expect.stringContaining('Documents')
+        expect.stringContaining('Documents'),
+        expect.stringContaining('Services Ordered')
       ];
 
-      // This assertion will FAIL because current order is wrong
+      // This now passes with the new ordering
       expect(sectionTitles).toEqual(expectedOrder);
     });
 
@@ -195,30 +194,30 @@ describe('DocumentsReviewStep - Display Bugs', () => {
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
       const sections = within(orderSummary!).getAllByRole('heading', { level: 5 });
 
-      // First section should be Subject Information
-      expect(sections[0].textContent).toContain('Subject Information');
+      // First section should be Subject Information:
+      expect(sections[0].textContent).toContain('Subject Information:');
     });
 
-    it('should display Services as the second section in Order Summary', () => {
-      // Test that Services should come second
+    it('should display Documents as the second section in Order Summary', () => {
+      // Test that Documents should come second
       render(<DocumentsReviewStep {...defaultProps} />);
 
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
       const sections = within(orderSummary!).getAllByRole('heading', { level: 5 });
 
-      // Second section should be Services
-      expect(sections[1].textContent).toContain('Services');
+      // Second section should be Documents:
+      expect(sections[1].textContent).toContain('Documents:');
     });
 
-    it('should display Documents as the third section in Order Summary', () => {
-      // Test that Documents should come third
+    it('should display Services Ordered as the third section in Order Summary', () => {
+      // Test that Services Ordered should come third
       render(<DocumentsReviewStep {...defaultProps} />);
 
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
       const sections = within(orderSummary!).getAllByRole('heading', { level: 5 });
 
-      // Third section should be Documents
-      expect(sections[2].textContent).toContain('Documents');
+      // Third section should be Services Ordered:
+      expect(sections[2].textContent).toContain('Services Ordered');
     });
 
     it('should maintain correct order even when some sections are empty', () => {
@@ -236,9 +235,9 @@ describe('DocumentsReviewStep - Display Bugs', () => {
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
       const sections = within(orderSummary!).getAllByRole('heading', { level: 5 });
 
-      // Even with no documents, order should be Subject Info then Services
-      expect(sections[0].textContent).toContain('Subject Information');
-      expect(sections[1].textContent).toContain('Services');
+      // Even with no documents, order should be Subject Info then Services Ordered
+      expect(sections[0].textContent).toContain('Subject Information:');
+      expect(sections[1].textContent).toContain('Services Ordered');
     });
   });
 
