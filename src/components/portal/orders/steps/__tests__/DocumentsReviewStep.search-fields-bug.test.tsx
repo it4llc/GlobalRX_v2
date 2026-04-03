@@ -26,6 +26,7 @@ vi.mock('@/contexts/TranslationContext', () => ({
         'not_provided': 'Not provided',
         'missing_required_info': `⚠️ Missing Required Information (${params?.count || 0} items)`,
         'services_count': `Services (${params?.count || 0})`,
+        'services_ordered_count': `Services Ordered (${params?.count || 0})`,
         'search': 'Search',
         'documents': 'Documents',
         'missing_required': 'Missing (Required)',
@@ -150,7 +151,7 @@ describe('DocumentsReviewStep - Search Fields Display Bug', () => {
       expect(orderSummary).toBeTruthy();
 
       // Find the Search Fields section within the Order Summary
-      const searchFieldsSection = within(orderSummary!).getByText('Search Fields').closest('div');
+      const searchFieldsSection = within(orderSummary!).getByText('Search Fields:').closest('div');
       expect(searchFieldsSection).toBeTruthy();
 
       // Get all service sections within the search fields
@@ -251,7 +252,7 @@ describe('DocumentsReviewStep - Search Fields Display Bug', () => {
       render(<DocumentsReviewStep {...props} />);
 
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
-      const searchFieldsSection = within(orderSummary!).getByText('Search Fields').closest('div');
+      const searchFieldsSection = within(orderSummary!).getByText('Search Fields:').closest('div');
 
       // Service One section should exist and contain Field A
       const serviceOneSection = within(searchFieldsSection!).getByText('Service One: Location One').closest('div');
@@ -350,7 +351,7 @@ describe('DocumentsReviewStep - Search Fields Display Bug', () => {
 
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
       // Search Fields section should not be rendered when array is empty
-      expect(within(orderSummary!).queryByText('Search Fields')).toBeFalsy();
+      expect(within(orderSummary!).queryByText('Search Fields:')).toBeFalsy();
     });
 
     it('should handle service with no matching search fields', () => {
@@ -405,7 +406,7 @@ describe('DocumentsReviewStep - Search Fields Display Bug', () => {
       render(<DocumentsReviewStep {...props} />);
 
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
-      const searchFieldsSection = within(orderSummary!).getByText('Search Fields').closest('div');
+      const searchFieldsSection = within(orderSummary!).getByText('Search Fields:').closest('div');
 
       // Service With Fields should show its field
       const serviceWithFieldsSection = within(searchFieldsSection!).getByText('Service With Fields: Location One').closest('div');
@@ -471,7 +472,7 @@ describe('DocumentsReviewStep - Search Fields Display Bug', () => {
       expect(() => render(<DocumentsReviewStep {...props} />)).not.toThrow();
 
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
-      const searchFieldsSection = within(orderSummary!).getByText('Search Fields').closest('div');
+      const searchFieldsSection = within(orderSummary!).getByText('Search Fields:').closest('div');
       const serviceSection = within(searchFieldsSection!).getByText('Test Service: Test Location').closest('div');
 
       // Modern field with serviceId/locationId should be displayed
@@ -528,7 +529,7 @@ describe('DocumentsReviewStep - Search Fields Display Bug', () => {
       const orderSummary = screen.getByText('Order Summary').closest('.bg-gray-50');
 
       // Should still render the search fields section and handle null gracefully
-      expect(within(orderSummary!).queryByText('Search Fields')).toBeTruthy();
+      expect(within(orderSummary!).queryByText('Search Fields:')).toBeTruthy();
     });
   });
 });

@@ -139,9 +139,9 @@ export default function NewOrderPage() {
       // Redirect to order details or orders list
       const orderId = result.order?.id || result.id;
       if (forceDraft || result.statusOverride === 'draft') {
-        router.push('/portal/orders?draft=saved');
+        router.push('/portal/dashboard?draft=saved');
       } else {
-        router.push(`/portal/orders?created=${orderId}`);
+        router.push(`/portal/dashboard?created=${orderId}`);
       }
     } catch (error: unknown) {
       clientLogger.error('Error creating order', {
@@ -316,7 +316,7 @@ export default function NewOrderPage() {
         <div className="mt-4 flex justify-between border-t pt-6">
           <div className="flex space-x-3">
             <button
-              onClick={() => router.push('/portal/orders')}
+              onClick={() => router.push('/portal/dashboard')}
               className="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors"
             >
               Cancel
