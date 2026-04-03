@@ -188,7 +188,7 @@ export const DynamicFieldInput: FC<DynamicFieldInputProps> = ({
       </label>
       {renderField()}
       {field.instructions && !['text', 'email', 'phone', 'number'].includes(field.dataType) && (
-        <p className="mt-1 text-xs text-gray-500">{field.instructions}</p>
+        <p className="mt-1 text-sm text-indigo-600">{field.instructions}</p>
       )}
       {error && field.dataType !== 'address_block' && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
