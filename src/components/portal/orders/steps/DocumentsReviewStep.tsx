@@ -249,7 +249,7 @@ export function DocumentsReviewStep({
         {/* Subject Fields Summary */}
         {requirements.subjectFields.length > 0 && (
           <div className="mb-4">
-            <h5 className="text-sm font-medium text-gray-700 mb-2">{t('subject_information')}</h5>
+            <h5 className="text-sm font-bold text-gray-700 mb-2">{t('subject_information')}</h5>
             <div className="space-y-1">
               {requirements.subjectFields.map((field) => {
                 const value = subjectFieldValues[field.id];
@@ -300,7 +300,7 @@ export function DocumentsReviewStep({
              This section shows search field values organized by service, matching the input flow */}
         {requirements.searchFields && requirements.searchFields.length > 0 && (
           <div className="mb-4">
-            <h5 className="text-sm font-medium text-gray-700 mb-2">{t('search_fields')}</h5>
+            <h5 className="text-sm font-bold text-gray-700 mb-2">{t('search_fields')}</h5>
             <div className="space-y-1">
               {serviceItems.map((serviceItem) => {
                 const serviceSearchValues = searchFieldValues[serviceItem.itemId] || {};
@@ -344,11 +344,11 @@ export function DocumentsReviewStep({
 
         {/* Service Items */}
         <div className="mb-4">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">{t('services_count').replace('{count}', serviceItems.length.toString())}</h5>
+          <h5 className="text-sm font-bold text-gray-700 mb-2">{t('services_count').replace('{count}', serviceItems.length.toString())}</h5>
           <div className="space-y-2">
             {serviceItems.map((item) => (
               <div key={item.itemId} className="flex justify-between text-sm">
-                <span>{item.serviceName}: <span className="font-medium text-blue-700">{item.locationName}</span></span>
+                <span className="font-medium text-blue-700">{item.serviceName}: {item.locationName}</span>
                 <span className="text-gray-400">{t('search')}</span>
               </div>
             ))}
@@ -358,7 +358,7 @@ export function DocumentsReviewStep({
         {/* Documents Summary */}
         {requirements.documents.length > 0 && (
           <div className="mb-4">
-            <h5 className="text-sm font-medium text-gray-700 mb-2">{t('documents')}</h5>
+            <h5 className="text-sm font-bold text-gray-700 mb-2">{t('documents')}</h5>
             <div className="space-y-1">
               {requirements.documents.map((document) => {
                 const docMetadata = uploadedDocuments[document.id];
