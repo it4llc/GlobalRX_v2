@@ -52,6 +52,7 @@ vi.mock('@/contexts/TranslationContext', () => ({
         'subject_information': 'Subject Information',
         'missing': 'Missing',
         'not_provided': 'Not provided',
+        'missing_required_info': `⚠️ Missing Required Information (${params?.count || 0} items)`,
         'services_count': `Services (${params?.count || 0})`,
         'search': 'Search',
         'documents': 'Documents',
@@ -402,7 +403,7 @@ describe('DocumentsReviewStep - Document Persistence Bug Fix', () => {
       expect(screen.getByText('Missing (Required)')).toBeInTheDocument();
 
       // Should show warning message
-      expect(screen.getByText(/Missing Required Information/)).toBeInTheDocument();
+      expect(screen.getByText(/⚠️ Missing Required Information/)).toBeInTheDocument();
       // Background Check Authorization appears multiple times (as document name and in warning)
       const authTexts = screen.getAllByText(/Background Check Authorization/);
       expect(authTexts.length).toBeGreaterThan(0);

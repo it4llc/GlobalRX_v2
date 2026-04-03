@@ -441,6 +441,7 @@
   "missing": "Missing",
   "not_provided": "Not provided",
   "missing_required": "Missing (Required)",
+  "missing_required_info": "⚠️ Missing Required Information ({count} items)",
   "not_uploaded": "Not uploaded",
   "change_file": "Change File",
   "choose_file": "Choose File",
