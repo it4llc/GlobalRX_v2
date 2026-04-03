@@ -284,5 +284,9 @@
   "portal.orders.showing": "表示中",
   "portal.orders.to": "〜",
   "portal.orders.of": "/",
-  "portal.orders.results": "件の結果"
+  "portal.orders.results": "件の結果",
+  "scope_label": "スコープ",
+  "once_per_order": "注文ごとに1回",
+  "per_service": "サービスごと",
+  "required": "必須"
 }
