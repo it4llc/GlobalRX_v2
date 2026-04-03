@@ -869,6 +869,52 @@ await updateOrderItem(id, { status: SERVICE_STATUSES.PROCESSING });
 
 **Files affected by this rule:** Any code that sets status fields on database models, especially OrderItem creation.
 
+### 17.2 Data Filtering by Relational Properties
+
+**Always filter data collections by matching relational properties** when displaying items that belong to specific parent entities.
+
+**Common Bug Pattern to Avoid:**
+```typescript
+// ❌ WRONG - Shows ALL fields for ALL services (no filtering)
+serviceItems.map(serviceItem => (
+  <div>
+    <h3>{serviceItem.name}</h3>
+    {allSearchFields.map(field => (  // BUG: Shows all fields for every service
+      <div>{field.name}: {values[field.id]}</div>
+    ))}
+  </div>
+))
+```
+
+**Correct Pattern:**
+```typescript
+// ✅ CORRECT - Filter fields to only show those belonging to current service
+serviceItems.map(serviceItem => (
+  <div>
+    <h3>{serviceItem.name}</h3>
+    {allSearchFields
+      .filter(field =>
+        field.serviceId === serviceItem.serviceId &&
+        field.locationId === serviceItem.locationId  // Match all relevant properties
+      )
+      .map(field => (
+        <div>{field.name}: {values[field.id]}</div>
+      ))
+    }
+  </div>
+))
+```
+
+**Why this rule exists:** In April 2026, a critical UX bug was discovered where search fields for ALL services were being displayed under EVERY service in the order summary. Users saw "School Name" fields under Criminal Search services and "County" fields under Education services, causing massive confusion. This occurred because the component iterated through all search fields without filtering by serviceId/locationId.
+
+**Rule:** When displaying collections that have parent-child relationships:
+1. **Always filter child items** to only show those belonging to the current parent
+2. **Match ALL relevant relational properties** (serviceId AND locationId, not just one)
+3. **Handle missing properties gracefully** - if either parent or child lacks required properties, exclude the item
+4. **Add regression tests** to verify filtering works correctly for multiple parent entities
+
+**Files affected by this rule:** Any component that displays data with parent-child relationships, especially order summaries, service details, and nested data displays.
+
 
 ---
 
@@ -884,6 +930,7 @@ await updateOrderItem(id, { status: SERVICE_STATUSES.PROCESSING });
 - [ ] Documentation updated for new features or API changes
 - [ ] Complex business logic has explanatory comments
 - [ ] No hardcoded status values - use constants from `/src/constants/` files
+- [ ] Data collections filtered by relational properties when displaying parent-child relationships
 
 ### Specialized Standards:
 - [ ] **API Routes:** See [API_STANDARDS.md](API_STANDARDS.md) checklist
