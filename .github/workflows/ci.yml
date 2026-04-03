@@ -64,7 +64,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/globalrx_test
           NEXTAUTH_SECRET: test-secret-for-ci
         run: pnpm test:run
-        continue-on-error: true  # Temporarily allow tests to fail - remove after fixing remaining test issues
+        # continue-on-error: true  # Removed - all tests now passing after Next.js 15 migration fixes
 
       - name: Upload test results
         if: always()
