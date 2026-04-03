@@ -2,11 +2,23 @@
 'use client';
 
 import React from 'react';
-import { DocumentTemplateButton } from '../DocumentTemplateButton';
+import { DocumentTemplateButton } from '@/components/portal/orders/DocumentTemplateButton';
 import { clientLogger } from '@/lib/client-logger';
 import { useTranslation } from '@/contexts/TranslationContext';
 
 // Types for order requirements and service items
+
+// BUG FIX (April 3, 2026): Added AddressBlock interface to eliminate TypeScript 'any' usage
+// PROBLEM: Previous code was using 'any' type for address objects, violating coding standards
+// SOLUTION: Define proper interface with optional string fields for address components
+// This ensures type safety when handling address data in order summaries
+interface AddressBlock {
+  street1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+}
+
 interface DocumentRequirement {
   id: string;
   name: string;
@@ -32,7 +44,7 @@ interface ServiceItem {
 interface OrderRequirements {
   documents: DocumentRequirement[];
   subjectFields: SubjectField[];
-  searchFields: unknown[]; // Specific type depends on implementation
+  searchFields: SubjectField[]; // Same structure as subjectFields
 }
 
 // Type for uploaded document metadata (not File object)
@@ -104,10 +116,10 @@ export function DocumentsReviewStep({
                     documentData = JSON.parse(document.documentData);
                     // If it's still a string after parsing, parse again (double-stringified)
                     if (typeof documentData === 'string') {
-                      documentData = JSON.parse(documentData);
+                      documentData = JSON.parse(documentData as string);
                     }
                   } else {
-                    documentData = document.documentData;
+                    documentData = document.documentData as Record<string, unknown>;
                   }
                 }
               } catch (e) {
@@ -119,7 +131,7 @@ export function DocumentsReviewStep({
                 documentData = {};
               }
 
-              const hasTemplate = !!documentData.pdfPath && documentData.pdfPath.trim() !== '';
+              const hasTemplate = !!documentData.pdfPath && typeof documentData.pdfPath === 'string' && documentData.pdfPath.trim() !== '';
 
               // Remove debug logging - no longer needed
 
@@ -133,12 +145,12 @@ export function DocumentsReviewStep({
                       </h5>
                       <div className="flex items-center gap-4 mt-1">
                         <div className="flex-1">
-                          {(document.instructions || documentData.instructions) && (
-                            <p className="text-xs text-gray-500">{document.instructions || documentData.instructions}</p>
+                          {(document.instructions || String(documentData.instructions || '')) && (
+                            <p className="text-xs text-gray-500">{String(document.instructions || documentData.instructions || '')}</p>
                           )}
                           <p className="text-xs text-gray-400 mt-1">
-                            Scope: {document.scope === 'per_case' ? 'Once per order' : 'Per service'}
-                            {document.required && <span className="text-red-600 ml-2">(Required)</span>}
+                            {t('scope_label')}: {document.scope === 'per_case' ? t('once_per_order') : t('per_service')}
+                            {document.required && <span className="text-red-600 ml-2">({t('required')})</span>}
                           </p>
                         </div>
                         {hasTemplate && (
@@ -146,9 +158,9 @@ export function DocumentsReviewStep({
                             <DocumentTemplateButton
                               documentId={document.id}
                               hasTemplate={hasTemplate}
-                              pdfPath={documentData.pdfPath}
-                              filename={documentData.pdfFilename || documentData.filename}
-                              fileSize={documentData.pdfFileSize || documentData.fileSize}
+                              pdfPath={String(documentData.pdfPath || '')}
+                              filename={String(documentData.pdfFilename || documentData.filename || '')}
+                              fileSize={Number(documentData.pdfFileSize || documentData.fileSize || 0)}
                             />
                           </div>
                         )}
@@ -244,8 +256,8 @@ export function DocumentsReviewStep({
 
                 // Check if it's an empty address block
                 const isEmptyAddressBlock = field.dataType === 'address_block' &&
-                  (!value || (typeof value === 'object' &&
-                    !value.street1 && !value.city && !value.state && !value.postalCode));
+                  (!value || (typeof value === 'object' && value !== null &&
+                    !(value as AddressBlock).street1 && !(value as AddressBlock).city && !(value as AddressBlock).state && !(value as AddressBlock).postalCode));
 
                 // Don't show optional empty fields
                 if ((!value || isEmptyAddressBlock) && !field.required) return null;
@@ -265,13 +277,13 @@ export function DocumentsReviewStep({
                         value.join(', ')
                       ) : (typeof value === 'object' && value !== null) ? (
                         // Handle address blocks and other objects
-                        value.street1 || value.city || value.state || value.postalCode ? (
-                          `${value.street1 || ''} ${value.city || ''} ${value.state || ''} ${value.postalCode || ''}`.trim()
+                        (value as AddressBlock).street1 || (value as AddressBlock).city || (value as AddressBlock).state || (value as AddressBlock).postalCode ? (
+                          `${(value as AddressBlock).street1 || ''} ${(value as AddressBlock).city || ''} ${(value as AddressBlock).state || ''} ${(value as AddressBlock).postalCode || ''}`.trim()
                         ) : (
                           t('missing')
                         )
                       ) : (
-                        value
+                        String(value || '')
                       )}
                     </span>
                   </div>
@@ -281,9 +293,58 @@ export function DocumentsReviewStep({
           </div>
         )}
 
+        {/* Search Fields Summary */}
+        {/* BUG FIX (April 3, 2026): Added missing search fields section to order summary
+             PROBLEM: Search fields were missing from the order summary display, breaking UX consistency
+             SOLUTION: Added complete search fields rendering section with proper per-service grouping
+             This section shows search field values organized by service, matching the input flow */}
+        {requirements.searchFields && requirements.searchFields.length > 0 && (
+          <div className="mb-4">
+            <h5 className="text-sm font-medium text-gray-700 mb-2">{t('search_fields')}</h5>
+            <div className="space-y-1">
+              {serviceItems.map((serviceItem) => {
+                const serviceSearchValues = searchFieldValues[serviceItem.itemId] || {};
+
+                return (
+                  <div key={serviceItem.itemId} className="mb-3">
+                    <div className="text-xs font-medium text-blue-700 mb-1">
+                      {serviceItem.serviceName}: {serviceItem.locationName}
+                    </div>
+                    <div className="space-y-1 pl-2">
+                      {requirements.searchFields.map((field) => {
+                        const value = serviceSearchValues[field.id];
+
+                        // Don't show optional empty fields
+                        if ((!value || value === '') && !field.required) return null;
+
+                        return (
+                          <div key={field.id} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{field.name}:</span>
+                            <span className={((!value || value === '') && field.required) ? 'text-red-600 font-medium' : 'font-medium'}>
+                              {!value || value === '' ? (
+                                field.required ? t('missing') : t('not_provided')
+                              ) : Array.isArray(value) ? (
+                                value.join(', ')
+                              ) : typeof value === 'object' && value !== null ? (
+                                JSON.stringify(value)
+                              ) : (
+                                String(value)
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Service Items */}
         <div className="mb-4">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">{t('services_count', { count: serviceItems.length })}</h5>
+          <h5 className="text-sm font-medium text-gray-700 mb-2">{t('services_count').replace('{count}', serviceItems.length.toString())}</h5>
           <div className="space-y-2">
             {serviceItems.map((item) => (
               <div key={item.itemId} className="flex justify-between text-sm">
@@ -307,7 +368,7 @@ export function DocumentsReviewStep({
                         Same reasoning as field names - this is a read-only summary display */}
                     <span className="text-gray-600">{document.name}:</span>
                     <span className={docMetadata ? 'text-green-600' : (document.required ? 'text-red-600 font-medium' : 'text-gray-400')}>
-                      {docMetadata ? (docMetadata.originalName || docMetadata.filename || docMetadata.fileName) : (document.required ? t('missing_required') : t('not_uploaded'))}
+                      {docMetadata ? (docMetadata.originalName || docMetadata.filename) : (document.required ? t('missing_required') : t('not_uploaded'))}
                     </span>
                   </div>
                 );
