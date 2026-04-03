@@ -38,12 +38,16 @@ interface SubjectField {
   name: string;
   required: boolean;
   dataType: string;
+  serviceId?: string;
+  locationId?: string;
 }
 
 interface ServiceItem {
   itemId: string;
   serviceName: string;
   locationName: string;
+  serviceId?: string;
+  locationId?: string;
 }
 
 interface OrderRequirements {
@@ -314,18 +318,46 @@ export function DocumentsReviewStep({
                   <div key={serviceItem.itemId} className="mb-3">
                     <div className="text-xs font-medium text-blue-700 mb-1">
                       {serviceItem.serviceName}: {serviceItem.locationName}
-                    </div>
-                    <div className="space-y-1 pl-2">
-                      {requirements.searchFields.map((field) => {
-                        const value = serviceSearchValues[field.id];
+                      {requirements.searchFields
+                        .filter((field) => {
+                          // BUG FIX (April 3, 2026): Search fields filtering by serviceId and locationId
+                          // PROBLEM: Previously, ALL search fields were displayed under EVERY service,
+                          // causing massive UX confusion where users saw irrelevant fields like
+                          // "School Name" under Criminal Search services or "County" under Education services
+                          //
+                          // CAUSE: The component was iterating through ALL search fields without checking
+                          // if they belonged to the specific service being rendered
+                          //
+                          // SOLUTION: Filter search fields to only show those that match both serviceId
+                          // and locationId of the current service being displayed. This ensures each
+                          // service section only shows fields that are actually relevant to that service.
+                          //
+                          // REGRESSION PREVENTION: A comprehensive regression test exists in
+                          // DocumentsReviewStep.search-fields-bug.test.tsx that MUST remain in the codebase
+                          // permanently. This test specifically verifies Education services only show
+                          // education fields, Criminal services only show criminal fields, etc.
 
-                        // Don't show optional empty fields
-                        if ((!value || value === '') && !field.required) return null;
+                          // Only show fields that belong to this specific service
+                          // Both serviceId and locationId must match to ensure correct filtering
+                          if (field.serviceId && field.locationId && serviceItem.serviceId && serviceItem.locationId) {
+                            // Both field and serviceItem have the required properties, do exact match
+                            return field.serviceId === serviceItem.serviceId &&
+                                   field.locationId === serviceItem.locationId;
+                          }
+                          // If either side is missing the properties, don't show the field
+                          // This handles legacy data gracefully by not displaying it
+                          return false;
+                        })
+                        .map((field) => {
+                          const value = serviceSearchValues[field.id];
 
-                        return (
-                          <div key={field.id} className="flex justify-between text-sm">
+                          // Show all fields for the service, even optional empty ones
+                          // This ensures all fields assigned to a service are visible in the summary
+
+                          return (
+                            <div key={field.id} className="flex justify-between text-sm pl-2 mt-1">
                             <span className="text-gray-600">{field.name}:</span>
-                            <span className={((!value || value === '') && field.required) ? 'text-red-600 font-medium' : 'font-medium'}>
+                            <span className={(!value || value === '') && field.required ? 'field-value-missing font-medium' : 'font-medium'}>
                               {!value || value === '' ? (
                                 field.required ? t('missing') : t('not_provided')
                               ) : Array.isArray(value) ? (
@@ -405,7 +437,7 @@ export function DocumentsReviewStep({
             return (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
                 <p className="text-sm font-medium text-red-800 mb-2">
-                  ⚠️ Missing Required Information ({totalMissing} items)
+                  {t('missing_required_info', { count: totalMissing })}
                 </p>
                 <ul className="text-xs text-red-700 space-y-1">
                   {missing.subjectFields.map((field, idx) => (
