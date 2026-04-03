@@ -36,7 +36,6 @@ describe('serviceStatusUpdateSchema', () => {
     it('should accept all valid status values', () => {
       const statuses = [
         'draft',
-        'pending',
         'submitted',
         'processing',
         'missing_info',
@@ -271,10 +270,9 @@ describe('statusChangeCommentSchema', () => {
 });
 
 describe('SERVICE_STATUS_VALUES', () => {
-  it('should contain all eight status values', () => {
-    expect(SERVICE_STATUS_VALUES).toHaveLength(8);
+  it('should contain all seven status values', () => {
+    expect(SERVICE_STATUS_VALUES).toHaveLength(7);
     expect(SERVICE_STATUS_VALUES).toContain('draft');
-    expect(SERVICE_STATUS_VALUES).toContain('pending');
     expect(SERVICE_STATUS_VALUES).toContain('submitted');
     expect(SERVICE_STATUS_VALUES).toContain('processing');
     expect(SERVICE_STATUS_VALUES).toContain('missing_info');
@@ -285,7 +283,7 @@ describe('SERVICE_STATUS_VALUES', () => {
 
   it('should identify terminal statuses correctly', () => {
     const terminalStatuses = ['completed', 'cancelled', 'cancelled_dnb'];
-    const nonTerminalStatuses = ['draft', 'pending', 'submitted', 'processing', 'missing_info'];
+    const nonTerminalStatuses = ['draft', 'submitted', 'processing', 'missing_info'];
 
     // This assumes there will be a helper function to check terminal status
     // The implementer will need to create this
