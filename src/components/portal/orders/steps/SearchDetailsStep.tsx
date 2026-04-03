@@ -47,7 +47,6 @@ export function SearchDetailsStep({
 
               {/* Service-specific Fields */}
               <div>
-                <h5 className="text-md font-medium text-gray-700 mb-3">Search Parameters</h5>
                 {itemFields.length === 0 ? (
                   <div className="text-center py-4 bg-gray-50 rounded-lg">
                     <p className="text-gray-500">No additional search parameters required for this service.</p>

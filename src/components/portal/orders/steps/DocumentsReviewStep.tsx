@@ -16,6 +16,11 @@ interface AddressBlock {
   street1?: string;
   city?: string;
   state?: string;
+  stateId?: string;
+  stateName?: string;
+  county?: string;
+  countyId?: string;
+  countyName?: string;
   postalCode?: string;
 }
 
@@ -326,7 +331,18 @@ export function DocumentsReviewStep({
                               ) : Array.isArray(value) ? (
                                 value.join(', ')
                               ) : typeof value === 'object' && value !== null ? (
-                                JSON.stringify(value)
+                                // Format address objects nicely
+                                field.dataType === 'address_block' && (value as AddressBlock) ? (
+                                  [
+                                    (value as AddressBlock).street1,
+                                    (value as AddressBlock).city,
+                                    (value as AddressBlock).state || (value as AddressBlock).stateName,
+                                    (value as AddressBlock).postalCode
+                                  ].filter(Boolean).join(', ')
+                                ) : (
+                                  // For other objects, try to format nicely
+                                  JSON.stringify(value)
+                                )
                               ) : (
                                 String(value)
                               )}
