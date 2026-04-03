@@ -817,6 +817,58 @@ Environment variables or settings needed
 How to test the feature works correctly
 ```
 
+---
+
+## SECTION 17: Status and Constant Management Standards
+
+### 17.1 No Hardcoded Status Values
+
+**Never hardcode status values** that are defined in constants files. Always reference the appropriate constant to prevent invalid data when constants are updated.
+
+**Common Bug Pattern to Avoid:**
+```typescript
+// ❌ WRONG - Hardcoded status that may become invalid
+const orderItem = await tx.orderItem.create({
+  data: {
+    orderId,
+    serviceId,
+    status: 'pending', // Bug: What if 'pending' is removed from valid statuses?
+  },
+});
+
+// ❌ WRONG - Hardcoded status in multiple locations
+await createService({ status: 'submitted' });
+await updateOrderItem(id, { status: 'processing' });
+```
+
+**Correct Pattern:**
+```typescript
+// ✅ CORRECT - Reference constants file
+import { SERVICE_STATUSES } from '@/constants/service-status';
+
+const orderItem = await tx.orderItem.create({
+  data: {
+    orderId,
+    serviceId,
+    status: order.statusCode, // Inherit from parent or use constant
+  },
+});
+
+// ✅ CORRECT - Use constants for status updates
+await createService({ status: SERVICE_STATUSES.SUBMITTED });
+await updateOrderItem(id, { status: SERVICE_STATUSES.PROCESSING });
+```
+
+**Why this rule exists:** In commit 3706b39, the 'pending' status was removed from SERVICE_STATUSES constant, but multiple locations in the codebase still hardcoded `status: 'pending'`, creating order items with invalid status values that didn't exist in the system.
+
+**Rule:** When setting status values, always:
+1. **Import the relevant constants** (`SERVICE_STATUSES`, `ORDER_STATUSES`, etc.)
+2. **Use constant values** instead of string literals
+3. **Inherit status from parent entities** when creating child records (order items inherit from orders)
+4. **Validate status values** against the constants before database operations
+
+**Files affected by this rule:** Any code that sets status fields on database models, especially OrderItem creation.
+
 
 ---
 
@@ -831,6 +883,7 @@ How to test the feature works correctly
 - [ ] No PII (emails, passwords, tokens) logged anywhere
 - [ ] Documentation updated for new features or API changes
 - [ ] Complex business logic has explanatory comments
+- [ ] No hardcoded status values - use constants from `/src/constants/` files
 
 ### Specialized Standards:
 - [ ] **API Routes:** See [API_STANDARDS.md](API_STANDARDS.md) checklist
