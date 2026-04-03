@@ -12,7 +12,6 @@ import { SERVICE_STATUSES, SERVICE_STATUS_VALUES } from '@/constants/service-sta
 // This ensures terminal status checks work correctly and prevents Add Comment button issues
 export const ServiceStatusEnum = z.enum([
   SERVICE_STATUSES.DRAFT,
-  SERVICE_STATUSES.PENDING,
   SERVICE_STATUSES.SUBMITTED,
   SERVICE_STATUSES.PROCESSING,
   SERVICE_STATUSES.MISSING_INFO,
@@ -87,7 +86,7 @@ export function getStatusColorClass(status: string): string {
   switch (normalizedStatus) {
     case 'draft':
       return 'bg-gray-100 text-gray-800';
-    case 'pending':
+    case 'pending':  // Backward compatibility during migration - treat as submitted
     case 'submitted':
       return 'bg-blue-100 text-blue-800';
     case 'processing':
