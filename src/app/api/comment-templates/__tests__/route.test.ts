@@ -192,7 +192,7 @@ describe('GET /api/comment-templates', () => {
       expect(data.templates).toHaveLength(1);
       expect(data.templates[0].shortName).toBe('Missing Doc');
       expect(data.services).toHaveLength(2);
-      expect(data.statuses).toEqual(['draft', 'pending', 'submitted', 'processing', 'missing_info', 'completed', 'cancelled', 'cancelled_dnb']);
+      expect(data.statuses).toEqual(['draft', 'submitted', 'processing', 'missing_info', 'completed', 'cancelled', 'cancelled_dnb']);
     });
 
     it('should return empty arrays when no data exists', async () => {
@@ -215,7 +215,7 @@ describe('GET /api/comment-templates', () => {
       const data = await response.json();
       expect(data.templates).toEqual([]);
       expect(data.services).toEqual([]);
-      expect(data.statuses).toEqual(['draft', 'pending', 'submitted', 'processing', 'missing_info', 'completed', 'cancelled', 'cancelled_dnb']);
+      expect(data.statuses).toEqual(['draft', 'submitted', 'processing', 'missing_info', 'completed', 'cancelled', 'cancelled_dnb']);
     });
   });
 
