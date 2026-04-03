@@ -13,6 +13,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ServiceStatusList } from '@/components/orders/ServiceStatusList';
+import { getStatusColorClass } from '@/lib/schemas/serviceStatusSchemas';
 
 interface DashboardStats {
   total: number;
@@ -140,18 +141,6 @@ export default function CustomerDashboard() {
     router.push(`/fulfillment/orders/${orderId}`);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'draft':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-blue-100 text-blue-800';
-    }
-  };
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredOrders.length / limit);
@@ -335,9 +324,6 @@ export default function CustomerDashboard() {
                     Services
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -350,8 +336,13 @@ export default function CustomerDashboard() {
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {order.orderNumber}
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-medium text-gray-900">
+                            {order.orderNumber}
+                          </div>
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColorClass(order.statusCode)}`}>
+                            {order.statusCode.charAt(0).toUpperCase() + order.statusCode.slice(1)}
+                          </span>
                         </div>
                         <div className="text-sm text-gray-500">
                           {(() => {
@@ -394,11 +385,6 @@ export default function CustomerDashboard() {
                           IMPORTANT: Initially this was missed and dashboard showed raw service data
                           Fixed to maintain consistency with other portal pages */}
                       <ServiceStatusList items={order.items} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.statusCode)}`}>
-                        {order.statusCode.charAt(0).toUpperCase() + order.statusCode.slice(1)}
-                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(order.createdAt).toLocaleDateString()}
