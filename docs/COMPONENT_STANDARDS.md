@@ -218,6 +218,26 @@ Before using any translation key in code, verify it exists in ALL language files
 - Create a checklist of all translation files when adding new keys
 - Test UI in multiple languages to catch missing translations
 
+### 3.5 Translation Key Bug Prevention (April 3, 2026)
+
+**Bug Pattern:** Components displaying raw translation keys instead of text when new features are implemented
+
+**Root Cause:** Missing translation keys in language files cause the translation system to fall back to showing the raw key (e.g., "documents_review_title" instead of "Documents & Review")
+
+**Prevention Rules:**
+1. **Always check ALL language files** - Missing keys in any language file will break the UI for users of that language
+2. **Use a systematic approach** when adding new components with user-facing text:
+   ```bash
+   # Check which translation files exist
+   ls src/translations/
+   # Add keys to ALL files, not just en-US.json
+   ```
+3. **Test components in development** before submitting - Look for any raw translation keys being displayed
+4. **Order Summary displays** - Verify all text in order review/summary components uses translation keys
+5. **Component refactoring** - When moving hardcoded text to translation keys, add to all language files simultaneously
+
+**Files affected by this rule:** `src/translations/en-US.json`, `src/translations/en-GB.json`, `src/translations/es-ES.json`, `src/translations/es.json`, `src/translations/ja-JP.json`
+
 ---
 
 ## COMPONENT STANDARDS CHECKLIST

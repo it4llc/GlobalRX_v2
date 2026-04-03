@@ -319,5 +319,9 @@
   "portal.orders.showing": "Mostrando",
   "portal.orders.to": "a",
   "portal.orders.of": "de",
-  "portal.orders.results": "resultados"
+  "portal.orders.results": "resultados",
+  "scope_label": "Alcance",
+  "once_per_order": "Una vez por pedido",
+  "per_service": "Por servicio",
+  "required": "Requerido"
 }
