@@ -8,6 +8,7 @@ import { OrderCoreService } from '@/lib/services/order-core.service';
 import { SubjectInfo } from '@/components/portal/orders/types';
 import { z } from 'zod';
 import logger from '@/lib/logger'; // BUG FIX: Added missing logger import - was causing runtime errors when error logging attempted
+import { prisma } from '@/lib/prisma';
 
 // Force dynamic route
 export const dynamic = 'force-dynamic';
@@ -31,9 +32,9 @@ const updateOrderSchema = z.object({
     phone: z.string().optional(),
     address: z.string().optional(),
   }).optional(),
-  subjectFieldValues: z.record(z.any()).optional(),
-  searchFieldValues: z.record(z.record(z.any())).optional(),
-  uploadedDocuments: z.record(z.any()).optional(),
+  subjectFieldValues: z.record(z.unknown()).optional(),
+  searchFieldValues: z.record(z.record(z.unknown())).optional(),
+  uploadedDocuments: z.record(z.unknown()).optional(),
   notes: z.string().optional(),
   status: z.enum(['draft', 'submitted']).optional(),
 });
@@ -130,8 +131,6 @@ export async function PUT(
     // For full order updates (with service items), use the comprehensive update method
     if (validatedData.serviceItems || validatedData.subjectFieldValues || validatedData.searchFieldValues) {
       // Use a transaction to update the order in place
-      const { prisma } = await import('@/lib/prisma');
-
       const updatedOrder = await prisma.$transaction(async (tx) => {
         // 1. Verify order exists, belongs to customer, and is a draft
         const existingOrder = await tx.order.findUnique({
@@ -201,7 +200,10 @@ export async function PUT(
                 orderId: params.id,
                 serviceId: serviceItem.serviceId,
                 locationId: serviceItem.locationId,
-                status: 'pending',
+                status: 'draft', // BUG FIX: Orders can only be edited in draft status, so always use 'draft'
+                                  // PROBLEM: Previously hardcoded 'pending' status which was removed from
+                                  // SERVICE_STATUSES constant in commit 3706b39, creating invalid data
+                                  // SOLUTION: Since only draft orders are editable through this API, use 'draft' status
               },
             });
 
