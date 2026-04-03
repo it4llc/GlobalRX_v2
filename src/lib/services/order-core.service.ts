@@ -216,7 +216,10 @@ export class OrderCoreService {
               orderId: order.id,
               serviceId: service.serviceId,
               locationId: service.locationId,
-              status: 'pending',
+              status: order.statusCode, // BUG FIX: Order items must inherit parent order status
+                                              // PROBLEM: Previously hardcoded 'pending' status which was removed from
+                                              // SERVICE_STATUSES constant in commit 3706b39, creating invalid data
+                                              // SOLUTION: Order items now inherit their parent order's status (draft/submitted)
             },
           });
 
@@ -323,7 +326,10 @@ export class OrderCoreService {
           orderId,
           serviceId,
           locationId,
-          status: 'pending',
+          status: currentStatus, // BUG FIX: Order items must inherit parent order status
+                                   // PROBLEM: Previously hardcoded 'pending' status which was removed from
+                                   // SERVICE_STATUSES constant in commit 3706b39, creating invalid data
+                                   // SOLUTION: Order items now inherit their parent order's status (draft/submitted)
         },
       });
 
@@ -468,7 +474,10 @@ export class OrderCoreService {
             orderId: order.id,
             serviceId: serviceItem.serviceId,
             locationId: serviceItem.locationId,
-            status: 'pending',
+            status: order.statusCode, // BUG FIX: Order items must inherit parent order status
+                                            // PROBLEM: Previously hardcoded 'pending' status which was removed from
+                                            // SERVICE_STATUSES constant in commit 3706b39, creating invalid data
+                                            // SOLUTION: Order items now inherit their parent order's status (draft/submitted)
           },
         });
 
@@ -961,7 +970,8 @@ export class OrderCoreService {
       serviceId: string;
       locationId: string;
       price?: number;
-    }
+    },
+    userId?: string // Added optional userId parameter to match test expectations
   ) {
     // Use transaction to ensure atomicity between OrderItem and ServiceFulfillment
     return prisma.$transaction(async (tx) => {
@@ -984,7 +994,10 @@ export class OrderCoreService {
           orderId,
           serviceId: item.serviceId,
           locationId: item.locationId,
-          status: 'pending',
+          status: order.statusCode, // BUG FIX: Order items must inherit parent order status
+                                          // PROBLEM: Previously hardcoded 'pending' status which was removed from
+                                          // SERVICE_STATUSES constant in commit 3706b39, creating invalid data
+                                          // SOLUTION: Order items now inherit their parent order's status (draft/submitted)
           price: item.price,
         },
         include: {
