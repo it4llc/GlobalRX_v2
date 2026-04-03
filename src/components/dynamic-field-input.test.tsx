@@ -72,7 +72,7 @@ describe('DynamicFieldInput - Address Block Instructions Bug', () => {
 
       // Bug fix verified: instructions ARE now displayed for address_block fields
       expect(instructions).toBeInTheDocument();
-      expect(instructions).toHaveClass('text-xs', 'text-gray-500');
+      expect(instructions).toHaveClass('text-sm', 'text-indigo-600');
     });
 
     it('should show instructions for other complex field types like select (control test)', () => {
@@ -101,7 +101,7 @@ describe('DynamicFieldInput - Address Block Instructions Bug', () => {
       // Instructions should be visible for select fields
       const instructions = screen.getByText('Choose your current employment status');
       expect(instructions).toBeInTheDocument();
-      expect(instructions).toHaveClass('text-xs', 'text-gray-500');
+      expect(instructions).toHaveClass('text-sm', 'text-indigo-600');
     });
   });
 
@@ -137,7 +137,7 @@ describe('DynamicFieldInput - Address Block Instructions Bug', () => {
       // After fix, instructions should be visible
       const instructions = screen.getByText('Enter the address where mail should be sent');
       expect(instructions).toBeInTheDocument();
-      expect(instructions).toHaveClass('text-xs', 'text-gray-500');
+      expect(instructions).toHaveClass('text-sm', 'text-indigo-600');
 
       // Verify it appears after the address block component
       const addressBlock = screen.getByTestId('address-block-input');
@@ -244,10 +244,10 @@ describe('DynamicFieldInput - Address Block Instructions Bug', () => {
       expect(instructions).toBeInTheDocument();
 
       // Verify proper styling for text wrapping
-      expect(instructions).toHaveClass('text-xs', 'text-gray-500');
+      expect(instructions).toHaveClass('text-sm', 'text-indigo-600');
 
       // The paragraph should be within the component's container
-      const instructionElement = container.querySelector('p.text-xs.text-gray-500');
+      const instructionElement = container.querySelector('p.text-sm.text-indigo-600');
       expect(instructionElement?.textContent).toBe(longInstructionsText);
     });
 
@@ -304,8 +304,8 @@ describe('DynamicFieldInput - Address Block Instructions Bug', () => {
       expect(shippingInstructions).toBeInTheDocument();
 
       // Both should have the same styling
-      expect(billingInstructions).toHaveClass('text-xs', 'text-gray-500');
-      expect(shippingInstructions).toHaveClass('text-xs', 'text-gray-500');
+      expect(billingInstructions).toHaveClass('text-sm', 'text-indigo-600');
+      expect(shippingInstructions).toHaveClass('text-sm', 'text-indigo-600');
     });
   });
 
@@ -402,7 +402,7 @@ describe('DynamicFieldInput - Address Block Instructions Bug', () => {
       // Date fields should display instructions as separate text
       const instructions = screen.getByText('Must be 18 years or older');
       expect(instructions).toBeInTheDocument();
-      expect(instructions).toHaveClass('text-xs', 'text-gray-500');
+      expect(instructions).toHaveClass('text-sm', 'text-indigo-600');
     });
 
     it('should show instructions for checkbox groups', () => {
@@ -429,7 +429,7 @@ describe('DynamicFieldInput - Address Block Instructions Bug', () => {
       // Checkbox groups should display instructions
       const instructions = screen.getByText('Select all that apply');
       expect(instructions).toBeInTheDocument();
-      expect(instructions).toHaveClass('text-xs', 'text-gray-500');
+      expect(instructions).toHaveClass('text-sm', 'text-indigo-600');
     });
   });
 });
