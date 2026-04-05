@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { ServiceStatusList } from '@/components/orders/ServiceStatusList';
+import { getStatusColorClass } from '@/lib/schemas/serviceStatusSchemas';
 import {
   Table,
   TableBody,
@@ -79,16 +80,7 @@ interface Order {
 }
 
 
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-800',
-  submitted: 'bg-blue-100 text-blue-800',
-  processing: 'bg-yellow-100 text-yellow-800',
-  more_info_needed: 'bg-orange-100 text-orange-800',
-  missing_info: 'bg-orange-100 text-orange-800',
-  completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
-  cancelled_dnb: 'bg-red-100 text-red-800',
-};
+// Status colors now imported from getStatusColorClass for consistency
 
 export default function FulfillmentPage() {
   const { data: session } = useSession();
@@ -341,9 +333,7 @@ export default function FulfillmentPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t('module.fulfillment.orderNumber')}</TableHead>
-                      <TableHead>{t('module.fulfillment.subject')}</TableHead>
                       <TableHead>{t('module.fulfillment.customer')}</TableHead>
-                      <TableHead>{t('common.status')}</TableHead>
                       <TableHead>{t('module.fulfillment.services')}</TableHead>
                       <TableHead>{t('module.fulfillment.created')}</TableHead>
                       <TableHead>{t('common.actions')}</TableHead>
@@ -353,15 +343,19 @@ export default function FulfillmentPage() {
                     {paginatedOrders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">
-                          {order.orderNumber}
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              {order.orderNumber}
+                              <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColorClass(order.statusCode)}`}>
+                                {formatStatus(order.statusCode)}
+                              </span>
+                            </div>
+                            <div className="text-sm font-semibold text-blue-600 mt-1">
+                              {getSubjectName(order.subject)}
+                            </div>
+                          </div>
                         </TableCell>
-                        <TableCell>{getSubjectName(order.subject)}</TableCell>
                         <TableCell>{order.customer?.name || t('module.fulfillment.na')}</TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[order.statusCode] || 'bg-gray-100'}>
-                            {formatStatus(order.statusCode)}
-                          </Badge>
-                        </TableCell>
                         <TableCell>
                           {/* ServiceStatusList provides consistent service display across all order tables */}
                           <ServiceStatusList items={order.items} />
