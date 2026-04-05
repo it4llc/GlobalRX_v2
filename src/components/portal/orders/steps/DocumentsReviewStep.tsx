@@ -258,7 +258,7 @@ export function DocumentsReviewStep({
         {/* Subject Fields Summary */}
         {requirements.subjectFields.length > 0 && (
           <div className="mb-4">
-            <h5 className="text-sm font-bold text-gray-700 mb-2">{t('subject_information')}</h5>
+            <h5 className="text-sm font-bold text-gray-700 mb-2">{t('subject_information')}:</h5>
             <div className="space-y-1">
               {requirements.subjectFields.map((field) => {
                 const value = subjectFieldValues[field.id];
@@ -272,13 +272,13 @@ export function DocumentsReviewStep({
                 if ((!value || isEmptyAddressBlock) && !field.required) return null;
 
                 return (
-                  <div key={field.id} className="flex justify-between text-sm">
+                  <div key={field.id} className="flex text-sm gap-8">
                     {/* BUG FIX: Removed asterisks from field names in order summary (March 14, 2026)
                         Order summary is a read-only display, not an input form.
                         Asterisks are only appropriate for form inputs, not summary displays.
                         BEFORE: {field.name}: {field.required && <span className="text-red-500 ml-1">*</span>}
                         AFTER: {field.name}: (no asterisk) */}
-                    <span className="text-gray-600">{field.name}:</span>
+                    <span className="text-gray-600 w-[250px] flex-shrink-0">{field.name}:</span>
                     <span className={((!value || isEmptyAddressBlock) && field.required) ? 'text-red-600 font-medium' : 'font-medium'}>
                       {!value || isEmptyAddressBlock ? (
                         field.required ? t('missing') : t('not_provided')
@@ -309,7 +309,7 @@ export function DocumentsReviewStep({
              This section shows search field values organized by service, matching the input flow */}
         {requirements.searchFields && requirements.searchFields.length > 0 && (
           <div className="mb-4">
-            <h5 className="text-sm font-bold text-gray-700 mb-2">{t('search_fields')}</h5>
+            <h5 className="text-sm font-bold text-gray-700 mb-2">{t('search_fields')}:</h5>
             <div className="space-y-1">
               {serviceItems.map((serviceItem) => {
                 const serviceSearchValues = searchFieldValues[serviceItem.itemId] || {};
@@ -355,8 +355,8 @@ export function DocumentsReviewStep({
                           // This ensures all fields assigned to a service are visible in the summary
 
                           return (
-                            <div key={field.id} className="flex justify-between text-sm pl-2 mt-1">
-                            <span className="text-gray-600">{field.name}:</span>
+                            <div key={field.id} className="flex text-sm pl-2 mt-1 gap-8">
+                            <span className="text-gray-600 w-[242px] flex-shrink-0">{field.name}:</span>
                             <span className={(!value || value === '') && field.required ? 'field-value-missing font-medium' : 'font-medium'}>
                               {!value || value === '' ? (
                                 field.required ? t('missing') : t('not_provided')
@@ -390,31 +390,18 @@ export function DocumentsReviewStep({
           </div>
         )}
 
-        {/* Service Items */}
-        <div className="mb-4">
-          <h5 className="text-sm font-bold text-gray-700 mb-2">{t('services_count').replace('{count}', serviceItems.length.toString())}</h5>
-          <div className="space-y-2">
-            {serviceItems.map((item) => (
-              <div key={item.itemId} className="flex justify-between text-sm">
-                <span className="font-medium text-blue-700">{item.serviceName}: {item.locationName}</span>
-                <span className="text-gray-400">{t('search')}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Documents Summary */}
         {requirements.documents.length > 0 && (
           <div className="mb-4">
-            <h5 className="text-sm font-bold text-gray-700 mb-2">{t('documents')}</h5>
+            <h5 className="text-sm font-bold text-gray-700 mb-2">{t('documents')}:</h5>
             <div className="space-y-1">
               {requirements.documents.map((document) => {
                 const docMetadata = uploadedDocuments[document.id];
                 return (
-                  <div key={document.id} className="flex justify-between text-sm">
+                  <div key={document.id} className="flex text-sm gap-8">
                     {/* BUG FIX: Removed asterisks from document names in order summary (March 14, 2026)
                         Same reasoning as field names - this is a read-only summary display */}
-                    <span className="text-gray-600">{document.name}:</span>
+                    <span className="text-gray-600 w-[250px] flex-shrink-0">{document.name}:</span>
                     <span className={docMetadata ? 'text-green-600' : (document.required ? 'text-red-600 font-medium' : 'text-gray-400')}>
                       {docMetadata ? (docMetadata.originalName || docMetadata.filename) : (document.required ? t('missing_required') : t('not_uploaded'))}
                     </span>
@@ -424,6 +411,18 @@ export function DocumentsReviewStep({
             </div>
           </div>
         )}
+
+        {/* Service Items */}
+        <div className="mb-4">
+          <h5 className="text-sm font-bold text-gray-700 mb-2">{t('services_ordered_count').replace('{count}', serviceItems.length.toString())}:</h5>
+          <div className="space-y-2">
+            {serviceItems.map((item) => (
+              <div key={item.itemId} className="text-sm">
+                <span className="font-medium text-blue-700">{item.serviceName}: {item.locationName}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Missing Requirements Summary */}
         {checkMissingRequirements && (() => {

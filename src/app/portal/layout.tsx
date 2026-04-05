@@ -33,8 +33,10 @@ export default function PortalLayout({
   const navigation = [
     { name: 'Dashboard', href: '/portal/dashboard', icon: HomeIcon },
     { name: 'New Order', href: '/portal/orders/new', icon: ShoppingCartIcon },
-    { name: 'My Orders', href: '/portal/orders', icon: DocumentTextIcon },
-    { name: 'Profile', href: '/portal/profile', icon: UserCircleIcon },
+    // My Orders moved to dashboard Quick Actions as a filter
+    // { name: 'My Orders', href: '/portal/orders', icon: DocumentTextIcon },
+    // Temporarily hidden until profile management functionality is complete
+    // { name: 'Profile', href: '/portal/profile', icon: UserCircleIcon },
   ];
 
   const handleSignOut = () => {

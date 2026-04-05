@@ -69,6 +69,7 @@ export default function CustomerDashboard() {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10); // 10 items per page, same as My Orders
+  const [showMyOrders, setShowMyOrders] = useState(false); // Toggle between My Orders and View All
 
   useEffect(() => {
     if (session?.user?.customerId) {
@@ -264,7 +265,7 @@ export default function CustomerDashboard() {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Quick Actions
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
             href="/portal/orders/new"
             className="inline-flex items-center justify-center rounded-md bg-brand-blue px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
@@ -272,27 +273,35 @@ export default function CustomerDashboard() {
             <ShoppingCartIcon className="h-5 w-5 mr-2" />
             Start New Order
           </Link>
-          <Link
-            href="/portal/orders"
+          <button
+            onClick={() => {
+              setShowMyOrders(!showMyOrders);
+              // When toggling, if we're showing "My Orders", show only user's orders
+              // For now, showing all orders since we don't have user-specific filtering
+              applyFilter('all');
+            }}
             className="inline-flex items-center justify-center rounded-md bg-white px-4 py-3 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors"
           >
             <DocumentTextIcon className="h-5 w-5 mr-2" />
-            View All Orders
-          </Link>
+            {showMyOrders ? 'View All' : 'My Orders'}
+          </button>
+          {/* Temporarily hidden until profile management functionality is complete
           <Link
             href="/portal/profile"
             className="inline-flex items-center justify-center rounded-md bg-white px-4 py-3 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors"
           >
             Manage Profile
           </Link>
+          */}
         </div>
       </div>
 
       {/* Orders List */}
-      <div className="bg-white rounded-lg shadow">
+      <div id="orders-section" className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900">
-            {activeFilter === 'all' ? 'All Orders' :
+            {showMyOrders ? 'My Orders' :
+             activeFilter === 'all' ? 'All Orders' :
              activeFilter === 'pending' ? 'Pending Orders' :
              activeFilter === 'completed' ? 'Completed Orders' :
              activeFilter === 'draft' ? 'Draft Orders' : 'Orders'}
@@ -344,7 +353,7 @@ export default function CustomerDashboard() {
                             {order.statusCode.charAt(0).toUpperCase() + order.statusCode.slice(1)}
                           </span>
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm font-semibold text-blue-600">
                           {(() => {
                             // Format subject name using the same logic as My Orders
                             const subjectData = order.subject || {};
