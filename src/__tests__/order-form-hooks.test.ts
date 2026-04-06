@@ -136,8 +136,8 @@ describe('Order Form Hooks', () => {
 
     describe('Field Value Conversion', () => {
       const mockFields = [
-        { id: 'field-1', name: 'First Name' },
-        { id: 'field-2', name: 'Address Block' }
+        { id: 'field-1', name: 'First Name', fieldKey: 'firstName' },
+        { id: 'field-2', name: 'Address Block', fieldKey: 'addressBlock' }
       ];
 
       it('should convert subject fields to name-based storage', () => {
@@ -150,8 +150,8 @@ describe('Order Form Hooks', () => {
         const result = validation.convertSubjectFieldsToNameBased(fieldValues, mockFields);
 
         expect(result).toEqual({
-          'First Name': 'John Doe',
-          'Address Block': { street1: '123 Main St', city: 'Anytown' }
+          'firstName': 'John Doe',
+          'addressBlock': { street1: '123 Main St', city: 'Anytown' }
         });
       });
 
@@ -164,8 +164,8 @@ describe('Order Form Hooks', () => {
         const result = validation.convertSearchFieldsToNameBased(fieldValues, mockFields);
 
         expect(result).toEqual({
-          '660e8400-e29b-41d4-a716-446655440001': { 'First Name': 'Value 1' },
-          '660e8400-e29b-41d4-a716-446655440002': { 'Address Block': 'Value 2' }
+          '660e8400-e29b-41d4-a716-446655440001': { 'firstName': 'Value 1' },
+          '660e8400-e29b-41d4-a716-446655440002': { 'addressBlock': 'Value 2' }
         });
       });
     });

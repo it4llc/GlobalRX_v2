@@ -37,6 +37,7 @@ interface Requirement {
   id: string;
   name: string;
   type: string;
+  fieldKey: string;
   disabled?: boolean;
   fieldData?: FieldData;
   documentData?: DocumentData;
@@ -45,6 +46,7 @@ interface Requirement {
 interface ProcessedField {
   id: string;
   name: string;
+  fieldKey: string;
   shortName: string;
   dataType: string;
   instructions: string;
@@ -117,7 +119,17 @@ export async function POST(request: NextRequest) {
         displayOrder: 'asc'
       },
       include: {
-        requirement: true,
+        requirement: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            fieldKey: true,
+            disabled: true,
+            fieldData: true,
+            documentData: true
+          }
+        },
         service: {
           select: {
             id: true,
@@ -136,7 +148,17 @@ export async function POST(request: NextRequest) {
         ]
       },
       include: {
-        requirement: true,
+        requirement: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            fieldKey: true,
+            disabled: true,
+            fieldData: true,
+            documentData: true
+          }
+        },
         service: {
           select: {
             id: true,
@@ -184,6 +206,7 @@ export async function POST(request: NextRequest) {
         const field: ProcessedField = {
           id: requirement.id,
           name: requirement.name,
+          fieldKey: requirement.fieldKey,
           shortName: fieldData.shortName || requirement.name,
           dataType: fieldData.dataType || 'text',
           instructions: fieldData.instructions || '',
