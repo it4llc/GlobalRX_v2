@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
           id: true,
           name: true,
           type: true,
+          fieldKey: true,
           fieldData: true,
           documentData: true,
           formData: true,
@@ -67,6 +68,7 @@ export async function GET(request: NextRequest) {
           return {
             id: req.id,
             fieldLabel: req.name,
+            fieldKey: req.fieldKey,
             shortName: fieldData.shortName || req.name,
             dataType: fieldData.dataType || 'text',
             instructions: fieldData.instructions || '',

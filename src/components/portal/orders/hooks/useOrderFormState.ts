@@ -38,6 +38,7 @@ interface OrderItem {
 interface OrderSubjectField {
   id: string;
   name: string;
+  fieldKey: string;
   displayName?: string;
   dataType?: string;
   required?: boolean;
@@ -46,6 +47,7 @@ interface OrderSubjectField {
 interface OrderSearchField {
   id: string;
   name: string;
+  fieldKey: string;
   dataType?: string;
   required?: boolean;
   serviceId?: string;
