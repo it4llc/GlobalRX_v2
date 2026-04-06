@@ -425,6 +425,92 @@ Consider using `useCallback` with proper dependency array instead of refs for ca
 
 ---
 
+### TD-016 — fieldKey Error Handling for Undefined Values
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Order Validation / Form Hooks               |
+| Severity    | Warning (Low Risk)                         |
+| Identified  | April 6, 2026 - fieldKey Implementation     |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+`useOrderValidation.ts` lines 226, 249 and `OrderValidationService` lines 117, 130, 181, 194 directly use `field.fieldKey` or `requirement.fieldKey` without checking if undefined. Could cause runtime errors if fieldKey is missing.
+
+**Why deferred:**
+Low risk since the database migration enforces NOT NULL on the fieldKey column, and all API routes now return fieldKey. Defensive checks would add code complexity for an edge case that shouldn't occur in production.
+
+**When to fix:**
+Add defensive checks if fieldKey generation logic changes or if we need to support legacy data without fieldKeys.
+
+---
+
+### TD-017 — generateFieldKey() Unicode/Non-Latin Character Support
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Data RX / Field Management                  |
+| Severity    | Major (International Support)               |
+| Identified  | April 6, 2026 - fieldKey Implementation     |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+The `generateFieldKey()` function in `/api/data-rx/fields/route.ts` strips all non-alphanumeric characters. Fields with Chinese, Arabic, Cyrillic, or other non-Latin names will generate empty or broken keys.
+
+**Why deferred:**
+Currently all field names in the system use English/Latin characters. International support is not an immediate requirement.
+
+**When to fix:**
+Must be implemented before international field names are used. Consider using a Unicode-aware slug generation library or transliteration.
+
+**Recommendation:**
+Use a library like `transliteration` or `slugify` that can handle Unicode characters properly.
+
+---
+
+### TD-018 — Migration Fallback Uses Opaque UUID Keys
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Database Migration / fieldKey               |
+| Severity    | Minor (Code Quality)                       |
+| Identified  | April 6, 2026 - fieldKey Implementation     |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+The migration uses `SUBSTRING(REPLACE(id::text, '-', ''), 1, 16)` for unmapped fields, creating keys like "f47ac10b58cc4372" that are meaningless and hard to debug.
+
+**Why deferred:**
+The fallback only applies to non-field records (documents, forms) where fieldKey isn't actually used. Improving this would require re-running the migration.
+
+**When to fix:**
+Improve when adding fieldKey support for document/form types, or if debugging issues with these opaque keys.
+
+---
+
+### TD-019 — Components Directly Access subject.firstName/lastName
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Order Components / Subject Data             |
+| Severity    | Major (Breaking Change Risk)               |
+| Identified  | April 6, 2026 - fieldKey Implementation     |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+Multiple components expect `subject.firstName` and `subject.lastName` to exist as exact property names. If a subject field's fieldKey doesn't match these exact strings (e.g., "givenName" instead of "firstName"), components will break.
+
+**Why deferred:**
+The migration ensures standard fields map to expected keys ("firstName", "lastName"). Risk is low for current data.
+
+**When to fix:**
+Before allowing custom field names that might generate different keys. Need to identify all affected components and update them to handle dynamic field keys.
+
+**Affected components:**
+Need to search for all components accessing `subject.firstName` or `subject.lastName` directly.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_

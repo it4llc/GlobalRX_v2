@@ -114,7 +114,7 @@ export class OrderValidationService {
             // Check subject-level field only once
             if (!checkedSubjectFields.has(sr.requirement.id)) {
               checkedSubjectFields.add(sr.requirement.id);
-              const value = data.subjectFieldValues?.[sr.requirement.name];
+              const value = data.subjectFieldValues?.[sr.requirement.fieldKey];
               if (!value || (typeof value === 'string' && value.trim() === '')) {
                 missingRequirements.subjectFields.push({
                   fieldName: sr.requirement.name,
@@ -127,7 +127,7 @@ export class OrderValidationService {
             const key = `${sr.requirement.id}_${item.itemId}`;
             if (!checkedSearchFields.has(key)) {
               checkedSearchFields.add(key);
-              const value = data.searchFieldValues?.[item.itemId]?.[sr.requirement.name];
+              const value = data.searchFieldValues?.[item.itemId]?.[sr.requirement.fieldKey];
               if (!value || (typeof value === 'string' && value.trim() === '')) {
                 missingRequirements.searchFields.push({
                   fieldName: sr.requirement.name,
@@ -178,7 +178,7 @@ export class OrderValidationService {
           // Check subject-level field only once
           if (!checkedSubjectFields.has(mapping.requirement.id)) {
             checkedSubjectFields.add(mapping.requirement.id);
-            const value = data.subjectFieldValues?.[mapping.requirement.name];
+            const value = data.subjectFieldValues?.[mapping.requirement.fieldKey];
             if (!value || (typeof value === 'string' && value.trim() === '')) {
               missingRequirements.subjectFields.push({
                 fieldName: mapping.requirement.name,
@@ -191,7 +191,7 @@ export class OrderValidationService {
           const key = `${mapping.requirement.id}_${matchingItem.itemId}`;
           if (!checkedSearchFields.has(key)) {
             checkedSearchFields.add(key);
-            const value = data.searchFieldValues?.[matchingItem.itemId]?.[mapping.requirement.name];
+            const value = data.searchFieldValues?.[matchingItem.itemId]?.[mapping.requirement.fieldKey];
             if (!value || (typeof value === 'string' && value.trim() === '')) {
               missingRequirements.searchFields.push({
                 fieldName: mapping.requirement.name,

@@ -157,6 +157,7 @@ model DSXRequirement {
   id                  String               @id @default(uuid())
   name                String
   type                String
+  fieldKey            String               @unique
   fieldData           Json?
   documentData        Json?
   formData            Json?
