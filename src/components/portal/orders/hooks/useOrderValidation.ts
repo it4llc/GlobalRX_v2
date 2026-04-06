@@ -211,7 +211,7 @@ export function useOrderValidation() {
   };
 
   /**
-   * Convert UUID-based field values to name-based for storage
+   * Convert UUID-based field values to stable key-based for storage
    */
   const convertSubjectFieldsToNameBased = (
     fieldValues: Record<string, any>,
@@ -222,7 +222,9 @@ export function useOrderValidation() {
     Object.entries(fieldValues).forEach(([fieldId, value]) => {
       const field = fields.find(f => f.id === fieldId);
       if (field && value) {
-        result[field.name] = value;
+        // Use fieldKey only - no fallback, fail visibly if undefined
+        const key = field.fieldKey;
+        result[key] = value;
       }
     });
 
@@ -230,7 +232,7 @@ export function useOrderValidation() {
   };
 
   /**
-   * Convert search field values per item to name-based for storage
+   * Convert search field values per item to stable key-based for storage
    */
   const convertSearchFieldsToNameBased = (
     fieldValues: Record<string, Record<string, any>>,
@@ -243,7 +245,9 @@ export function useOrderValidation() {
       Object.entries(itemFields).forEach(([fieldId, value]) => {
         const field = fields.find(f => f.id === fieldId);
         if (field && value) {
-          result[itemId][field.name] = value;
+          // Use fieldKey only - no fallback, fail visibly if undefined
+          const key = field.fieldKey;
+          result[itemId][key] = value;
         }
       });
     });

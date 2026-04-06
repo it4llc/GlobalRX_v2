@@ -7,6 +7,38 @@ import { authOptions } from '@/lib/auth';
 import logger from '@/lib/logger';
 import { canAccessDataRx } from '@/lib/auth-utils';
 
+/**
+ * Generate a stable camelCase key from a field label
+ * @param label The human-readable field label
+ * @returns A camelCase key suitable for use as a JSON property name
+ */
+function generateFieldKey(label: string): string {
+  // Split on spaces, hyphens, slashes, dots, apostrophes, and parentheses
+  const words = label.split(/[\s\-\/\.\'\(\)]+/).filter(word => word.length > 0);
+
+  if (words.length === 0) {
+    return 'field';
+  }
+
+  // Join as camelCase (first word lowercase, subsequent words capitalized first letter)
+  const camelCase = words.map((word, index) => {
+    const cleanWord = word.replace(/[^a-zA-Z0-9]/g, ''); // Remove any remaining non-alphanumeric
+    if (index === 0) {
+      return cleanWord.toLowerCase();
+    }
+    return cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1).toLowerCase();
+  }).join('');
+
+  // Ensure the result starts with a lowercase letter
+  const result = camelCase.charAt(0).toLowerCase() + camelCase.slice(1);
+
+  // If result is empty or doesn't start with a letter, prefix with 'field'
+  if (!result || !/^[a-z]/i.test(result)) {
+    return 'field' + result;
+  }
+
+  return result;
+}
 
 function standardizeFieldData(fieldData: any): any {
   if (!fieldData) return {};
@@ -75,6 +107,7 @@ export async function GET(request: NextRequest) {
       return {
         id: field.id,
         fieldLabel: field.name,
+        fieldKey: field.fieldKey,
         dataType: standardizedData.dataType || 'text',
         shortName: standardizedData.shortName || field.name,
         instructions: standardizedData.instructions || '',
@@ -139,14 +172,24 @@ export async function POST(request: NextRequest) {
         type: 'field'
       }
     });
-    
+
     if (existingField) {
       return NextResponse.json(
         { error: `A field with the name "${data.fieldLabel}" already exists` },
         { status: 409 }
       );
     }
-    
+
+    // Generate unique fieldKey
+    let fieldKey = generateFieldKey(data.fieldLabel);
+    let keyCounter = 2;
+
+    // Check for existing fieldKey and append number if necessary
+    while (await prisma.dSXRequirement.findFirst({ where: { fieldKey } })) {
+      fieldKey = `${generateFieldKey(data.fieldLabel)}${keyCounter}`;
+      keyCounter++;
+    }
+
     // Create field with standardized property names
     const fieldDataToSave = {
       dataType: data.dataType,
@@ -166,6 +209,7 @@ export async function POST(request: NextRequest) {
       data: {
         name: data.fieldLabel,
         type: 'field',
+        fieldKey,
         fieldData: fieldDataToSave
       }
     });
@@ -174,6 +218,7 @@ export async function POST(request: NextRequest) {
       field: {
         id: field.id,
         fieldLabel: field.name,
+        fieldKey,
         dataType: field.fieldData.dataType,
         shortName: field.fieldData.shortName,
         instructions: field.fieldData.instructions,
@@ -260,12 +305,13 @@ export async function PATCH(request: NextRequest) {
       delete standardizedFieldData.retention;
     }
     
-    // Update field with standardized property name
+    // Update field with standardized property name (explicitly exclude fieldKey from updates)
     const field = await prisma.dSXRequirement.update({
       where: { id: data.id },
       data: {
         name: data.fieldLabel || existingField.name,
         disabled: data.disabled !== undefined ? data.disabled : existingField.disabled,
+        // fieldKey is explicitly NOT included here - it must never change after creation
         fieldData: {
           dataType: data.dataType || standardizedFieldData.dataType,
           shortName: data.shortName || standardizedFieldData.shortName,
@@ -294,6 +340,7 @@ export async function PATCH(request: NextRequest) {
       field: {
         id: field.id,
         fieldLabel: field.name,
+        fieldKey: field.fieldKey,
         dataType: field.fieldData.dataType,
         shortName: field.fieldData.shortName,
         instructions: field.fieldData.instructions,

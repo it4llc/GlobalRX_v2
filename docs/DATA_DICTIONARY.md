@@ -147,12 +147,25 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `id` (String, required): UUID primary key
 - `name` (String, required): Requirement name
 - `type` (String, required): Type of requirement (field, document, form)
+- `fieldKey` (String, required): Stable camelCase identifier for storage and lookup (unique, immutable)
 - `fieldData` (Json, optional): Field-specific configuration data
 - `documentData` (Json, optional): Document-specific configuration data
 - `formData` (Json, optional): Form-specific configuration data
 - `createdAt` (DateTime, required): Creation timestamp
 - `updatedAt` (DateTime, required): Last modification timestamp
 - `disabled` (Boolean, required): Whether requirement is currently active
+
+**fieldKey Details:**
+- **Required:** NOT NULL, unique across all DSXRequirement records
+- **Immutable:** Never changes after creation, even when the field label is updated
+- **Format:** camelCase string generated from the original field label
+- **Usage:** Used as the storage key in the `orders.subject` JSON column
+- **Generation:** Created by `generateFieldKey()` function with collision detection
+- **Examples:**
+  - "First Name" → "firstName"
+  - "Date of Birth (DOB)" → "dateOfBirthDob"
+  - "Mother's Maiden Name" → "mothersMaidenName"
+  - "Postal Code" → "postalCode"
 
 **Relationships:**
 - Has many `DSXMapping`, `ServiceRequirement`
