@@ -64,47 +64,38 @@ export async function POST(
       );
     }
 
-    // Step 5: Fetch the order item to verify it exists and get parent order
+    // Step 5: Fetch the order item with parent order in a single query
     const orderItem = await prisma.orderItem.findUnique({
       where: { id: orderItemId },
       select: {
         id: true,
-        orderId: true,
+        order: {
+          select: {
+            id: true,
+            customerId: true,
+          },
+        },
       },
     });
 
-    // Step 6: Check if order item exists
+    // Step 6: Check if order item exists (and by extension, the parent order)
     if (!orderItem) {
       return NextResponse.json({ error: 'Order item not found' }, { status: 404 });
     }
 
-    // Step 7: Fetch the parent order to check ownership
-    const order = await prisma.order.findUnique({
-      where: { id: orderItem.orderId },
-      select: {
-        id: true,
-        customerId: true,
-      },
-    });
-
-    // Step 8: Check if parent order exists
-    if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    // Step 9: Check if customer can view this order item (customer-scoping)
-    if (order.customerId !== session.user.customerId) {
+    // Step 7: Check if customer can view this order item (customer-scoping)
+    if (orderItem.order.customerId !== session.user.customerId) {
       logger.warn('Customer attempted to record view for item from different customer order', {
         userId: session.user.id,
         userCustomerId: session.user.customerId,
-        orderCustomerId: order.customerId,
+        orderCustomerId: orderItem.order.customerId,
         orderItemId,
-        orderId: order.id
+        orderId: orderItem.order.id
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Step 10: Create or update the order item view record using upsert
+    // Step 8: Create or update the order item view record using upsert
     const now = new Date();
     const orderItemView = await prisma.orderItemView.upsert({
       where: {
@@ -126,7 +117,7 @@ export async function POST(
     logger.info('Order item view recorded successfully', {
       userId: session.user.id,
       orderItemId,
-      orderId: order.id,
+      orderId: orderItem.order.id,
       viewId: orderItemView.id,
       isUpdate: orderItemView.createdAt.getTime() !== orderItemView.updatedAt.getTime()
     });

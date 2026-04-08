@@ -140,9 +140,9 @@ describe('GET /api/orders/[id]/views', () => {
         id: 'view-456',
         userId: 'customer-123',
         orderId: 'order-123',
-        lastViewedAt: new Date('2026-04-08T10:00:00Z'),
-        createdAt: new Date('2026-04-01T10:00:00Z'),
-        updatedAt: new Date('2026-04-08T10:00:00Z'),
+        lastViewedAt: '2026-04-08T10:00:00.000Z',
+        createdAt: '2026-04-01T10:00:00.000Z',
+        updatedAt: '2026-04-08T10:00:00.000Z',
       };
       (prisma.orderView.findUnique as any).mockResolvedValue(mockOrderView);
 
@@ -157,17 +157,17 @@ describe('GET /api/orders/[id]/views', () => {
           id: 'item-view-1',
           userId: 'customer-123',
           orderItemId: 'item-1',
-          lastViewedAt: new Date('2026-04-07T14:30:00Z'),
-          createdAt: new Date('2026-04-01T10:00:00Z'),
-          updatedAt: new Date('2026-04-07T14:30:00Z'),
+          lastViewedAt: '2026-04-07T14:30:00.000Z',
+          createdAt: '2026-04-01T10:00:00.000Z',
+          updatedAt: '2026-04-07T14:30:00.000Z',
         },
         {
           id: 'item-view-2',
           userId: 'customer-123',
           orderItemId: 'item-2',
-          lastViewedAt: new Date('2026-04-08T09:15:00Z'),
-          createdAt: new Date('2026-04-02T11:00:00Z'),
-          updatedAt: new Date('2026-04-08T09:15:00Z'),
+          lastViewedAt: '2026-04-08T09:15:00.000Z',
+          createdAt: '2026-04-02T11:00:00.000Z',
+          updatedAt: '2026-04-08T09:15:00.000Z',
         },
       ];
       (prisma.orderItemView.findMany as any).mockResolvedValue(mockItemViews);
@@ -249,9 +249,9 @@ describe('GET /api/orders/[id]/views', () => {
         id: 'view-456',
         userId: 'customer-123',
         orderId: 'order-123',
-        lastViewedAt: new Date('2026-04-08T10:00:00Z'),
-        createdAt: new Date('2026-04-01T10:00:00Z'),
-        updatedAt: new Date('2026-04-08T10:00:00Z'),
+        lastViewedAt: '2026-04-08T10:00:00.000Z',
+        createdAt: '2026-04-01T10:00:00.000Z',
+        updatedAt: '2026-04-08T10:00:00.000Z',
       };
       (prisma.orderView.findUnique as any).mockResolvedValue(mockOrderView);
 
@@ -379,9 +379,9 @@ describe('GET /api/orders/[id]/views', () => {
         id: 'view-456',
         userId: 'customer-123',
         orderId: 'order-123',
-        lastViewedAt: new Date('2026-04-08T10:00:00Z'),
-        createdAt: new Date('2026-04-01T10:00:00Z'),
-        updatedAt: new Date('2026-04-08T10:00:00Z'),
+        lastViewedAt: '2026-04-08T10:00:00.000Z',
+        createdAt: '2026-04-01T10:00:00.000Z',
+        updatedAt: '2026-04-08T10:00:00.000Z',
       };
       (prisma.orderView.findUnique as any).mockResolvedValue(mockOrderView);
 
@@ -432,7 +432,7 @@ describe('GET /api/orders/[id]/views', () => {
         id: 'view-456',
         userId: 'customer-123',
         orderId: 'order-123',
-        lastViewedAt: new Date('2026-04-08T10:00:00Z'),
+        lastViewedAt: '2026-04-08T10:00:00.000Z',
       };
       (prisma.orderView.findUnique as any).mockResolvedValue(mockOrderView);
 
@@ -446,7 +446,7 @@ describe('GET /api/orders/[id]/views', () => {
           id: 'item-view-1',
           userId: 'customer-123',
           orderItemId: 'item-1',
-          lastViewedAt: new Date('2026-04-07T14:30:00Z'),
+          lastViewedAt: '2026-04-07T14:30:00.000Z',
         },
       ];
       (prisma.orderItemView.findMany as any).mockResolvedValue(mockItemViews);
@@ -503,7 +503,7 @@ describe('GET /api/orders/[id]/views', () => {
         id: 'view-456',
         userId: 'customer-123',
         orderId: 'order-123',
-        lastViewedAt: new Date('2026-04-08T10:00:00Z'),
+        lastViewedAt: '2026-04-08T10:00:00.000Z',
       };
       (prisma.orderView.findUnique as any).mockResolvedValue(mockOrderView);
 
@@ -605,7 +605,7 @@ describe('GET /api/orders/[id]/views', () => {
         id: 'view-456',
         userId: 'customer-123',
         orderId: 'order-123',
-        lastViewedAt: new Date('2026-04-08T10:00:00Z'),
+        lastViewedAt: '2026-04-08T10:00:00.000Z',
       };
       (prisma.orderView.findUnique as any).mockResolvedValue(mockOrderView);
 
