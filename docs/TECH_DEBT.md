@@ -22,6 +22,26 @@ handled during a future pass on the affected area.
 
 ---
 
+### TD-003 — Order View Tracking — concurrent update e2e test
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Order View Tracking API                    |
+| Severity    | Low                                         |
+| Identified  | April 8, 2026 - Phase 2A Test Writing      |
+| Identified by | Test Writer                               |
+
+**Description:**
+Spec edge case #6 (race condition with multiple tabs) is enforced by the database unique constraint on (userId, orderId) / (userId, orderItemId) plus Prisma's upsert, but is not covered by an end-to-end test. The behavior is guaranteed by the database layer and was deliberately not tested at the API route unit level (mocked Prisma cannot exercise real concurrency).
+
+**Why deferred:**
+The unique constraint and upsert guarantee correct behavior. Testing real concurrency requires actual database operations, not mocked ones. Deferred from Phase 2A to keep the phase scoped to API behavior.
+
+**When to fix:**
+Add an e2e test that fires two simultaneous POSTs to the same view endpoint and asserts exactly one row exists with the later lastViewedAt timestamp.
+
+---
+
 ### TD-002 — Address Block JSON Parsing Missing in Order Validation Service
 
 | Field       | Detail                                      |

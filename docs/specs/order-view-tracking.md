@@ -2,7 +2,7 @@
 **Spec file:** `docs/specs/order-view-tracking.md`
 **Date:** 2026-04-07
 **Requested by:** Andy
-**Status:** Draft
+**Status:** Confirmed
 
 ## Summary
 This feature tracks when customer users view orders and individual order items, storing the last viewed timestamp for each user-order and user-order-item combination. This data will be used to show users what's "new" since their last visit using visual indicators like red dots, helping them quickly identify which orders or items need their attention.
