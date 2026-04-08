@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
 
 /**
@@ -42,6 +43,8 @@ export async function GET(
 
     // Step 2: Check if user is a customer - skip for non-customers
     // This must happen BEFORE any database queries per the spec
+    // WHY: Admin/vendor users on stale URLs shouldn't get 404s when the order
+    // exists but belongs to a different customer - they should get graceful skips
     if (session.user.userType !== 'customer') {
       // Admin and vendor users don't have view tracking
       return NextResponse.json({ skipped: true }, { status: 200 });
@@ -100,13 +103,16 @@ export async function GET(
     });
 
     // Step 9: Fetch all order items for this order to get their IDs
+    // WHY: We need the item IDs to query for view tracking data for those specific items
     const orderItems = await prisma.orderItem.findMany({
       where: { orderId: orderId },
       select: { id: true },
     });
 
     // Step 10: Fetch item view records only if there are items
-    let itemViews: any[] = [];
+    // WHY: Frontend needs both order and item view data in a single response to
+    // populate all 'new' indicators without N+1 queries during page load
+    let itemViews: Prisma.OrderItemViewGetPayload<{}>[] = [];
     if (orderItems.length > 0) {
       const orderItemIds = orderItems.map(item => item.id);
       itemViews = await prisma.orderItemView.findMany({

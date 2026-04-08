@@ -603,6 +603,44 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - Belongs to `Order` via `orderId` (one-to-one)
 - Belongs to `User` via `lockedBy`
 
+### OrderView
+**Model:** `OrderView`
+**Table:** `order_views`
+**Status:** ACTIVE
+**Description:** Tracks when customer users view orders for displaying "new" indicators. Only customer users have their views tracked - admin and vendor users are not tracked.
+
+**Columns:**
+- `id` (String, required): UUID primary key
+- `userId` (String, required): Customer user who viewed the order
+- `orderId` (String, required): Order that was viewed
+- `lastViewedAt` (DateTime, required): When the order was last viewed by this user
+- `createdAt` (DateTime, required): When the first view was recorded
+- `updatedAt` (DateTime, required): When the view record was last updated
+
+**Relationships:**
+- Belongs to `User` via `userId`
+- Belongs to `Order` via `orderId`
+- Unique constraint on `(userId, orderId)` ensures one record per user-order combination
+
+### OrderItemView
+**Model:** `OrderItemView`
+**Table:** `order_item_views`
+**Status:** ACTIVE
+**Description:** Tracks when customer users view individual order items for displaying "new" indicators. Only customer users have their views tracked - admin and vendor users are not tracked.
+
+**Columns:**
+- `id` (String, required): UUID primary key
+- `userId` (String, required): Customer user who viewed the order item
+- `orderItemId` (String, required): Order item that was viewed
+- `lastViewedAt` (DateTime, required): When the order item was last viewed by this user
+- `createdAt` (DateTime, required): When the first view was recorded
+- `updatedAt` (DateTime, required): When the view record was last updated
+
+**Relationships:**
+- Belongs to `User` via `userId`
+- Belongs to `OrderItem` via `orderItemId`
+- Unique constraint on `(userId, orderItemId)` ensures one record per user-orderitem combination
+
 ### AddressEntry
 **Model:** `AddressEntry`
 **Table:** `address_entries`

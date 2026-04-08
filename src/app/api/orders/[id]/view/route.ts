@@ -42,6 +42,8 @@ export async function POST(
 
     // Step 2: Check if user is a customer - skip tracking for non-customers
     // This must happen BEFORE any database queries per the spec
+    // WHY: Admin/vendor users on stale URLs shouldn't get 404s when the order
+    // exists but belongs to a different customer - they should get graceful skips
     if (session.user.userType !== 'customer') {
       // Admin and vendor users don't have their views tracked
       return NextResponse.json({ skipped: true }, { status: 200 });

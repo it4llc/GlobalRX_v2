@@ -42,6 +42,8 @@ export async function POST(
 
     // Step 2: Check if user is a customer - skip tracking for non-customers
     // This must happen BEFORE any database queries per the spec
+    // WHY: Admin/vendor users on stale URLs shouldn't get 404s when the item
+    // exists but belongs to a different customer - they should get graceful skips
     if (session.user.userType !== 'customer') {
       // Admin and vendor users don't have their views tracked
       return NextResponse.json({ skipped: true }, { status: 200 });
@@ -65,6 +67,9 @@ export async function POST(
     }
 
     // Step 5: Fetch the order item with parent order in a single query
+    // WHY: Use single Prisma query with nested include to get both item and
+    // order ownership info together, consistent with orders route pattern,
+    // fewer database round trips, and easier to mock in tests
     const orderItem = await prisma.orderItem.findUnique({
       where: { id: orderItemId },
       select: {
