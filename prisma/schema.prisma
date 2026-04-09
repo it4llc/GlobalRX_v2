@@ -47,6 +47,8 @@ model User {
   workflowsUpdated       Workflow[]            @relation("WorkflowUpdatedBy")
   orderLocks             OrderLock[]
   orderItemsUpdated      OrderItem[]           @relation("OrderItemUpdatedBy")
+  orderViews             OrderView[]
+  orderItemViews         OrderItemView[]
 
   @@index([customerId])
   @@index([vendorId])
@@ -339,6 +341,7 @@ model Order {
   user                User                  @relation(fields: [userId], references: [id])
   servicesFulfillment ServicesFulfillment[]
   lock                OrderLock?
+  orderViews          OrderView[]
 
   @@index([customerId])
   @@index([statusCode])
@@ -382,6 +385,7 @@ model OrderItem {
   updatedBy          User?                @relation("OrderItemUpdatedBy", fields: [updatedById], references: [id])
   comments           ServiceComment[]
   serviceFulfillment ServicesFulfillment?
+  orderItemViews     OrderItemView[]
 
   @@index([orderId])
   @@map("order_items")
@@ -627,4 +631,38 @@ model ServiceAttachment {
   @@index([serviceFulfillmentId])
   @@index([uploadedAt])
   @@map("service_attachments")
+}
+
+model OrderView {
+  id           String   @id @default(uuid())
+  userId       String
+  orderId      String
+  lastViewedAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orderId])
+  @@index([userId])
+  @@index([orderId])
+  @@map("order_views")
+}
+
+model OrderItemView {
+  id           String    @id @default(uuid())
+  userId       String
+  orderItemId  String
+  lastViewedAt DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orderItemId])
+  @@index([userId])
+  @@index([orderItemId])
+  @@map("order_item_views")
 }

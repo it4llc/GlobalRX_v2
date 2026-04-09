@@ -97,7 +97,7 @@ Determine what needs to be updated:
 
 ### Step 4: Update the coding standards if needed
 
-Read `docs/standards/CODING_STANDARDS.md`.
+Read `docs/CODING_STANDARDS.md`.
 
 If this feature established a new pattern that doesn't yet exist in the standards, add it. Examples of things that might warrant a standards update:
 - A new component type with specific usage rules

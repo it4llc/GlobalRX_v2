@@ -55,7 +55,7 @@ Look for hidden complexity — things that sound simple but require multiple cha
 Before assessing scope, use your tools to understand what already exists:
 - Read `prisma/schema.prisma` to understand the current data model
 - Find and read existing files related to the request
-- Read `docs/standards/CODING_STANDARDS.md` to understand what each change involves
+- Read `docs/CODING_STANDARDS.md` to understand what each change involves
 
 ### Step 3: Assess the scope
 Ask yourself:

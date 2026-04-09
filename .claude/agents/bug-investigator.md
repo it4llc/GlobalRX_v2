@@ -33,7 +33,7 @@ The full test suite has failing tests and they need to be understood and grouped
 - `/src/lib/` — utilities, auth, prisma client
 - `/src/types/` — TypeScript type definitions
 - `/prisma/schema.prisma` — database schema
-- `docs/standards/CODING_STANDARDS.md` — coding rules
+- `docs/CODING_STANDARDS.md` — coding rules
 
 ---
 

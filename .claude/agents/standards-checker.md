@@ -137,7 +137,7 @@ For each API route file changed:
 # Standards Compliance Report: [Feature Name]
 **Checked by:** Standards Checker Agent
 **Date:** [today's date]
-**Standards document version:** `docs/standards/CODING_STANDARDS.md`
+**Standards document version:** `docs/CODING_STANDARDS.md`
 
 ## Files Checked
 [List each file]
@@ -214,10 +214,10 @@ grep -rn "@ts-ignore\|@ts-expect-error" src/ --include="*.ts" --include="*.tsx"
 Count the total. Then check whether each one is documented:
 
 ```bash
-cat docs/standards/ts-suppressions.md
+cat docs/ts-suppressions.md
 ```
 
-If `docs/standards/ts-suppressions.md` does not exist, that is a violation — it must be created if any suppressions were added.
+If `docs/ts-suppressions.md` does not exist, that is a violation — it must be created if any suppressions were added.
 
 For each suppression found in the code:
 - Is it listed in `ts-suppressions.md` with a written justification?
@@ -271,7 +271,7 @@ Total `@ts-ignore` / `@ts-expect-error` in codebase: [exact count from terminal]
 Maximum allowed: 100
 
 For each suppression:
-- [ ] Listed in `docs/standards/ts-suppressions.md` with written justification
+- [ ] Listed in `docs/ts-suppressions.md` with written justification
 - [ ] Not just silencing a valid error that should be fixed properly
 
 Undocumented suppressions found: [n]
