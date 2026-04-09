@@ -263,4 +263,4 @@ See `/docs/planning/fulfillment-feature-phases.md` for complete roadmap.
 
 ## Support
 
-For issues or questions about this feature, contact the development team or refer to the GlobalRx coding standards at `/docs/standards/CODING_STANDARDS.md`.
+For issues or questions about this feature, contact the development team or refer to the GlobalRx coding standards at `/docs/CODING_STANDARDS.md`.

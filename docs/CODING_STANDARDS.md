@@ -1,4 +1,4 @@
-# /GlobalRX_v2/docs/standards/CODING_STANDARDS.md
+# /GlobalRX_v2/docs/CODING_STANDARDS.md
 # GlobalRx Platform — Coding Standards & Conventions
 
 ---
