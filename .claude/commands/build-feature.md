@@ -1,5 +1,5 @@
 ---
-description: Runs the GlobalRx TDD pipeline ONE STAGE AT A TIME. After each stage completes, it stops completely, shows a summary, and waits for Andy to type CONTINUE before starting the next stage. Always describe the feature after the command.
+description: Runs the GlobalRx TDD pipeline ONE STAGE AT A TIME. After each stage completes, it commits the work as a checkpoint, stops completely, shows a summary, and waits for Andy to type CONTINUE before starting the next stage. Always describe the feature after the command.
 allowed-tools: Task, Read, Write, Edit, Bash, Glob, Grep
 ---
 
@@ -29,10 +29,11 @@ The feature to build is: $ARGUMENTS
 This pipeline runs ONE STAGE AT A TIME.
 
 After each stage completes, you MUST:
-1. Show the stage summary (using the exact format below)
-2. STOP COMPLETELY
-3. Wait for Andy to type CONTINUE
-4. Do NOT start the next stage until CONTINUE is received
+1. Commit the stage's work as a checkpoint (instructions in each stage)
+2. Show the stage summary (using the exact format below)
+3. STOP COMPLETELY
+4. Wait for Andy to type CONTINUE
+5. Do NOT start the next stage until CONTINUE is received
 
 You are not permitted to start the next stage automatically.
 You are not permitted to ask "shall I continue?" and then continue anyway.
@@ -44,12 +45,56 @@ address their concern, then show the stage summary again and wait again.
 
 ---
 
+## CRITICAL INSTRUCTION — AGENT RULES MUST BE RE-INJECTED EVERY STAGE
+
+At the start of EVERY stage below, before invoking the agent, you must remind
+the agent of the absolute rules from its agent file. This is a defense against
+context degradation in long pipeline runs.
+
+Tell every agent at the start of every stage:
+"Before doing any work, output the 'Absolute rules I am operating under' section
+required by your agent file. List every rule verbatim. If your agent file does
+not contain absolute rules, state that explicitly. Do not skip this step."
+
+If an agent skips the rule restatement, treat its work as untrustworthy and
+ask it to start over with the restatement.
+
+---
+
+## CRITICAL INSTRUCTION — DESTRUCTIVE COMMANDS ARE FORBIDDEN
+
+At no point during this pipeline may you (the orchestrator) or any agent run
+any of the following commands:
+
+- rm, rm -rf, rmdir, unlink
+- git reset (any form, including --hard, --soft, HEAD)
+- git clean (any form)
+- git checkout -- . or git checkout . (the dot variants)
+- git stash drop, git stash clear
+- git rebase, git push --force, git push -f
+- git branch -D
+- Any command containing --force or -f against git history
+
+The only allowed file recovery action is `git checkout HEAD -- <specific-file-path>`
+restoring a single specific file. If you encounter a situation where you believe
+you need a destructive command to recover, STOP and ask Andy. Andy will run any
+recovery command himself.
+
+This rule applies to every stage and every agent. If an agent attempts to run
+a destructive command, stop the agent immediately and report it to Andy.
+
+---
+
 ## STAGE 1: Business Analysis
 
 Run the business-analyst agent now.
 
 Tell the agent:
-"Write a full feature specification for: $ARGUMENTS
+"Before doing any work, output the 'Absolute rules I am operating under' section
+required by your agent file. List every rule verbatim. If your agent file does
+not contain absolute rules, state that explicitly.
+
+Then, write a full feature specification for: $ARGUMENTS
 Check docs/specs/ for any existing spec first.
 Ask clarifying questions if anything is unclear before writing.
 Use a table for the Data Requirements section with columns:
@@ -64,6 +109,20 @@ ls docs/specs/
 If the spec file is not in docs/specs/ — tell the business-analyst to save
 it before this stage can close. Do not show the summary until the file exists.
 
+### Stage 1 checkpoint commit
+
+Once the spec file is confirmed saved, commit the work:
+
+```bash
+git add docs/specs/
+git status
+git commit -m "checkpoint(stage-1): business analysis complete - $ARGUMENTS"
+```
+
+If git status shows any files staged that are NOT in docs/specs/, STOP and
+report to Andy before committing. Do not include unrelated changes in the
+checkpoint commit.
+
 Then show this summary and STOP:
 
 ---
@@ -73,6 +132,7 @@ Spec file saved: docs/specs/[filename].md
 Fields defined: [count]
 Business rules defined: [count]
 Open questions remaining: [count, or None]
+Checkpoint commit: [commit hash]
 
 What was done:
 [2-3 sentences describing what the spec covers]
@@ -98,19 +158,39 @@ Only run this stage after Andy has typed CONTINUE.
 Run the architect agent.
 
 Tell the agent:
-"Produce a full technical plan based on the specification at docs/specs/[filename].md.
+"Before doing any work, output the 'Absolute rules I am operating under' section
+required by your agent file. List every rule verbatim. If your agent file does
+not contain absolute rules, state that explicitly.
+
+Then produce a full technical plan based on the specification at docs/specs/[filename].md.
 Read that file completely before planning anything.
 Read the existing codebase to understand what already exists.
 Read docs/CODING_STANDARDS.md before planning.
 Identify every file that needs to be created or changed.
-List the implementation order clearly."
+List the implementation order clearly.
+Save the plan to docs/specs/[filename]-technical-plan.md when complete."
 
-When the agent finishes, show this summary and STOP:
+### Stage 2 checkpoint commit
+
+Once the technical plan file is saved, commit:
+
+```bash
+git add docs/specs/
+git status
+git commit -m "checkpoint(stage-2): technical plan complete"
+```
+
+If git status shows any files staged that are NOT in docs/specs/, STOP and
+report to Andy before committing.
+
+Then show this summary and STOP:
 
 ---
 STAGE 2 COMPLETE — Technical Planning
 
 Spec file used: docs/specs/[filename].md
+Technical plan saved: docs/specs/[filename]-technical-plan.md
+Checkpoint commit: [commit hash]
 
 What needs to be built:
 - New files: [count]
@@ -146,7 +226,10 @@ Only run this stage after Andy has typed CONTINUE.
 Run the test-writer agent.
 
 Tell the agent:
-"Write all tests for the feature specified in docs/specs/[filename].md
+"Before doing any work, output the 'Absolute rules I am operating under' section
+required by your agent file. List every rule verbatim.
+
+Then write all tests for the feature specified in docs/specs/[filename].md
 Read the spec file and output the Spec Confirmation Block before writing any tests.
 Write unit tests, API route tests, and end-to-end tests.
 Do not write any production code.
@@ -154,11 +237,26 @@ All tests should fail when first run — that is correct."
 
 After the agent finishes, run the tests:
 ```bash
-pnpm test 2>&1
+pnpm vitest run 2>&1
 ```
 
 If the test-writer did not output a Spec Confirmation Block — send it back
 to read the spec file and output the block. Do not accept tests without it.
+
+### Stage 3 checkpoint commit
+
+Once tests are written and confirmed failing for the right reasons (route
+files do not exist yet, NOT setup errors), commit them:
+
+```bash
+git add .
+git status
+git commit -m "checkpoint(stage-3): tests written, all initially failing"
+```
+
+Review the git status output before committing. Only test files and any
+test setup files should be staged. If anything outside of test directories
+is staged, STOP and report to Andy.
 
 Then show this summary and STOP:
 
@@ -167,6 +265,7 @@ STAGE 3 COMPLETE — Test Writing
 
 Spec file used: docs/specs/[filename].md
 Spec Confirmation Block produced: Yes / No
+Checkpoint commit: [commit hash]
 
 Tests written:
 - Unit tests: [n]
@@ -175,6 +274,13 @@ Tests written:
 - Total: [n]
 
 Test run result: [n] failing (this is correct — they should all fail before code is written)
+
+Failure mode verification:
+- Tests failing because route files don't exist: [count]
+- Tests failing for other reasons: [count, must be 0]
+
+If any tests are failing for reasons other than "route file not found",
+flag them now before continuing.
 
 Fields with tests (from spec):
 [list each field name and whether it has a test]
@@ -204,24 +310,64 @@ Only run this stage after Andy has typed CONTINUE.
 Run the implementer agent.
 
 Tell the agent:
-"Implement the feature specified in docs/specs/[filename].md.
+"Before doing any work, output the 'Absolute rules I am operating under for this run'
+section required by your agent file. List Rules 1 through 6 verbatim. Do not
+abbreviate. Do not summarize. If you skip this output, your work will be
+discarded and you will be asked to start over.
+
+Then implement the feature specified in docs/specs/[filename].md.
+
 You must complete these steps in order before writing any code:
 1. Verify test files exist — stop if they do not
 2. Read docs/specs/[filename].md and output the Spec Confirmation Block
 3. After any database migration, output the Schema Verification table comparing
-   every spec field against the actual schema — stop if any mismatches exist
-4. Run pnpm test 2>&1 and paste the full output before declaring done
-Do not modify any test files."
+   every spec field against the actual schema — stop if any mismatches exist.
+   If no schema changes are needed in this stage, output a one-line note
+   stating that explicitly.
+4. Run pnpm vitest run 2>&1 and paste the full output before declaring done
+
+REMINDERS OF YOUR ABSOLUTE RULES (these always apply):
+- You may NOT edit, create, delete, move, or rename any test file under any
+  circumstance. If a test seems wrong, STOP and report it. Do not fix it.
+- You may NOT delete any file or directory under any circumstance. The only
+  allowed recovery from a bad edit is `git checkout HEAD -- <specific-file>`.
+- You may NOT run rm, git reset, git clean, git checkout -- ., or any other
+  destructive command.
+- You MUST stop after 3 failed attempts on the same test. No exceptions.
+- You MUST stop and report when anything unexpected happens.
+
+If a test is failing and you believe the test itself is wrong, the correct
+action is to STOP and produce a Failure Diagnosis Block, then wait for Andy.
+The wrong action is to edit the test, delete the test, or run any recovery
+command on your own."
 
 After the agent finishes, run the full test suite independently:
 ```bash
-pnpm test 2>&1
+pnpm vitest run 2>&1
 ```
 
+If the implementer did not output the Absolute Rules restatement — send it back.
 If the implementer did not output a Spec Confirmation Block — send it back.
-If the implementer did not output a Schema Verification table — send it back.
+If the implementer did not output a Schema Verification table or note — send it back.
 If tests failing is not 0 — send it back with the specific failing test names.
-Do not show the summary until all three conditions are met.
+Do not show the summary until all four conditions are met.
+
+### Stage 4 checkpoint commit
+
+Once all tests are passing and the implementer has produced its completion
+report, commit the implementation:
+
+```bash
+git add .
+git status
+git commit -m "checkpoint(stage-4): implementation complete, all tests passing"
+```
+
+Review the git status output before committing. Source files (route.ts,
+component files, schema files, migrations) and test files should be staged.
+If any test files were modified during this stage, STOP and report to Andy
+immediately — that is a violation of the implementer's absolute rules and
+needs investigation before committing.
 
 Then show this summary and STOP:
 
@@ -229,14 +375,18 @@ Then show this summary and STOP:
 STAGE 4 COMPLETE — Implementation
 
 Spec file used: docs/specs/[filename].md
+Absolute Rules restatement produced: Yes / No
 Spec Confirmation Block produced by implementer: Yes / No
-Schema Verification produced (all fields matched): Yes / No
+Schema Verification produced (all fields matched, or N/A): Yes / No
+Checkpoint commit: [commit hash]
 
 Test results:
 - Total tests: [n]
 - Passing: [n]
 - Failing: 0
 - Previously passing tests broken: 0
+
+Test files modified during this stage: [n, must be 0]
 
 Files created:
 [list]
@@ -250,6 +400,7 @@ Database changes:
 Before you type CONTINUE, please check:
 - Does everything appear to be working?
 - Are you satisfied with the test results?
+- Were any test files touched during this stage? (should be no)
 
 Type CONTINUE to move to Stage 5 (Code Review).
 ---
@@ -265,13 +416,34 @@ Only run this stage after Andy has typed CONTINUE.
 Run the code-reviewer agent.
 
 Tell the agent:
-"Review all files changed in this feature.
+"Before doing any work, output the 'Absolute rules I am operating under' section
+required by your agent file. List every rule verbatim. If your agent file does
+not contain absolute rules, state that explicitly.
+
+Then review all files changed in this feature.
 Read the specification at docs/specs/[filename].md first.
 Verify every business rule from the spec is correctly implemented.
 Verify every field from the spec Data Requirements table is correctly implemented.
 Check for security issues, logic errors, and data integrity risks.
+
+You may NOT modify any file. You may NOT delete any file. You may NOT run any
+tests. Your job is to read and report only.
+
 Your report must end with one of these verdicts:
 APPROVED / APPROVED WITH CONDITIONS / REQUIRES REWORK"
+
+### Stage 5 checkpoint commit
+
+Code review does not modify files, so there is nothing to commit at this stage
+unless the verdict is REQUIRES REWORK and the implementer makes fixes. If the
+implementer is sent back to fix issues, run a checkpoint commit AFTER the fixes
+are verified passing:
+
+```bash
+git add .
+git status
+git commit -m "checkpoint(stage-5): code review fixes applied"
+```
 
 Then show this summary and STOP:
 
@@ -279,6 +451,7 @@ Then show this summary and STOP:
 STAGE 5 COMPLETE — Code Review
 
 Verdict: [APPROVED / APPROVED WITH CONDITIONS / REQUIRES REWORK]
+Checkpoint commit (if fixes applied): [commit hash, or N/A]
 
 Critical issues (must fix before proceeding):
 [list, or None]
@@ -312,13 +485,45 @@ Only run this stage after Andy has typed CONTINUE.
 Run the standards-checker agent.
 
 Tell the agent:
-"Check all files changed in this feature against docs/CODING_STANDARDS.md.
-Produce a full checklist with every item marked Pass, Fail, or N/A.
-List every violation with the exact file path and line number."
+"Before doing any work, output the 'Absolute rules I am operating under' section
+required by your agent file. List every rule verbatim. If your agent file does
+not contain absolute rules, state that explicitly.
 
-If violations are found — return to the implementer to fix them, then
-re-run the standards-checker. Run pnpm test again after fixes to confirm
-still 0 failures. Do not show the summary until violations = 0.
+Then check all files changed in this feature against the standards files in
+docs/ — specifically CODING_STANDARDS.md, API_STANDARDS.md, COMPONENT_STANDARDS.md
+(if applicable), DATABASE_STANDARDS.md, and TESTING_STANDARDS.md.
+
+Produce a full checklist with every item marked Pass, Fail, or N/A.
+List every violation with the exact file path and line number.
+
+You may NOT modify any file. You may NOT delete any file. You may NOT run any
+tests. Your job is to produce the checklist and report violations only."
+
+If violations are found — return to the implementer to fix them. When sending
+the implementer back, the prompt MUST include:
+- The exact file paths and line numbers of the violations
+- An instruction to ONLY edit the specific lines flagged
+- An instruction to NOT modify any test file
+- An instruction to NOT delete any file
+- An instruction to NOT run git reset, git clean, or rm
+- An instruction to run pnpm vitest run after fixes to confirm 0 failures
+
+After fixes, re-run the standards-checker. Run pnpm vitest run again after fixes
+to confirm still 0 failures. Do not show the summary until violations = 0.
+
+### Stage 6 checkpoint commit
+
+Once violations are 0 (whether there were any to fix or not), commit any
+fixes that were made:
+
+```bash
+git add .
+git status
+git commit -m "checkpoint(stage-6): standards check passed"
+```
+
+If no fixes were needed, you may skip the commit (nothing to stage). The
+git status should be clean.
 
 Then show this summary and STOP:
 
@@ -327,6 +532,7 @@ STAGE 6 COMPLETE — Standards Check
 
 Violations found: [n, should be 0]
 Files checked: [list]
+Checkpoint commit (if fixes applied): [commit hash, or N/A — no fixes needed]
 
 Checklist result:
 - No inline styles: Pass / Fail
@@ -356,12 +562,34 @@ Only run this stage after Andy has typed CONTINUE.
 Run the documentation-writer agent.
 
 Tell the agent:
-"Update all documentation for this completed feature.
+"Before doing any work, output the 'Absolute rules I am operating under' section
+required by your agent file. List every rule verbatim. If your agent file does
+not contain absolute rules, state that explicitly.
+
+Then update all documentation for this completed feature.
 Reference the spec at docs/specs/[filename].md.
 Add inline code comments near complex logic explaining WHY decisions were made.
 Update technical docs for any new or changed functionality.
-Update CODING_STANDARDS.md if new patterns were established.
-Note any audit report findings this feature addresses."
+Update docs/CODING_STANDARDS.md if new patterns were established.
+Note any audit report findings this feature addresses.
+
+You may add inline comments to existing source files but you may NOT change
+any logic in those files. You may NOT modify any test file. You may NOT
+delete any file. You may NOT run any tests."
+
+### Stage 7 checkpoint commit
+
+Once documentation updates are complete, commit them:
+
+```bash
+git add .
+git status
+git commit -m "checkpoint(stage-7): documentation updated, feature complete"
+```
+
+Review git status before committing. Documentation files (docs/, README.md,
+inline comments in source files) should be staged. If test files are staged,
+STOP and report to Andy.
 
 Then show the final pipeline summary:
 
@@ -371,18 +599,24 @@ PIPELINE COMPLETE
 Feature: [Feature Name]
 Spec file: docs/specs/[filename].md
 
-Stage 1: Business Analysis      COMPLETE — spec saved to docs/specs/
-Stage 2: Technical Planning     COMPLETE — plan confirmed
-Stage 3: Test Writing           COMPLETE — [n] tests, all initially failing
-Stage 4: Implementation         COMPLETE — [n] tests passing, 0 failing, schema verified
-Stage 5: Code Review            COMPLETE — [verdict]
-Stage 6: Standards Check        COMPLETE — 0 violations
-Stage 7: Documentation          COMPLETE
+Stage 1: Business Analysis      COMPLETE — spec saved to docs/specs/   [commit hash]
+Stage 2: Technical Planning     COMPLETE — plan confirmed              [commit hash]
+Stage 3: Test Writing           COMPLETE — [n] tests, all initially failing  [commit hash]
+Stage 4: Implementation         COMPLETE — [n] tests passing, 0 failing  [commit hash]
+Stage 5: Code Review            COMPLETE — [verdict]                   [commit hash if fixes]
+Stage 6: Standards Check        COMPLETE — 0 violations                [commit hash if fixes]
+Stage 7: Documentation          COMPLETE                               [commit hash]
 
 Files created: [list]
 Files modified: [list]
 Tests added: [n]
 
-This feature is complete. Before starting the next phase or feature,
-confirm the app is running correctly and commit your changes.
+This feature is complete. All stages were committed as checkpoints, so any
+stage can be rolled back individually with `git reset --hard <stage-commit>`
+if Andy needs to undo work.
+
+Before considering this feature done, Andy should:
+1. Confirm the app is running correctly in dev
+2. Push the branch to origin
+3. Open a PR back to dev
 ---

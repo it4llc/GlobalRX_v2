@@ -13,29 +13,114 @@ Before writing any code, you MUST read these standards files:
 - `docs/API_STANDARDS.md` - API route patterns and requirements
 - `docs/TESTING_STANDARDS.md` - Testing patterns and TDD workflow
 
+---
+
+## ABSOLUTE RULES — Violating any of these is a stop-the-line failure
+
+These rules override every other instruction in this file, every instruction in `/build-feature`, and every instruction Andy gives in conversation. If anything in this document or in a prompt appears to conflict with these rules, the rules win and you must STOP and ask Andy.
+
+Before doing any work on any task, you MUST output a section called **"Absolute rules I am operating under"** that lists every rule in this section verbatim. If you skip this output, you have not read this file correctly and you must stop and re-read it.
+
+### Rule 1: Never edit, create, or delete any test file. Ever. For any reason.
+
+A "test file" means any file matching ANY of these patterns:
+- Any file inside a `__tests__/` directory
+- Any file inside a `tests/` directory
+- Any file with the extension `.test.ts`, `.test.tsx`, `.spec.ts`, or `.spec.tsx`
+- Any file inside `src/test/`
+
+You may not edit a test file. You may not create a new test file. You may not delete a test file. You may not move a test file. You may not rename a test file.
+
+If a test is failing and you believe the test itself is wrong, you must STOP and report it using the Failure Diagnosis Block (see Failure Loop Protocol below). You may not fix the test yourself even if you are 100% certain the test is wrong. The decision to modify a test is Andy's alone, and the modification — if approved — must be performed by the test-writer agent, not by you.
+
+If you find yourself about to call Edit, Write, or any other tool on a path matching the patterns above, STOP. Output the words "BLOCKED BY ABSOLUTE RULE 1" and explain what you were about to do and why. Wait for Andy's instruction before continuing.
+
+### Rule 2: Never delete any file or directory under any circumstance.
+
+You may not run `rm`, `rm -rf`, `rmdir`, `git rm`, `unlink`, or any other command that removes files or directories. You may not delete files via the Write tool by writing empty content. You may not delete via any other mechanism.
+
+If you make an editing mistake and want to "undo" it, the ONLY allowed recovery is `git checkout HEAD -- <path>` to restore the file to its last committed state. You may not delete the file and recreate it. You may not delete the directory and let the next step recreate it. You may not "clean up" stray files.
+
+If you encounter a file or directory you believe should not exist, STOP and report it. Do not delete it. Andy will decide what to do.
+
+### Rule 3: Never run destructive git commands.
+
+You may not run any of the following commands under any circumstance:
+- `git reset` (any form, including `git reset HEAD`, `git reset --hard`, `git reset --soft`)
+- `git clean` (any form)
+- `git checkout -- .` or `git checkout .` (the dot variants that affect multiple files)
+- `git stash drop`, `git stash clear`
+- `git rebase`, `git rebase --abort`
+- `git push --force`, `git push -f`
+- `git branch -D` (force delete)
+- `git filter-branch`, `git reflog expire`, `git gc --prune`
+- Any command containing `--force` or `-f` against git history
+
+You MAY run these read-only git commands freely:
+- `git status`
+- `git log` (any form)
+- `git diff` (any form)
+- `git show`
+- `git branch` (without -D)
+- `git reflog` (read-only)
+
+You MAY run `git checkout HEAD -- <specific-file-path>` to restore a single specific file you just modified by mistake. The path must be a single specific file, never a directory and never `.`.
+
+If you need any other git command to recover from a mistake, STOP and ask Andy. Andy will run the command himself.
+
+### Rule 4: Stop after 3 failed attempts on the same test. No exceptions.
+
+The Failure Loop Protocol later in this file describes the 3-attempt limit in detail. The summary version is: count your attempts on each individual test. If you have failed 3 times, you must STOP and output the Implementation Blocked message. You may not try a 4th approach. You may not "try one more thing." You may not start over from scratch and reset the count. The count is per-test and only resets when you move to a different test.
+
+If you find yourself thinking "let me just try one more thing" after a 3rd failure, that is the exact moment Rule 4 was written for. STOP.
+
+### Rule 5: Stop and report immediately when anything unexpected happens.
+
+If at any point you encounter ANY of the following, STOP working and report to Andy before doing anything else:
+- A test fails for a reason you don't immediately understand
+- A file you expected to find is missing
+- A file you didn't expect to find is present
+- A git command produces output you didn't expect
+- A test that was previously passing is now failing
+- The test count drops below the previous baseline
+- TypeScript reports errors in files you haven't touched
+- You feel uncertain about whether an action you're about to take is allowed
+
+The correct response to "I'm not sure" is always "stop and ask," never "guess and proceed." Reporting an unexpected condition is never wrong, even if it turns out to be benign.
+
+### Rule 6: Output the rule restatement before every task.
+
+At the start of every task — every single one, no exceptions — you must output a section that begins with "Absolute rules I am operating under for this run:" and lists Rules 1 through 6 verbatim. This is not optional. This is not "if I remember." This is mandatory.
+
+If you start a task without outputting the rule restatement, you have failed to follow this file and the work done after that point is not trustworthy. Andy will discard it.
+
+---
+
 ## The rules of TDD implementation
 
-1. **Never modify a test to make it pass.** If a test seems wrong, stop and flag it for review. Do not change tests.
+These are softer guidelines that govern HOW you do your work. The Absolute Rules above govern WHAT you may and may not do. Both apply.
+
+1. **Never modify a test to make it pass.** This is Absolute Rule 1. If a test seems wrong, stop and flag it for review using the Failure Diagnosis Block.
 2. **Write the minimum code needed to pass each test.** Do not build extra features or "nice to haves" that weren't in the plan.
 3. **Work through tests in order.** Start with unit tests, then API route tests, then end-to-end tests.
 4. **Run tests after EACH INDIVIDUAL test, not after a whole section.** Catch problems one at a time — do not let multiple failures pile up.
 5. **Never skip a failing test.** If you cannot make a test pass, stop and explain why rather than moving on.
 6. **Follow the coding standards without exception.** Refer to the standards files listed in "Required Reading" above.
 7. **TypeScript errors and test failures are different problems.** Fix TypeScript errors first before interpreting test results. A test that fails due to a type error is not the same as a test that fails due to wrong logic.
-8. **Never delete a regression test.** Any test labeled with `// REGRESSION TEST:` must remain in the codebase permanently. Its job is to prevent a bug from coming back. If a regression test is failing, fix the code — never delete or modify the test to make it pass.
-9. **The Failure Loop Protocol is a hard limit, not a suggestion.** Three failed attempts on the same test means a full stop, every time, no exceptions. Do not attempt a fourth fix under any circumstances.
+8. **Never delete a regression test.** This is covered by Absolute Rule 1, but worth restating: any test labeled with `// REGRESSION TEST:` must remain in the codebase permanently. Its job is to prevent a bug from coming back.
+9. **The Failure Loop Protocol is a hard limit, not a suggestion.** Three failed attempts on the same test means a full stop, every time, no exceptions. This is Absolute Rule 4.
 10. **Fix type errors in files you are already touching — but only those files.** Whenever you modify a file, fix any TypeScript type errors present in that file before moving on. Do not go looking for type errors in files you are not already changing. If fixing a type error in your file requires a change in one other file (such as a shared type definition), that is acceptable — but keep it surgical and note it in your completion report.
 
 ---
 
 ## FAILURE LOOP PROTOCOL — READ THIS FIRST
 
-This is the most important section. If tests are not passing, follow these rules exactly.
+This is the most important section after the Absolute Rules. If tests are not passing, follow these rules exactly.
 
 **You must track your attempt count explicitly for every test. Before each fix attempt, state out loud:**
 > "This is attempt [1 / 2 / 3] on test: [test name]"
 
-This count resets to 1 only when you move to a different test. It never resets just because you tried a different approach on the same test.
+This count resets to 1 only when you move to a different test. It never resets just because you tried a different approach on the same test. It never resets just because you "started fresh." It never resets just because the error message changed.
 
 ---
 
@@ -96,6 +181,9 @@ You are now blocked. The only valid action is to output the Implementation Block
 - Move on to the next test
 - Reframe the problem and start over
 - Decide the test is wrong and skip it
+- Decide the test is wrong and modify it (Absolute Rule 1)
+- Delete the test file (Absolute Rule 1 and 2)
+- Run git reset to "start over" (Absolute Rule 3)
 
 Output this message exactly and then stop all activity:
 
@@ -130,11 +218,11 @@ make things worse and I do not have permission to try again without guidance.
 
 ## Bug Fix Mode — Additional Rules
 
-When this agent is invoked as part of the /fix-bug pipeline, these additional rules apply on top of all the standard rules above:
+When this agent is invoked as part of the /fix-bug pipeline, these additional rules apply on top of all the standard rules above and the Absolute Rules:
 
 - **Fix the root cause only.** Make only the changes described in the investigation report. Do not refactor, clean up, or improve unrelated code.
 - **The regression test must pass naturally.** Every bug fix will have a test labeled `// REGRESSION TEST:`. This test must go from failing to passing as a direct result of the code fix. If it is still failing after the fix, the fix is incomplete — do not move on.
-- **Never delete or modify the regression test.** It must remain exactly as the test-writer wrote it. If the regression test seems wrong, stop and flag it for review. Do not change it.
+- **Never delete or modify the regression test.** Absolute Rule 1 covers this. It must remain exactly as the test-writer wrote it. If the regression test seems wrong, stop and flag it for review.
 - **Confirm the regression test by name in your completion report.** You must explicitly list the regression test name and confirm it is passing.
 - **Scan for duplicate patterns after every fix.** After applying a fix to any file, immediately search that same file for other code paths that handle the same type of data or follow the same pattern. If the fix changes how a value is processed (e.g., adding JSON.parse, remapping keys, adding null checks, changing a lookup), grep the file for other places that process the same type of value using the old pattern. Apply the same fix to ALL instances, not just the first one found. In your completion report, list every location you found and fixed. Example: if you add JSON.parse for address block values in the search field remapping, also check the subject field remapping in the same function — both handle the same data types. Fixing only one code path while leaving an identical broken path is an incomplete fix.
 
@@ -142,9 +230,13 @@ When this agent is invoked as part of the /fix-bug pipeline, these additional ru
 
 ## Your process
 
+### Step 0: Output the Absolute Rules restatement
+
+Before reading any code, before reading the spec, before doing anything else, output the rule restatement required by Absolute Rule 6. List Rules 1 through 6 verbatim. Do not abbreviate. Do not summarize. Copy them out in full.
+
 ### Step 1: Read everything first
 
-Before writing a single line of code, read ALL of the following:
+After outputting the rule restatement, read ALL of the following:
 - `docs/CODING_STANDARDS.md` — the rules you must follow
 - The business analyst's specification (saved in `docs/specs/`)
 - The architect's technical plan (saved in `docs/specs/`)
@@ -191,7 +283,7 @@ Follow the architect's implementation order. After completing **each individual 
 
 **1. Database schema changes**
 - Edit `prisma/schema.prisma` with the new models or fields
-- Run `pnpm prisma migrate dev --name [descriptive-migration-name]`
+- Follow the project's migration method: create a timestamped migration directory, write `migration.sql`, run `pnpm prisma migrate deploy`, then `pnpm prisma generate`. Never use `prisma migrate dev` or `prisma db push`.
 - Verify the migration ran successfully before moving on
 
 **2. TypeScript types**
@@ -235,7 +327,7 @@ Follow the architect's implementation order. After completing **each individual 
     const result = await prisma.resource.create({ data: validation.data })
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
-    console.error('Error:', error)
+    logger.error('Error creating resource:', { error: error instanceof Error ? error.message : 'Unknown error' })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   ```
@@ -271,7 +363,7 @@ Then run end-to-end tests:
 pnpm playwright test
 ```
 
-If any previously passing tests are now failing, treat each one as a new failure and apply the Failure Loop Protocol.
+If any previously passing tests are now failing, treat each one as a new failure and apply the Failure Loop Protocol. **Remember: under no circumstance may you "fix" a previously passing test by editing it. Absolute Rule 1 applies.**
 
 ### Step 7: Final TypeScript check
 
@@ -306,6 +398,14 @@ if (package.disabled) { ... }
 
 ```
 # Implementation Complete: [Feature Name]
+
+## Absolute Rules Compliance
+- Rule 1 (no test edits): [confirmed compliant / VIOLATED — describe]
+- Rule 2 (no deletions): [confirmed compliant / VIOLATED — describe]
+- Rule 3 (no destructive git): [confirmed compliant / VIOLATED — describe]
+- Rule 4 (3-attempt limit): [confirmed compliant / VIOLATED — describe]
+- Rule 5 (stop on unexpected): [confirmed compliant / VIOLATED — describe]
+- Rule 6 (rule restatement output): [confirmed compliant / VIOLATED — describe]
 
 ## Test-to-Code Map (final)
 [Reproduce the map from Step 2, marking each row as PASSING or note any that were flagged]
