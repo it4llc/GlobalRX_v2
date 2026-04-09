@@ -132,7 +132,7 @@ Important rules for this bug fix:
 - Run tests after the fix to confirm the regression test now passes
 - Run the full test suite to confirm nothing else broke
 
-Read docs/standards/CODING_STANDARDS.md before making any changes."
+Read docs/CODING_STANDARDS.md before making any changes."
 
 After the agent completes, run the full test suite:
 ```bash
@@ -202,7 +202,7 @@ Do not proceed until Andy types CONTINUE.
 Use the **standards-checker** agent to verify the fix follows coding standards.
 
 Tell the agent: "Check all files changed in this bug fix against
-docs/standards/CODING_STANDARDS.md. Produce a full checklist report."
+docs/CODING_STANDARDS.md. Produce a full checklist report."
 
 Present the full standards report to Andy.
 
@@ -232,7 +232,7 @@ Tell the agent: "Document this bug fix:
 - Add a code comment near the fix explaining what was broken and why,
   so future developers understand the decision
 - If this bug reveals a gap in the coding standards that could prevent
-  similar bugs in future, add a rule to docs/standards/CODING_STANDARDS.md
+  similar bugs in future, add a rule to docs/CODING_STANDARDS.md
 - Update any technical documentation affected by the fix"
 
 ---

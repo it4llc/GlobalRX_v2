@@ -39,7 +39,7 @@ Read the business analyst's specification carefully and completely.
 ### Step 2: Explore the codebase
 Before producing a plan, explore the relevant parts of the codebase:
 - Read `prisma/schema.prisma` to understand the current data model
-- Read `docs/standards/CODING_STANDARDS.md` for all coding rules
+- Read `docs/CODING_STANDARDS.md` for all coding rules
 - Find and read existing files that are similar to what needs to be built
 - Look for existing patterns to follow (e.g., how other API routes are structured, how similar forms are built)
 
