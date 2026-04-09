@@ -521,26 +521,93 @@ orderBy: [
 
 ---
 
-## SECTION 10: Environment Variables
+## SECTION 10: API Error Check Sequence Standard
 
-### 10.1 No Secrets in Code
+**CRITICAL:** API route handlers must follow a consistent order of validation checks to ensure appropriate error responses and prevent unintended data exposure.
+
+**Standard Check Sequence:**
+When implementing API route handlers, perform validation checks in this exact order:
+
+1. **401 Unauthorized** - Authentication check (session exists)
+2. **Customer type skip** - Early exit for non-applicable user types (return success skip status)
+3. **400 Bad Request** - Input validation (required parameters, format validation)
+4. **404 Not Found** - Resource existence checks (order exists, item exists)
+5. **403 Forbidden** - Authorization checks (customer scoping, permissions)
+6. **200 Success** - Business logic execution
+
+**Example Implementation:**
+```typescript
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // Step 1: Authentication check - ALWAYS first
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Step 2: User type check - skip for non-applicable users
+  // WHY: Admin/vendor users on stale URLs shouldn't get 404s when the resource
+  // exists but belongs to a different customer - they should get graceful skips
+  if (session.user.userType !== 'customer') {
+    return NextResponse.json({ skipped: true }, { status: 200 });
+  }
+
+  // Step 3: Input validation
+  if (!params.id) {
+    return NextResponse.json({ error: 'Resource ID is required' }, { status: 400 });
+  }
+
+  // Step 4: Resource existence check
+  const resource = await prisma.resource.findUnique({ where: { id: params.id } });
+  if (!resource) {
+    return NextResponse.json({ error: 'Resource not found' }, { status: 404 });
+  }
+
+  // Step 5: Authorization check (customer scoping)
+  if (resource.customerId !== session.user.customerId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  // Step 6: Business logic execution
+  // ... perform the requested operation
+}
+```
+
+**Why This Sequence Matters:**
+- **Authentication first** - Prevents any data leakage to unauthenticated users
+- **Type check early** - Prevents inappropriate 404s for admin/vendor users on customer-only endpoints
+- **Input validation before DB queries** - Fails fast on malformed requests
+- **Existence before authorization** - Clear distinction between "not found" and "not allowed"
+- **Authorization last** - Only after confirming resource exists and user should potentially access it
+
+**Common Anti-patterns:**
+- Checking authorization before existence (returns 403 when should return 404)
+- Checking existence before authentication (potential information leakage)
+- Missing user type skip checks (admin users get confusing 404s)
+
+**Pattern Established:** April 8, 2026 - Order View Tracking Phase 2A implementation
+
+---
+
+## SECTION 11: Environment Variables
+
+### 11.1 No Secrets in Code
 
 Database URLs, API keys, passwords, and other secrets must only exist in
 environment variables (`.env.local`). Never hardcode secrets in any file
 that is committed to GitHub.
 
-### 10.2 Environment Variables Must Be Documented
+### 11.2 Environment Variables Must Be Documented
 
 Every environment variable used in the project must be listed in `.env.example`
 with a description of what it is (but not its real value).
 
 ---
 
-## SECTION 11: Next.js 15 Migration Requirements
+## SECTION 12: Next.js 15 Migration Requirements
 
 **CRITICAL:** Next.js 15 introduced breaking changes to API route parameter handling that must be addressed in all dynamic route handlers.
 
-### 11.1 Dynamic Route Parameters are Now Promises
+### 12.1 Dynamic Route Parameters are Now Promises
 
 In Next.js 15, the `params` object passed to API route handlers is now a Promise that must be awaited before accessing its properties. This is a breaking change from Next.js 14.
 
@@ -566,7 +633,7 @@ export async function GET(
 }
 ```
 
-### 11.2 Migration Impact
+### 12.2 Migration Impact
 
 **Files Fixed (March 27, 2026):**
 - `/src/app/api/packages/[id]/route.ts` - Fixed GET, PUT, DELETE handlers
@@ -578,7 +645,7 @@ Attempting to destructure properties from `params` without awaiting would cause 
 TypeError: Cannot destructure property 'id' of 'params' as it is undefined
 ```
 
-### 11.3 Required Changes for All Dynamic Routes
+### 12.3 Required Changes for All Dynamic Routes
 
 For any API route with dynamic segments (`[id]`, `[slug]`, etc.):
 
@@ -595,7 +662,7 @@ For any API route with dynamic segments (`[id]`, `[slug]`, etc.):
 const { id } = await params;
 ```
 
-### 11.4 Regression Test Requirements
+### 12.4 Regression Test Requirements
 
 When fixing Next.js 15 params issues, comprehensive regression tests must be written to prevent future breakage:
 
@@ -606,7 +673,7 @@ When fixing Next.js 15 params issues, comprehensive regression tests must be wri
 
 ---
 
-## SECTION 12: API Documentation
+## SECTION 13: API Documentation
 
 Every API endpoint must have:
 

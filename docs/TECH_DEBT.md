@@ -22,6 +22,72 @@ handled during a future pass on the affected area.
 
 ---
 
+### TD-020 — Order View Tracking — rate limiting
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Order View Tracking API                    |
+| Severity    | Medium                                      |
+| Identified  | April 8, 2026 - Phase 2A Implementation    |
+| Identified by | Implementer                               |
+
+**Description:**
+The three order view tracking endpoints (POST /api/orders/[id]/view, POST /api/order-items/[id]/view, and GET /api/orders/[id]/views) do not have rate limiting configured. Users could potentially spam these endpoints by rapidly clicking items or refreshing pages, creating excessive database load.
+
+**Why deferred:**
+The endpoints work correctly and are only called on legitimate user interactions. Rate limiting is a performance optimization, not a functional requirement. Deferred from Phase 2A to keep the phase scoped to core API functionality.
+
+**When to fix:**
+Add appropriate rate limiting when implementing a broader API rate limiting strategy across the application. Consider per-user limits of ~100 requests per minute for view tracking endpoints.
+
+---
+
+### TD-021 — Implementer Agent Hardening
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Development Process / Agent Tools           |
+| Severity    | Critical (Process Improvement)              |
+| Identified  | April 8, 2026 - Phase 2A Stage 4 Incident  |
+| Identified by | Documentation Writer                      |
+
+**Description:**
+After the Stage 4 incident in Phase 2A where the implementer agent modified test files and then deleted entire test directories, the .claude/agents/implementer.md file needs hard rules added to prevent destructive actions that interfere with the TDD process.
+
+**Why deferred:**
+This is a process improvement, not a feature bug. The implementer agent needs to be hardened but this doesn't block feature completion.
+
+**When to fix:**
+Immediately after this feature ships - this should be the next task to prevent similar incidents.
+
+**Required changes to implementer.md:**
+1. Never edit, create, or delete files matching __tests__/, tests/, or *.test.ts / *.spec.ts under any circumstance
+2. Never run rm, git reset, git clean, git checkout -- ., or any other destructive command — the only allowed recovery from a bad edit is reporting the mistake and waiting for human instructions
+3. If a test fails, the implementer must STOP and report the failure with diagnosis, never attempt to fix the test
+4. Failure-loop protocol: stop after 3 failed attempts on the same issue and report
+
+---
+
+### TD-003 — Order View Tracking — concurrent update e2e test
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Order View Tracking API                    |
+| Severity    | Low                                         |
+| Identified  | April 8, 2026 - Phase 2A Test Writing      |
+| Identified by | Test Writer                               |
+
+**Description:**
+Spec edge case #6 (race condition with multiple tabs) is enforced by the database unique constraint on (userId, orderId) / (userId, orderItemId) plus Prisma's upsert, but is not covered by an end-to-end test. The behavior is guaranteed by the database layer and was deliberately not tested at the API route unit level (mocked Prisma cannot exercise real concurrency).
+
+**Why deferred:**
+The unique constraint and upsert guarantee correct behavior. Testing real concurrency requires actual database operations, not mocked ones. Deferred from Phase 2A to keep the phase scoped to API behavior.
+
+**When to fix:**
+Add an e2e test that fires two simultaneous POSTs to the same view endpoint and asserts exactly one row exists with the later lastViewedAt timestamp.
+
+---
+
 ### TD-002 — Address Block JSON Parsing Missing in Order Validation Service
 
 | Field       | Detail                                      |
