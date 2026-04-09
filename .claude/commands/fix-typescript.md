@@ -152,7 +152,7 @@ The implementer fixes one category per batch. It does not move to the next categ
 ### Rules for fixing TypeScript errors
 
 - **Never use `any` to silence an error.** Using `any` is not a fix — it is hiding the problem. The standards-checker will flag every `any` in Stage 3.
-- **Never add `// @ts-ignore` without a written justification.** If a suppression is truly necessary, it must be accompanied by a comment explaining exactly why, and it must be added to `docs/standards/ts-suppressions.md`. Maximum 100 suppressions total across the whole project.
+- **Never add `// @ts-ignore` without a written justification.** If a suppression is truly necessary, it must be accompanied by a comment explaining exactly why, and it must be added to `docs/ts-suppressions.md`. Maximum 100 suppressions total across the whole project.
 - **Fix the type, not the check.** If TypeScript says a value might be null, handle the null case in the code — do not cast the value to a non-null type just to stop the error.
 - **Use Prisma's generated types.** Do not create manual types for database results — use the types Prisma generates automatically.
 - **Shared types belong in `/src/types/`.** If a type is used in more than one file, it must be defined there — not redefined in each file that uses it.
@@ -190,7 +190,7 @@ If yes — list them. This is a critical problem and must be resolved before con
 - [file path] — [what type problem was fixed and how]
 
 ## Suppressions added this batch: [n]
-If any — list each one with its justification and confirm it was added to docs/standards/ts-suppressions.md
+If any — list each one with its justification and confirm it was added to docs/ts-suppressions.md
 
 ## Next recommended category: [name]
 ```
@@ -291,7 +291,7 @@ The standards-checker will:
 
 4. Verify suppressions file exists and is documented:
    ```bash
-   cat docs/standards/ts-suppressions.md
+   cat docs/ts-suppressions.md
    ```
 
 5. Run a final test suite check:
@@ -314,7 +314,7 @@ Date: [today's date]
 - Total @ts-ignore / @ts-expect-error in codebase: [n]
 - Maximum allowed: 100
 - Each suppression has a written justification: Yes / No
-- Suppressions are logged in docs/standards/ts-suppressions.md: Yes / No
+- Suppressions are logged in docs/ts-suppressions.md: Yes / No
 
 ## `any` type audit
 Files still using `: any` or `as any`:

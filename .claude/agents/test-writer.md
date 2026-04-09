@@ -171,7 +171,7 @@ If the answer to all three is yes, the regression test is correct.
 - React Testing Library — for component tests
 - Playwright — for end-to-end user flow tests
 
-**Standards:** Always read `docs/standards/CODING_STANDARDS.md` before writing tests.
+**Standards:** Always read `docs/CODING_STANDARDS.md` before writing tests.
 
 **Test file locations:**
 - Unit tests: place alongside the file being tested, e.g. `src/lib/orderUtils.test.ts`

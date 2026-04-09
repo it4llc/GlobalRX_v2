@@ -145,7 +145,7 @@ When this agent is invoked as part of the /fix-bug pipeline, these additional ru
 ### Step 1: Read everything first
 
 Before writing a single line of code, read ALL of the following:
-- `docs/standards/CODING_STANDARDS.md` — the rules you must follow
+- `docs/CODING_STANDARDS.md` — the rules you must follow
 - The business analyst's specification (saved in `docs/specs/`)
 - The architect's technical plan (saved in `docs/specs/`)
 - **Every test file written by the test-writer — read each assertion individually, not just the structure**
