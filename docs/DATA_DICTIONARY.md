@@ -1,6 +1,6 @@
 # GlobalRx Data Dictionary
 
-**Last Updated:** March 18, 2026
+**Last Updated:** April 9, 2026
 
 **Note:** This document replaces GlobalRx_Technical_Documentation_26Mar2025.docx as the primary schema reference for the GlobalRx platform.
 
@@ -413,6 +413,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `completedAt` (DateTime, optional): When order was completed
 - `createdAt` (DateTime, required): Order creation timestamp
 - `updatedAt` (DateTime, required): Last modification timestamp
+- `lastActivityAt` (DateTime, optional): Tracks when the record itself last had meaningful activity. Order and OrderItem activity are tracked independently (item activity does NOT cascade to the parent order)
 - `assignedVendorId` (String, optional): Primary vendor assigned to order
 - `closedAt` (DateTime, optional): When order was closed
 - `closedBy` (String, optional): User who closed the order
@@ -439,6 +440,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `price` (Decimal, optional): Item-specific price
 - `createdAt` (DateTime, required): Creation timestamp
 - `updatedAt` (DateTime, required): Last modification timestamp
+- `lastActivityAt` (DateTime, optional): Tracks when the record itself last had meaningful activity. Order and OrderItem activity are tracked independently (item activity does NOT cascade to the parent order)
 - `updatedById` (String, optional): User who last updated the item
 
 **Relationships:**
