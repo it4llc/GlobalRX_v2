@@ -57,7 +57,8 @@ export async function GET(request: NextRequest) {
     // BUG FIX (March 8, 2026): Use session.user.userType not session.user.type
     // The session.user object from NextAuth only has 'userType' property, not 'type'
     // This was causing authorization failures when checking user access
-    if (!hasFulfillmentPermission && session.user.userType !== 'internal') {
+    // BUG FIX: Admin users should also be allowed to access comment templates
+    if (!hasFulfillmentPermission && session.user.userType !== 'internal' && session.user.userType !== 'admin') {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
   } else {

@@ -341,7 +341,8 @@ export class ServiceCommentService {
     }
 
     // Internal users have access to all services for operational oversight
-    if (userType === 'internal') {
+    // Admin users are also considered internal for service comment operations
+    if (userType === 'internal' || userType === 'admin') {
       return true;
     }
 
@@ -391,7 +392,8 @@ export class ServiceCommentService {
     }
 
     // Internal users have access to all orders for operational oversight
-    if (userType === 'internal') {
+    // Admin users are also considered internal for service comment operations
+    if (userType === 'internal' || userType === 'admin') {
       return true;
     }
 
