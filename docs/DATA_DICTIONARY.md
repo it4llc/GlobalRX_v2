@@ -414,6 +414,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `createdAt` (DateTime, required): Order creation timestamp
 - `updatedAt` (DateTime, required): Last modification timestamp
 - `lastActivityAt` (DateTime, optional): Tracks when the record itself last had meaningful activity. Order and OrderItem activity are tracked independently (item activity does NOT cascade to the parent order)
+- `lastInternalActivityAt` (DateTime, optional): Tracks when the record itself last had meaningful internal activity (visible to admin/vendor users but not customers). Internal activity includes vendor assignments, internal comments, and admin actions that customers cannot see. This field is distinct from `lastActivityAt` which tracks customer-visible activity. Order and OrderItem internal activity are tracked independently (item internal activity does NOT cascade to the parent order)
 - `assignedVendorId` (String, optional): Primary vendor assigned to order
 - `closedAt` (DateTime, optional): When order was closed
 - `closedBy` (String, optional): User who closed the order
@@ -441,6 +442,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `createdAt` (DateTime, required): Creation timestamp
 - `updatedAt` (DateTime, required): Last modification timestamp
 - `lastActivityAt` (DateTime, optional): Tracks when the record itself last had meaningful activity. Order and OrderItem activity are tracked independently (item activity does NOT cascade to the parent order)
+- `lastInternalActivityAt` (DateTime, optional): Tracks when the record itself last had meaningful internal activity (visible to admin/vendor users but not customers). Internal activity includes vendor assignments, internal comments, and admin actions that customers cannot see. This field is distinct from `lastActivityAt` which tracks customer-visible activity. Order and OrderItem internal activity are tracked independently (item internal activity does NOT cascade to the parent order)
 - `updatedById` (String, optional): User who last updated the item
 
 **Relationships:**
