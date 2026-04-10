@@ -577,6 +577,34 @@ Need to search for all components accessing `subject.firstName` or `subject.last
 
 ---
 
+### TD-023 — Regression tests for admin 403 bug need proper Prisma mocking
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Testing / Service Comments API                      |
+| Severity      | Low                                                 |
+| Identified    | April 10, 2026 - fix/service-comment-delete-403 Branch |
+| Identified by | Manual Testing / Cleanup Process                   |
+
+**Description:**
+Regression tests were attempted for the admin 403 bug on branch fix/service-comment-delete-403 but could not be completed because they didn't mock Prisma, which caused them to fail at `orderItem.findUnique` (returning null with no test database) before reaching the actual permission check being tested. The fix itself was verified manually in the browser and works correctly.
+
+**Why deferred:**
+The underlying bug fix is verified working and ready to merge. Writing proper regression tests would require understanding and mocking the entire Prisma call chain for `validateUserAccess` and `validateOrderAccess`, which is complex and out of scope for this immediate bug fix.
+
+**When to fix:**
+When adding comprehensive test coverage for the permission system. The regression tests should mock Prisma (or mock `ServiceCommentService`) so they actually exercise `validateUserAccess` and `validateOrderAccess` for admin users.
+
+**What needs to be done:**
+Rewrite the regression tests to mock Prisma or mock `ServiceCommentService` so they actually exercise the admin permission validation logic for all 5 affected endpoints:
+- POST `/api/services/[id]/comments`
+- PUT `/api/services/[id]/comments/[commentId]`
+- DELETE `/api/services/[id]/comments/[commentId]`
+- GET `/api/orders/[id]/services/comments`
+- GET `/api/comment-templates`
+
+---
+
 ### TD-022 — TypeScript Not Catching Missing ServiceCommentService.deleteComment Method
 
 | Field         | Detail                                              |
