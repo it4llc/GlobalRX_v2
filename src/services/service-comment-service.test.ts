@@ -12,7 +12,8 @@ vi.mock('@/lib/prisma', () => ({
       create: vi.fn(),
       update: vi.fn(),
       findUnique: vi.fn(),
-      findMany: vi.fn()
+      findMany: vi.fn(),
+      delete: vi.fn()
     },
     service: {
       findUnique: vi.fn(),
@@ -469,6 +470,143 @@ describe('ServiceCommentService', () => {
           },
           include: expect.any(Object)
         });
+      });
+    });
+  });
+
+  describe('deleteComment', () => {
+    const mockCommentId = 'comment-123';
+    const mockUserId = 'user-456';
+
+    // REGRESSION TEST: proves bug fix for missing deleteComment method in ServiceCommentService
+    // This test verifies the TypeScript error is fixed - the method now exists and can be called
+    it('REGRESSION TEST: deleteComment method exists and is callable', async () => {
+      // The bug: DELETE route calls service.deleteComment() but the method doesn't exist
+      // This test FAILS before the fix (method not found) and PASSES after the fix
+
+      // Verify the method exists on the service instance
+      expect(service.deleteComment).toBeDefined();
+      expect(typeof service.deleteComment).toBe('function');
+
+      // Mock the expected Prisma calls for a successful deletion
+      const mockComment = {
+        id: mockCommentId,
+        orderItemId: 'item-789',
+        finalText: 'Comment to delete',
+        isInternalOnly: true
+      };
+
+      vi.mocked(prisma.serviceComment.findUnique).mockResolvedValueOnce(mockComment as any);
+      vi.mocked(prisma.serviceComment.delete).mockResolvedValueOnce(mockComment as any);
+
+      // The method should be callable without TypeScript errors
+      await expect(service.deleteComment(mockCommentId, mockUserId)).resolves.not.toThrow();
+
+      // Verify it was called correctly
+      expect(prisma.serviceComment.findUnique).toHaveBeenCalledWith({
+        where: { id: mockCommentId }
+      });
+    });
+
+    describe('validation', () => {
+      it('should throw "Comment not found" when comment does not exist', async () => {
+        vi.mocked(prisma.serviceComment.findUnique).mockResolvedValueOnce(null);
+
+        await expect(
+          service.deleteComment(mockCommentId, mockUserId)
+        ).rejects.toThrow('Comment not found');
+
+        expect(prisma.serviceComment.findUnique).toHaveBeenCalledWith({
+          where: { id: mockCommentId }
+        });
+      });
+    });
+
+    describe('successful deletion', () => {
+      it('should delete an existing comment', async () => {
+        const mockComment = {
+          id: mockCommentId,
+          orderItemId: 'item-789',
+          templateId: 'template-123',
+          finalText: 'Comment to be deleted',
+          isInternalOnly: true,
+          createdBy: 'user-111',
+          createdAt: new Date()
+        };
+
+        const mockDeletedComment = { ...mockComment };
+
+        vi.mocked(prisma.serviceComment.findUnique).mockResolvedValueOnce(mockComment as any);
+        vi.mocked(prisma.serviceComment.delete).mockResolvedValueOnce(mockDeletedComment as any);
+
+        const result = await service.deleteComment(mockCommentId, mockUserId);
+
+        expect(result).toEqual(mockDeletedComment);
+        expect(prisma.serviceComment.delete).toHaveBeenCalledWith({
+          where: { id: mockCommentId }
+        });
+      });
+
+      it('should log the deletion with audit information', async () => {
+        const mockComment = {
+          id: mockCommentId,
+          orderItemId: 'item-789',
+          finalText: 'Comment to be deleted',
+          isInternalOnly: false
+        };
+
+        vi.mocked(prisma.serviceComment.findUnique).mockResolvedValueOnce(mockComment as any);
+        vi.mocked(prisma.serviceComment.delete).mockResolvedValueOnce(mockComment as any);
+
+        const loggerSpy = vi.spyOn((await import('@/lib/logger')).default, 'info');
+
+        await service.deleteComment(mockCommentId, mockUserId);
+
+        expect(loggerSpy).toHaveBeenCalledWith('Service comment deleted', {
+          commentId: mockCommentId,
+          deletedBy: mockUserId
+        });
+      });
+
+      it('should return the deleted comment data', async () => {
+        const mockComment = {
+          id: mockCommentId,
+          orderItemId: 'item-789',
+          templateId: 'template-123',
+          finalText: 'This comment will be deleted',
+          isInternalOnly: true,
+          createdBy: 'user-111',
+          createdAt: new Date('2024-03-01'),
+          updatedBy: 'user-222',
+          updatedAt: new Date('2024-03-05')
+        };
+
+        vi.mocked(prisma.serviceComment.findUnique).mockResolvedValueOnce(mockComment as any);
+        vi.mocked(prisma.serviceComment.delete).mockResolvedValueOnce(mockComment as any);
+
+        const result = await service.deleteComment(mockCommentId, mockUserId);
+
+        expect(result).toEqual(mockComment);
+        expect(result.id).toBe(mockCommentId);
+        expect(result.finalText).toBe('This comment will be deleted');
+      });
+    });
+
+    describe('error handling', () => {
+      it('should handle database errors gracefully', async () => {
+        const mockComment = {
+          id: mockCommentId,
+          orderItemId: 'item-789',
+          finalText: 'Comment',
+          isInternalOnly: true
+        };
+
+        vi.mocked(prisma.serviceComment.findUnique).mockResolvedValueOnce(mockComment as any);
+        vi.mocked(prisma.serviceComment.delete).mockRejectedValueOnce(new Error('Database connection lost'));
+
+        await expect(
+          service.deleteComment(mockCommentId, mockUserId)
+        ).rejects.toThrow('Database connection lost');
       });
     });
   });
