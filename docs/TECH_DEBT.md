@@ -577,6 +577,60 @@ Need to search for all components accessing `subject.firstName` or `subject.last
 
 ---
 
+### TD-023 — Regression tests for admin 403 bug need proper Prisma mocking
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Testing / Service Comments API                      |
+| Severity      | Low                                                 |
+| Identified    | April 10, 2026 - fix/service-comment-delete-403 Branch |
+| Identified by | Manual Testing / Cleanup Process                   |
+
+**Description:**
+Regression tests were attempted for the admin 403 bug on branch fix/service-comment-delete-403 but could not be completed because they didn't mock Prisma, which caused them to fail at `orderItem.findUnique` (returning null with no test database) before reaching the actual permission check being tested. The fix itself was verified manually in the browser and works correctly.
+
+**Why deferred:**
+The underlying bug fix is verified working and ready to merge. Writing proper regression tests would require understanding and mocking the entire Prisma call chain for `validateUserAccess` and `validateOrderAccess`, which is complex and out of scope for this immediate bug fix.
+
+**When to fix:**
+When adding comprehensive test coverage for the permission system. The regression tests should mock Prisma (or mock `ServiceCommentService`) so they actually exercise `validateUserAccess` and `validateOrderAccess` for admin users.
+
+**What needs to be done:**
+Rewrite the regression tests to mock Prisma or mock `ServiceCommentService` so they actually exercise the admin permission validation logic for all 5 affected endpoints:
+- POST `/api/services/[id]/comments`
+- PUT `/api/services/[id]/comments/[commentId]`
+- DELETE `/api/services/[id]/comments/[commentId]`
+- GET `/api/orders/[id]/services/comments`
+- GET `/api/comment-templates`
+
+---
+
+### TD-022 — TypeScript Not Catching Missing ServiceCommentService.deleteComment Method
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | TypeScript Configuration / Type Safety              |
+| Severity      | Major (Silent Runtime Failures)                     |
+| Identified    | April 9, 2026 - Phase 2B-2 Planning                 |
+| Identified by | Architect / Investigation Pass                      |
+
+**Description:**
+The DELETE route at `src/app/api/services/[id]/comments/[commentId]/route.ts` line 203 calls `service.deleteComment(commentId, session.user.id)`, but no such method exists on `ServiceCommentService` (`src/services/service-comment-service.ts`). TypeScript strict mode should catch this as a compile-time error, but `pnpm tsc --noEmit` does not report any error for this missing method. This means other missing methods or incorrect signatures could be silently slipping through the type checker elsewhere in the codebase.
+
+**Why deferred:**
+The immediate bug (missing `deleteComment` method) will be fixed as a separate bug fix. However, the deeper question of WHY TypeScript is not catching this class of error requires its own investigation — it could be a `tsconfig.json` setting, an overly permissive type declaration somewhere in the `ServiceCommentService` type chain, an implicit `any`, or a missing type import. Fixing the underlying configuration issue is out of scope for the bug fix and for Phase 2B-2.
+
+**When to fix:**
+Before adding significant new service layer code. A silent type-checker means developers cannot trust TypeScript to catch missing-method bugs, which undermines the strict-TypeScript guarantee the project relies on.
+
+**Affected components:**
+- TypeScript configuration (`tsconfig.json`)
+- `src/services/service-comment-service.ts` and its type exports
+- Any other service class where the type checker might be similarly silent
+- The general trust level in TypeScript's safety net across the codebase
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
