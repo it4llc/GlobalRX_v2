@@ -180,7 +180,7 @@ export function ServiceCommentSection({ serviceId, orderItemId, orderId, service
     if (deleteConfirmId) {
       try {
         // Validate the service ID for API call
-        const apiServiceId = validateServiceId(serviceId);
+        const apiServiceId = validateServiceId(orderItemId || serviceId);
 
         // Use new signature with serviceId to avoid null ID issues
         await deleteComment(apiServiceId, deleteConfirmId);
