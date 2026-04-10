@@ -280,6 +280,43 @@ export class ServiceCommentService {
   }
 
   /**
+   * Delete a comment from a service
+   *
+   * BUG FIX (TD-022): This method was missing from ServiceCommentService class.
+   * The DELETE API route at /api/services/[id]/comments/[commentId]/route.ts line 203
+   * was calling deleteComment() but no such method existed, causing runtime errors.
+   * Added March 6, 2026 when the DELETE endpoint was created, but method was missing.
+   *
+   * This reveals a gap in TypeScript type checking - missing method calls are not
+   * being caught at compile time, which is a significant type safety concern.
+   */
+  async deleteComment(
+    commentId: string,
+    userId: string
+  ) {
+    // Verify comment exists
+    const existingComment = await prisma.serviceComment.findUnique({
+      where: { id: commentId }
+    });
+
+    if (!existingComment) {
+      throw new Error('Comment not found');
+    }
+
+    // Delete the comment
+    const deletedComment = await prisma.serviceComment.delete({
+      where: { id: commentId }
+    });
+
+    logger.info('Service comment deleted', {
+      commentId: commentId,
+      deletedBy: userId
+    });
+
+    return deletedComment;
+  }
+
+  /**
    * Validate if a user has access to a service (order item)
    *
    * Business rules for service access:
