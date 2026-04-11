@@ -408,14 +408,105 @@ The `ActivityTrackingService` created in Phase 2B-2 will be ready and waiting to
 
 ---
 
-## Status: ARCHITECTURE - Awaiting Review
+## 8. Discovered During Implementation
 
-This document was produced through direct codebase verification rather than agent investigation, after two prior agent runs produced fabricated or incomplete results. Every file path, function name, line number, and transaction status above was confirmed by running grep/ls/sed commands against the live filesystem.
+This section records findings that emerged while Phase 2B-2 was being built and tested. The original sections above were not edited so the architect's reasoning is preserved as written. The findings here amend, correct, or supplement the original architecture based on what the codebase actually contains.
 
-**Next steps after approval:**
+### 8.1 `OrderStatusProgressionService` is dead code in production
 
-1. Andy reviews and approves this architecture
-2. Test-writer Pass 1 produces failing tests for `ActivityTrackingService` and end-to-end activity tracking expectations
-3. Implementer creates `ActivityTrackingService` and integrates it into all 8 files (9 integration points)
-4. Test-writer Pass 2 produces unit tests for the new service and any new code paths
-5. Code review, standards check, documentation update
+**Original architecture statement:** Section 1.4 / Section 4.2 item 2 identified `src/lib/services/order-status-progression.service.ts` as the integration point for event 1b (order auto-progression), with Section 4.2 noting that the implementer might need to add actor user ID and user type as parameters to the progression function "if they're not already passed in."
+
+**What was discovered:** A direct `grep -rn "checkAndProgressOrderStatus" src` returned only references inside the service file itself and its own test file. There are zero production callers anywhere in the codebase. Additionally, `grep -rn "OrderStatusProgressionService" src` returned only the file's own export line and the class definition. The class is dead code — nothing in the running application instantiates it or invokes it.
+
+**Where the real auto-progression logic actually lives:** Inline inside `src/app/api/services/[id]/status/route.ts` at lines 358–411, inside the `PUT` handler for service status changes. When a user changes a service to "submitted," that route handler checks whether all services in the order are now submitted and, if so, updates the order status from `'draft'` to `'submitted'` directly via `tx.order.update()` — without going through `OrderStatusProgressionService` at all.
+
+**How Phase 2B-2 ended up handling this:** The implementer initially trusted the architecture document and added activity tracking code to `OrderStatusProgressionService` as instructed. That code is harmless waste — it sits inside dead code and will never run in production. After this discovery, a second activity tracking call was added inline inside the real auto-progression block in `src/app/api/services/[id]/status/route.ts` (around line 396, between the `orderStatusHistory.create` call and the `logger.info` call). Event 1b is now correctly wired up.
+
+**Outstanding decision:** The dead `OrderStatusProgressionService` should either be deleted (along with its test file and the harmless Phase 2B-2 activity tracking code inside it) or resurrected by routing the inline auto-progression code through it. The current state — two parallel implementations, only one of which runs — is not acceptable long-term. This decision is logged separately as a tech debt item, not handled in Phase 2B-2.
+
+### 8.2 Auto-progression actor parameters: not needed in the dead service, fine in the real path
+
+**Original architecture statement:** Risk 2 in Section 7.1 warned that auto-progression "may require touching call sites" if the actor user ID and user type were not already being passed into the progression service.
+
+**What was discovered:** Because `OrderStatusProgressionService` has no production callers (see 8.1), the question of whether to update its callers is moot — there are no callers to update. In the real auto-progression path inside `src/app/api/services/[id]/status/route.ts`, the actor's user ID and user type are already available in scope at the auto-progression block. The user ID is bound to the local `userId` variable earlier in the same handler, and the user type is bound to the local `userType` variable used elsewhere in the same file. No call-site refactor was needed for the real path.
+
+**Result:** Risk 2 was effectively a non-issue once the dead-code finding was established. The implementer's pre-flight investigation note ("userId was available, userType not needed due to existing context") was correct in substance but was reported in a way that obscured the underlying dead-code finding. Future investigations should report findings of this kind in plain language ("there are no callers; nothing needs to be updated") rather than ambiguous shorthand.
+
+### 8.3 Duplicate `addOrderItem` at line 966 of `order-core.service.ts`: both updated
+
+**Original architecture statement:** Risk 4 in Section 7.1 flagged that `src/lib/services/order-core.service.ts` may have a second `addOrderItem` definition around line 966 in addition to the one near line 285, and noted that the implementer needed to investigate whether the second instance was reachable.
+
+**What was discovered:** Both definitions exist. The implementer added activity tracking calls to both, with optional `userId` and `userType` parameters guarded by `if (userId && userType)` so existing callers that don't supply user info are unaffected.
+
+**Note:** Whether the second `addOrderItem` is genuinely needed or is itself a candidate for cleanup was not investigated. The Phase 2B-2 work treated both instances as live and added tracking to each. If the second instance is later determined to be dead code, the activity tracking call inside it should be removed at the same time the function is removed.
+
+### 8.4 The `'admin'` user type appears in real test mock data
+
+**Original architecture statement:** Section 3.3 noted that the `User.userType` field in `prisma/schema.prisma` has `@default("admin")` and that `"admin"` is not one of the three valid user types (`customer`, `internal`, `vendor`). It described the issue as a latent schema bug and explicitly out of scope for Phase 2B-2.
+
+**What was discovered during implementation:** Two existing tests in the comments-related test files build their fake session objects with `userType: 'admin'`, mirroring the broken schema default. After Phase 2B-2 added a new fourth `userType` parameter to `ServiceCommentService.createComment`, the route handler now reads `session.user.userType` directly from the session and passes it through. In tests, that value is `'admin'`, which then flows through to `createComment` and shows up in the test's call assertions.
+
+**How Phase 2B-2 handled this:** The two failing tests' assertions were updated to expect `'admin'` as the fourth argument, matching what the test mocks actually produce. No production code change was made. The underlying schema default is still broken and is still tracked as tech debt.
+
+**Important note for future work:** The `ActivityTrackingService` checks `actorUserType !== 'customer'` to identify non-customer staff users. A user with `userType = 'admin'` would be treated as non-customer (because `'admin' !== 'customer'`), and their actions would update activity timestamps as if they were internal staff. This is incorrect for any real-world user that should have been classified as a customer but slipped through with the broken default. Resolving the schema default is a prerequisite for trusting activity tracking results in production.
+
+### 8.5 Fallback assumption: missing `userType` defaults to `'internal'`
+
+**What the implementer added:** In several places where the new `ActivityTrackingService` is called from a route handler, the implementer wrote the user type extraction as:
+
+```typescript
+const userType = (session.user.userType || 'internal') as 'customer' | 'internal' | 'vendor';
+```
+
+This means if a user's session is missing `userType` for any reason, they will be treated as internal staff for activity tracking purposes. This is defensible (it prevents crashes) but it is a silent assumption that should be made visible. A user who is actually a customer but whose session is missing `userType` would have their actions incorrectly counted as activity.
+
+**Why this matters now:** Combined with finding 8.4, there are two ways a customer could end up being treated as a non-customer for activity tracking purposes — either by having `userType = 'admin'` in the database or by having `userType` missing from the session entirely. Both are silent failure modes that produce wrong activity tracking data without any error or warning.
+
+**Scope:** Out of scope for Phase 2B-2. Logged as tech debt.
+
+### 8.6 Case sensitivity bug in auto-progression status check (pre-existing, unrelated)
+
+**What was discovered:** In `src/app/api/services/[id]/status/route.ts` around line 360, the auto-progression block begins with:
+
+```typescript
+if (newStatus === 'Submitted' && orderId) {
+```
+
+The capital `'S'` in `'Submitted'` is inconsistent with the project standard that all statuses are stored lowercase in the database. If `newStatus` arrives lowercase as the standard expects, this comparison will never match, which means auto-progression may currently never fire in production.
+
+**Scope:** Pre-existing bug, unrelated to Phase 2B-2, discovered during the Phase 2B-2 investigation. Logged as tech debt. Worth investigating whether auto-progression actually fires in production at all — if it does not, this is a real product bug, not just a code smell.
+
+### 8.7 Backward-compatibility shim added to vendor assign route
+
+**What the implementer added:** In `src/app/api/orders/[id]/assign/route.ts`, the existing permission check was changed from:
+
+```typescript
+if (session.user.type !== 'internal') {
+```
+
+to:
+
+```typescript
+const userType = session.user.userType || session.user.type;
+if (userType !== 'internal') {
+```
+
+This was done so the file could read user type via the same `userType` field that `ActivityTrackingService` expects, while still working if older callers populate `session.user.type` instead. The change is a small refactor of an existing permission check rather than a pure additive change.
+
+**Scope:** Within Phase 2B-2 because it was needed to wire the activity tracking call. Future phases should not need to repeat this kind of compatibility shim — the underlying inconsistency between `session.user.type` and `session.user.userType` is itself a small piece of technical debt that has been logged separately.
+
+---
+
+## Status: IMPLEMENTED — Architecture Amended Post-Implementation
+
+This document was originally produced through direct codebase verification rather than agent investigation, after two prior agent runs produced fabricated or incomplete results. Every file path, function name, line number, and transaction status in Sections 1 through 7 was confirmed by running grep/ls/sed commands against the live filesystem at the time the architecture was written.
+
+Section 8 was added after Phase 2B-2 was implemented and merged, to record findings that emerged during implementation and testing. Sections 1 through 7 are preserved as originally written so the architect's reasoning at the time can still be read in context.
+
+**Implementation history:**
+
+1. ✅ Architecture approved
+2. ✅ Test-writer Pass 1 produced 17 failing tests for `ActivityTrackingService` (commit `08439b2`)
+3. ✅ Implementer created `ActivityTrackingService` and integrated it into all 9 integration points across 8 files (commit `c8fd8a8`); two existing test assertions updated to match the new `createComment` signature; Section 8 findings discovered and documented
+4. ⏳ Test-writer Pass 2 — pending
+5. ⏳ Code review, standards check, documentation update — pending
