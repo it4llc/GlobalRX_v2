@@ -631,6 +631,29 @@ Before adding significant new service layer code. A silent type-checker means de
 
 ---
 
+### TD-024 — User.userType schema default is invalid
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Database Schema / User Model                        |
+| Severity      | Low (Latent Bug with No Known User Impact)          |
+| Identified    | April 10, 2026 - Phase 2B-2 Architecture Investigation |
+| Identified by | Architecture Investigation                          |
+
+**Description:**
+The User model in `prisma/schema.prisma` (line 28) has `userType String @default("admin")`. The string "admin" is not one of the three valid user types in this system. Valid user types are: customer, internal, vendor. Any user created without an explicit userType would silently default to "admin", which does not match any valid code path. In Phase 2B-2's activity tracking logic, an "admin"-typed user would be treated as non-customer (because "admin" !== "customer") which is mostly harmless but incorrect.
+
+**Why deferred:**
+This is a latent bug with no known current user impact. All user creation flows appear to explicitly set userType, so the invalid default may never be triggered in practice.
+
+**When to fix:**
+During any schema cleanup pass or when refactoring user type handling.
+
+**Recommendation:**
+Change the schema default to a valid value (likely "internal") or remove the default and require userType to be explicitly set at user creation time.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_

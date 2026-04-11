@@ -20,24 +20,20 @@ The following table defines which events trigger updates to the activity trackin
 
 | Event | Actor | Updates `Order.lastActivityAt` | Updates `Order.lastInternalActivityAt` | Updates Actor's View |
 |---|---|---|---|---|
-| Customer-visible comment added | Admin/Vendor | Yes | Yes | Yes - `OrderView.lastViewedAt` |
-| Internal-only comment added | Admin/Vendor | No | Yes | Yes - `OrderView.lastViewedAt` |
-| Order status changes | Admin/Vendor | Yes | Yes | Yes - `OrderView.lastViewedAt` |
-| Order metadata edited (subject info, etc.) | Admin | Yes | Yes | Yes - `OrderView.lastViewedAt` |
-| New order item added | Admin | Yes | Yes | Yes - `OrderView.lastViewedAt` |
-| Order item removed | Admin | Yes | Yes | Yes - `OrderView.lastViewedAt` |
+| Order status changes | Internal/Vendor | Yes | Yes | Yes - `OrderView.lastViewedAt` |
+| Order metadata edited (subject info, etc.) | Internal | Yes | Yes | Yes - `OrderView.lastViewedAt` |
+| New order item added | Internal | Yes | Yes | Yes - `OrderView.lastViewedAt` |
+| Vendor assigned to order | Internal | No | Yes | Yes - `OrderView.lastViewedAt` |
 | **Any of the above events** | Customer | No | No | Yes - `OrderView.lastViewedAt` |
 
 ### Order Item-Level Events
 
 | Event | Actor | Updates `OrderItem.lastActivityAt` | Updates `OrderItem.lastInternalActivityAt` | Updates Actor's View |
 |---|---|---|---|---|
-| Customer-visible comment added | Admin/Vendor | Yes | Yes | Yes - `OrderItemView.lastViewedAt` |
-| Internal-only comment added | Admin/Vendor | No | Yes | Yes - `OrderItemView.lastViewedAt` |
-| Item status changes | Admin/Vendor | Yes | Yes | Yes - `OrderItemView.lastViewedAt` |
+| Customer-visible comment added | Internal/Vendor | Yes | Yes | Yes - `OrderItemView.lastViewedAt` |
+| Internal-only comment added | Internal/Vendor | No | Yes | Yes - `OrderItemView.lastViewedAt` |
+| Item status changes | Internal/Vendor | Yes | Yes | Yes - `OrderItemView.lastViewedAt` |
 | Result/document uploaded | Vendor | Yes | Yes | Yes - `OrderItemView.lastViewedAt` |
-| Item details edited | Admin | Yes | Yes | Yes - `OrderItemView.lastViewedAt` |
-| Vendor assigned to item | Admin | No | Yes | Yes - `OrderItemView.lastViewedAt` |
 | **Any of the above events** | Customer | No | No | Yes - `OrderItemView.lastViewedAt` |
 
 **Important:** Order-level events do NOT cascade to order items, and item-level events do NOT cascade to the parent order. Each entity's activity is tracked independently.
@@ -48,7 +44,7 @@ The following table defines which events trigger updates to the activity trackin
 
 ### Rule 1: Customer Actions Never Count as Activity
 
-If a customer user (userType = 'customer') is the actor performing any event, neither `lastActivityAt` nor `lastInternalActivityAt` should be updated. This applies to all events — editing orders, adding comments, or any other action. Customer actions are not considered "activity" from the business perspective because activity tracking is meant to show customers when the vendor/admin has done something new.
+If a customer user (userType = 'customer') is the actor performing any event, neither `lastActivityAt` nor `lastInternalActivityAt` should be updated. This applies to all events — editing orders, adding comments, or any other action. Customer actions are not considered "activity" from the business perspective because activity tracking is meant to show customers when the internal/vendor staff has done something new.
 
 ### Rule 2: No Cascading Between Order and Order Items
 
@@ -60,7 +56,7 @@ To prevent users from seeing their own actions as "new activity", every activity
 - For order-level events: Update the actor's `OrderView.lastViewedAt`
 - For item-level events: Update the actor's `OrderItemView.lastViewedAt`
 
-This simultaneous update means when a user causes activity on an order/item, their own view timestamp gets set to "now" at the same moment as the activity timestamp. When comparison logic runs later, the timestamps will match, so the user won't see their own action as "new". Other users with older view timestamps will correctly see it as new activity. This applies to ALL user types — customer, admin, and vendor.
+This simultaneous update means when a user causes activity on an order/item, their own view timestamp gets set to "now" at the same moment as the activity timestamp. When comparison logic runs later, the timestamps will match, so the user won't see their own action as "new". Other users with older view timestamps will correctly see it as new activity. This applies to ALL user types — customer, internal, and vendor.
 
 ### Rule 4: Transaction Boundaries Must Be Respected
 
@@ -71,7 +67,7 @@ All activity field updates and view timestamp updates must occur within the SAME
 
 ### Rule 5: Internal vs Customer-Visible Comment Distinction
 
-The system already has a mechanism to distinguish internal-only comments from customer-visible comments (likely a visibility flag or type field). Internal-only comments must NEVER update `lastActivityAt` under any circumstances — they only update `lastInternalActivityAt`. Customer-visible comments update BOTH fields when created by admin/vendor users.
+The system already has a mechanism to distinguish internal-only comments from customer-visible comments (likely a visibility flag or type field). Internal-only comments must NEVER update `lastActivityAt` under any circumstances — they only update `lastInternalActivityAt`. Customer-visible comments update BOTH fields when created by internal/vendor users.
 
 ---
 
@@ -115,14 +111,14 @@ The architect must identify the exact files and functions where each event occur
 - Comment creation endpoints and services
 - Order status update logic
 - Order metadata editing endpoints
-- Order item addition/removal logic
+- Order item addition logic
 - Document upload handlers
-- Vendor assignment logic
+- Vendor assignment logic (order-level)
 
 ### 4.2 Does view tracking currently exist for admin and vendor users?
 
 Phase 2A explicitly states only customer users have view tracking. The architect must determine:
-- Do `OrderView` and `OrderItemView` records get created for admin/vendor users?
+- Do `OrderView` and `OrderItemView` records get created for internal/vendor users?
 - If not, should Phase 2B-2 create them on-the-fly when needed?
 - Or should this be deferred to a future phase?
 
@@ -209,7 +205,7 @@ The following items are explicitly NOT part of Phase 2B-2:
 
 ### 6.4 View Tracking Extensions
 - No changes to which users have view tracking
-- If admin/vendor view tracking doesn't exist, only create records as needed for the actor
+- If internal/vendor view tracking doesn't exist, only create records as needed for the actor
 - No bulk creation of view records for existing users
 
 ### 6.5 Historical Data
@@ -226,6 +222,17 @@ The following items are explicitly NOT part of Phase 2B-2:
 ## 7. Future Phases
 
 Phase 2B-2 only adds the backend logic to update the activity tracking fields. Future work will be needed to (a) expose activity data in API responses and (b) build the frontend UI that compares activity timestamps against view timestamps to display 'new activity' indicators to users. These future phases are not yet planned in detail.
+
+---
+
+## 8. Deferred Work
+
+The following events were originally considered for Phase 2B-2 but are deferred because the underlying functionality does not yet exist in the codebase. When these features are eventually built, the developer building them MUST also wire up activity tracking by calling the ActivityTrackingService at the appropriate point inside the operation's transaction:
+
+- **Order-level comments** (customer-visible and internal-only): The current system only supports comments at the order item level. If order-level comments are added in the future, they should update Order.lastActivityAt (for customer-visible) and/or Order.lastInternalActivityAt.
+- **Order item removal**: There is currently no endpoint to remove an order item from an order. When this feature is added, removing an item should update Order.lastActivityAt and Order.lastInternalActivityAt (because removing an item is a customer-visible event).
+- **Item-level vendor assignment**: Vendor assignment currently happens only at the order level. If item-level vendor assignment is added, it should update OrderItem.lastInternalActivityAt only (internal-only event, matching the order-level vendor assignment rule).
+- **Item details editing**: There is currently no endpoint to edit individual order item details. If this is added, it should update OrderItem.lastActivityAt and OrderItem.lastInternalActivityAt.
 
 ---
 
