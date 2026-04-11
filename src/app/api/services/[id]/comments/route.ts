@@ -125,10 +125,12 @@ export async function POST(
     }
 
     // Step 5: Create the comment using the OrderItem ID
+    const userType = (session.user.userType || 'internal') as 'customer' | 'internal' | 'vendor';
     const comment = await service.createComment(
       orderItemId,
       validation.data,
-      session.user.id
+      session.user.id,
+      userType
     );
 
     // Transform the response to match expected format

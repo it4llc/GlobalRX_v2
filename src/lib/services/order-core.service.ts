@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
 import { SubjectInfo } from '@/components/portal/orders/types';
+import { ActivityTrackingService } from './activity-tracking.service';
 
 // Type definitions for field values to avoid using 'any'
 type FieldValue = string | number | boolean | Date | null;
@@ -286,7 +287,8 @@ export class OrderCoreService {
     orderId: string,
     serviceId: string,
     locationId: string,
-    userId: string
+    userId: string,
+    userType?: 'customer' | 'internal' | 'vendor'
   ) {
     // Use transaction to ensure atomicity between OrderItem and ServiceFulfillment
     return prisma.$transaction(async (tx) => {
@@ -355,6 +357,18 @@ export class OrderCoreService {
         serviceId,
         locationId,
       });
+
+      // Phase 2B-2: Update activity tracking if user type is provided
+      // New order item added is a customer-visible event
+      if (userType) {
+        await ActivityTrackingService.updateOrderActivity(
+          tx,
+          orderId,
+          userId,
+          userType,
+          true // isCustomerVisible - adding order items is customer-visible
+        );
+      }
 
       return orderItem;
     });
@@ -971,7 +985,8 @@ export class OrderCoreService {
       locationId: string;
       price?: number;
     },
-    userId?: string // Added optional userId parameter to match test expectations
+    userId?: string, // Added optional userId parameter to match test expectations
+    userType?: 'customer' | 'internal' | 'vendor'
   ) {
     // Use transaction to ensure atomicity between OrderItem and ServiceFulfillment
     return prisma.$transaction(async (tx) => {
@@ -1028,6 +1043,18 @@ export class OrderCoreService {
         serviceId: item.serviceId,
         locationId: item.locationId,
       });
+
+      // Phase 2B-2: Update activity tracking if user ID and type are provided
+      // New order item added is a customer-visible event
+      if (userId && userType) {
+        await ActivityTrackingService.updateOrderActivity(
+          tx,
+          orderId,
+          userId,
+          userType,
+          true // isCustomerVisible - adding order items is customer-visible
+        );
+      }
 
       return orderItem;
     });

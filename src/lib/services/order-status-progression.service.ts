@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
+import { ActivityTrackingService } from './activity-tracking.service';
 
 interface ProgressionResult {
   statusChanged: boolean;
@@ -28,7 +29,11 @@ export class OrderStatusProgressionService {
    * when all their component services are ready for processing. The automation reduces
    * manual overhead while ensuring no submitted services are left in draft orders.
    */
-  async checkAndProgressOrderStatus(orderId: string): Promise<ProgressionResult> {
+  async checkAndProgressOrderStatus(
+    orderId: string,
+    actorUserId?: string,
+    actorUserType?: 'customer' | 'internal' | 'vendor'
+  ): Promise<ProgressionResult> {
     // First check if the order exists
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -115,6 +120,18 @@ export class OrderStatusProgressionService {
             notes: 'Automatically updated - all services submitted'
           }
         });
+
+        // Phase 2B-2: Update activity tracking if actor info is provided
+        // Auto-progression is triggered by the user who changed the last service to submitted
+        if (actorUserId && actorUserType) {
+          await ActivityTrackingService.updateOrderActivity(
+            tx,
+            orderId,
+            actorUserId,
+            actorUserType,
+            true // isCustomerVisible - order status changes are customer-visible
+          );
+        }
       });
 
       logger.info('Order status automatically progressed', {

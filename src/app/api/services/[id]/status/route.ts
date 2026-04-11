@@ -46,6 +46,7 @@ import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { OrderLockService } from '@/lib/services/order-lock.service';
 import logger from '@/lib/logger';
+import { ActivityTrackingService } from '@/lib/services/activity-tracking.service';
 
 // Import validation schema and helpers from the types module
 import { updateServiceStatusSchema, isTerminalStatus } from '@/types/service-fulfillment';
@@ -395,6 +396,17 @@ export async function PUT(
                   }
                 });
 
+                // Phase 2B-2: Update order activity tracking for auto-progression
+                // Auto-progression is a customer-visible event (order status changed)
+                const autoProgressActorUserType = (userType || 'internal') as 'customer' | 'internal' | 'vendor';
+                await ActivityTrackingService.updateOrderActivity(
+                  tx,
+                  orderId,
+                  userId,
+                  autoProgressActorUserType,
+                  true // isCustomerVisible - order status change is customer-visible
+                );
+
                 logger.info('Order status automatically progressed to submitted', {
                   orderId,
                   triggeredByService: serviceId,
@@ -411,6 +423,17 @@ export async function PUT(
             });
           }
         }
+
+        // Phase 2B-2: Update activity tracking
+        // Item status change is a customer-visible event
+        const actorUserType = (userType || 'internal') as 'customer' | 'internal' | 'vendor';
+        await ActivityTrackingService.updateOrderItemActivity(
+          tx,
+          serviceId,
+          userId,
+          actorUserType,
+          true // isCustomerVisible - status changes are customer-visible
+        );
 
         return {
           service: updatedService,
