@@ -813,6 +813,61 @@ During any session handling cleanup pass, or when consolidating user type refere
 
 ---
 
+### TD-031 — ActivityTrackingService violates Rule 4 by swallowing errors
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Activity tracking / Transaction integrity           |
+| Severity      | Major (Architecture violation, silent data inconsistency risk) |
+| Identified    | April 12, 2026 - Phase 2B-2 Code Review             |
+| Identified by | Code Review                                         |
+
+**Description:**
+The `ActivityTrackingService` at `src/lib/services/activity-tracking.service.ts` violates Rule 4 of the Phase 2B-2 architecture document, which states that all activity tracking updates must participate in the same transaction as the triggering event so that a failure rolls everything back.
+
+Both methods (`updateOrderActivity` and `updateOrderItemActivity`) wrap their entire bodies in a `try { ... } catch (error) { logger.warn(...) }` block. The catch logs the error and returns normally — it does not re-throw. As a result, if the activity tracking call inside a transaction throws (for example, a transient database error), the error is swallowed, the parent transaction commits successfully, and the database is left in an inconsistent state: the triggering event happened but its activity timestamps were never updated.
+
+The methods also contain four defensive existence checks of the form `if (tx.order?.update)` and `if (tx.orderView?.upsert)`. In real Prisma the transaction client always exposes these methods. The checks exist solely to make tests pass when their inline mocks don't include the new `orderView` and `orderItemView` models. This is a code smell — it lets tests appear to pass while never exercising the production code path.
+
+The architect explicitly considered this trade-off as Risk 1 in Section 7.1 of the architecture document and accepted it: *"a failure in `ActivityTrackingService` would roll back the user's intended action."* The implementer overrode that decision unilaterally and added the error swallowing.
+
+**Why deferred:**
+A correct fix requires removing both try-catch blocks and both sets of defensive existence checks, then updating the Pass 1 test file to include error-propagation tests, AND updating the inline Prisma mocks in 11 other test files that currently rely on the safety net to silently paper over their incomplete mock setups. The 11-file test mock cleanup is the hard part — the failures it surfaces are not all simple "missing model" issues, and properly fixing them requires interactive debugging that was not feasible during the original code review session.
+
+Phase 2B-2's happy path works correctly in production: the activity tracking code does fire and the timestamps do update under normal conditions. The architectural violation only matters in failure scenarios, and there is no current evidence of those failures occurring.
+
+**When to fix:**
+ASAP. This is a Major-severity architectural violation, not a minor cleanup. It should be the first item addressed after Phase 2B-2 is merged — ideally on its own branch with dedicated time for the test mock cleanup.
+
+**What needs to be done:**
+1. Remove the try-catch blocks from both methods in `src/lib/services/activity-tracking.service.ts`. Errors must propagate so the parent transaction rolls back.
+2. Remove the four defensive `tx.X?.method` existence checks from the same file.
+3. Add at least four new error-propagation tests to `src/lib/services/__tests__/activity-tracking.service.test.ts` — one for each Prisma operation the service performs (`order.update`, `orderView.upsert`, `orderItem.update`, `orderItemView.upsert`). Each test should mock the relevant operation to throw and assert that the error propagates out of the service via `expect(...).rejects.toThrow(...)`.
+4. Update the 11 test files that currently use inline `vi.mock('@/lib/prisma', ...)` blocks to either (a) include the missing `orderView`/`orderItemView` mocks AND debug whatever else is causing the route handlers to return 500 in those tests once the safety net is removed, or (b) migrate those files to rely on the global mock from `src/test/setup.ts` (which already includes every model). Option (b) is architecturally cleaner but hit interactive-debugging issues during the original attempt.
+
+The 11 test files that need attention are:
+- `src/__tests__/integration/fulfillment-id-standardization.integration.test.ts`
+- `src/app/api/fulfillment/orders/[id]/status/__tests__/route.test.ts`
+- `src/app/api/fulfillment/orders/[id]/status/__tests__/route-enhanced.test.ts`
+- `src/app/api/fulfillment/orders/[id]/status/__tests__/service-closure.test.ts`
+- `src/app/api/orders/[id]/assign/__tests__/route.test.ts`
+- `src/app/api/portal/orders/[id]/__tests__/route-status-inheritance.test.ts`
+- `src/app/api/portal/orders/[id]/__tests__/route.document-persistence.test.ts`
+- `src/app/api/services/[id]/attachments/__tests__/fulfillment-id-standardization.test.ts`
+- `src/app/api/services/[id]/attachments/__tests__/route.test.ts`
+- `src/app/api/services/[id]/status/__tests__/fulfillment-id-standardization.test.ts`
+- `src/app/api/services/[id]/status/__tests__/route.test.ts`
+
+**Important context for the developer who picks this up:**
+A previous attempt to fix this during the original code review session removed the try-catches and defensive checks correctly (the 21 unit tests for `ActivityTrackingService` all passed) but exposed pre-existing problems in the 11 test files above. The tests were silently relying on the safety net to paper over mock setups that did not match what the production code actually expected. The exact failure mode was not "missing Prisma method on the mock" — it was something deeper, where the route handlers returned 500 even after the missing models were added to the inline mocks. Diagnosing this properly requires running the tests interactively, not from a chat-based tool. Plan accordingly.
+
+**Affected components:**
+- `src/lib/services/activity-tracking.service.ts` (the violation)
+- `src/lib/services/__tests__/activity-tracking.service.test.ts` (missing error-propagation tests)
+- The 11 test files listed above (incomplete inline mocks that the safety net is currently hiding)
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
