@@ -172,6 +172,30 @@ export function createMockPrisma(): any {
       count: vi.fn(),
       upsert: vi.fn(),
     },
+    orderView: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+      count: vi.fn(),
+      upsert: vi.fn(),
+    },
+    orderItemView: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+      count: vi.fn(),
+      upsert: vi.fn(),
+    },
 
     // DSX models
     dSXRequirement: {

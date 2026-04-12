@@ -9,6 +9,7 @@ import { SubjectInfo } from '@/components/portal/orders/types';
 import { z } from 'zod';
 import logger from '@/lib/logger'; // BUG FIX: Added missing logger import - was causing runtime errors when error logging attempted
 import { prisma } from '@/lib/prisma';
+import { ActivityTrackingService } from '@/lib/services/activity-tracking.service';
 
 // Force dynamic route
 export const dynamic = 'force-dynamic';
@@ -311,6 +312,17 @@ export async function PUT(
             }
           }
         }
+
+        // Phase 2B-2: Update activity tracking
+        // Order metadata edit is a customer-visible event
+        const userType = (session.user.userType || 'customer') as 'customer' | 'internal' | 'vendor';
+        await ActivityTrackingService.updateOrderActivity(
+          tx,
+          params.id,
+          session.user.id,
+          userType,
+          true // isCustomerVisible - order metadata edits are customer-visible
+        );
 
         return updatedOrder;
       });

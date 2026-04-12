@@ -11,6 +11,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { isTerminalStatus } from '@/types/service-results';
 import type { ServiceUser } from '@/types/service-results';
+import { ActivityTrackingService } from '@/lib/services/activity-tracking.service';
 
 /**
  * GET /api/services/[id]/attachments - List attachments for a service
@@ -298,6 +299,17 @@ export async function POST(
           userId: user.id
         }
       });
+
+      // Phase 2B-2: Update activity tracking
+      // Document upload is a customer-visible event
+      const userType = (user.userType || 'internal') as 'customer' | 'internal' | 'vendor';
+      await ActivityTrackingService.updateOrderItemActivity(
+        tx,
+        orderItemId,
+        user.id,
+        userType,
+        true // isCustomerVisible - document uploads are customer-visible
+      );
 
       return newAttachment;
     });
