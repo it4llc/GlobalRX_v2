@@ -22,53 +22,10 @@ handled during a future pass on the affected area.
 
 ---
 
-### TD-020 — Order View Tracking — rate limiting
-
-| Field       | Detail                                      |
-|-------------|---------------------------------------------|
-| Area        | Order View Tracking API                    |
-| Severity    | Medium                                      |
-| Identified  | April 8, 2026 - Phase 2A Implementation    |
-| Identified by | Implementer                               |
-
-**Description:**
-The three order view tracking endpoints (POST /api/orders/[id]/view, POST /api/order-items/[id]/view, and GET /api/orders/[id]/views) do not have rate limiting configured. Users could potentially spam these endpoints by rapidly clicking items or refreshing pages, creating excessive database load.
-
-**Why deferred:**
-The endpoints work correctly and are only called on legitimate user interactions. Rate limiting is a performance optimization, not a functional requirement. Deferred from Phase 2A to keep the phase scoped to core API functionality.
-
-**When to fix:**
-Add appropriate rate limiting when implementing a broader API rate limiting strategy across the application. Consider per-user limits of ~100 requests per minute for view tracking endpoints.
 
 ---
 
-### TD-021 — Implementer Agent Hardening
-
-| Field       | Detail                                      |
-|-------------|---------------------------------------------|
-| Area        | Development Process / Agent Tools           |
-| Severity    | Critical (Process Improvement)              |
-| Identified  | April 8, 2026 - Phase 2A Stage 4 Incident  |
-| Identified by | Documentation Writer                      |
-
-**Description:**
-After the Stage 4 incident in Phase 2A where the implementer agent modified test files and then deleted entire test directories, the .claude/agents/implementer.md file needs hard rules added to prevent destructive actions that interfere with the TDD process.
-
-**Why deferred:**
-This is a process improvement, not a feature bug. The implementer agent needs to be hardened but this doesn't block feature completion.
-
-**When to fix:**
-Immediately after this feature ships - this should be the next task to prevent similar incidents.
-
-**Required changes to implementer.md:**
-1. Never edit, create, or delete files matching __tests__/, tests/, or *.test.ts / *.spec.ts under any circumstance
-2. Never run rm, git reset, git clean, git checkout -- ., or any other destructive command — the only allowed recovery from a bad edit is reporting the mistake and waiting for human instructions
-3. If a test fails, the implementer must STOP and report the failure with diagnosis, never attempt to fix the test
-4. Failure-loop protocol: stop after 3 failed attempts on the same issue and report
-
----
-
-### TD-003 — Order View Tracking — concurrent update e2e test
+### TD-001 — Order View Tracking — concurrent update e2e test
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -111,7 +68,7 @@ Follow the same JSON parsing pattern implemented in `useOrderFormState.ts` lines
 
 ---
 
-### TD-001 — Hardcoded Text Strings in Fulfillment ID Standardization Files
+### TD-003 — Hardcoded Text Strings in Fulfillment ID Standardization Files
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -159,7 +116,7 @@ serving as a good reference implementation when this tech debt is addressed.
 
 ---
 
-### TD-002 — Race Condition in Comment Creation
+### TD-004 — Race Condition in Comment Creation
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -179,7 +136,7 @@ Consider implementing optimistic locking or robust synchronization when revisiti
 
 ---
 
-### TD-003 — Type Safety Compromise in Service Comment Service
+### TD-005 — Type Safety Compromise in Service Comment Service
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -199,7 +156,7 @@ Create a proper type union or update ServiceCommentWithRelations type when refac
 
 ---
 
-### TD-004 — Mixed ID Usage in Order Details View
+### TD-006 — Mixed ID Usage in Order Details View
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -219,7 +176,7 @@ Will be fully resolved when ServicesFulfillment auto-creation feature is impleme
 
 ---
 
-### TD-005 — SessionStorage Security Concern in Order Form State
+### TD-007 — SessionStorage Security Concern in Order Form State
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -248,7 +205,7 @@ Add a cleanup mechanism in a `useEffect` cleanup function or error handler.
 
 ---
 
-### TD-006 — Code Duplication in Field Remapping Logic
+### TD-008 — Code Duplication in Field Remapping Logic
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -275,7 +232,7 @@ Create a generic `remapFieldNamesToIds` utility function that can handle both se
 
 ---
 
-### TD-007 — Missing User Feedback for Document Upload Failures
+### TD-009 — Missing User Feedback for Document Upload Failures
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -298,7 +255,7 @@ Display a toast notification or inline error message when upload fails.
 
 ---
 
-### TD-008 — File Cleanup for Orphaned Draft Documents
+### TD-010 — File Cleanup for Orphaned Draft Documents
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -322,7 +279,7 @@ Implement during a storage optimization pass or when adding a scheduled cleanup 
 
 ---
 
-### TD-009 — No Upload Progress Indication for Large Files
+### TD-011— No Upload Progress Indication for Large Files
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -345,7 +302,7 @@ Add a loading spinner or progress bar during file upload, especially for files o
 
 ---
 
-### TD-010 — Inline Styles in Checkbox Component
+### TD-012 — Inline Styles in Checkbox Component
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -368,7 +325,7 @@ Replace inline styles with Tailwind classes: `h-4 w-4 min-h-[16px] min-w-[16px] 
 
 ---
 
-### TD-011 — Hardcoded Text in Scope Selector Component
+### TD-013 — Hardcoded Text in Scope Selector Component
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -393,7 +350,7 @@ During an internationalization pass or when the scope-selector component needs o
 
 ---
 
-### TD-012 — Missing File Header Comments
+### TD-014 — Missing File Header Comments
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -418,7 +375,7 @@ Add `// src/components/modules/customer/package-dialog-new.tsx` as the first lin
 
 ---
 
-### TD-013 — Extensive Use of 'any' Types in Package Dialog
+### TD-015 — Extensive Use of 'any' Types in Package Dialog
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -441,7 +398,7 @@ Define proper TypeScript interfaces for all data structures used in the componen
 
 ---
 
-### TD-014 — Incomplete Next.js 15 Dynamic Routes Migration
+### TD-016 — Incomplete Next.js 15 Dynamic Routes Migration
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -468,7 +425,7 @@ URGENT - Should be addressed in a separate bug fix cycle as these routes will fa
 
 ---
 
-### TD-015 — Complex Ref Handling in PackageDialog
+### TD-017 — Complex Ref Handling in PackageDialog
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -491,7 +448,7 @@ Consider using `useCallback` with proper dependency array instead of refs for ca
 
 ---
 
-### TD-016 — fieldKey Error Handling for Undefined Values
+### TD-018 — fieldKey Error Handling for Undefined Values
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -511,7 +468,7 @@ Add defensive checks if fieldKey generation logic changes or if we need to suppo
 
 ---
 
-### TD-017 — generateFieldKey() Unicode/Non-Latin Character Support
+### TD-019 — generateFieldKey() Unicode/Non-Latin Character Support
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -534,7 +491,7 @@ Use a library like `transliteration` or `slugify` that can handle Unicode charac
 
 ---
 
-### TD-018 — Migration Fallback Uses Opaque UUID Keys
+### TD-020 — Migration Fallback Uses Opaque UUID Keys
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -554,7 +511,7 @@ Improve when adding fieldKey support for document/form types, or if debugging is
 
 ---
 
-### TD-019 — Components Directly Access subject.firstName/lastName
+### TD-021 — Components Directly Access subject.firstName/lastName
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
@@ -577,7 +534,80 @@ Need to search for all components accessing `subject.firstName` or `subject.last
 
 ---
 
-### TD-022 — TypeScript Not Catching Missing ServiceCommentService.deleteComment Method
+### TD-022 — Order View Tracking — rate limiting
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Order View Tracking API                    |
+| Severity    | Medium                                      |
+| Identified  | April 8, 2026 - Phase 2A Implementation    |
+| Identified by | Implementer                               |
+
+**Description:**
+The three order view tracking endpoints (POST /api/orders/[id]/view, POST /api/order-items/[id]/view, and GET /api/orders/[id]/views) do not have rate limiting configured. Users could potentially spam these endpoints by rapidly clicking items or refreshing pages, creating excessive database load.
+
+**Why deferred:**
+The endpoints work correctly and are only called on legitimate user interactions. Rate limiting is a performance optimization, not a functional requirement. Deferred from Phase 2A to keep the phase scoped to core API functionality.
+
+**When to fix:**
+Add appropriate rate limiting when implementing a broader API rate limiting strategy across the application. Consider per-user limits of ~100 requests per minute for view tracking endpoints.
+
+---
+
+### TD-023 — Implementer Agent Hardening
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Development Process / Agent Tools           |
+| Severity    | Critical (Process Improvement)              |
+| Identified  | April 8, 2026 - Phase 2A Stage 4 Incident  |
+| Identified by | Documentation Writer                      |
+
+**Description:**
+After the Stage 4 incident in Phase 2A where the implementer agent modified test files and then deleted entire test directories, the .claude/agents/implementer.md file needs hard rules added to prevent destructive actions that interfere with the TDD process.
+
+**Why deferred:**
+This is a process improvement, not a feature bug. The implementer agent needs to be hardened but this doesn't block feature completion.
+
+**When to fix:**
+Immediately after this feature ships - this should be the next task to prevent similar incidents.
+
+**Required changes to implementer.md:**
+1. Never edit, create, or delete files matching __tests__/, tests/, or *.test.ts / *.spec.ts under any circumstance
+2. Never run rm, git reset, git clean, git checkout -- ., or any other destructive command — the only allowed recovery from a bad edit is reporting the mistake and waiting for human instructions
+3. If a test fails, the implementer must STOP and report the failure with diagnosis, never attempt to fix the test
+4. Failure-loop protocol: stop after 3 failed attempts on the same issue and report
+
+
+### TD-024 — Regression tests for admin 403 bug need proper Prisma mocking
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Testing / Service Comments API                      |
+| Severity      | Low                                                 |
+| Identified    | April 10, 2026 - fix/service-comment-delete-403 Branch |
+| Identified by | Manual Testing / Cleanup Process                   |
+
+**Description:**
+Regression tests were attempted for the admin 403 bug on branch fix/service-comment-delete-403 but could not be completed because they didn't mock Prisma, which caused them to fail at `orderItem.findUnique` (returning null with no test database) before reaching the actual permission check being tested. The fix itself was verified manually in the browser and works correctly.
+
+**Why deferred:**
+The underlying bug fix is verified working and ready to merge. Writing proper regression tests would require understanding and mocking the entire Prisma call chain for `validateUserAccess` and `validateOrderAccess`, which is complex and out of scope for this immediate bug fix.
+
+**When to fix:**
+When adding comprehensive test coverage for the permission system. The regression tests should mock Prisma (or mock `ServiceCommentService`) so they actually exercise `validateUserAccess` and `validateOrderAccess` for admin users.
+
+**What needs to be done:**
+Rewrite the regression tests to mock Prisma or mock `ServiceCommentService` so they actually exercise the admin permission validation logic for all 5 affected endpoints:
+- POST `/api/services/[id]/comments`
+- PUT `/api/services/[id]/comments/[commentId]`
+- DELETE `/api/services/[id]/comments/[commentId]`
+- GET `/api/orders/[id]/services/comments`
+- GET `/api/comment-templates`
+
+---
+
+### TD-025 — TypeScript Not Catching Missing ServiceCommentService.deleteComment Method
 
 | Field         | Detail                                              |
 |---------------|-----------------------------------------------------|
@@ -600,6 +630,241 @@ Before adding significant new service layer code. A silent type-checker means de
 - `src/services/service-comment-service.ts` and its type exports
 - Any other service class where the type checker might be similarly silent
 - The general trust level in TypeScript's safety net across the codebase
+
+---
+
+### TD-026 — User.userType schema default is invalid
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Database Schema / User Model                        |
+| Severity      | Low (Latent Bug with No Known User Impact)          |
+| Identified    | April 10, 2026 - Phase 2B-2 Architecture Investigation |
+| Identified by | Architecture Investigation                          |
+
+**Description:**
+The User model in `prisma/schema.prisma` (line 28) has `userType String @default("admin")`. The string "admin" is not one of the three valid user types in this system. Valid user types are: customer, internal, vendor. Any user created without an explicit userType would silently default to "admin", which does not match any valid code path. In Phase 2B-2's activity tracking logic, an "admin"-typed user would be treated as non-customer (because "admin" !== "customer") which is mostly harmless but incorrect.
+
+**Why deferred:**
+This is a latent bug with no known current user impact. All user creation flows appear to explicitly set userType, so the invalid default may never be triggered in practice.
+
+**When to fix:**
+During any schema cleanup pass or when refactoring user type handling.
+
+**Recommendation:**
+Change the schema default to a valid value (likely "internal") or remove the default and require userType to be explicitly set at user creation time.
+
+---
+
+### TD-027 — `OrderStatusProgressionService` is dead code in production
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Code cleanup / Order status management              |
+| Severity      | Major (Two parallel implementations, only one runs) |
+| Identified    | April 11, 2026 - Phase 2B-2 Implementation          |
+| Identified by | Implementation Investigation                        |
+
+**Description:**
+The class `OrderStatusProgressionService` in `src/lib/services/order-status-progression.service.ts` has zero production callers anywhere in the codebase. A direct `grep -rn "OrderStatusProgressionService" src` returns only the file's own export line and the class definition. A direct `grep -rn "checkAndProgressOrderStatus" src` returns only the service file itself and its own test file. Nothing in the running application instantiates the class or invokes its method.
+
+The real auto-progression logic (the code that actually fires when a service is set to "submitted" and may roll an order from draft to submitted) lives inline inside `src/app/api/services/[id]/status/route.ts` at lines 358–411, inside the `PUT` handler. It updates the order status directly via `tx.order.update()` and does not go through `OrderStatusProgressionService` at all.
+
+Phase 2B-2 added activity tracking calls to BOTH locations: harmlessly inside the dead service (where the call will never run), and correctly inside the real auto-progression block in the route file (where it does run). The dead-service activity call should be removed when the service itself is deleted.
+
+**Why deferred:**
+The decision of whether to delete `OrderStatusProgressionService` outright or to refactor the inline auto-progression code in the route handler to call into it is a design choice that goes beyond Phase 2B-2's scope. Phase 2B-2 needed to ship working activity tracking for the real auto-progression path, and that has been done.
+
+**When to fix:**
+Before any significant work touching order status management or auto-progression. The current state — two parallel implementations, only one of which runs — is a foot-gun that will mislead any future developer or AI agent investigating this area.
+
+**Recommendation:**
+One of two paths:
+
+1. **Delete path:** Remove `src/lib/services/order-status-progression.service.ts`, its test file at `src/lib/services/__tests__/order-status-progression.service.test.ts`, and the harmless Phase 2B-2 activity tracking code that lives inside the dead service.
+2. **Resurrect path:** Refactor the inline auto-progression block in `src/app/api/services/[id]/status/route.ts` (lines 358–411) to call `OrderStatusProgressionService.checkAndProgressOrderStatus()` instead of duplicating its logic. The service would then become the single source of truth and would actually run in production.
+
+The delete path is simpler and lower risk. The resurrect path is cleaner long-term but requires touching a high-traffic route handler.
+
+**Affected components:**
+- `src/lib/services/order-status-progression.service.ts`
+- `src/lib/services/__tests__/order-status-progression.service.test.ts`
+- `src/app/api/services/[id]/status/route.ts` (the real auto-progression block)
+
+---
+
+### TD-028 — Case sensitivity bug in auto-progression status check (potential real product bug)
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Order status management / Auto-progression          |
+| Severity      | Critical if the feature is used (potential silent failure) |
+| Identified    | April 11, 2026 - Phase 2B-2 Implementation          |
+| Identified by | Implementation Investigation                        |
+
+**Description:**
+In `src/app/api/services/[id]/status/route.ts` around line 360, the auto-progression block begins with:
+
+```typescript
+if (newStatus === 'Submitted' && orderId) {
+```
+
+The capital `'S'` in `'Submitted'` is inconsistent with the project standard that all statuses are stored lowercase in the database (display formatting is a separate concern applied at render time). If `newStatus` arrives lowercase as the standard expects, this comparison will never match, which means the auto-progression block — the code that automatically rolls a draft order to submitted when all its services are submitted — may currently never fire in production at all.
+
+This was discovered during the Phase 2B-2 implementation investigation and is unrelated to Phase 2B-2's own work. Phase 2B-2 wired activity tracking into the auto-progression block correctly assuming the block will run; if the block never actually runs, the activity tracking inside it never fires either, and Phase 2B-2 event 1b is silently broken in production for the same underlying reason.
+
+**Why deferred:**
+This is a pre-existing bug that needs investigation in production before a fix is shipped. We do not currently know whether auto-progression actually fires in production, whether `newStatus` is being normalized somewhere upstream that masks the bug, or whether the feature has been silently broken for some time. The investigation and fix are larger than Phase 2B-2's scope.
+
+**When to fix:**
+ASAP. This is potentially a real product bug, not just a code smell. Recommend prioritizing investigation in the next available bug-fix slot.
+
+**What needs to be done:**
+1. Add diagnostic logging or check production logs to confirm whether the auto-progression block fires in production at all.
+2. If it does not fire: trace the code path that produces `newStatus` to see what casing it actually has, then fix the comparison (and any similar comparisons in the same file) to match the lowercase project standard.
+3. If it does fire: investigate why — there may be an upstream normalization or a code path that title-cases the value before the comparison. Either way, the literal `'Submitted'` string should be replaced with a constant from the status constants file per project standards.
+
+**Affected components:**
+- `src/app/api/services/[id]/status/route.ts` (around line 360)
+- Any other place in the file with the same casing pattern
+- The auto-progression product feature itself
+
+---
+
+### TD-029 — Activity tracking `userType` fallback silently mis-classifies users
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Activity tracking / Session handling                |
+| Severity      | Low (Defensive fallback with silent wrong-data risk) |
+| Identified    | April 11, 2026 - Phase 2B-2 Implementation          |
+| Identified by | Implementation Investigation                        |
+
+**Description:**
+In several places where the new `ActivityTrackingService` is called from a route handler, the implementer wrote the user type extraction as:
+
+```typescript
+const userType = (session.user.userType || 'internal') as 'customer' | 'internal' | 'vendor';
+```
+
+This means if a user's session is missing `userType` for any reason, the user will be treated as internal staff for activity tracking purposes. This is defensible (it prevents crashes) but it is a silent assumption: a user who is actually a customer but whose session is missing `userType` would have their actions incorrectly counted as activity, and customers are explicitly excluded from activity tracking by Phase 2B-2's Rule 1.
+
+This combines with TD-026 (the `User.userType` schema default of `"admin"`) to create two overlapping silent failure modes. A customer could end up incorrectly classified as a non-customer either by having `userType = "admin"` in the database (TD-026) or by having `userType` missing from the session entirely (this entry). Neither produces an error or warning — the activity tracking just records bad data.
+
+**Why deferred:**
+The fallback prevents crashes and there is no current evidence of mis-classification in production. Phase 2B-2 needed a working implementation, and this fallback was the implementer's defensive choice.
+
+**When to fix:**
+Together with TD-026. Once `User.userType` always holds a valid value at the database level, the session should reliably surface that valid value, and the fallback can be removed entirely (or replaced with a hard error and a log entry). Fixing this entry without first fixing TD-026 would risk crashes for any user whose record still has the broken default.
+
+**Recommendation:**
+1. Resolve TD-026 first.
+2. Then validate `session.user.userType` at session creation time and either reject the session or log loudly when the value is missing or invalid.
+3. Remove the `|| 'internal'` fallback from every route handler that uses it for activity tracking.
+
+**Affected components:**
+- `src/app/api/fulfillment/orders/[id]/status/route.ts`
+- `src/app/api/orders/[id]/assign/route.ts`
+- `src/app/api/portal/orders/[id]/route.ts`
+- `src/app/api/services/[id]/attachments/route.ts`
+- `src/app/api/services/[id]/comments/route.ts`
+- `src/app/api/services/[id]/status/route.ts`
+- The session creation flow in `src/lib/auth.ts` or wherever NextAuth user fields are populated
+
+---
+
+### TD-030 — Inconsistency between `session.user.type` and `session.user.userType`
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Session handling / Type safety                      |
+| Severity      | Low (Working shim in place)                         |
+| Identified    | April 11, 2026 - Phase 2B-2 Implementation          |
+| Identified by | Implementation Investigation                        |
+
+**Description:**
+Different parts of the codebase read user type from two different fields on the session: some places read `session.user.type` and others read `session.user.userType`. During Phase 2B-2 the implementer needed `userType` for the new `ActivityTrackingService` but found that `src/app/api/orders/[id]/assign/route.ts` was using `session.user.type` instead. Rather than rewriting upstream session population, the implementer added a backward-compatibility shim:
+
+```typescript
+const userType = session.user.userType || session.user.type;
+if (userType !== 'internal') {
+```
+
+The shim works but it papers over an underlying inconsistency. Future developers or AI agents reading this code may not realize there are two different fields holding the same conceptual value, which could lead to bugs if one is updated and the other isn't.
+
+**Why deferred:**
+The shim is in place and working. Resolving the underlying inconsistency requires picking a single canonical field name and updating every reference in the codebase, which is a small but non-trivial cleanup pass that goes beyond Phase 2B-2.
+
+**When to fix:**
+During any session handling cleanup pass, or when consolidating user type references across the codebase.
+
+**Recommendation:**
+1. Pick one canonical field name (`userType` is likely the better choice — it matches the database column and the `User` Prisma model).
+2. Grep for all references to `session.user.type` and update them to `session.user.userType`.
+3. Remove the backward-compatibility shim from `src/app/api/orders/[id]/assign/route.ts` once all callers are aligned.
+4. Update the NextAuth session callback to populate the canonical field only.
+5. If TypeScript types still allow both, narrow the type definition so the wrong field name becomes a compile-time error.
+
+**Affected components:**
+- `src/app/api/orders/[id]/assign/route.ts` (where the shim was added)
+- `src/lib/auth.ts` or wherever the NextAuth session callback lives
+- The TypeScript type definitions for the session user object
+- Any other file in the codebase that reads `session.user.type`
+
+---
+
+### TD-031 — ActivityTrackingService violates Rule 4 by swallowing errors
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Activity tracking / Transaction integrity           |
+| Severity      | Major (Architecture violation, silent data inconsistency risk) |
+| Identified    | April 12, 2026 - Phase 2B-2 Code Review             |
+| Identified by | Code Review                                         |
+
+**Description:**
+The `ActivityTrackingService` at `src/lib/services/activity-tracking.service.ts` violates Rule 4 of the Phase 2B-2 architecture document, which states that all activity tracking updates must participate in the same transaction as the triggering event so that a failure rolls everything back.
+
+Both methods (`updateOrderActivity` and `updateOrderItemActivity`) wrap their entire bodies in a `try { ... } catch (error) { logger.warn(...) }` block. The catch logs the error and returns normally — it does not re-throw. As a result, if the activity tracking call inside a transaction throws (for example, a transient database error), the error is swallowed, the parent transaction commits successfully, and the database is left in an inconsistent state: the triggering event happened but its activity timestamps were never updated.
+
+The methods also contain four defensive existence checks of the form `if (tx.order?.update)` and `if (tx.orderView?.upsert)`. In real Prisma the transaction client always exposes these methods. The checks exist solely to make tests pass when their inline mocks don't include the new `orderView` and `orderItemView` models. This is a code smell — it lets tests appear to pass while never exercising the production code path.
+
+The architect explicitly considered this trade-off as Risk 1 in Section 7.1 of the architecture document and accepted it: *"a failure in `ActivityTrackingService` would roll back the user's intended action."* The implementer overrode that decision unilaterally and added the error swallowing.
+
+**Why deferred:**
+A correct fix requires removing both try-catch blocks and both sets of defensive existence checks, then updating the Pass 1 test file to include error-propagation tests, AND updating the inline Prisma mocks in 11 other test files that currently rely on the safety net to silently paper over their incomplete mock setups. The 11-file test mock cleanup is the hard part — the failures it surfaces are not all simple "missing model" issues, and properly fixing them requires interactive debugging that was not feasible during the original code review session.
+
+Phase 2B-2's happy path works correctly in production: the activity tracking code does fire and the timestamps do update under normal conditions. The architectural violation only matters in failure scenarios, and there is no current evidence of those failures occurring.
+
+**When to fix:**
+ASAP. This is a Major-severity architectural violation, not a minor cleanup. It should be the first item addressed after Phase 2B-2 is merged — ideally on its own branch with dedicated time for the test mock cleanup.
+
+**What needs to be done:**
+1. Remove the try-catch blocks from both methods in `src/lib/services/activity-tracking.service.ts`. Errors must propagate so the parent transaction rolls back.
+2. Remove the four defensive `tx.X?.method` existence checks from the same file.
+3. Add at least four new error-propagation tests to `src/lib/services/__tests__/activity-tracking.service.test.ts` — one for each Prisma operation the service performs (`order.update`, `orderView.upsert`, `orderItem.update`, `orderItemView.upsert`). Each test should mock the relevant operation to throw and assert that the error propagates out of the service via `expect(...).rejects.toThrow(...)`.
+4. Update the 11 test files that currently use inline `vi.mock('@/lib/prisma', ...)` blocks to either (a) include the missing `orderView`/`orderItemView` mocks AND debug whatever else is causing the route handlers to return 500 in those tests once the safety net is removed, or (b) migrate those files to rely on the global mock from `src/test/setup.ts` (which already includes every model). Option (b) is architecturally cleaner but hit interactive-debugging issues during the original attempt.
+
+The 11 test files that need attention are:
+- `src/__tests__/integration/fulfillment-id-standardization.integration.test.ts`
+- `src/app/api/fulfillment/orders/[id]/status/__tests__/route.test.ts`
+- `src/app/api/fulfillment/orders/[id]/status/__tests__/route-enhanced.test.ts`
+- `src/app/api/fulfillment/orders/[id]/status/__tests__/service-closure.test.ts`
+- `src/app/api/orders/[id]/assign/__tests__/route.test.ts`
+- `src/app/api/portal/orders/[id]/__tests__/route-status-inheritance.test.ts`
+- `src/app/api/portal/orders/[id]/__tests__/route.document-persistence.test.ts`
+- `src/app/api/services/[id]/attachments/__tests__/fulfillment-id-standardization.test.ts`
+- `src/app/api/services/[id]/attachments/__tests__/route.test.ts`
+- `src/app/api/services/[id]/status/__tests__/fulfillment-id-standardization.test.ts`
+- `src/app/api/services/[id]/status/__tests__/route.test.ts`
+
+**Important context for the developer who picks this up:**
+A previous attempt to fix this during the original code review session removed the try-catches and defensive checks correctly (the 21 unit tests for `ActivityTrackingService` all passed) but exposed pre-existing problems in the 11 test files above. The tests were silently relying on the safety net to paper over mock setups that did not match what the production code actually expected. The exact failure mode was not "missing Prisma method on the mock" — it was something deeper, where the route handlers returned 500 even after the missing models were added to the inline mocks. Diagnosing this properly requires running the tests interactively, not from a chat-based tool. Plan accordingly.
+
+**Affected components:**
+- `src/lib/services/activity-tracking.service.ts` (the violation)
+- `src/lib/services/__tests__/activity-tracking.service.test.ts` (missing error-propagation tests)
+- The 11 test files listed above (incomplete inline mocks that the safety net is currently hiding)
 
 ---
 

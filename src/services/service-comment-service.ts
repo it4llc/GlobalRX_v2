@@ -7,6 +7,7 @@ import {
   UpdateServiceCommentInput,
   ServiceCommentWithRelations
 } from '@/types/service-comment';
+import { ActivityTrackingService } from '@/lib/services/activity-tracking.service';
 
 export class ServiceCommentService {
   /**
@@ -15,7 +16,8 @@ export class ServiceCommentService {
   async createComment(
     orderItemId: string,
     data: CreateServiceCommentInput,
-    userId: string
+    userId: string,
+    userType?: 'customer' | 'internal' | 'vendor'
   ) {
     // Validate finalText (these validations mirror Zod but provide service-level clarity)
     if (!data.finalText || data.finalText.trim().length === 0) {
@@ -104,6 +106,18 @@ export class ServiceCommentService {
         where: { id: data.templateId },
         data: { hasBeenUsed: true }
       });
+
+      // Phase 2B-2: Update activity tracking if user type is provided
+      // Determine if comment is customer-visible based on isInternalOnly flag
+      if (userType) {
+        await ActivityTrackingService.updateOrderItemActivity(
+          tx,
+          orderItemId,
+          userId,
+          userType,
+          !newComment.isInternalOnly // isCustomerVisible = NOT internal-only
+        );
+      }
 
       return newComment;
     });

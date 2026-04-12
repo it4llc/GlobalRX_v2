@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import logger from '@/lib/logger';
+import { ActivityTrackingService } from '@/lib/services/activity-tracking.service';
 import { ServiceFulfillmentService } from '@/lib/services/service-fulfillment.service';
 import { orderStatusUpdateSchema, ORDER_STATUS_VALUES } from '@/lib/schemas/orderStatusSchemas';
 
@@ -255,6 +256,17 @@ export async function PATCH(
           isAutomatic: false  // Manual status changes are not automatic
         },
       });
+
+      // Phase 2B-2: Update activity tracking
+      // Order status change is a customer-visible event
+      const userType = (session.user!.userType || 'internal') as 'customer' | 'internal' | 'vendor';
+      await ActivityTrackingService.updateOrderActivity(
+        tx,
+        orderId,
+        session.user!.id,
+        userType,
+        true // isCustomerVisible - order status changes are customer-visible
+      );
 
       return updatedOrder;
     });
