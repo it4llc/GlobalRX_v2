@@ -1,3 +1,4 @@
+// /GlobalRX_v2/src/lib/services/__tests__/activity-tracking.service.test.ts
 // Tests for ActivityTrackingService - Phase 2B-2
 // Test-writer Pass 1: Tests written BEFORE implementation exists
 
