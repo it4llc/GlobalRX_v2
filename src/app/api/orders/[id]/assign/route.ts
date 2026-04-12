@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { assignOrderToVendorSchema } from '@/lib/schemas/vendorSchemas';
 import logger from '@/lib/logger';
+import { ActivityTrackingService } from '@/lib/services/activity-tracking.service';
 
 export async function PUT(
   request: NextRequest,
@@ -21,7 +22,9 @@ export async function PUT(
   }
 
   // Step 2: Permission check - only internal users can assign orders
-  if (session.user.type !== 'internal') {
+  // Support both 'type' and 'userType' for backward compatibility
+  const userType = session.user.userType || session.user.type;
+  if (userType !== 'internal') {
     return NextResponse.json(
       { error: 'Only internal users can assign orders' },
       { status: 403 }
@@ -147,6 +150,17 @@ export async function PUT(
           createdAt: new Date()
         }
       });
+
+      // Phase 2B-2: Update activity tracking
+      // Vendor assignment is an internal-only event
+      const actorUserType = (session.user.userType || session.user.type || 'internal') as 'customer' | 'internal' | 'vendor';
+      await ActivityTrackingService.updateOrderActivity(
+        tx,
+        orderId,
+        session.user.id,
+        actorUserType,
+        false // isCustomerVisible - vendor assignment is internal-only
+      );
 
       return updatedOrder;
     });

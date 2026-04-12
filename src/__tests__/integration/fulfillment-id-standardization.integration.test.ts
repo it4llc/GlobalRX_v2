@@ -643,7 +643,8 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
       expect(mockInstance2.createComment).toHaveBeenCalledWith(
         validOrderItemId,  // Should use OrderItem ID for audit trail
         { templateId: 'template-123', finalText: 'Audit trail test' },
-        'user-integration-123'
+        'user-integration-123',
+        'admin'
       );
     });
   });

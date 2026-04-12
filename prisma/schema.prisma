@@ -329,6 +329,7 @@ model Order {
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   lastActivityAt      DateTime?
+  lastInternalActivityAt DateTime?
   assignedVendorId    String?
   closedAt            DateTime?
   closedBy            String?
@@ -379,6 +380,7 @@ model OrderItem {
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   lastActivityAt     DateTime?
+  lastInternalActivityAt DateTime?
   updatedById        String?
   data               OrderData[]
   location           Country              @relation(fields: [locationId], references: [id])

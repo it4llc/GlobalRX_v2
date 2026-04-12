@@ -328,7 +328,8 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       expect(mockInstance3.createComment).toHaveBeenCalledWith(
         orderItemId,
         { ...mockRequestBody, isInternalOnly: true },
-        'user-123'
+        'user-123',
+        'admin'
       );
 
       // Response format should be maintained
