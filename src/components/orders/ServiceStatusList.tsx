@@ -8,6 +8,7 @@ import { serviceStatusListPropsSchema } from '@/types/service-status-display';
 import { getStatusColorClass } from '@/lib/schemas/serviceStatusSchemas';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { formatServiceStatus } from '@/lib/status-utils';
+import { NewActivityDot } from '@/components/ui/NewActivityDot';
 
 /**
  * ServiceStatusList Component
@@ -124,7 +125,12 @@ export const ServiceStatusList: React.FC<ServiceStatusListComponentProps> = (pro
               className="block mb-2"
               data-testid={`service-item-${index}`}
             >
-              <div className={`${isUnnamedService ? 'italic' : ''} font-medium`}>
+              <div className={`${isUnnamedService ? 'italic' : ''} font-medium flex items-center`}>
+                <NewActivityDot
+                  show={(item as any).hasNewActivity || false}
+                  aria-label={t('services.hasNewActivity')}
+                  className="mr-1"
+                />
                 {serviceName}
               </div>
               <div className="ml-2 text-sm">
@@ -150,6 +156,11 @@ export const ServiceStatusList: React.FC<ServiceStatusListComponentProps> = (pro
               className="flex items-center gap-1 mb-1"
               data-testid={`service-item-${index}`}
             >
+              <NewActivityDot
+                show={(item as any).hasNewActivity || false}
+                aria-label={t('services.hasNewActivity')}
+                className="mr-1"
+              />
               <span className={`${isUnnamedService ? 'italic' : ''} font-medium`}>
                 {serviceName}
               </span>
