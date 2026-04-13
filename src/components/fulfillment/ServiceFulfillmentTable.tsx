@@ -459,9 +459,24 @@ export function ServiceFulfillmentTable({
   const toggleRowExpansion = (serviceId: string) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(serviceId)) {
+      // Collapsing - no tracking
       newExpanded.delete(serviceId);
     } else {
+      // Expanding - track the view
       newExpanded.add(serviceId);
+
+      // Find the service to get its orderItemId for tracking
+      const service = services.find(s => s.id === serviceId);
+      if (service && service.orderItemId) {
+        // Fire the order item view tracking call
+        fetch(`/api/order-items/${service.orderItemId}/view`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        }).catch((err) => {
+          // Silent failure - log to console but don't show to user
+          console.warn('Order item view tracking failed:', err);
+        });
+      }
     }
     setExpandedRows(newExpanded);
   };
