@@ -1,11 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm run dev:*)",
-      "Bash(cd:*)",
-      "SlashCommand(/build-feature:*)",
-      "Bash(* pnpm test *)"
+      "Bash(pnpm vitest run src/app/fulfillment/orders/\\[id\\]/__tests__/order-view-tracking.test.tsx --reporter=verbose)"
     ],
-    "deny": []
+    "deny": [],
+    "ask": []
   }
 }

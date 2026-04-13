@@ -46,7 +46,10 @@ vi.mock('@/components/services/ServiceCommentSection', () => ({
 }));
 
 // Mock fetch for API calls
-global.fetch = vi.fn();
+global.fetch = vi.fn().mockResolvedValue({
+  ok: true,
+  json: () => Promise.resolve({})
+});
 
 // Mock HTMLDialogElement if not available in test environment
 if (typeof HTMLDialogElement === 'undefined') {
@@ -433,7 +436,13 @@ describe('ServiceFulfillmentTable - Requirements Display Integration', () => {
       });
 
       // Should not have made any additional fetch calls for order data
-      expect(fetchSpy).not.toHaveBeenCalled();
+      // Phase 2C: expanding a row intentionally fires a view tracking POST to /api/order-items/[id]/view.
+      // This assertion was originally expect(fetchSpy).not.toHaveBeenCalled() but now needs to allow
+      // the tracking call while still catching any other fetch calls (which would be a regression).
+      const nonTrackingCalls = fetchSpy.mock.calls.filter(
+        (call) => !String(call[0]).match(/\/api\/order-items\/.+\/view$/)
+      );
+      expect(nonTrackingCalls).toHaveLength(0);
     });
 
     it('should handle services with large orderData objects efficiently', async () => {
