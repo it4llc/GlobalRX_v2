@@ -54,6 +54,8 @@ Phase 2C wires the existing Phase 2A view-tracking API endpoints into the fronte
 
 ### Required Patterns
 
+Logging uses the project's clientLogger utility per docs/CODING_STANDARDS.md, not raw console.warn. This was updated during Phase 2C standards review.
+
 #### Order View Tracking Pattern
 ```typescript
 const trackedOrderIdRef = useRef<string | null>(null);
@@ -66,13 +68,21 @@ useEffect(() => {
   fetch(`/api/orders/${orderId}/view`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
-  }).catch((err) => {
-    console.warn('Order view tracking failed:', err);
+  })
+  .then((response) => {
+    // Check for HTTP errors
+    if (!response.ok) {
+      clientLogger.warn('Order view tracking failed with status:', response.status);
+    }
+  })
+  .catch((err) => {
+    // Silent failure - log to console but don't show to user
+    clientLogger.warn('Order view tracking failed:', err);
   });
 }, [order, orderId]);
 ```
 
-**Why this pattern is required**: A simple dependency on `[order, orderId]` would re-fire every time the order object reference changes (such as when `fetchOrderDetails` updates state), which would spam the endpoint. The ref pattern ensures the call fires exactly once per orderId per mount and is immune to object identity changes.
+**Why this pattern is required**: A simple dependency on `[order, orderId]` would re-fire every time the order object reference changes (such as when `fetchOrderDetails` updates state), which would spam the endpoint. The ref pattern ensures the call fires exactly once per orderId per mount and is immune to object identity changes. The .then() block is required to catch non-2xx HTTP responses, because fetch() only rejects its promise on network-level failures, not on HTTP error statuses. Without the .then() block, a 500 from the tracking endpoint would be silently ignored and never appear in the console. The .catch() block handles true network failures that prevent the request from reaching the server.
 
 #### Order Item View Tracking Pattern
 Inside `toggleRowExpansion` at line 459, in the else branch where item is added to expandedRows:
@@ -88,8 +98,16 @@ const toggleRowExpansion = (serviceId: string) => {
     fetch(`/api/order-items/${orderItemId}/view`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
-    }).catch((err) => {
-      console.warn('Order item view tracking failed:', err);
+    })
+    .then((response) => {
+      // Check for HTTP errors
+      if (!response.ok) {
+        clientLogger.warn('Order item view tracking failed with status:', response.status);
+      }
+    })
+    .catch((err) => {
+      // Silent failure - log to console but don't show to user
+      clientLogger.warn('Order item view tracking failed:', err);
     });
   }
   setExpandedRows(newExpanded);
@@ -100,7 +118,7 @@ const toggleRowExpansion = (serviceId: string) => {
 - Use plain `fetch()` with method POST and Content-Type application/json
 - Do NOT use `api-client.ts` (it exists but is unused in the codebase)
 - All tracking calls must be wrapped in try/catch
-- Errors are caught and logged with `console.warn`
+- Errors are caught and logged with `clientLogger.warn`
 - Errors must NEVER surface to the user
 - Errors must NEVER prevent page rendering or row expansion
 
@@ -178,7 +196,7 @@ The following items are explicitly NOT part of Phase 2C:
 1. ✅ Order details page fires POST `/api/orders/[id]/view` exactly once per orderId per page mount
 2. ✅ Expanding a row in ServiceFulfillmentTable fires POST `/api/order-items/[id]/view` for that item's id
 3. ✅ Collapsing a row does not fire any tracking call
-4. ✅ Both tracking calls fail silently with console.warn on error
+4. ✅ Both tracking calls fail silently with clientLogger.warn on error
 5. ✅ Tracking failures never block page rendering or row expansion
 6. ✅ No inline styles are introduced
 7. ✅ No new dependencies or libraries are added

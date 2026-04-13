@@ -175,12 +175,12 @@ export default function OrderDetailsPage() {
     .then((response) => {
       // Check for HTTP errors
       if (!response.ok) {
-        console.warn('Order view tracking failed with status:', response.status);
+        clientLogger.warn('Order view tracking failed with status:', response.status);
       }
     })
     .catch((err) => {
       // Silent failure - log to console but don't show to user
-      console.warn('Order view tracking failed:', err);
+      clientLogger.warn('Order view tracking failed:', err);
     });
   }, [order, orderId]);
 

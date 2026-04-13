@@ -472,9 +472,16 @@ export function ServiceFulfillmentTable({
         fetch(`/api/order-items/${service.orderItemId}/view`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
-        }).catch((err) => {
+        })
+        .then((response) => {
+          // Check for HTTP errors
+          if (!response.ok) {
+            clientLogger.warn('Order item view tracking failed with status:', response.status);
+          }
+        })
+        .catch((err) => {
           // Silent failure - log to console but don't show to user
-          console.warn('Order item view tracking failed:', err);
+          clientLogger.warn('Order item view tracking failed:', err);
         });
       }
     }

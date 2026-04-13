@@ -891,6 +891,26 @@ Fix by using SERVICE_STATUSES constants or normalizeServiceStatus helper for com
 
 ---
 
+### TD-033 — Order details page has untranslated hardcoded strings
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | Internationalization / Order details page          |
+| Severity      | Low                                                 |
+| Identified    | April 13, 2026 - Phase 2C Standards Check          |
+| Identified by | Standards Checker                                   |
+
+**Description:**
+src/app/fulfillment/orders/[id]/page.tsx contains hardcoded English strings at approximately lines 236, 242, 256, and 274 including "Back to Dashboard", "Order not found", and similar UI text. These strings should be routed through the project's translation system using the t() function from the TranslationContext.
+
+**Why deferred:**
+These strings are pre-existing and were not introduced by Phase 2C. They were discovered by the standards-checker during Phase 2C review but are outside the scope of view-tracking work. Per the "one bug per branch per PR" rule, fixing unrelated issues in the middle of feature work is not allowed.
+
+**When to fix:**
+During a future internationalization pass on the order details page, or as part of any feature work that already touches this file's UI rendering logic.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_

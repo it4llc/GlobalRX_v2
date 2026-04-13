@@ -6,6 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useParams } from 'next/navigation';
 import OrderDetailsPage from '../page';
+import clientLogger from '@/lib/client-logger';
 
 // Mock dependencies
 vi.mock('@/contexts/AuthContext', () => ({
@@ -251,7 +252,7 @@ describe('Order Details Page - Order View Tracking', () => {
       });
 
       // Error should be logged to console but not shown to user
-      expect(consoleSpy).toHaveBeenCalledWith('Order view tracking failed:', expect.any(Error));
+      expect(clientLogger.warn).toHaveBeenCalledWith('Order view tracking failed:', expect.any(Error));
 
       consoleSpy.mockRestore();
     });
@@ -279,7 +280,7 @@ describe('Order Details Page - Order View Tracking', () => {
       });
 
       // Error should be logged but not shown to user
-      expect(consoleSpy).toHaveBeenCalled();
+      expect(clientLogger.warn).toHaveBeenCalled();
 
       consoleSpy.mockRestore();
     });
