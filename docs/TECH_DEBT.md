@@ -868,6 +868,29 @@ A previous attempt to fix this during the original code review session removed t
 
 ---
 
+### TD-032 — ServiceCommentCard.tsx case-sensitivity bug in status styling
+
+| Field         | Detail                                              |
+|---------------|-----------------------------------------------------|
+| Area          | UI Components / Service Comments                    |
+| Severity      | Low (UI styling only, no data impact)              |
+| Identified    | April 12, 2026 - TD-028 Bug Investigation          |
+| Identified by | Bug Investigator Agent                             |
+
+**Description:**
+ServiceCommentCard.tsx compares statusChangedTo against Title Case strings ('Completed', 'Cancelled', 'Cancelled-DNB') but the field stores lowercase values, so the conditional styling never applies. Lines 64, 66, 93-94, 192, 194 contain comparisons that will never match because the database and API store lowercase status values.
+
+**Why deferred:**
+This is a separate bug from TD-028 and violates the "one bug per branch per PR" rule. The styling issue only affects visual appearance (background colors for status change comments).
+
+**When to fix:**
+Address in a separate bug fix branch after TD-028 is complete.
+
+**Recommendation:**
+Fix by using SERVICE_STATUSES constants or normalizeServiceStatus helper for comparisons.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
