@@ -720,12 +720,17 @@ export class OrderCoreService {
   /**
    * Get orders for a customer
    */
-  static async getCustomerOrders(customerId: string, filters?: {
-    status?: string;
-    search?: string;
-    limit?: number;
-    offset?: number;
-  }) {
+  static async getCustomerOrders(
+    customerId: string,
+    filters?: {
+      status?: string;
+      search?: string;
+      limit?: number;
+      offset?: number;
+    },
+    includeViews?: boolean,
+    userId?: string
+  ) {
     const where: Prisma.OrderWhereInput = {
       customerId,
     };
@@ -741,41 +746,64 @@ export class OrderCoreService {
       ];
     }
 
+    // Build the include object conditionally based on includeViews flag
+    const baseItemInclude = {
+      service: {
+        select: {
+          id: true,
+          name: true,
+          category: true,
+        },
+      },
+      location: {
+        select: {
+          id: true,
+          name: true,
+          code2: true,
+        },
+      },
+    } as any;
+
+    // Add orderItemViews if includeViews is true AND we have a userId
+    if (includeViews && userId) {
+      baseItemInclude.orderItemViews = {
+        where: { userId },
+        select: { lastViewedAt: true },
+        take: 1
+      };
+    }
+
+    const baseInclude = {
+      items: {
+        include: baseItemInclude,
+        // CRITICAL: Always order by service name then creation time to prevent
+        // services from changing display order when their status is updated.
+        // Without explicit ordering, Prisma returns results in undefined order
+        // which caused UI instability when services moved around after status updates.
+        orderBy: [
+          { service: { name: 'asc' } },
+          { createdAt: 'asc' }
+        ],
+      },
+      statusHistory: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
+    } as any;
+
+    // Add orderViews if includeViews is true AND we have a userId
+    if (includeViews && userId) {
+      baseInclude.orderViews = {
+        where: { userId },
+        select: { lastViewedAt: true },
+        take: 1
+      };
+    }
+
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where,
-        include: {
-          items: {
-            include: {
-              service: {
-                select: {
-                  id: true,
-                  name: true,
-                  category: true,
-                },
-              },
-              location: {
-                select: {
-                  id: true,
-                  name: true,
-                  code2: true,
-                },
-              },
-            },
-            // CRITICAL: Always order by service name then creation time to prevent
-            // services from changing display order when their status is updated.
-            // Without explicit ordering, Prisma returns results in undefined order
-            // which caused UI instability when services moved around after status updates.
-            orderBy: [
-              { service: { name: 'asc' } },
-              { createdAt: 'asc' }
-            ],
-          },
-          statusHistory: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
-        },
+        include: baseInclude,
         orderBy: { createdAt: 'desc' },
         take: filters?.limit || 50,
         skip: filters?.offset || 0,
@@ -789,13 +817,18 @@ export class OrderCoreService {
   /**
    * Alias for getCustomerOrders to match test expectations
    */
-  static async getOrdersForCustomer(customerId: string, filters?: {
-    status?: string;
-    search?: string;
-    limit?: number;
-    offset?: number;
-  }) {
-    return this.getCustomerOrders(customerId, filters);
+  static async getOrdersForCustomer(
+    customerId: string,
+    filters?: {
+      status?: string;
+      search?: string;
+      limit?: number;
+      offset?: number;
+    },
+    includeViews?: boolean,
+    userId?: string
+  ) {
+    return this.getCustomerOrders(customerId, filters, includeViews, userId);
   }
 
   /**
