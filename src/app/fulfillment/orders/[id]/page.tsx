@@ -16,7 +16,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
@@ -103,6 +103,9 @@ export default function OrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Track which orderId has been recorded to prevent duplicate tracking calls
+  const trackedOrderIdRef = useRef<string | null>(null);
+
   const orderId = params.id as string;
 
   useEffect(() => {
@@ -154,6 +157,32 @@ export default function OrderDetailsPage() {
       setLoading(false);
     }
   };
+
+  // Track order view - fires exactly once per orderId per page mount
+  useEffect(() => {
+    // Only track if we have both order data and orderId
+    if (!order || !orderId) return;
+
+    // Use ref to prevent duplicate tracking calls when order object reference changes
+    if (trackedOrderIdRef.current === orderId) return;
+    trackedOrderIdRef.current = orderId;
+
+    // Fire the view tracking call
+    fetch(`/api/orders/${orderId}/view`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then((response) => {
+      // Check for HTTP errors
+      if (!response.ok) {
+        clientLogger.warn('Order view tracking failed with status:', response.status);
+      }
+    })
+    .catch((err) => {
+      // Silent failure - log to console but don't show to user
+      clientLogger.warn('Order view tracking failed:', err);
+    });
+  }, [order, orderId]);
 
   /**
    * Handles order status changes from the sidebar dropdown
