@@ -355,9 +355,11 @@ export async function PUT(
           data: auditEntryData
         });
 
-        // Check for automatic order status progression when service becomes "Submitted"
+        // Check for automatic order status progression when service becomes "submitted"
         // Moving this inside the transaction ensures atomicity (Warning 2 fix)
-        if (newStatus === 'Submitted' && orderId) {
+        // TD-028 BUG FIX: Previously checked for 'Submitted' (Title Case) but system uses 'submitted' (lowercase)
+        // This caused auto-progression to never execute. Now uses SERVICE_STATUSES.SUBMITTED constant for consistency.
+        if (newStatus === SERVICE_STATUSES.SUBMITTED && orderId) {
           try {
             // Import the service here to avoid circular dependencies
             const { ServiceFulfillmentService } = await import('@/lib/services/service-fulfillment.service');
