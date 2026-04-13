@@ -14,6 +14,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ServiceStatusList } from '@/components/orders/ServiceStatusList';
 import { getStatusColorClass } from '@/lib/schemas/serviceStatusSchemas';
+import { hasNewActivity } from '@/lib/utils/activity-comparison';
+import { NewActivityDot } from '@/components/ui/NewActivityDot';
 
 interface DashboardStats {
   total: number;
@@ -37,6 +39,9 @@ interface OrderItem {
     code?: string;
   };
   status: string;
+  lastActivityAt?: string | null;
+  orderItemViews?: Array<{ lastViewedAt: string }>;
+  hasNewActivity?: boolean;  // Computed field
 }
 
 interface Order {
@@ -49,6 +54,9 @@ interface Order {
   updatedAt: string;
   items: OrderItem[];
   totalPrice?: number | null;
+  lastActivityAt?: string | null;
+  orderViews?: Array<{ lastViewedAt: string }>;
+  hasNewOrderActivity?: boolean;  // Computed field
 }
 
 export default function CustomerDashboard() {
@@ -92,8 +100,25 @@ export default function CustomerDashboard() {
 
       if (ordersResponse.ok) {
         const ordersData = await ordersResponse.json();
-        setOrders(ordersData.orders);
-        setFilteredOrders(ordersData.orders); // Initially show all orders
+
+        // Enhance orders with activity flags
+        const enhancedOrders = ordersData.orders.map((order: Order) => ({
+          ...order,
+          hasNewOrderActivity: hasNewActivity(
+            order.lastActivityAt,
+            order.orderViews?.[0]?.lastViewedAt
+          ),
+          items: order.items?.map((item: OrderItem) => ({
+            ...item,
+            hasNewActivity: hasNewActivity(
+              item.lastActivityAt,
+              item.orderItemViews?.[0]?.lastViewedAt
+            )
+          })) || []
+        }));
+
+        setOrders(enhancedOrders);
+        setFilteredOrders(enhancedOrders); // Initially show all orders
       }
     } catch (error: unknown) {
       clientLogger.error('Error fetching dashboard data:', error);
@@ -346,6 +371,11 @@ export default function CustomerDashboard() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="flex items-center gap-2">
+                          <NewActivityDot
+                            show={order.hasNewOrderActivity || false}
+                            aria-label="Order has new activity"
+                            className="mr-1"
+                          />
                           <div className="text-sm font-medium text-gray-900">
                             {order.orderNumber}
                           </div>
