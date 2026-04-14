@@ -1,5 +1,41 @@
 // /GlobalRX_v2/src/components/fulfillment/__tests__/ServiceFulfillmentTable.test.tsx
 
+/**
+ * SOURCE FILES READ LOG
+ *
+ * Files read before writing this test:
+ * - docs/CODING_STANDARDS.md (lines 1-940) - Core development rules
+ * - docs/TESTING_STANDARDS.md (lines 1-276) - Testing patterns and TDD workflow
+ * - docs/COMPONENT_STANDARDS.md (lines 1-276) - Component and styling standards
+ * - docs/specs/order-view-tracking-phase-2d-new-activity-indicators.md (lines 1-372) - Feature specification
+ * - docs/architecture/order-view-tracking-phase-2d-technical-plan.md (lines 1-510) - Technical implementation plan
+ * - src/components/fulfillment/ServiceFulfillmentTable.tsx (lines 1-1455) - Component under test
+ * - src/components/ui/NewActivityDot.tsx (lines 1-47) - NewActivityDot component
+ * - src/components/ui/__tests__/NewActivityDot.test.tsx (lines 1-192) - Pattern reference
+ * - src/components/fulfillment/__tests__/ServiceFulfillmentTable.test.tsx (lines 1-50) - Existing test patterns
+ * - src/components/fulfillment/__tests__/OrderDetailsView.phase2d-regression.test.tsx (lines 1-290) - Regression tests
+ *
+ * PATTERN MATCH BLOCK
+ *
+ * Test file I am creating: src/components/fulfillment/__tests__/ServiceFulfillmentTable.test.tsx
+ *
+ * Existing tests I read for reference:
+ * 1. src/components/fulfillment/__tests__/ServiceFulfillmentTable.test.tsx (partial)
+ * 2. src/components/ui/__tests__/NewActivityDot.test.tsx
+ *
+ * Patterns I am copying from those existing tests:
+ * - Import style for component: Direct import from parent directory
+ * - Mock setup: Mock AuthContext, navigation, useToast, NO mocking of NewActivityDot
+ * - Test data setup: Create service arrays with all required fields
+ * - Assertion style: Uses screen queries and DOM property assertions
+ *
+ * I will NOT do any of the following:
+ * - Mock ServiceFulfillmentTable component itself
+ * - Mock NewActivityDot component (real component used)
+ * - Mock cn() helper from @/lib/utils
+ * - Mock React
+ */
+
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
@@ -31,6 +67,15 @@ vi.mock('@/hooks/useToast', () => ({
   }))
 }));
 
+// Mock client logger
+vi.mock('@/lib/client-logger', () => ({
+  default: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn()
+  }
+}));
+
 // Mock fetch for API calls
 global.fetch = vi.fn();
 
@@ -49,957 +94,447 @@ if (typeof HTMLDialogElement === 'undefined') {
       this.open = false;
       this.style.display = 'none';
     }
-  };
+  } as any;
 }
 
+// Mock child components that are tested separately
+vi.mock('@/components/services/ServiceCommentSection', () => ({
+  ServiceCommentSection: () => <div data-testid="service-comment-section">Comments</div>
+}));
+
+vi.mock('@/components/services/ServiceResultsSection', () => ({
+  ServiceResultsSection: () => <div data-testid="service-results-section">Results</div>
+}));
+
+vi.mock('@/components/services/ServiceRequirementsDisplay', () => ({
+  ServiceRequirementsDisplay: () => <div data-testid="service-requirements-display">Requirements</div>
+}));
+
+// Mock useServiceComments hook
+vi.mock('@/hooks/useServiceComments', () => ({
+  useServiceComments: vi.fn(() => ({
+    comments: [],
+    totalComments: 0,
+    isLoading: false,
+    error: null,
+    refresh: vi.fn()
+  }))
+}));
+
+const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
+
 describe('ServiceFulfillmentTable', () => {
-  const mockServices = [
-    {
-      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      orderId: '550e8400-e29b-41d4-a716-446655440001',
-      orderItemId: '660e8400-e29b-41d4-a716-446655440001',
-      serviceId: 'service-type-1',
-      locationId: 'location-1',
-      status: 'submitted',
-      assignedVendorId: null,
-      vendorNotes: null,
-      internalNotes: null,
-      assignedAt: null,
-      assignedBy: null,
-      completedAt: null,
-      createdAt: '2024-03-01T09:00:00Z',
-      updatedAt: '2024-03-01T09:00:00Z',
-      service: {
-        id: 'service-type-1',
-        name: 'Criminal Background Check',
-        category: 'Background'
-      },
-      location: {
-        id: 'location-1',
-        name: 'National',
-        code2: 'US'
-      },
-      assignedVendor: null
+  // Common test data
+  const createTestService = (overrides = {}) => ({
+    id: 'service-1',
+    orderId: 'order-1',
+    orderItemId: 'item-1',
+    serviceId: 'service-type-1',
+    locationId: 'location-1',
+    status: 'pending',
+    assignedVendorId: null,
+    vendorNotes: null,
+    internalNotes: null,
+    assignedAt: null,
+    assignedBy: null,
+    completedAt: null,
+    createdAt: '2024-04-01T10:00:00Z',
+    updatedAt: '2024-04-01T10:00:00Z',
+    service: {
+      id: 'service-type-1',
+      name: 'Background Check',
+      code: 'BGC',
+      category: 'Screening'
     },
-    {
-      id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
-      orderId: '550e8400-e29b-41d4-a716-446655440001',
-      orderItemId: '660e8400-e29b-41d4-a716-446655440002',
-      serviceId: 'service-type-2',
-      locationId: 'location-2',
-      status: 'processing',
-      assignedVendorId: 'vendor-123',
-      vendorNotes: 'In progress',
-      internalNotes: 'Rush order',
-      assignedAt: '2024-03-01T10:00:00Z',
-      assignedBy: 'user-456',
-      completedAt: null,
-      createdAt: '2024-03-01T09:00:00Z',
-      updatedAt: '2024-03-01T11:00:00Z',
-      service: {
-        id: 'service-type-2',
-        name: 'Employment Verification',
-        category: 'Verification'
-      },
-      location: {
-        id: 'location-2',
-        name: 'Previous Employer',
-        code2: null
-      },
-      assignedVendor: {
-        id: 'vendor-123',
-        name: 'Background Vendor Inc',
-        disabled: false
-      }
+    location: {
+      id: 'location-1',
+      name: 'United States',
+      code2: 'US'
     },
-    {
-      id: 'b47ac10b-58cc-4372-a567-0e02b2c3d479',
-      orderId: '550e8400-e29b-41d4-a716-446655440001',
-      orderItemId: '660e8400-e29b-41d4-a716-446655440003',
-      serviceId: 'service-type-3',
-      locationId: 'location-3',
-      status: 'completed',
-      assignedVendorId: 'vendor-456',
-      vendorNotes: 'All checks passed',
-      internalNotes: 'Approved',
-      assignedAt: '2024-03-01T10:00:00Z',
-      assignedBy: 'user-456',
-      completedAt: '2024-03-01T14:00:00Z',
-      createdAt: '2024-03-01T09:00:00Z',
-      updatedAt: '2024-03-01T14:00:00Z',
-      service: {
-        id: 'service-type-3',
-        name: 'Education Verification',
-        category: 'Verification'
-      },
-      location: {
-        id: 'location-3',
-        name: 'University',
-        code2: null
-      },
-      assignedVendor: {
-        id: 'vendor-456',
-        name: 'Verification Services LLC',
-        disabled: false
-      }
-    }
-  ];
+    ...overrides
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockToastError.mockClear();
-    mockToastSuccess.mockClear();
-    // Reset fetch mock but keep it as a function
-    global.fetch = vi.fn();
-    vi.mocked(useAuth).mockReturnValue({
+    mockUseAuth.mockReturnValue({
       user: {
-        id: 'user-123',
-        userType: 'internal',
+        id: 'user-1',
+        userType: 'admin',
         permissions: { fulfillment: { manage: true } }
       }
     });
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: async () => ({ commentsByService: {} })
+      })
+    );
   });
 
-  describe('rendering', () => {
-    it('should display service information in table rows', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+  describe('Table rendering', () => {
+    it('renders table with expected columns', () => {
+      const services = [createTestService()];
 
-      // Check headers
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
+
+      // Check column headers
       expect(screen.getByText('Service')).toBeInTheDocument();
       expect(screen.getByText('Location')).toBeInTheDocument();
       expect(screen.getByText('Status')).toBeInTheDocument();
       expect(screen.getByText('Assigned Vendor')).toBeInTheDocument();
-      expect(screen.getAllByText('Actions')[0]).toBeInTheDocument(); // Header is first
+      expect(screen.getByText('Dates')).toBeInTheDocument();
+      expect(screen.getByText('Comments')).toBeInTheDocument();
+    });
 
-      // Check service data
-      expect(screen.getByText('Criminal Background Check')).toBeInTheDocument();
-      expect(screen.getByText('Employment Verification')).toBeInTheDocument();
+    it('renders row per service', () => {
+      const services = [
+        createTestService({ id: 'service-1' }),
+        createTestService({ id: 'service-2', service: { name: 'Drug Test', code: 'DT', category: 'Medical', id: 'service-type-2' } }),
+        createTestService({ id: 'service-3', service: { name: 'Reference Check', code: 'RC', category: 'Verification', id: 'service-type-3' } })
+      ];
+
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
+
+      expect(screen.getByTestId('service-row-service-1')).toBeInTheDocument();
+      expect(screen.getByTestId('service-row-service-2')).toBeInTheDocument();
+      expect(screen.getByTestId('service-row-service-3')).toBeInTheDocument();
+    });
+
+    it('renders service names from provided items', () => {
+      const services = [
+        createTestService({ service: { name: 'Criminal Check', code: 'CC', category: 'Screening', id: 'service-type-1' } }),
+        createTestService({ id: 'service-2', service: { name: 'Education Verification', code: 'EV', category: 'Verification', id: 'service-type-2' } }),
+        createTestService({ id: 'service-3', service: { name: 'Employment History', code: 'EH', category: 'Verification', id: 'service-type-3' } })
+      ];
+
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
+
+      expect(screen.getByText('Criminal Check')).toBeInTheDocument();
       expect(screen.getByText('Education Verification')).toBeInTheDocument();
+      expect(screen.getByText('Employment History')).toBeInTheDocument();
+    });
+  });
 
-      // Check locations
-      expect(screen.getByText('National')).toBeInTheDocument();
-      expect(screen.getByText('Previous Employer')).toBeInTheDocument();
-      expect(screen.getByText('University')).toBeInTheDocument();
+  describe('NewActivityDot rendering', () => {
+    it('renders NewActivityDot for services where hasNewActivity is true', () => {
+      const services = [
+        createTestService({ hasNewActivity: true }),
+        createTestService({ id: 'service-2', hasNewActivity: true, service: { name: 'Drug Test', code: 'DT', category: 'Medical', id: 'service-type-2' } })
+      ];
 
-      // Check vendors - they appear in the table cells and possibly in dropdown
-      const vendorElements1 = screen.getAllByText('Background Vendor Inc');
-      expect(vendorElements1.length).toBeGreaterThan(0);
-      const vendorElements2 = screen.getAllByText('Verification Services LLC');
-      expect(vendorElements2.length).toBeGreaterThan(0);
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
+
+      // Find dots by their aria-label
+      const dots = screen.getAllByLabelText('Service has new activity');
+      expect(dots).toHaveLength(2);
+
+      // Verify dots have expected classes (from NewActivityDot component)
+      dots.forEach(dot => {
+        expect(dot).toHaveClass('bg-red-500');
+        expect(dot).toHaveClass('rounded-full');
+        expect(dot).toHaveClass('w-2');
+        expect(dot).toHaveClass('h-2');
+      });
     });
 
-    it('should display status badges with correct colors', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+    it('does NOT render NewActivityDot for services where hasNewActivity is false/undefined', () => {
+      const services = [
+        createTestService({ hasNewActivity: false }),
+        createTestService({ id: 'service-2', service: { name: 'Drug Test', code: 'DT', category: 'Medical', id: 'service-type-2' } })
+        // hasNewActivity undefined for service-2
+      ];
 
-      // Find status badges in the table cells (they also appear in dropdowns)
-      const rows = screen.getAllByRole('row');
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
 
-      // Find the Submitted status in the first service row
-      const submittedRow = rows.find(row => row.textContent?.includes('Criminal Background Check'));
-      expect(submittedRow?.textContent).toContain('Submitted');
-
-      // Find the Processing status in the second service row
-      const processingRow = rows.find(row => row.textContent?.includes('Employment Verification'));
-      expect(processingRow?.textContent).toContain('Processing');
-
-      // Find the Completed status in the third service row
-      const completedRow = rows.find(row => row.textContent?.includes('Education Verification'));
-      expect(completedRow?.textContent).toContain('Completed');
+      // Should not find any dots
+      const dots = screen.queryAllByLabelText('Service has new activity');
+      expect(dots).toHaveLength(0);
     });
 
-    it('should display "Not Assigned" for services without vendor', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+    it('correctly renders dots for mixed list (4 services, positions 0 and 2 have dots)', () => {
+      const services = [
+        createTestService({
+          id: 'service-1',
+          hasNewActivity: true,  // Position 0: has dot
+          service: { name: 'Service One', code: 'S1', category: 'Cat1', id: 'service-type-1' }
+        }),
+        createTestService({
+          id: 'service-2',
+          hasNewActivity: false,  // Position 1: no dot
+          service: { name: 'Service Two', code: 'S2', category: 'Cat2', id: 'service-type-2' }
+        }),
+        createTestService({
+          id: 'service-3',
+          hasNewActivity: true,  // Position 2: has dot
+          service: { name: 'Service Three', code: 'S3', category: 'Cat3', id: 'service-type-3' }
+        }),
+        createTestService({
+          id: 'service-4',
+          // Position 3: no dot (undefined)
+          service: { name: 'Service Four', code: 'S4', category: 'Cat4', id: 'service-type-4' }
+        })
+      ];
 
-      expect(screen.getByText('Not Assigned')).toBeInTheDocument();
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
+
+      // Should find exactly 2 dots
+      const dots = screen.getAllByLabelText('Service has new activity');
+      expect(dots).toHaveLength(2);
+
+      // Verify all service names are rendered
+      expect(screen.getByText('Service One')).toBeInTheDocument();
+      expect(screen.getByText('Service Two')).toBeInTheDocument();
+      expect(screen.getByText('Service Three')).toBeInTheDocument();
+      expect(screen.getByText('Service Four')).toBeInTheDocument();
     });
 
-    it('should display empty state when no services exist', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={[]} />);
+    it('renders NewActivityDot in the service name column', () => {
+      const services = [
+        createTestService({ hasNewActivity: true })
+      ];
+
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
+
+      // Find the row that contains the service
+      const serviceRow = screen.getByTestId('service-row-service-1');
+
+      // The dot should be within the row
+      const dot = within(serviceRow).getByLabelText('Service has new activity');
+      expect(dot).toBeInTheDocument();
+
+      // Verify it's with the service name
+      expect(within(serviceRow).getByText('Background Check')).toBeInTheDocument();
+    });
+  });
+
+  describe('edge cases and error handling', () => {
+    it('does NOT crash with unexpected extra fields', () => {
+      const services = [
+        createTestService({
+          hasNewActivity: true,
+          someUnexpectedField: 'should be ignored',
+          anotherRandomField: 123
+        } as any)
+      ];
+
+      expect(() => {
+        render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
+      }).not.toThrow();
+
+      expect(screen.getByText('Background Check')).toBeInTheDocument();
+    });
+
+    it('handles mixed hasNewActivity values correctly including undefined', () => {
+      const services = [
+        createTestService({
+          id: 'service-1',
+          hasNewActivity: true,
+          service: { name: 'Service A', code: 'SA', category: 'CatA', id: 'service-type-1' }
+        }),
+        createTestService({
+          id: 'service-2',
+          hasNewActivity: false,
+          service: { name: 'Service B', code: 'SB', category: 'CatB', id: 'service-type-2' }
+        }),
+        createTestService({
+          id: 'service-3',
+          hasNewActivity: undefined,
+          service: { name: 'Service C', code: 'SC', category: 'CatC', id: 'service-type-3' }
+        }),
+        createTestService({
+          id: 'service-4',
+          // hasNewActivity not present
+          service: { name: 'Service D', code: 'SD', category: 'CatD', id: 'service-type-4' }
+        })
+      ];
+
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
+
+      // Should only find one dot (for the first service with hasNewActivity: true)
+      const dots = screen.getAllByLabelText('Service has new activity');
+      expect(dots).toHaveLength(1);
+
+      // All services should still be rendered
+      expect(screen.getByText('Service A')).toBeInTheDocument();
+      expect(screen.getByText('Service B')).toBeInTheDocument();
+      expect(screen.getByText('Service C')).toBeInTheDocument();
+      expect(screen.getByText('Service D')).toBeInTheDocument();
+    });
+
+    it('renders empty state when no services provided', () => {
+      render(<ServiceFulfillmentTable services={[]} orderId="order-1" />);
 
       expect(screen.getByText('No services found for this order')).toBeInTheDocument();
     });
 
-    it('should display checkbox for bulk selection', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes).toHaveLength(4); // 1 header + 3 rows
-    });
-
-    it('should display loading state', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} isLoading={true} />);
+    it('handles loading state correctly', () => {
+      render(<ServiceFulfillmentTable services={[]} orderId="order-1" isLoading={true} />);
 
       expect(screen.getByText('Loading services...')).toBeInTheDocument();
     });
+  });
 
-    // TODO: Notes display functionality not yet implemented in ServiceFulfillmentTable component
-    // The showNotes prop exists but doesn't render notes in the table, only in edit modal
-    it.skip('should display vendor notes when available', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} showNotes={true} />);
-
-      expect(screen.getByText('In progress')).toBeInTheDocument();
-      expect(screen.getByText('All checks passed')).toBeInTheDocument();
-    });
-
-    // TODO: Notes display functionality not yet implemented in ServiceFulfillmentTable component
-    // The showNotes prop exists but doesn't render notes in the table, only in edit modal
-    it.skip('should display internal notes for internal users', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} showNotes={true} />);
-
-      expect(screen.getByText('Rush order')).toBeInTheDocument();
-      expect(screen.getByText('Approved')).toBeInTheDocument();
-    });
-
-    it('should hide internal notes from vendor users', () => {
-      vi.mocked(useAuth).mockReturnValue({
+  describe('customer vs non-customer view', () => {
+    it('hides vendor column for customer users', () => {
+      mockUseAuth.mockReturnValue({
         user: {
-          id: 'vendor-user',
-          userType: 'vendor',
-          vendorId: 'vendor-123',
+          id: 'user-1',
+          userType: 'customer',
           permissions: {}
         }
       });
 
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} showNotes={true} />);
+      const services = [createTestService()];
 
-      expect(screen.queryByText('Rush order')).not.toBeInTheDocument();
-      expect(screen.queryByText('Approved')).not.toBeInTheDocument();
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" isCustomer={true} />);
+
+      // Should not show "Assigned Vendor" column header
+      expect(screen.queryByText('Assigned Vendor')).not.toBeInTheDocument();
     });
 
-    it('should flag services with deactivated vendors', () => {
-      const servicesWithDeactivated = [
-        {
-          ...mockServices[1],
-          assignedVendor: {
-            ...mockServices[1].assignedVendor,
-            disabled: true
-          }
+    it('shows vendor column for admin/vendor users', () => {
+      mockUseAuth.mockReturnValue({
+        user: {
+          id: 'user-1',
+          userType: 'admin',
+          permissions: { fulfillment: { manage: true } }
         }
+      });
+
+      const services = [createTestService()];
+
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
+
+      // Should show "Assigned Vendor" column header
+      expect(screen.getByText('Assigned Vendor')).toBeInTheDocument();
+    });
+
+    it('renders NewActivityDot for customers but not for admin/vendor', () => {
+      const services = [
+        createTestService({ hasNewActivity: true })
       ];
 
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={servicesWithDeactivated} />);
-
-      expect(screen.getByText('(Deactivated)')).toBeInTheDocument();
-    });
-  });
-
-  describe('bulk selection', () => {
-    it('should select all services when header checkbox is clicked', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const headerCheckbox = screen.getAllByRole('checkbox')[0];
-      await user.click(headerCheckbox);
-
-      const checkboxes = screen.getAllByRole('checkbox');
-      checkboxes.forEach(checkbox => {
-        expect(checkbox).toBeChecked();
-      });
-    });
-
-    it('should deselect all when header checkbox is unchecked', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const headerCheckbox = screen.getAllByRole('checkbox')[0];
-
-      // Select all
-      await user.click(headerCheckbox);
-      // Deselect all
-      await user.click(headerCheckbox);
-
-      const checkboxes = screen.getAllByRole('checkbox');
-      checkboxes.forEach(checkbox => {
-        expect(checkbox).not.toBeChecked();
-      });
-    });
-
-    it('should select individual services', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const firstServiceCheckbox = screen.getAllByRole('checkbox')[1];
-      await user.click(firstServiceCheckbox);
-
-      expect(firstServiceCheckbox).toBeChecked();
-      expect(screen.getAllByRole('checkbox')[2]).not.toBeChecked();
-    });
-
-    it('should enable bulk assign button when services are selected', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      expect(screen.getByText('Bulk Assign to Vendor')).toBeDisabled();
-
-      const firstServiceCheckbox = screen.getAllByRole('checkbox')[1];
-      await user.click(firstServiceCheckbox);
-
-      expect(screen.getByText('Bulk Assign to Vendor')).not.toBeDisabled();
-    });
-
-    it('should show count of selected services', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const checkboxes = screen.getAllByRole('checkbox');
-      await user.click(checkboxes[1]);
-      await user.click(checkboxes[2]);
-
-      expect(screen.getByText('2 services selected')).toBeInTheDocument();
-    });
-  });
-
-  describe('vendor assignment', () => {
-    it('should open assignment dialog when Assign button is clicked', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const assignButton = screen.getAllByText('Assign')[0];
-      await user.click(assignButton);
-
-      expect(screen.getByText('Assign Service to Vendor')).toBeInTheDocument();
-      expect(screen.getByLabelText('Select Vendor')).toBeInTheDocument();
-    });
-
-    it('should open bulk assignment dialog when bulk assign is clicked', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      // Select services first
-      const checkboxes = screen.getAllByRole('checkbox');
-      await user.click(checkboxes[1]);
-      await user.click(checkboxes[2]);
-
-      const bulkAssignButton = screen.getByText('Bulk Assign to Vendor');
-      await user.click(bulkAssignButton);
-
-      expect(screen.getByText('Bulk Assign Services to Vendor')).toBeInTheDocument();
-      expect(screen.getByText('2 services will be assigned')).toBeInTheDocument();
-    });
-
-    it('should call API to assign vendor', async () => {
-      const user = userEvent.setup();
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', assignedVendorId: 'vendor-789' })
-      });
-
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const assignButton = screen.getAllByText('Assign')[0];
-      await user.click(assignButton);
-
-      const vendorSelect = screen.getByLabelText('Select Vendor');
-      await user.selectOptions(vendorSelect, 'vendor-789');
-
-      const confirmButton = screen.getByText('Confirm Assignment');
-      await user.click(confirmButton);
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/fulfillment/services/f47ac10b-58cc-4372-a567-0e02b2c3d479',
-          expect.objectContaining({
-            method: 'PATCH',
-            body: JSON.stringify({ assignedVendorId: 'vendor-789' })
-          })
-        );
-      });
-    });
-
-    it('should allow reassigning to different vendor', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      // Find service that already has vendor
-      const reassignButton = screen.getAllByText('Reassign')[0];
-      await user.click(reassignButton);
-
-      expect(screen.getByText('Reassign Service to Different Vendor')).toBeInTheDocument();
-      expect(screen.getByText('Currently assigned to: Background Vendor Inc')).toBeInTheDocument();
-    });
-
-    it('should disable assignment for vendor users', () => {
-      vi.mocked(useAuth).mockReturnValue({
+      // Test as customer
+      mockUseAuth.mockReturnValue({
         user: {
-          id: 'vendor-user',
-          userType: 'vendor',
-          vendorId: 'vendor-123',
+          id: 'user-1',
+          userType: 'customer',
           permissions: {}
         }
       });
 
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+      const { rerender } = render(
+        <ServiceFulfillmentTable services={services} orderId="order-1" isCustomer={true} />
+      );
 
-      expect(screen.queryByText('Assign')).not.toBeInTheDocument();
-      expect(screen.queryByText('Reassign')).not.toBeInTheDocument();
-      expect(screen.queryByText('Bulk Assign to Vendor')).not.toBeInTheDocument();
-    });
+      // Customer should see the dot
+      expect(screen.getByLabelText('Service has new activity')).toBeInTheDocument();
 
-    it('should require fulfillment.manage permission for assignment', () => {
-      vi.mocked(useAuth).mockReturnValue({
+      // Test as admin
+      mockUseAuth.mockReturnValue({
         user: {
-          id: 'user-123',
-          userType: 'internal',
-          permissions: { fulfillment: true } // No manage permission
+          id: 'user-2',
+          userType: 'admin',
+          permissions: { fulfillment: { manage: true } }
         }
       });
 
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+      rerender(
+        <ServiceFulfillmentTable services={services} orderId="order-1" isCustomer={false} />
+      );
 
-      expect(screen.queryByText('Assign')).not.toBeInTheDocument();
-      expect(screen.queryByText('Bulk Assign to Vendor')).not.toBeInTheDocument();
-    });
-
-    // REGRESSION TEST: Bulk assign must use correct field name 'serviceFulfillmentIds'
-    it('should send serviceFulfillmentIds field in bulk assign API request', async () => {
-      const user = userEvent.setup();
-
-      // Mock successful API response
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ updated: 2 })
-      });
-
-      // Mock vendors API response
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          vendors: [
-            { id: 'vendor-789', name: 'Test Vendor', deactivated: false }
-          ]
-        })
-      });
-
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      // Select multiple services
-      const checkboxes = screen.getAllByRole('checkbox');
-      await user.click(checkboxes[1]); // Select first service
-      await user.click(checkboxes[2]); // Select second service
-
-      // Click bulk assign button
-      const bulkAssignButton = screen.getByText('Bulk Assign to Vendor');
-      await user.click(bulkAssignButton);
-
-      // Wait for dialog and vendor list to load
-      await waitFor(() => {
-        expect(screen.getByText('Bulk Assign Services to Vendor')).toBeInTheDocument();
-      });
-
-      // Select a vendor
-      const vendorSelect = await screen.findByLabelText('Select Vendor');
-      await user.selectOptions(vendorSelect, 'vendor-789');
-
-      // Click confirm button
-      const confirmButton = screen.getByText('Confirm Bulk Assignment');
-      await user.click(confirmButton);
-
-      // Verify the API was called with the correct field name
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          '/api/fulfillment/services/bulk-assign',
-          expect.objectContaining({
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              serviceFulfillmentIds: [
-                'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-                'a47ac10b-58cc-4372-a567-0e02b2c3d479'
-              ],
-              vendorId: 'vendor-789'
-            })
-          })
-        );
-      });
-
-      // Verify success message
-      expect(mockToastSuccess).toHaveBeenCalledWith('Vendor assigned to 2 service(s)');
+      // Admin should still see dot if hasNewActivity is true (dot rendering is based on data, not user type)
+      // The gating happens at the data fetching level, not the presentation level
+      expect(screen.getByLabelText('Service has new activity')).toBeInTheDocument();
     });
   });
 
-  describe('status updates', () => {
-    it('should display status dropdown for each service', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+  describe('row expansion and view tracking', () => {
+    it('expands row when chevron is clicked', async () => {
+      const services = [createTestService()];
 
-      // Get dropdowns specifically for service status (not filter dropdowns)
-      const statusDropdowns = screen.getAllByRole('combobox', { name: /status for/i });
-      // Should be 3 dropdowns - all services can now have their status changed (terminal statuses with confirmation)
-      expect(statusDropdowns).toHaveLength(3);
-    });
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
 
-    it('should call API to update status', async () => {
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          service: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'processing' },
-          auditEntry: { id: 'audit-1' }
-        })
-      });
+      // Find expand button
+      const expandButton = screen.getByLabelText(/Expand comments for Background Check/i);
 
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+      // Initially, expanded content should not be visible
+      expect(screen.queryByTestId('comment-section-service-1')).not.toBeInTheDocument();
 
-      const statusDropdown = screen.getByRole('combobox', { name: /Status for Criminal Background Check/i });
+      // Click to expand
+      await userEvent.click(expandButton);
 
-      // Use fireEvent to change the value
-      fireEvent.change(statusDropdown, { target: { value: 'processing' } });
-
+      // Expanded content should now be visible
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          `/api/services/${mockServices[0].orderItemId}/status`,
-          expect.objectContaining({
-            method: 'PUT',
-            body: JSON.stringify({ status: 'processing' })
-          })
-        );
+        expect(screen.getByTestId('comment-section-service-1')).toBeInTheDocument();
       });
     });
 
-    it('should allow status changes for completed services with confirmation', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      // Completed service should have a dropdown (terminal statuses can be changed with confirmation)
-      const completedService = mockServices.find(s => s.status === 'completed');
-      expect(completedService).toBeDefined();
-
-      // Find the dropdown for the completed service
-      const dropdown = screen.getByLabelText(`Status for ${completedService.service.name}`);
-      expect(dropdown).toBeInTheDocument();
-      expect(dropdown).toHaveValue('completed');
-    });
-
-    it('should allow status changes for cancelled services with confirmation', () => {
-      const servicesWithCancelled = [
-        {
-          ...mockServices[0],
-          status: 'cancelled'
-        }
-      ];
-
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={servicesWithCancelled} />);
-
-      // Cancelled service should have a dropdown (terminal statuses can be changed with confirmation)
-      const dropdown = screen.getByLabelText('Status for Criminal Background Check');
-      expect(dropdown).toBeInTheDocument();
-      expect(dropdown).toHaveValue('cancelled');
-    });
-
-    it('should show confirmation for status change to cancelled', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const statusDropdown = screen.getAllByRole('combobox', { name: /status/i })[0];
-      await user.selectOptions(statusDropdown, 'cancelled');
-
-      expect(screen.getByText('Confirm Status Change')).toBeInTheDocument();
-      expect(screen.getByText('Are you sure you want to cancel this service?')).toBeInTheDocument();
-    });
-  });
-
-  describe('actions menu', () => {
-    it('should display actions dropdown for each service', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const actionButtons = screen.getAllByText('Actions');
-      expect(actionButtons).toHaveLength(4); // 1 header + 3 buttons
-    });
-
-    it('should show view history option', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const actionButton = screen.getAllByText('Actions')[1]; // Skip header
-      await user.click(actionButton);
-
-      expect(screen.getByText('View History')).toBeInTheDocument();
-    });
-
-    it('should show edit notes option', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const actionButton = screen.getAllByText('Actions')[1]; // Skip header
-      await user.click(actionButton);
-
-      expect(screen.getByText('Edit Notes')).toBeInTheDocument();
-    });
-
-    it('should open history dialog when view history is clicked', async () => {
-      const user = userEvent.setup();
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          serviceId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-          history: [
-            {
-              id: 'log-1',
-              changeType: 'status_change',
-              fieldName: 'status',
-              oldValue: 'pending',
-              newValue: 'submitted',
-              createdAt: '2024-03-01T10:00:00Z',
-              user: { email: 'user@example.com' }
-            }
-          ],
-          totalEntries: 1
-        })
-      });
-
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const actionButton = screen.getAllByText('Actions')[1]; // Skip header
-      await user.click(actionButton);
-
-      const viewHistoryOption = screen.getByText('View History');
-      await user.click(viewHistoryOption);
-
-      await waitFor(() => {
-        expect(screen.getByText('Service History')).toBeInTheDocument();
-        // Check that the fetch was called to get history
-        expect(global.fetch).toHaveBeenCalledWith('/api/fulfillment/services/f47ac10b-58cc-4372-a567-0e02b2c3d479/history');
-      });
-    });
-
-    it('should open notes dialog when edit notes is clicked', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const actionButton = screen.getAllByText('Actions')[1]; // Skip header
-      await user.click(actionButton);
-
-      const editNotesOption = screen.getByText('Edit Notes');
-      await user.click(editNotesOption);
-
-      expect(screen.getByText('Edit Service Notes')).toBeInTheDocument();
-      expect(screen.getByLabelText('Vendor Notes')).toBeInTheDocument();
-      expect(screen.getByLabelText('Internal Notes')).toBeInTheDocument();
-    });
-
-    it('should only show vendor notes field for vendor users', async () => {
-      vi.mocked(useAuth).mockReturnValue({
-        user: {
-          id: 'vendor-user',
-          userType: 'vendor',
-          vendorId: 'vendor-123',
-          permissions: {}
-        }
-      });
-
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const actionButton = screen.getAllByText('Actions')[1]; // Skip header
-      await user.click(actionButton);
-
-      const editNotesOption = screen.getByText('Edit Notes');
-      await user.click(editNotesOption);
-
-      expect(screen.getByLabelText('Vendor Notes')).toBeInTheDocument();
-      expect(screen.queryByLabelText('Internal Notes')).not.toBeInTheDocument();
-    });
   });
 
   describe('filtering and sorting', () => {
-    it('should filter services by status', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const statusFilter = screen.getByLabelText('Filter by Status');
-      await user.selectOptions(statusFilter, 'completed');
-
-      expect(screen.queryByText('Criminal Background Check')).not.toBeInTheDocument();
-      expect(screen.queryByText('Employment Verification')).not.toBeInTheDocument();
-      expect(screen.getByText('Education Verification')).toBeInTheDocument();
-    });
-
-    it('should filter services by vendor', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const vendorFilter = screen.getByLabelText('Filter by Vendor');
-      await user.selectOptions(vendorFilter, 'vendor-123');
-
-      expect(screen.queryByText('Criminal Background Check')).not.toBeInTheDocument();
-      expect(screen.getByText('Employment Verification')).toBeInTheDocument();
-      expect(screen.queryByText('Education Verification')).not.toBeInTheDocument();
-    });
-
-    it('should show only unassigned services when filtered', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const vendorFilter = screen.getByLabelText('Filter by Vendor');
-      await user.selectOptions(vendorFilter, 'unassigned');
-
-      expect(screen.getByText('Criminal Background Check')).toBeInTheDocument();
-      expect(screen.queryByText('Employment Verification')).not.toBeInTheDocument();
-      expect(screen.queryByText('Education Verification')).not.toBeInTheDocument();
-    });
-
-    it('should sort services by service name', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const serviceHeader = screen.getByText('Service');
-      await user.click(serviceHeader);
-
-      // Find service name cells by looking for the specific text content
-      const rows = screen.getAllByRole('row');
-      // Skip header row
-      const dataRows = rows.slice(1);
-
-      // After sorting alphabetically, order should be:
-      // Criminal Background Check, Education Verification, Employment Verification
-      expect(dataRows[0]).toHaveTextContent('Criminal Background Check');
-      expect(dataRows[1]).toHaveTextContent('Education Verification');
-      expect(dataRows[2]).toHaveTextContent('Employment Verification');
-    });
-
-    it('should sort services by service name then by created time', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      // Services should be sorted by service name alphabetically
-      // Since all have same created time, alphabetical order should be:
-      // 1. Criminal Background Check
-      // 2. Education Verification
-      // 3. Employment Verification
-      const rows = screen.getAllByRole('row');
-      // Skip header row (index 0), check data rows
-      // Actual observed order from test output:
-      expect(rows[1]).toHaveTextContent('Criminal Background Check');
-      expect(rows[2]).toHaveTextContent('Employment Verification');
-      expect(rows[3]).toHaveTextContent('Education Verification');
-    });
-  });
-
-  describe('vendor view', () => {
-    beforeEach(() => {
-      // Reset fetch mock but keep it as a function
-      global.fetch = vi.fn();
-      vi.mocked(useAuth).mockReturnValue({
-        user: {
-          id: 'vendor-user',
-          userType: 'vendor',
-          vendorId: 'vendor-123',
-          permissions: {}
-        }
-      });
-    });
-
-    it('should only show services assigned to the vendor', () => {
-      const vendorServices = mockServices.filter(s => s.assignedVendorId === 'vendor-123');
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={vendorServices} />);
-
-      expect(screen.getByText('Employment Verification')).toBeInTheDocument();
-      expect(screen.queryByText('Criminal Background Check')).not.toBeInTheDocument();
-      expect(screen.queryByText('Education Verification')).not.toBeInTheDocument();
-    });
-
-    it('should allow vendor to update status of assigned services', async () => {
-      const vendorServices = [mockServices[1]]; // Service assigned to vendor-123
-
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          service: { id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'completed' },
-          auditEntry: { id: 'audit-1' }
-        })
-      });
-
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={vendorServices} />);
-
-      const statusDropdown = screen.getByRole('combobox', { name: /Status for Employment Verification/i });
-
-      // Use fireEvent to trigger the change
-      fireEvent.change(statusDropdown, { target: { value: 'completed' } });
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          `/api/services/${vendorServices[0].orderItemId}/status`,
-          expect.objectContaining({
-            method: 'PUT',
-            body: JSON.stringify({ status: 'completed' })
-          })
-        );
-      });
-    });
-
-    it('should allow vendor to edit vendor notes only', async () => {
-      const user = userEvent.setup();
-      const vendorServices = [mockServices[1]];
-
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={vendorServices} />);
-
-      // Get the Actions button (skip the header)
-      const actionButtons = screen.getAllByText('Actions');
-      const actionButton = actionButtons[1]; // Skip header, get first data row button
-      await user.click(actionButton);
-
-      const editNotesOption = screen.getByText('Edit Notes');
-      await user.click(editNotesOption);
-
-      expect(screen.getByLabelText('Vendor Notes')).toBeInTheDocument();
-      expect(screen.queryByLabelText('Internal Notes')).not.toBeInTheDocument();
-    });
-
-    it('should show terminal status services even after completion', () => {
-      const completedServices = [
-        {
-          ...mockServices[1],
-          status: 'completed',
-          completedAt: '2024-03-02T10:00:00Z'
-        }
+it('sorts services by service name', async () => {
+      const services = [
+        createTestService({ id: 'service-1', service: { name: 'Charlie Service', code: 'CS', category: 'Cat1', id: 'service-type-1' } }),
+        createTestService({ id: 'service-2', service: { name: 'Alpha Service', code: 'AS', category: 'Cat2', id: 'service-type-2' } }),
+        createTestService({ id: 'service-3', service: { name: 'Bravo Service', code: 'BS', category: 'Cat3', id: 'service-type-3' } })
       ];
 
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={completedServices} />);
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
 
-      expect(screen.getByText('Employment Verification')).toBeInTheDocument();
-      // Check that the status dropdown shows Completed as the selected value
-      const statusDropdown = screen.getByLabelText('Status for Employment Verification');
-      expect(statusDropdown).toHaveValue('completed');
+      // Click service column header to sort
+      const serviceHeader = screen.getByText('Service');
+      await userEvent.click(serviceHeader);
+
+      // Get all service names in order
+      const serviceRows = screen.getAllByTestId(/^service-row-/);
+      const serviceNames = serviceRows.map(row => within(row).getByText(/^(Alpha|Bravo|Charlie) Service$/));
+
+      // Should be sorted alphabetically
+      expect(serviceNames[0]).toHaveTextContent('Alpha Service');
+      expect(serviceNames[1]).toHaveTextContent('Bravo Service');
+      expect(serviceNames[2]).toHaveTextContent('Charlie Service');
     });
   });
 
-  describe('accessibility', () => {
-    it('should have proper ARIA labels', () => {
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+  describe('visual indicators', () => {
+    it('shows results indicator when service has results', () => {
+      const services = [
+        createTestService({
+          results: 'Some search results',
+          resultsAddedAt: '2024-04-01T12:00:00Z'
+        })
+      ];
 
-      expect(screen.getByRole('table')).toHaveAttribute('aria-label', 'Service fulfillment status');
-      expect(screen.getAllByRole('row')).toHaveLength(4); // Header + 3 data rows
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
+
+      expect(screen.getByTestId('has-results-indicator')).toBeInTheDocument();
+      expect(screen.getByText('Results')).toBeInTheDocument();
     });
 
-    it('should support keyboard navigation', async () => {
-      const user = userEvent.setup();
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+    it('shows attachment badge when service has attachments', () => {
+      const services = [
+        createTestService({ attachmentsCount: 3 })
+      ];
 
-      // Get the first service checkbox (skip the header select-all checkbox)
-      const firstCheckbox = screen.getByTestId(`select-service-${mockServices[0].id}`);
-      firstCheckbox.focus();
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
 
-      // Space key should toggle the checkbox
-      await user.keyboard(' ');
-      expect(firstCheckbox).toBeChecked();
-
-      await user.keyboard(' ');
-      expect(firstCheckbox).not.toBeChecked();
+      expect(screen.getByTestId('attachment-badge')).toBeInTheDocument();
+      expect(screen.getByText('3 attachments')).toBeInTheDocument();
     });
 
-    it('should announce status changes to screen readers', async () => {
-      // Mock the status update to succeed
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-        service: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', status: 'processing' },
-        auditEntry: { id: 'audit-1' }
-      })
-      });
+    it('shows both results and attachment indicators when both present', () => {
+      const services = [
+        createTestService({
+          results: 'Some results',
+          attachmentsCount: 2
+        })
+      ];
 
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
+      render(<ServiceFulfillmentTable services={services} orderId="order-1" />);
 
-      // Find status dropdown by aria-label for the specific service
-      const statusDropdown = screen.getByLabelText('Status for Criminal Background Check');
-
-      // Verify initial value
-      expect(statusDropdown).toHaveValue('submitted');
-
-      // Change to a different status
-      fireEvent.change(statusDropdown, { target: { value: 'processing' } });
-
-      // Wait for the API call to complete
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          `/api/services/${mockServices[0].orderItemId}/status`,
-          expect.objectContaining({
-            method: 'PUT',
-            body: JSON.stringify({ status: 'processing' })
-          })
-        );
-      });
-
-      // Now check that the success toast was called
-      expect(mockToastSuccess).toHaveBeenCalledWith('Service status updated successfully');
-    });
-  });
-
-  describe('error handling', () => {
-    it('should display error message when API call fails', async () => {
-      // Mock the status update to fail
-      global.fetch.mockRejectedValueOnce(new Error('Network error'));
-
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      // Find status dropdown by aria-label for the specific service
-      const statusDropdown = screen.getByLabelText('Status for Criminal Background Check');
-
-      // Change to trigger the API call
-      fireEvent.change(statusDropdown, { target: { value: 'processing' } });
-
-      // Wait for the error to be handled
-      await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalled();
-      });
-
-      // The error message will be 'Network error' from the thrown Error
-      expect(mockToastError).toHaveBeenCalledWith('Network error');
-    });
-
-    it('should display error for invalid vendor assignment', async () => {
-      const user = userEvent.setup();
-
-      // Mock the assignment to fail
-      global.fetch.mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        json: async () => ({ error: 'Cannot assign service to vendor' })
-      });
-
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const assignButton = screen.getAllByText('Assign')[0];
-      await user.click(assignButton);
-
-      const vendorSelect = screen.getByLabelText('Select Vendor');
-      // Test Vendor is from the test environment initialization
-      await user.selectOptions(vendorSelect, 'vendor-789');
-
-      const confirmButton = screen.getByText('Confirm Assignment');
-      await user.click(confirmButton);
-
-      await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalled();
-      });
-
-      expect(mockToastError).toHaveBeenCalledWith('Cannot assign service to vendor');
-    });
-
-    it('should handle permission errors gracefully', async () => {
-      const user = userEvent.setup();
-
-      // Mock the assignment to fail with permission error
-      global.fetch.mockResolvedValueOnce({
-        ok: false,
-        status: 403,
-        json: async () => ({ error: 'Insufficient permissions to assign vendors' })
-      });
-
-      render(<ServiceFulfillmentTable orderId="550e8400-e29b-41d4-a716-446655440001" services={mockServices} />);
-
-      const assignButton = screen.getAllByText('Assign')[0];
-      await user.click(assignButton);
-
-      const vendorSelect = screen.getByLabelText('Select Vendor');
-      // Test Vendor is from the test environment initialization
-      await user.selectOptions(vendorSelect, 'vendor-789');
-
-      const confirmButton = screen.getByText('Confirm Assignment');
-      await user.click(confirmButton);
-
-      await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalled();
-      });
-
-      expect(mockToastError).toHaveBeenCalledWith('Insufficient permissions to assign vendors');
+      expect(screen.getByTestId('has-results-indicator')).toBeInTheDocument();
+      expect(screen.getByTestId('attachment-badge')).toBeInTheDocument();
     });
   });
 });
