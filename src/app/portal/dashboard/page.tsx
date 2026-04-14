@@ -49,7 +49,7 @@ interface Order {
   id: string;
   orderNumber: string;
   statusCode: string;
-  subject: any;
+  subject: Record<string, unknown>;
   notes: string | null;
   createdAt: string;
   updatedAt: string;

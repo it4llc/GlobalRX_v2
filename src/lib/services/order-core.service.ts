@@ -747,7 +747,7 @@ export class OrderCoreService {
     }
 
     // Build the include object conditionally based on includeViews flag
-    const baseItemInclude = {
+    const baseItemInclude: Prisma.OrderItemInclude = {
       service: {
         select: {
           id: true,
@@ -762,7 +762,7 @@ export class OrderCoreService {
           code2: true,
         },
       },
-    } as any;
+    };
 
     // Add orderItemViews if includeViews is true AND we have a userId
     if (includeViews && userId) {
@@ -773,7 +773,7 @@ export class OrderCoreService {
       };
     }
 
-    const baseInclude = {
+    const baseInclude: Prisma.OrderInclude = {
       items: {
         include: baseItemInclude,
         // CRITICAL: Always order by service name then creation time to prevent
@@ -789,7 +789,7 @@ export class OrderCoreService {
         orderBy: { createdAt: 'desc' },
         take: 1,
       },
-    } as any;
+    };
 
     // Add orderViews if includeViews is true AND we have a userId
     if (includeViews && userId) {
