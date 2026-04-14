@@ -159,7 +159,7 @@ export async function GET(
     logger.info('Attempting to fetch order details', { orderId, userId: session.user.id });
 
     // Build conditional include based on user type for view tracking
-    const baseItemInclude = {
+    const baseItemInclude: Prisma.OrderItemInclude = {
       service: {
         select: {
           id: true,
@@ -187,7 +187,7 @@ export async function GET(
           completedAt: true,
         },
       },
-    } as any;
+    };
 
     // Add orderItemViews for customer sessions
     if (isCustomer) {
@@ -198,7 +198,7 @@ export async function GET(
       };
     }
 
-    const baseInclude = {
+    const baseInclude: Prisma.OrderInclude = {
       customer: {
         select: {
           id: true,
@@ -243,7 +243,7 @@ export async function GET(
         },
         orderBy: { createdAt: 'desc' },
       },
-    } as any;
+    };
 
     // Add orderViews for customer sessions
     if (isCustomer) {
