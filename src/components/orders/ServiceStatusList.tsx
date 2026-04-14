@@ -127,7 +127,7 @@ export const ServiceStatusList: React.FC<ServiceStatusListComponentProps> = (pro
             >
               <div className={`${isUnnamedService ? 'italic' : ''} font-medium flex items-center`}>
                 <NewActivityDot
-                  show={(item as any).hasNewActivity || false}
+                  show={item.hasNewActivity || false}
                   aria-label={t('services.hasNewActivity')}
                   className="mr-1"
                 />
@@ -157,7 +157,7 @@ export const ServiceStatusList: React.FC<ServiceStatusListComponentProps> = (pro
               data-testid={`service-item-${index}`}
             >
               <NewActivityDot
-                show={(item as any).hasNewActivity || false}
+                show={item.hasNewActivity || false}
                 aria-label={t('services.hasNewActivity')}
                 className="mr-1"
               />
