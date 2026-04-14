@@ -91,13 +91,18 @@ export class OrderService {
   /**
    * @deprecated Use OrderCoreService.getCustomerOrders() directly
    */
-  static async getCustomerOrders(customerId: string, filters?: {
-    status?: string;
-    search?: string;
-    limit?: number;
-    offset?: number;
-  }) {
-    return OrderCoreService.getCustomerOrders(customerId, filters);
+  static async getCustomerOrders(
+    customerId: string,
+    filters?: {
+      status?: string;
+      search?: string;
+      limit?: number;
+      offset?: number;
+    },
+    includeViews?: boolean,
+    userId?: string
+  ) {
+    return OrderCoreService.getCustomerOrders(customerId, filters, includeViews, userId);
   }
 
   /**
