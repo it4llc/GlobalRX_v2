@@ -102,18 +102,25 @@ export default function CustomerDashboard() {
         const ordersData = await ordersResponse.json();
 
         // Enhance orders with activity flags
+        // PHASE 2D: Only compute activity flags for customer users
+        // Defense in depth - dashboard is customer-only but gate computation anyway
+        const isCustomer = session?.user?.userType === 'customer';
         const enhancedOrders = ordersData.orders.map((order: Order) => ({
           ...order,
-          hasNewOrderActivity: hasNewActivity(
-            order.lastActivityAt,
-            order.orderViews?.[0]?.lastViewedAt
-          ),
+          hasNewOrderActivity: isCustomer
+            ? hasNewActivity(
+                order.lastActivityAt,
+                order.orderViews?.[0]?.lastViewedAt
+              )
+            : false,
           items: order.items?.map((item: OrderItem) => ({
             ...item,
-            hasNewActivity: hasNewActivity(
-              item.lastActivityAt,
-              item.orderItemViews?.[0]?.lastViewedAt
-            )
+            hasNewActivity: isCustomer
+              ? hasNewActivity(
+                  item.lastActivityAt,
+                  item.orderItemViews?.[0]?.lastViewedAt
+                )
+              : false
           })) || []
         }));
 

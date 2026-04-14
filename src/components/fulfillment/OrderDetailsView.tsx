@@ -364,10 +364,15 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                       id: item.serviceFulfillment?.id || item.id,
                       orderId: order.id,
                       orderItemId: item.id,
-                      hasNewActivity: hasNewActivity(
-                        item.lastActivityAt,
-                        item.orderItemViews?.[0]?.lastViewedAt
-                      ),
+                      // PHASE 2D FIX: Only compute hasNewActivity for customer users
+                      // Non-customer users don't have OrderItemView records (excluded server-side)
+                      // Without views, hasNewActivity always returns true, causing red dots for all users
+                      hasNewActivity: user?.userType === 'customer'
+                        ? hasNewActivity(
+                            item.lastActivityAt,
+                            item.orderItemViews?.[0]?.lastViewedAt
+                          )
+                        : false,
                       serviceId: item.service?.id || '',
                       locationId: item.location?.id || '',
                       // BUG FIX (March 19, 2026): serviceFulfillment.status field no longer exists (removed in fulfillment ID standardization)
