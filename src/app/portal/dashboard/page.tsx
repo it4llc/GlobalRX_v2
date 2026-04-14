@@ -1,5 +1,6 @@
 // /GlobalRX_v2/src/app/portal/dashboard/page.tsx
 'use client';
+import React from 'react';
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import { useSession, signOut } from 'next-auth/react';
