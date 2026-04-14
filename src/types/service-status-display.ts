@@ -23,7 +23,8 @@ export const serviceDisplayItemSchema = z.object({
     name: z.string().nullable(),
     code: z.string().length(2).optional().nullable()
   }),
-  status: z.string() // Accepts any string for fallback display
+  status: z.string(), // Accepts any string for fallback display
+  hasNewActivity: z.boolean().optional() // Optional field for new activity indicator
 });
 
 // Schema for ServiceStatusList component props

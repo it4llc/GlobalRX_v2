@@ -158,83 +158,106 @@ export async function GET(
     // Step 6: Fetch order details
     logger.info('Attempting to fetch order details', { orderId, userId: session.user.id });
 
+    // Build conditional include based on user type for view tracking
+    const baseItemInclude: Prisma.OrderItemInclude = {
+      service: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          category: true,
+        },
+      },
+      location: {
+        select: {
+          id: true,
+          name: true,
+          code2: true,
+        },
+      },
+      data: true,
+      serviceFulfillment: {
+        select: {
+          id: true,
+          assignedVendorId: true,
+          vendorNotes: true,
+          internalNotes: true,
+          assignedAt: true,
+          assignedBy: true,
+          completedAt: true,
+        },
+      },
+    };
+
+    // Add orderItemViews for customer sessions
+    if (isCustomer) {
+      baseItemInclude.orderItemViews = {
+        where: { userId: session.user.id },
+        select: { lastViewedAt: true },
+        take: 1
+      };
+    }
+
+    const baseInclude: Prisma.OrderInclude = {
+      customer: {
+        select: {
+          id: true,
+          name: true,
+          disabled: true,
+        },
+      },
+      user: {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      assignedVendor: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      items: {
+        include: baseItemInclude,
+        // CRITICAL: Always order by service name then creation time to prevent
+        // services from changing display order when their status is updated.
+        // Without explicit ordering, Prisma returns results in undefined order
+        // which caused UI instability when services moved around after status updates.
+        orderBy: [
+          { service: { name: 'asc' } },
+          { createdAt: 'asc' }
+        ],
+      },
+      statusHistory: {
+        include: {
+          user: {
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      },
+    };
+
+    // Add orderViews for customer sessions
+    if (isCustomer) {
+      baseInclude.orderViews = {
+        where: { userId: session.user.id },
+        select: { lastViewedAt: true },
+        take: 1
+      };
+    }
+
     // Use direct Prisma query instead of OrderService for now
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            disabled: true,
-          },
-        },
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        assignedVendor: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        items: {
-          include: {
-            service: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-                category: true,
-              },
-            },
-            location: {
-              select: {
-                id: true,
-                name: true,
-                code2: true,
-              },
-            },
-            data: true,
-            serviceFulfillment: {
-              select: {
-                id: true,
-                assignedVendorId: true,
-                vendorNotes: true,
-                internalNotes: true,
-                assignedAt: true,
-                assignedBy: true,
-                completedAt: true,
-              },
-            },
-          },
-          // CRITICAL: Always order by service name then creation time to prevent
-          // services from changing display order when their status is updated.
-          // Without explicit ordering, Prisma returns results in undefined order
-          // which caused UI instability when services moved around after status updates.
-          orderBy: [
-            { service: { name: 'asc' } },
-            { createdAt: 'asc' }
-          ],
-        },
-        statusHistory: {
-          include: {
-            user: {
-              select: {
-                email: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
-      },
+      include: baseInclude,
     });
 
     if (!order) {

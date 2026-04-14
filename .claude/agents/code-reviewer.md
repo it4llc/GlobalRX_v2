@@ -64,7 +64,47 @@ GlobalRx has four modules that interact. Check:
 
 ## Process
 
-### Step 1: Get oriented
+### Step 1: Mechanical pattern scan
+
+Before reading any code for architectural review, do a mechanical grep pass across the branch diff for specific forbidden patterns. This catches mechanical issues in seconds that would otherwise take hours to find (or get missed entirely) during the deeper architectural review.
+
+```bash
+# Get the branch diff against dev
+git diff dev...HEAD > /tmp/review-diff.txt
+
+# Scan for forbidden patterns on added lines only (lines starting with +)
+grep -n "^+.*as any" /tmp/review-diff.txt
+grep -n "^+.*@ts-ignore" /tmp/review-diff.txt
+grep -n "^+.*@ts-expect-error" /tmp/review-diff.txt
+grep -n "^+.*@ts-nocheck" /tmp/review-diff.txt
+grep -n "^+.*console\.log" /tmp/review-diff.txt
+grep -n "^+.*console\.warn" /tmp/review-diff.txt
+grep -n "^+.*console\.error" /tmp/review-diff.txt
+grep -nE "^\+.*(TODO|FIXME|HACK|XXX)" /tmp/review-diff.txt
+grep -n "^+.*debugger" /tmp/review-diff.txt
+grep -n "^+.*\.only(" /tmp/review-diff.txt
+grep -n "^+.*\.skip(" /tmp/review-diff.txt
+```
+
+For each match found:
+
+1. Identify which file and line the match is in (use `git diff dev...HEAD -- <filepath>` to locate it precisely)
+2. Read the surrounding context to understand whether the pattern is genuinely a problem or whether a rare justified exception applies
+3. Record every match in the "Mechanical Findings" section of the review report
+
+The default assumption for every match is that it is a problem that must be fixed. Justified exceptions are rare and must be called out explicitly.
+
+**Severity framework:**
+
+- **`as any` / `@ts-ignore` / `@ts-expect-error` / `@ts-nocheck`** — Flag as a Critical Issue unless there is a written comment adjacent to it explaining specifically why the type system cannot express the situation. "It was easier this way" is not a valid justification. Test files have slightly more flexibility but still require a justification.
+- **`console.log` / `console.warn` / `console.error`** — Flag as a Critical Issue. The project uses Winston structured logging, not console. There is no justified use of console.* in production code. Test files may use console for debugging during development but should not ship with console statements.
+- **`TODO` / `FIXME` / `HACK` / `XXX`** — Flag as a Warning. Adding one of these to new code in a PR usually means the work is incomplete. Exceptions exist (e.g. a TODO that references a specific tech debt ticket number) but the default is to flag it.
+- **`debugger`** — Flag as a Critical Issue. Always. No exceptions.
+- **`.only(` / `.skip(`** — Flag as a Critical Issue if in a test file. `.only` means a developer narrowed the test suite and forgot to un-narrow it. `.skip` means a test was silently disabled. Both will ship bugs.
+
+If the mechanical scan finds zero matches on all patterns, record that explicitly in the Mechanical Findings section. "Nothing found" is a valid and important result — it confirms the mechanical pass was run.
+
+### Step 2: Get oriented
 
 ```bash
 git diff HEAD~1 --name-only   # list changed files
@@ -73,15 +113,15 @@ git diff HEAD~1               # see all changes
 
 Read every changed file in full — do not skim.
 
-### Step 2: Read the specification and plan
+### Step 3: Read the specification and plan
 
 Read the business analyst's specification (`docs/specs/[feature].md`) and the architect's technical plan. You need both to evaluate whether the code does what it was supposed to do.
 
-### Step 3: Review each changed file
+### Step 4: Review each changed file
 
 Read every changed file. Cross-reference against the spec and plan. Work through the six review categories above.
 
-### Step 4: Produce the review report
+### Step 5: Produce the review report
 
 ```
 # Code Review Report: [Feature]
@@ -91,11 +131,26 @@ Read every changed file. Cross-reference against the spec and plan. Work through
 ## Overall Assessment
 [One paragraph — ready to proceed, or issues that must be resolved first?]
 
+## Mechanical Findings (from Step 1 pattern scan)
+
+For each forbidden pattern scanned in Step 1, report the result. "Nothing found" is a valid and important result — it confirms the mechanical pass was run.
+
+- `as any`: [Found at: file:line / Not found]
+- `@ts-ignore`: [Found at: file:line / Not found]
+- `@ts-expect-error`: [Found at: file:line / Not found]
+- `@ts-nocheck`: [Found at: file:line / Not found]
+- `console.log` / `console.warn` / `console.error`: [Found at: file:line / Not found]
+- `TODO` / `FIXME` / `HACK` / `XXX`: [Found at: file:line / Not found]
+- `debugger`: [Found at: file:line / Not found]
+- `.only(` / `.skip(` in test files: [Found at: file:line / Not found]
+
+Every "Found at" match must also be duplicated in the appropriate severity section below (Critical Issues for severity-critical patterns, Warnings for TODO/FIXME, Observations for anything with a written justification that the reviewer finds acceptable).
+
 ## Critical Issues — Must Fix Before Proceeding
-[Numbered list. Any security issue, data integrity risk, or missing business rule goes here. If none: "None found."]
+[Numbered list. Any security issue, data integrity risk, or missing business rule goes here. Also include any mechanical findings from Step 1 that are severity-critical (as any, @ts-ignore, console statements, debugger, .only/.skip). If none: "None found."]
 
 ## Warnings — Should Fix
-[Numbered list. Logic gaps, missing error handling, incomplete edge cases. If none: "None found."]
+[Numbered list. Logic gaps, missing error handling, incomplete edge cases, TODO/FIXME additions. If none: "None found."]
 
 ## Observations — Consider Improving
 [Numbered list. Things that work but could be better. If none: "None found."]

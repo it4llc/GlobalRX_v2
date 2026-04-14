@@ -18,6 +18,7 @@ import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/c
 import { UpdateServiceFulfillmentRequest } from '@/types/service-fulfillment';
 import clientLogger from '@/lib/client-logger';
 import { formatServiceStatus } from '@/lib/status-utils';
+import { NewActivityDot } from '@/components/ui/NewActivityDot';
 
 interface ServiceFulfillment {
   id: string;
@@ -34,6 +35,7 @@ interface ServiceFulfillment {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  hasNewActivity?: boolean;  // Pre-computed field
   // Service results fields
   results?: string | null;
   resultsAddedBy?: number | null;
@@ -973,6 +975,11 @@ export function ServiceFulfillmentTable({
                         </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
+                            <NewActivityDot
+                              show={service.hasNewActivity || false}
+                              aria-label="Service has new activity"
+                              className="mr-1"
+                            />
                             <span className="text-sm font-medium text-gray-900 break-words">
                               {service.service.name}
                             </span>

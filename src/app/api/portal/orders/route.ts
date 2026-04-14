@@ -58,12 +58,21 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 50;
     const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0;
 
-    const { orders, total } = await OrderService.getCustomerOrders(customerId, {
-      status,
-      search,
-      limit,
-      offset,
-    });
+    // Customer sessions always need view data for activity indicators
+    const includeViews = true;
+    const userId = session.user.id;
+
+    const { orders, total } = await OrderService.getCustomerOrders(
+      customerId,
+      {
+        status,
+        search,
+        limit,
+        offset,
+      },
+      includeViews,
+      userId
+    );
 
     return NextResponse.json({
       orders,

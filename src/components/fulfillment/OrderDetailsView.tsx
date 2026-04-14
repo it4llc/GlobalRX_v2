@@ -26,6 +26,7 @@ import { ChevronLeft, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ServiceFulfillmentTable } from './ServiceFulfillmentTable';
+import { hasNewActivity } from '@/lib/utils/activity-comparison';
 
 interface OrderDetailsViewProps {
   order?: {
@@ -42,6 +43,8 @@ interface OrderDetailsViewProps {
     items?: Array<{
       id: string;
       status: string;
+      lastActivityAt?: string | null;
+      orderItemViews?: Array<{ lastViewedAt: string }>;
       service?: {
         id: string;
         name: string;
@@ -361,6 +364,15 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                       id: item.serviceFulfillment?.id || item.id,
                       orderId: order.id,
                       orderItemId: item.id,
+                      // PHASE 2D FIX: Only compute hasNewActivity for customer users
+                      // Non-customer users don't have OrderItemView records (excluded server-side)
+                      // Without views, hasNewActivity always returns true, causing red dots for all users
+                      hasNewActivity: user?.userType === 'customer'
+                        ? hasNewActivity(
+                            item.lastActivityAt,
+                            item.orderItemViews?.[0]?.lastViewedAt
+                          )
+                        : false,
                       serviceId: item.service?.id || '',
                       locationId: item.location?.id || '',
                       // BUG FIX (March 19, 2026): serviceFulfillment.status field no longer exists (removed in fulfillment ID standardization)

@@ -1,5 +1,5 @@
 ---
-description: Runs the full GlobalRx bug fix pipeline. Chains agents in sequence: bug-investigator → test-writer → implementer → code-reviewer → standards-checker → documentation-writer. Always describe the bug after the command.
+description: Runs the full GlobalRx bug fix pipeline. Chains agents in sequence: bug-investigator → test-writer-1 → implementer → code-reviewer → standards-checker → documentation-writer. If the bug requires component or route test coverage, test-writer-2 is invoked manually as a follow-up after the pipeline completes. Always describe the bug after the command.
 allowed-tools: Task, Read, Write, Edit, Bash, Glob, Grep
 ---
 
@@ -65,12 +65,14 @@ means Andy has feedback — address it before moving on.
 
 ---
 
-## STAGE 2: Test Writing (Prove the Bug First)
+## STAGE 2: Test Writing — Pass 1 (Prove the Bug First)
 
-Use the **test-writer** agent to write tests before any fix is written.
+Use the **test-writer-1** agent to write tests before any fix is written.
 
-Pass the full investigation report to the test-writer.
-Tell the agent: "Write tests for this bug fix based on the investigation report.
+Pass the full investigation report to the test-writer-1 agent.
+Tell the agent: "Before doing any work, read .claude/agents/test-writer-shared.md in full and output the exact confirmation line required by that file. Then follow the test-writer-1 process in bug fix mode.
+
+Write tests for this bug fix based on the investigation report.
 
 The most important test is a REGRESSION TEST that proves the bug exists. It must:
 - Be labeled at the top with: // REGRESSION TEST: proves bug fix for [short bug name]
@@ -78,8 +80,11 @@ The most important test is a REGRESSION TEST that proves the bug exists. It must
 - PASS after the fix is applied
 - Never be deleted — its permanent job is to prevent this bug from coming back
 
-Also write tests for the correct happy path behavior and any edge cases
-identified in the investigation.
+Apply the Bug Fix Regression Tests rules from test-writer-shared.md: the regression test asserts the CORRECT (post-fix) behavior, verifies the actual output rather than mock call counts, and needs zero modifications between the failing and passing states.
+
+Also write tests for the correct happy path behavior and any edge cases identified in the investigation.
+
+Scope note: test-writer-1 writes Pass 1 tests only (schema/validation tests and end-to-end tests). If this bug requires component-level or API route-level regression coverage — for example, a bug where the symptom is a rendering issue or an HTTP status code — note it in your summary so test-writer-2 can be run as a follow-up after the pipeline completes. Do not attempt to write component or route tests in Pass 1.
 
 Do not write any fix code. Tests only."
 
@@ -107,6 +112,12 @@ Regression test name being tracked: **[insert exact test name here]**
 ---
 
 Do not proceed until Andy types CONTINUE.
+
+### Note on Pass 2 follow-up
+
+If test-writer-1's summary flagged the need for component-level or API route-level regression coverage, make a note of it now. After the full bug fix pipeline completes (Stage 6), invoke test-writer-2 manually in a fresh Claude Code session and tell it to write Pass 2 regression tests for the bug. The Pass 2 tests must follow all the Mocking Rules (M1 through M4) from test-writer-2.md and include the Mock Self-Verification section in the summary.
+
+Do not invoke test-writer-2 as part of this pipeline run. Bug fixes use a single Pass 1 run through the main pipeline; any Pass 2 coverage is a separate follow-up task.
 
 ---
 

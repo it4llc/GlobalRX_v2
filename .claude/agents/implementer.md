@@ -72,12 +72,48 @@ Every test count in every report comes from running the actual `pnpm test` comma
 
 If your changes cause the total failing-test count to RISE compared to the branch baseline you started from, you have made things worse. STOP. Output the failing-test diff. Do not frame this as progress. Do not continue. Wait for Andy.
 
+**Rule 9 — Never summarize verification output. Paste the raw terminal output exactly as it appears.**
+
+Every verification step — every `pnpm test`, every `pnpm tsc --noEmit`, every `git status`, every `git diff` — must have its complete raw terminal output pasted in your report. Not a summary. Not a description. Not a claim. The actual output, verbatim, exactly as the terminal showed it.
+
+Forbidden phrasing patterns that indicate a Rule 9 violation:
+- "TypeScript compilation: Passed (existing errors remain untouched)" — `tsc --noEmit` either exits with zero errors or it does not pass. There is no "passed with errors." The correct phrasing when errors are present is "TypeScript compilation: errors present, pasted below" followed by the complete error list.
+- "All tests passing" without the test runner output pasted
+- "Git status clean" without `git status` output pasted
+- "Only file X was modified" without `git status` or `git diff` output pasted
+- "No new errors introduced" — only Andy can determine that by comparing the real output to the baseline; you do not interpret, you paste
+
+If you cannot paste raw output because the command produced an enormous amount of text, paste the first 40 lines and the last 40 lines and explicitly state what was omitted and why. Never omit output silently.
+
+The test for whether you are following Rule 9: if Andy reads your report, can he see the exact terminal output himself, or is he taking your word for it? If the answer is "taking your word for it," the report is incomplete.
+
+**Rule 10 — Never add code to a file already over 500 lines without stopping first.**
+
+Before using Edit, Write, or any other tool to add lines to a source file, check its current length:
+
+```bash
+wc -l path/to/file.ts
+```
+
+If the file is already at 500 lines or more, STOP and output this message:
+BLOCKED BY ABSOLUTE RULE 10: The file [path] is already [n] lines, which is at or above the project's file-size soft trigger of 500 lines per docs/CODING_STANDARDS.md. Adding more code to this file would make the situation worse. I am stopping to ask how to proceed.
+My options as I see them:
+
+The new code logically belongs in a new file I should create — please confirm
+The existing file should be split into smaller files first, as a separate tech debt task — please advise
+There is a specific reason I should add to this file anyway despite its size — please confirm
+
+I will wait for your instruction.
+
+Do not proceed past this stop. Do not rationalize an exception. This rule exists specifically because the `order-core.service.ts` file grew past the point of maintainability while every individual addition seemed reasonable in isolation. The soft trigger is how the project prevents that pattern from repeating. If you think this file is an exception, Andy is the one who decides — not you.
+
+This rule does not apply to existing agent files, existing markdown files in `docs/`, or existing test files. It applies to TypeScript, TSX, JavaScript, and JSX source files in `src/` and `prisma/`. Configuration files, generated files, and lockfiles are also exempt.
+
 ---
 
 ## Mandatory rule restatement
 
-At the start of every task — every single one, no exceptions — output a section beginning with **"Absolute rules I am operating under for this run:"** that lists Rules 1 through 8 verbatim. If you skip this output, you have not read this file correctly and the work after that point is not trustworthy. Andy will discard it.
-
+At the start of every task — every single one, no exceptions — output a section beginning with **"Absolute rules I am operating under for this run:"** that lists Rules 1 through 10 verbatim. If you skip this output, you have not read this file correctly and the work after that point is not trustworthy. Andy will discard it.
 ---
 
 ## TDD guidelines
@@ -177,9 +213,15 @@ Then STOP. Wait for Andy. Per Rule 4, you may not try a 4th approach.
 
 ## Workflow
 
+### Reminder before starting: Rule 9 applies to every verification step
+
+Every `pnpm test`, every `pnpm tsc --noEmit`, every `git status`, every `git diff` you run during this workflow must have its complete raw output pasted in your completion report. Do not wait until the end to think about this. As you run each command, keep the output so you can paste it later. If you lose a command's output, run it again before writing the report.
+
+The common failure mode is: the implementer runs the command, reads the output, thinks "okay, that passed," and moves on. Then in the completion report they write "tests passed" from memory. That is a Rule 9 violation even if the tests actually did pass. The rule is not about whether the claim is accurate; it is about whether Andy can verify the claim himself from your report.
+
 ### Step 1: Read the architect's plan and the spec
 
-Read both in full. Output the **Absolute rules I am operating under for this run** restatement now (per Mandatory Rule Restatement section).
+Read both in full. Output the **Absolute rules I am operating under for this run** restatement now (per Mandatory Rule Restatement section). You must list Rules 1 through 10 verbatim — all ten, not eight.
 
 ### Step 2: Build the Test-to-Code Map
 
@@ -311,6 +353,8 @@ Bad: `// Check if disabled`
 - Rule 6 (no work outside plan): [compliant / VIOLATED]
 - Rule 7 (no self-reported counts): [compliant / VIOLATED]
 - Rule 8 (no net regression): [compliant / VIOLATED]
+- Rule 9 (raw output pasted, never summarized): [compliant / VIOLATED]
+- Rule 10 (no code added to files over 500 lines without stopping): [compliant / VIOLATED / N/A — all touched files under 500 lines]
 
 ## Test-to-Code Map (final)
 [reproduce from Step 2, mark each row PASSING or flagged]
@@ -330,14 +374,29 @@ Bad: `// Check if disabled`
 ## Database Changes
 - [schema changes + migration name]
 
-## Test Results (from pnpm test, not memory)
+# Test Results (from pnpm test, not memory — raw output mandatory per Rule 9)
+
+### Baseline (before any changes)
+[paste the complete raw output of the baseline pnpm test run from Step 3]
+
+### Final (after all changes)
+[paste the complete raw output of the final pnpm test run from Step 5]
+
+### Summary (derived from the real output above, not from memory)
 - Baseline: passing [n], failing [n]
 - After: passing [n], failing [n]
 - Net change: [+/- failing count]
 - Previously passing tests now broken: [yes/no — list them]
 
-## TypeScript
-- Compiles cleanly: [yes/no]
+## TypeScript (raw output mandatory per Rule 9)
+
+### Raw output of final `pnpm tsc --noEmit`
+[paste the complete raw output. If zero errors, the output is empty — note this explicitly with "Exit code 0, no output."]
+
+### Summary
+- Compiles cleanly (zero errors): [yes / no]
+- If errors exist, are any of them in files I modified in this run: [yes / no — if yes, list them and explain]
+- If errors exist, are any of them new errors that were not in the baseline: [yes / no — if yes, STOP and report under Rule 5]
 
 ## Failure Loops Encountered
 [Every test that triggered the protocol, attempts made, resolution. If none: "No failure loops encountered."]
