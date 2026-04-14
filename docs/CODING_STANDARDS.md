@@ -915,7 +915,49 @@ serviceItems.map(serviceItem => (
 
 **Files affected by this rule:** Any component that displays data with parent-child relationships, especially order summaries, service details, and nested data displays.
 
+---
+# File size guidance
 
+This section is a soft trigger, not a hard cap. The goal is to catch files that have grown past the point where they can be maintained comfortably, before they become the kind of file nobody wants to touch.
+
+## The numbers
+
+- **Under 300 lines** — no concern, this is the healthy range for most source files.
+- **300 to 500 lines** — starting to get large. No action required, but worth noticing. If you are about to add significant new content to a file in this range, consider whether the new content belongs in its own file.
+- **500 to 600 lines** — warning zone. Adding more code to a file in this range should be a deliberate decision, not a default. Before adding, ask whether the new content would be better placed in a new file.
+- **Over 600 lines** — hard stop for agents. No automated agent may add code to a source file over 600 lines without explicitly stopping to ask first (see the Implementer Agent Rule 10 in `.claude/agents/implementer.md`). Humans may override this rule, but the override should be a conscious decision, not an oversight.
+
+## What this applies to
+
+This guidance applies to TypeScript, TSX, JavaScript, and JSX source files in `src/` and `prisma/`.
+
+It does **not** apply to:
+- Agent instruction files in `.claude/agents/` (those are documentation, not source code, and may be longer when the content is load-bearing)
+- Standards files in `docs/` (though see the note below — standards files should also stay readable)
+- Configuration files (`.eslintrc`, `tsconfig.json`, `next.config.js`, etc.)
+- Generated files (Prisma client output, build artifacts, lockfiles)
+- Migration files (`prisma/migrations/*/migration.sql`)
+- Test files (subject to their own separate discipline — see `TESTING_STANDARDS.md`)
+
+## Why soft triggers instead of a hard cap
+
+Hard caps cause worse problems than they solve. When a file hits a hard limit, the pressure to "stay under" leads to creative workarounds: splitting things along arbitrary seams, creating wrapper files whose only purpose is to move lines out of another file, or moving functions into new files where they no longer have natural neighbors. All of those make the code harder to understand, not easier.
+
+A soft trigger does something different: it forces a deliberate pause. At 500 lines, the question is "should I be adding more here?" and the answer is usually "yes, but think about whether this belongs in a new file." At 600 lines, the question becomes a full stop — "this file has grown past the point where adding more is the right default, and a human needs to decide what to do."
+
+The deliberate pause is the point. It catches the failure mode where every individual addition seems reasonable in isolation but the cumulative effect is a file that has grown past the point of maintainability. That's exactly what happened to `src/lib/services/order-core.service.ts` in this project — no single addition was wrong, but the cumulative result was a file that is now a known piece of tech debt.
+
+## What to do when a file is approaching or past the limit
+
+The answer is almost never "shrink this file by deleting things." It is usually "split this file along a natural seam" or "put the new content in a new file instead of this one."
+
+Natural seams for service files usually run along responsibility boundaries: order queries vs order mutations vs order status transitions vs order view tracking, for example. Natural seams for component files usually run along sub-components that have grown complex enough to stand alone, or along hooks that are being defined inline and could live in their own hook file.
+
+When a file is genuinely over the limit and you are unsure how to split it, the right move is to log it as tech debt and continue working in the existing file for the current task. File splitting is its own project with its own risk surface, and doing it reactively in the middle of unrelated work is how regressions happen. Open a dedicated branch, split the file cleanly, make sure all tests still pass, and ship the split as its own PR.
+
+## Standards files are not exempt from readability
+
+Standards files in `docs/` are not subject to the 500/600 line agent rule, but long standards files create their own problems. Agents asked to read a long standards file as "required reading" are more likely to skim the parts that feel less relevant, which means the rules that are actually load-bearing for the current task may get missed. If a standards file is growing past ~600 lines and contains content that would be better placed in a dedicated standards file (e.g. testing content that belongs in `TESTING_STANDARDS.md`), consider moving it. The point of having multiple standards files is that each one can stay focused and readable.
 ---
 
 ## QUICK REFERENCE CHECKLIST
