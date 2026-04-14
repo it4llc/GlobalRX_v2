@@ -718,7 +718,11 @@ export class OrderCoreService {
   }
 
   /**
-   * Get orders for a customer
+   * Get orders for a customer with optional view tracking data
+   * @param customerId - ID of the customer whose orders to retrieve
+   * @param filters - Optional filters for status, search, pagination
+   * @param includeViews - When true, includes OrderView and OrderItemView records for the user
+   * @param userId - Required when includeViews is true, identifies which user's view records to fetch
    */
   static async getCustomerOrders(
     customerId: string,

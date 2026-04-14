@@ -21,6 +21,10 @@ interface NewActivityDotProps {
  * that the user hasn't viewed yet. Used in dashboard order tables
  * and order detail item lists.
  *
+ * Role gating: This component does NOT check user type. Callers are
+ * responsible for only rendering it for customer users. Non-customer
+ * users (admin, vendor) must never see this indicator.
+ *
  * Visual Specifications:
  * - 8px diameter filled red circle
  * - Returns null when show is false to avoid conditional rendering in callers
