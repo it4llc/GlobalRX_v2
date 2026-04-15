@@ -3,44 +3,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ServiceCommentService } from '@/services/service-comment-service';
 import { prisma } from '@/lib/prisma';
 
-// Mock Prisma client
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    $transaction: vi.fn(),
-    servicesFulfillment: {
-      findUnique: vi.fn(),
-      findMany: vi.fn()
-    },
-    service: {
-      findUnique: vi.fn()
-    },
-    orderItem: {
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-      update: vi.fn()
-    },
-    commentTemplate: {
-      findUnique: vi.fn(),
-      update: vi.fn()
-    },
-    commentTemplateAvailability: {
-      findFirst: vi.fn()
-    },
-    serviceComment: {
-      create: vi.fn(),
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-      update: vi.fn()
-    },
-    order: {
-      findUnique: vi.fn()
-    },
-    user: {
-      findUnique: vi.fn()
-    }
-  }
-}));
-
 // Mock logger
 vi.mock('@/lib/logger', () => ({
   default: {
@@ -149,7 +111,7 @@ describe('ServiceCommentService.createComment', () => {
         templateId: mockTemplateId,
         serviceCode: 'BGCHECK',
         status: 'Processing'
-      });
+      } as any);
 
       const mockComment = {
         id: 'comment-123',
@@ -324,7 +286,7 @@ describe('ServiceCommentService.createComment', () => {
         templateId: mockTemplateId,
         serviceCode: 'BGCHECK',
         status: 'Processing'
-      });
+      } as any);
 
       const mockComment = {
         id: 'comment-123',
@@ -376,7 +338,7 @@ describe('ServiceCommentService.createComment', () => {
       );
 
       // Verify the transaction was called (which includes marking template as used)
-      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(vi.mocked(prisma.$transaction)).toHaveBeenCalled();
     });
   });
 
