@@ -18,29 +18,6 @@ vi.mock('@/lib/auth', () => ({
   authOptions: {}
 }));
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    servicesFulfillment: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      create: vi.fn(),  // Should never be called
-      upsert: vi.fn()   // Should never be called
-    },
-    orderItem: {
-      findUnique: vi.fn()
-    },
-    serviceAttachment: {
-      findMany: vi.fn(),
-      create: vi.fn()  // Should never be called
-    },
-    user: {
-      findUnique: vi.fn()
-    },
-    order: {
-      findUnique: vi.fn()
-    }
-  }
-}));
 
 vi.mock('@/services/service-comment-service', () => ({
   ServiceCommentService: vi.fn(function ServiceCommentService() {
@@ -108,7 +85,6 @@ vi.mock('crypto', () => ({
 
 import { prisma } from '@/lib/prisma';
 
-const mockPrisma = vi.mocked(prisma);
 const mockGetServerSession = vi.mocked(getServerSession);
 
 describe('Missing ServicesFulfillment - 404 Error Handling', () => {
@@ -125,7 +101,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetServerSession.mockResolvedValue(mockSession);
+    mockGetServerSession.mockResolvedValue(mockSession as any);
     mockHasPermission.mockReturnValue(true);
   });
 
@@ -145,7 +121,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       });
 
       // Mock that ServicesFulfillment doesn't exist for this OrderItem
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null);
 
       // Act
       const response = await CommentsPost(request, { params: { id: validOrderItemId } });
@@ -156,14 +132,14 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       expect(result.error).toBe('Service not found');
 
       // Verify the correct query was made
-      expect(mockPrisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
+      expect(prisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
         where: { orderItemId: validOrderItemId },  // THIS SHOULD CHANGE AFTER IMPLEMENTATION
         select: { orderItemId: true }
       });
 
       // Verify no auto-creation attempts
-      expect(mockPrisma.servicesFulfillment.create).not.toHaveBeenCalled();
-      expect(mockPrisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.create).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
     });
 
     it('should return standardized error format for missing ServicesFulfillment', async () => {
@@ -176,7 +152,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
         })
       });
 
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null);
 
       // Act
       const response = await CommentsPost(request, { params: { id: validOrderItemId } });
@@ -201,7 +177,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
         })
       });
 
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null);
 
       const { ServiceCommentService } = await import('@/services/service-comment-service');
       const mockService = new ServiceCommentService();
@@ -224,7 +200,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       const request = new NextRequest(`http://localhost/api/services/${validOrderItemId}/results`);
 
       // Mock that no ServicesFulfillment exists for this OrderItem
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
 
       // Act
       const response = await ResultsGet(request, { params: { id: validOrderItemId } });
@@ -234,7 +210,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       expect(response.status).toBe(404);
       expect(result.error).toBe('Service not found');
 
-      expect(mockPrisma.servicesFulfillment.findFirst).toHaveBeenCalledWith({
+      expect(prisma.servicesFulfillment.findFirst).toHaveBeenCalledWith({
         where: { orderItemId: validOrderItemId },
         include: expect.any(Object)
       });
@@ -263,7 +239,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
         data: { results: 'Updated results' }
       });
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await ResultsPut(request, { params: { id: validOrderItemId } });
@@ -274,14 +250,14 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       expect(result.error).toBe('Service not found');
 
       // Should not attempt to create missing ServicesFulfillment
-      expect(mockPrisma.servicesFulfillment.create).not.toHaveBeenCalled();
-      expect(mockPrisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.create).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
     });
 
     it('should provide clear error messaging for missing ServicesFulfillment on results operations', async () => {
       // Arrange
       const request = new NextRequest(`http://localhost/api/services/${validOrderItemId}/results`);
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
 
       // Act
       const response = await ResultsGet(request, { params: { id: validOrderItemId } });
@@ -308,7 +284,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
         serviceFulfillment: null
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await AttachmentsGet(request, { params: { id: validOrderItemId } });
@@ -318,7 +294,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       expect(response.status).toBe(404);
       expect(result.error).toBe('Service not found');
 
-      expect(mockPrisma.orderItem.findUnique).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findUnique).toHaveBeenCalledWith({
         where: { id: validOrderItemId },
         include: { serviceFulfillment: true }
       });
@@ -342,7 +318,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
         serviceFulfillment: null
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await AttachmentsPost(request, { params: { id: validOrderItemId } });
@@ -353,8 +329,8 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       expect(result.error).toBe('Service not found');
 
       // Should not create ServicesFulfillment or attempt file upload
-      expect(mockPrisma.servicesFulfillment.create).not.toHaveBeenCalled();
-      expect(mockPrisma.serviceAttachment.create).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.create).not.toHaveBeenCalled();
+      expect(prisma.serviceAttachment.create).not.toHaveBeenCalled();
     });
 
     it('should handle attachment queries gracefully when ServicesFulfillment is missing', async () => {
@@ -367,7 +343,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
         serviceFulfillment: null
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await AttachmentsGet(request, { params: { id: validOrderItemId } });
@@ -376,7 +352,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       expect(response.status).toBe(404);
 
       // Should not attempt to query attachments table
-      expect(mockPrisma.serviceAttachment.findMany).not.toHaveBeenCalled();
+      expect(prisma.serviceAttachment.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -398,9 +374,9 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       const attachmentsRequest = new NextRequest(`http://localhost/api/services/${validOrderItemId}/attachments`);
 
       // Mock all scenarios where ServicesFulfillment is missing
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
-      mockPrisma.orderItem.findUnique.mockResolvedValue({
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue({
         id: validOrderItemId,
         orderId: 'order-123',
         status: 'IN_PROGRESS',
@@ -420,12 +396,12 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       await AttachmentsGet(attachmentsRequest, { params: { id: validOrderItemId } });
 
       // Assert - No auto-creation should have occurred
-      expect(mockPrisma.servicesFulfillment.create).not.toHaveBeenCalled();
-      expect(mockPrisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.create).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
 
       // All calls should have returned appropriate errors without attempting auto-creation
-      expect(mockPrisma.servicesFulfillment.findUnique).toHaveBeenCalled();
-      expect(mockPrisma.servicesFulfillment.findFirst).toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.findUnique).toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.findFirst).toHaveBeenCalled();
     });
 
     it('should maintain data integrity by not masking legitimate data issues', async () => {
@@ -438,7 +414,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
         })
       });
 
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null);
 
       // Act
       const response = await CommentsPost(request, { params: { id: validOrderItemId } });
@@ -449,7 +425,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       expect(result.error).toBe('Service not found');
 
       // Should not attempt to "fix" the data issue by creating records
-      expect(mockPrisma.servicesFulfillment.create).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.create).not.toHaveBeenCalled();
 
       // The 404 response alerts the system that there's a data integrity issue
       // that needs investigation, rather than auto-fixing and masking the problem
@@ -458,7 +434,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
     it('should provide appropriate error codes for different missing record scenarios', async () => {
       // Scenario 1: OrderItem doesn't exist at all
       const nonExistentOrderItemRequest = new NextRequest('http://localhost/api/services/non-existent/results');
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
 
       const nonExistentResponse = await ResultsGet(nonExistentOrderItemRequest, { params: { id: 'non-existent' } });
       const nonExistentResult = await nonExistentResponse.json();
@@ -478,7 +454,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
         data: { results: 'Test' }
       });
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue({
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue({
         id: validOrderItemId,
         orderId: 'order-123',
         status: 'IN_PROGRESS',
@@ -500,9 +476,9 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
   describe('Error Message Consistency', () => {
     it('should return consistent error messages across all APIs for missing ServicesFulfillment', async () => {
       // Arrange - Set up consistent missing ServicesFulfillment scenario
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
-      mockPrisma.orderItem.findUnique.mockResolvedValue({
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue({
         id: validOrderItemId,
         orderId: 'order-123',
         status: 'IN_PROGRESS',
@@ -550,7 +526,7 @@ describe('Missing ServicesFulfillment - 404 Error Handling', () => {
       const mockLogger = vi.mocked(logger.default);
       const request = new NextRequest(`http://localhost/api/services/${validOrderItemId}/results`);
 
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
 
       // Act
       const response = await ResultsGet(request, { params: { id: validOrderItemId } });
