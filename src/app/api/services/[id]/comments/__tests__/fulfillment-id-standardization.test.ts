@@ -24,16 +24,6 @@ vi.mock('@/lib/logger', () => ({
   }
 }));
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    servicesFulfillment: {
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      upsert: vi.fn()
-    }
-  }
-}));
-
 vi.mock('@/services/service-comment-service', () => ({
   ServiceCommentService: vi.fn(function ServiceCommentService() {
     this.validateUserAccess = vi.fn();
@@ -48,7 +38,6 @@ vi.mock('@/lib/validations/service-comment', () => ({
 }));
 
 const mockGetServerSession = vi.mocked(getServerSession);
-const mockPrisma = vi.mocked(prisma);
 
 describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', () => {
   let request: NextRequest;
@@ -79,7 +68,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       body: JSON.stringify(mockRequestBody)
     });
 
-    mockGetServerSession.mockResolvedValue(mockSession);
+    mockGetServerSession.mockResolvedValue(mockSession as any);
   });
 
   afterEach(() => {
@@ -93,7 +82,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
         orderItemId: validOrderItemId
       };
 
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(mockServiceFulfillment);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(mockServiceFulfillment as any);
 
       const { ServiceCommentService } = await import('@/services/service-comment-service');
 
@@ -126,7 +115,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       const result = await response.json();
 
       // Assert - Should use the OrderItem ID for validation
-      expect(mockPrisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
+      expect(prisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
         where: { orderItemId: validOrderItemId },  // THIS SHOULD CHANGE AFTER IMPLEMENTATION
         select: { orderItemId: true }
       });
@@ -146,7 +135,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       const nonExistentOrderItemId = 'non-existent-order-item';
 
       // Mock that no ServicesFulfillment exists for this OrderItem ID
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null as any);
 
       // Act
       const response = await POST(request, { params: { id: nonExistentOrderItemId } });
@@ -155,7 +144,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       // Assert
       expect(response.status).toBe(404);
       expect(result.error).toBe('Service not found');
-      expect(mockPrisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
+      expect(prisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
         where: { orderItemId: nonExistentOrderItemId },  // THIS SHOULD CHANGE AFTER IMPLEMENTATION
         select: { orderItemId: true }
       });
@@ -168,7 +157,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       const orderItemWithoutFulfillment = 'order-item-without-fulfillment';
 
       // Mock that no ServicesFulfillment exists for this OrderItem ID
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null as any);
 
       // Act
       const response = await POST(request, { params: { id: orderItemWithoutFulfillment } });
@@ -185,7 +174,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       const orderItemWithoutFulfillment = 'order-item-without-fulfillment';
 
       // Mock that no ServicesFulfillment exists for this OrderItem ID
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null as any);
 
       // Act
       const response = await POST(request, { params: { id: orderItemWithoutFulfillment } });
@@ -210,7 +199,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
         orderItemId: directOrderItemId
       };
 
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(mockServiceFulfillment);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(mockServiceFulfillment as any);
 
       const { ServiceCommentService } = await import('@/services/service-comment-service');
 
@@ -242,7 +231,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       const response = await POST(request, { params: { id: directOrderItemId } });
 
       // Assert - Should query by OrderItem ID directly, not map from ServicesFulfillment ID
-      expect(mockPrisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
+      expect(prisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
         where: { orderItemId: directOrderItemId },  // THIS SHOULD CHANGE AFTER IMPLEMENTATION
         select: { orderItemId: true }
       });
@@ -263,20 +252,20 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       const orderItemId = 'order-item-999';
 
       // Mock that no ServicesFulfillment exists - this should be handled gracefully
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null as any);
 
       // Act
       const response = await POST(request, { params: { id: orderItemId } });
 
       // Assert - Should query directly by OrderItem ID, not perform mapping
-      expect(mockPrisma.servicesFulfillment.findUnique).toHaveBeenCalledTimes(1);
-      expect(mockPrisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
+      expect(prisma.servicesFulfillment.findUnique).toHaveBeenCalledTimes(1);
+      expect(prisma.servicesFulfillment.findUnique).toHaveBeenCalledWith({
         where: { orderItemId: orderItemId },  // THIS SHOULD CHANGE AFTER IMPLEMENTATION
         select: { orderItemId: true }
       });
 
       // Should NOT call findUnique twice for mapping purposes
-      expect(mockPrisma.servicesFulfillment.findUnique).not.toHaveBeenNthCalledWith(2, expect.anything());
+      expect(prisma.servicesFulfillment.findUnique).not.toHaveBeenNthCalledWith(2, expect.anything());
     });
   });
 
@@ -289,7 +278,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
         orderItemId: orderItemId
       };
 
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(mockServiceFulfillment);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(mockServiceFulfillment as any);
 
       const { ServiceCommentService } = await import('@/services/service-comment-service');
 
@@ -353,7 +342,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
 
     it('should maintain authentication and permission checks', async () => {
       // Arrange - No session
-      mockGetServerSession.mockResolvedValue(null);
+      mockGetServerSession.mockResolvedValue(null as any);
 
       // Act
       const response = await POST(request, { params: { id: 'any-id' } });
@@ -374,7 +363,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
         }
       };
 
-      mockGetServerSession.mockResolvedValue(mockSessionNoPermission);
+      mockGetServerSession.mockResolvedValue(mockSessionNoPermission as any);
 
       // Act
       const response = await POST(request, { params: { id: 'any-id' } });
@@ -392,7 +381,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       const orderItemId = 'order-item-missing-fulfillment';
 
       // Mock that no ServicesFulfillment exists
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null as any);
 
       // Act
       const response = await POST(request, { params: { id: orderItemId } });
@@ -412,7 +401,7 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       const orderItemId = 'order-item-create-test';
 
       // Mock that no ServicesFulfillment exists
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null as any);
 
       // Act
       const response = await POST(request, { params: { id: orderItemId } });
@@ -421,8 +410,8 @@ describe('POST /api/services/[id]/comments - Fulfillment ID Standardization', ()
       expect(response.status).toBe(404);
 
       // Should NOT attempt to create a new ServicesFulfillment record
-      expect(mockPrisma.servicesFulfillment.create).not.toHaveBeenCalled();
-      expect(mockPrisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.create).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
     });
   });
 });
