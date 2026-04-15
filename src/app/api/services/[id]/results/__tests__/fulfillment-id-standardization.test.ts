@@ -29,27 +29,6 @@ vi.mock('@/lib/permission-utils', () => ({
   hasPermission: mockHasPermission
 }));
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    servicesFulfillment: {
-      findFirst: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      create: vi.fn(),
-      upsert: vi.fn()
-    },
-    orderItem: {
-      findUnique: vi.fn()
-    },
-    user: {
-      findUnique: vi.fn()
-    },
-    auditLog: {
-      create: vi.fn()
-    },
-    $transaction: vi.fn()
-  }
-}));
 
 vi.mock('@/types/service-results', () => ({
   updateResultsSchema: {
@@ -59,7 +38,6 @@ vi.mock('@/types/service-results', () => ({
 }));
 
 const mockGetServerSession = vi.mocked(getServerSession);
-const mockPrisma = vi.mocked(prisma);
 
 describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', () => {
   const validOrderItemId = 'order-item-123';
@@ -75,7 +53,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetServerSession.mockResolvedValue(mockSession);
+    mockGetServerSession.mockResolvedValue(mockSession as any);
     mockHasPermission.mockReturnValue(true);
   });
 
@@ -114,7 +92,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
         }
       };
 
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(mockServiceFulfillment);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(mockServiceFulfillment as any);
 
       // Act
       const response = await GET(request, { params: { id: validOrderItemId } });
@@ -122,7 +100,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
 
       // Assert
       expect(response.status).toBe(200);
-      expect(mockPrisma.servicesFulfillment.findFirst).toHaveBeenCalledWith({
+      expect(prisma.servicesFulfillment.findFirst).toHaveBeenCalledWith({
         where: { orderItemId: validOrderItemId },
         include: expect.objectContaining({
           orderItem: expect.objectContaining({
@@ -147,7 +125,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
       const nonExistentOrderItemId = 'non-existent-order-item';
       const request = new NextRequest(`http://localhost/api/services/${nonExistentOrderItemId}/results`);
 
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
 
       // Act
       const response = await GET(request, { params: { id: nonExistentOrderItemId } });
@@ -156,7 +134,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
       // Assert
       expect(response.status).toBe(404);
       expect(result.error).toBe('Service not found');
-      expect(mockPrisma.servicesFulfillment.findFirst).toHaveBeenCalledWith({
+      expect(prisma.servicesFulfillment.findFirst).toHaveBeenCalledWith({
         where: { orderItemId: nonExistentOrderItemId },
         include: expect.any(Object)
       });
@@ -167,7 +145,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
       const orderItemWithoutFulfillment = 'order-item-without-fulfillment';
       const request = new NextRequest(`http://localhost/api/services/${orderItemWithoutFulfillment}/results`);
 
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
 
       // Act
       const response = await GET(request, { params: { id: orderItemWithoutFulfillment } });
@@ -227,7 +205,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
         }
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItem);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItem as any);
 
       const { updateResultsSchema, isTerminalStatus } = await import('@/types/service-results');
       (updateResultsSchema.safeParse as any).mockReturnValue({
@@ -237,7 +215,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
       (isTerminalStatus as any).mockReturnValue(false);
 
       // Mock transaction
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         const tx = {
           user: {
             findUnique: vi.fn().mockResolvedValue(mockDbUser)
@@ -252,7 +230,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
         return await callback(tx);
       });
 
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(mockUpdatedWithRelations);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(mockUpdatedWithRelations as any);
 
       // Act
       const response = await PUT(request, { params: { id: validOrderItemId } });
@@ -260,7 +238,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
 
       // Assert
       expect(response.status).toBe(200);
-      expect(mockPrisma.orderItem.findUnique).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findUnique).toHaveBeenCalledWith({
         where: { id: validOrderItemId },
         include: {
           serviceFulfillment: true
@@ -286,7 +264,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
         data: { results: 'Test results' }
       });
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(null);
 
       // Act
       const response = await PUT(request, { params: { id: nonExistentOrderItemId } });
@@ -295,7 +273,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
       // Assert
       expect(response.status).toBe(404);
       expect(result.error).toBe('Service not found');
-      expect(mockPrisma.orderItem.findUnique).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findUnique).toHaveBeenCalledWith({
         where: { id: nonExistentOrderItemId },
         include: {
           serviceFulfillment: true
@@ -323,7 +301,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
         data: { results: 'Test results' }
       });
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await PUT(request, { params: { id: orderItemId } });
@@ -357,7 +335,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
         resultsModifiedByUser: null
       };
 
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(mockServiceFulfillment);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(mockServiceFulfillment as any);
 
       // Act
       const response = await GET(request, { params: { id: validOrderItemId } });
@@ -403,7 +381,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
         }
       };
 
-      mockGetServerSession.mockResolvedValue(mockSessionNoPermission);
+      mockGetServerSession.mockResolvedValue(mockSessionNoPermission as any);
       mockHasPermission.mockReturnValue(false);
 
       const mockServiceFulfillment = {
@@ -416,7 +394,7 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
         }
       };
 
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(mockServiceFulfillment);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(mockServiceFulfillment as any);
 
       // Act
       const response = await GET(request, { params: { id: validOrderItemId } });
@@ -434,15 +412,15 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
       const orderItemId = 'order-item-missing-fulfillment';
       const request = new NextRequest(`http://localhost/api/services/${orderItemId}/results`);
 
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
 
       // Act
       const response = await GET(request, { params: { id: orderItemId } });
 
       // Assert
       expect(response.status).toBe(404);
-      expect(mockPrisma.servicesFulfillment.create).not.toHaveBeenCalled();
-      expect(mockPrisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.create).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
     });
 
     it('should not auto-create missing ServicesFulfillment records on PUT', async () => {
@@ -465,15 +443,15 @@ describe('GET/PUT /api/services/[id]/results - Fulfillment ID Standardization', 
         serviceFulfillment: null
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await PUT(request, { params: { id: orderItemId } });
 
       // Assert
       expect(response.status).toBe(404);
-      expect(mockPrisma.servicesFulfillment.create).not.toHaveBeenCalled();
-      expect(mockPrisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.create).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
     });
   });
 });
