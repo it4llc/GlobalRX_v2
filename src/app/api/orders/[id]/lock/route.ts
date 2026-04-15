@@ -127,7 +127,7 @@ export async function DELETE(
     }
 
     const userId = session.user.id;
-    const isAdmin = session.user.permissions?.admin === true || session.user.type === 'admin';
+    const isAdmin = session.user.permissions?.admin === true || session.user.userType === 'admin';
 
     // Check for force parameter
     const { searchParams } = new URL(request.url);
