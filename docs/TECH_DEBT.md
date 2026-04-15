@@ -957,6 +957,24 @@ During a dedicated e2e test maintenance pass, or before merging Phase 2D which w
 
 pnpm tsc --noEmit reports errors in src/test/setup.ts (missing vitest globals), src/__tests__/404-error-handling/missing-services-fulfillment.test.ts (Prisma mock type mismatches), src/lib/utils/__tests__/customer-order-permissions.test.ts, src/lib/vendorUtils.ts, and several E2E spec files. Most are related to the 167 skipped tests on temp/skip-failing-tests commit 3c3a641. Revealed during Phase 2D code review on 2026-04-14; not caused by Phase 2D. Cleanup should be scoped as its own branch and paired with the deferred-test cleanup.
 
+---
+### TD-036 — Bad mock-leak assertions in fulfillment-id-standardization tests
+
+**File:** src/app/api/services/[id]/status/__tests__/fulfillment-id-standardization.test.ts (lines around 295 and 358)
+
+**Issue:** Two assertions of the form `expect(prisma.servicesFulfillment).toBeUndefined()` were commented out during Bucket 2A cleanup. These assertions only "passed" before because the file's local Prisma mock was incomplete — `servicesFulfillment` was undefined as a side effect of a partial mock object, not because the route deliberately avoided that table. Once the file switched to the global mock (which includes all models), the assertions failed.
+
+**Intent:** The author probably wanted to verify the route does not call any method on `prisma.servicesFulfillment`.
+
+**Fix needed:** Replace the deferred assertions with explicit per-method checks, e.g.:
+  expect(vi.mocked(prisma.servicesFulfillment.findUnique)).not.toHaveBeenCalled();
+  expect(vi.mocked(prisma.servicesFulfillment.findFirst)).not.toHaveBeenCalled();
+  // ...for any other servicesFulfillment methods the route could plausibly call
+
+**Origin:** Bucket 2A cleanup, 2026-04-15.
+
+**Priority:** Low (test still validates other behavior; deferred assertion is a coverage gap, not a correctness issue).
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
