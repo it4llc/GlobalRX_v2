@@ -10,7 +10,7 @@
 | # | Bucket | Status | Errors removed | Date |
 |---|--------|--------|----------------|------|
 | 1 | Delete dead .old/.original files | Complete | 67 | 2026-04-15 |
-| 2 | Fix Prisma mock typing pattern in tests | In progress | 148 | 2026-04-15 |
+| 2 | Fix Prisma mock typing pattern in tests | In progress | 268 | 2026-04-15 |
 | 3 | Add types to old components | Not started | — | — |
 | 4 | Schema drift in production API routes | Not started | — | — |
 | 5 | Long tail | Not started | — | — |
@@ -65,3 +65,18 @@ Project errors: 3,042 → 3,026 (16 removed)
 Tests: still 2,631 passing, 167 skipped, 0 failing
 Global mock methods added to src/test/utils.ts: none
 Deferred assertions (TD-XXX in TECH_DEBT.md): none
+
+### 2026-04-15 — Bucket 2 Batch 2C
+Branch: cleanup/bucket2-batch-2c
+Merge commit: 077881e
+Applied proven Prisma mock fix pattern to 3 files:
+- src/app/api/portal/orders/requirements/route.test.ts (before count not captured → 8)
+- src/app/api/services/[id]/attachments/[attachmentId]/__tests__/route.test.ts (before count not captured → 25)
+- src/app/api/services/[id]/attachments/__tests__/route.test.ts (before count not captured → 35)
+
+Project errors: 3,026 → 2,906 (120 removed)
+Tests: still 2,631 passing, 167 skipped, 0 failing (unchanged from 2B baseline)
+Global mock methods added to src/test/utils.ts: none
+Deferred assertions (TD-XXX in TECH_DEBT.md): none
+
+Note: Per-file "before" counts were not captured before this batch started. Going forward, capture per-file error counts at the start of each batch as part of the planning step.
