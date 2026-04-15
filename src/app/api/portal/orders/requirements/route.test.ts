@@ -132,20 +132,7 @@ vi.mock('@/lib/logger', () => ({
   }
 }));
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    serviceRequirement: {
-      findMany: vi.fn()
-    },
-    dSXMapping: {
-      findMany: vi.fn()
-    },
-    country: {
-      findMany: vi.fn(),
-      count: vi.fn()
-    }
-  }
-}));
+// Removed local mock - using global mock from src/test/utils.ts
 
 describe('POST /api/portal/orders/requirements', () => {
   beforeEach(() => {
@@ -354,7 +341,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: lastNameRequirement,
           service: { id: 'service2', name: 'Employment Verification' }
         }
-      ]);
+      ] as any);
 
       // Both services mark these fields as required in DSXMapping
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
@@ -398,7 +385,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service2', name: 'Employment Verification' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -409,7 +396,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
@@ -470,7 +457,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: firstNameRequirement,
           service: { id: 'service2', name: 'Employment Verification' }
         }
-      ]);
+      ] as any);
 
       // CRITICAL: First service does NOT require it, second service DOES
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
@@ -494,7 +481,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service2', name: 'Employment Verification' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -505,7 +492,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
@@ -557,7 +544,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: firstNameRequirement,
           service: { id: 'service2', name: 'Employment Verification' }
         }
-      ]);
+      ] as any);
 
       // First service requires it, second doesn't
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
@@ -581,7 +568,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service2', name: 'Employment Verification' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -592,7 +579,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
@@ -651,7 +638,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: firstNameRequirement,
           service: { id: 'service3', name: 'Reference Check' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
         {
@@ -684,7 +671,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service3', name: 'Reference Check' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -695,7 +682,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
@@ -745,7 +732,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: firstNameRequirement,
           service: { id: 'service2', name: 'Employment Verification' }
         }
-      ]);
+      ] as any);
 
       // Neither service marks this field as required
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
@@ -769,7 +756,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service2', name: 'Employment Verification' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -780,7 +767,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
@@ -844,7 +831,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: lastNameRequirement,
           service: { id: 'service1', name: 'Background Check' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
         {
@@ -867,7 +854,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service1', name: 'Background Check' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -878,7 +865,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
@@ -939,7 +926,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: schoolNameRequirement,
           service: { id: 'service2', name: 'Secondary Education Check' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
         {
@@ -962,7 +949,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service2', name: 'Secondary Education Check' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -973,7 +960,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
@@ -1049,7 +1036,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: consentDocument,
           service: { id: 'service2', name: 'Employment Verification' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
         {
@@ -1072,7 +1059,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service2', name: 'Employment Verification' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -1083,7 +1070,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
@@ -1137,7 +1124,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: serviceSpecificDoc,
           service: { id: 'service2', name: 'Employment Verification' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
         {
@@ -1160,7 +1147,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service2', name: 'Employment Verification' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -1171,7 +1158,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
@@ -1249,7 +1236,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: field1,
           service: { id: 'service2', name: 'Employment Verification' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
         {
@@ -1292,7 +1279,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service2', name: 'Employment Verification' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -1303,7 +1290,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
@@ -1364,7 +1351,7 @@ describe('POST /api/portal/orders/requirements', () => {
           requirement: disabledField,
           service: { id: 'service1', name: 'Background Check' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
         {
@@ -1387,7 +1374,7 @@ describe('POST /api/portal/orders/requirements', () => {
           service: { id: 'service1', name: 'Background Check' },
           country: { id: 'location1', name: 'United States' }
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.findMany).mockResolvedValueOnce([
         {
@@ -1398,7 +1385,7 @@ describe('POST /api/portal/orders/requirements', () => {
           subregion2: null,
           subregion3: null
         }
-      ]);
+      ] as any);
 
       vi.mocked(prisma.country.count).mockResolvedValueOnce(0);
 
