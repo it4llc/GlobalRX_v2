@@ -17,38 +17,6 @@ vi.mock('next-auth', () => ({
   getServerSession: vi.fn()
 }));
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    servicesFulfillment: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      update: vi.fn(),
-      create: vi.fn(),
-      upsert: vi.fn()
-    },
-    orderItem: {
-      findUnique: vi.fn(),
-      update: vi.fn()
-    },
-    order: {
-      findUnique: vi.fn()
-    },
-    serviceAttachment: {
-      findMany: vi.fn(),
-      create: vi.fn()
-    },
-    serviceComment: {
-      create: vi.fn()
-    },
-    user: {
-      findUnique: vi.fn()
-    },
-    auditLog: {
-      create: vi.fn()
-    },
-    $transaction: vi.fn()
-  }
-}));
 
 vi.mock('@/services/service-comment-service', () => ({
   ServiceCommentService: vi.fn(function ServiceCommentService() {
@@ -139,7 +107,6 @@ vi.mock('crypto', () => ({
 
 import { prisma } from '@/lib/prisma';
 
-const mockPrisma = vi.mocked(prisma);
 const mockGetServerSession = vi.mocked(getServerSession);
 
 // Test data
@@ -206,7 +173,7 @@ const mockOrder = {
 describe('Fulfillment ID Standardization - Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetServerSession.mockResolvedValue(mockSession);
+    mockGetServerSession.mockResolvedValue(mockSession as any);
     mockHasPermission.mockReturnValue(true);
   });
 
@@ -217,14 +184,14 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
   describe('End-to-End Workflow with OrderItem IDs', () => {
     it('should handle complete fulfillment workflow using OrderItem IDs consistently', async () => {
       // Arrange - Mock all necessary database responses
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue({
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue({
         orderItemId: validOrderItemId
-      });
+      } as any);
 
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(mockServiceFulfillment);
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItem);
-      mockPrisma.order.findUnique.mockResolvedValue(mockOrder);
-      mockPrisma.serviceAttachment.findMany.mockResolvedValue([]);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(mockServiceFulfillment as any);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItem as any);
+      vi.mocked(prisma.order.findUnique).mockResolvedValue(mockOrder as any);
+      vi.mocked(prisma.serviceAttachment.findMany).mockResolvedValue([]);
 
       const { ServiceCommentService } = await import('@/services/service-comment-service');
 
@@ -266,9 +233,9 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
       (statusIsTerminalStatus as any).mockReturnValue(false);
 
       // Mock successful database updates
-      mockPrisma.user.findUnique.mockResolvedValue({ userId: 1 });
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ userId: 1 } as any);
 
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         const tx = {
           user: { findUnique: vi.fn().mockResolvedValue({ userId: 1 }) },
           servicesFulfillment: { update: vi.fn().mockResolvedValue(mockServiceFulfillment) },
@@ -288,7 +255,7 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
       // Assert - Results API works with OrderItem ID
       expect(resultsResponse.status).toBe(200);
       expect(resultsData.results).toBe('Integration test results');
-      expect(mockPrisma.servicesFulfillment.findFirst).toHaveBeenCalledWith({
+      expect(prisma.servicesFulfillment.findFirst).toHaveBeenCalledWith({
         where: { orderItemId: validOrderItemId },
         include: expect.any(Object)
       });
@@ -325,7 +292,7 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
 
       // Assert - Results update works with OrderItem ID
       expect(updateResultsResponse.status).toBe(200);
-      expect(mockPrisma.orderItem.findUnique).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findUnique).toHaveBeenCalledWith({
         where: { id: validOrderItemId },
         include: { serviceFulfillment: true }
       });
@@ -336,7 +303,7 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
 
       // Assert - Attachments API works with OrderItem ID
       expect(attachmentsResponse.status).toBe(200);
-      expect(mockPrisma.orderItem.findUnique).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findUnique).toHaveBeenCalledWith({
         where: { id: validOrderItemId },
         include: { serviceFulfillment: true }
       });
@@ -353,7 +320,7 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
 
       // Assert - Status update works with OrderItem ID
       expect(statusResponse.status).toBe(200);
-      expect(mockPrisma.orderItem.findUnique).toHaveBeenCalledWith(
+      expect(prisma.orderItem.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: validOrderItemId }
         })
@@ -362,8 +329,8 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
       // Verify that NO API calls used serviceFulfillmentId directly
       // ServicesFulfillment queries should use orderItemId field
       const serviceFulfillmentCalls = [
-        ...mockPrisma.servicesFulfillment.findUnique.mock.calls,
-        ...mockPrisma.servicesFulfillment.findFirst.mock.calls
+        ...prisma.servicesFulfillment.findUnique.mock.calls,
+        ...prisma.servicesFulfillment.findFirst.mock.calls
       ];
 
       serviceFulfillmentCalls.forEach(call => {
@@ -379,7 +346,7 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
       });
 
       // OrderItem queries should use the OrderItem ID
-      const orderItemCalls = mockPrisma.orderItem.findUnique.mock.calls;
+      const orderItemCalls = prisma.orderItem.findUnique.mock.calls;
       orderItemCalls.forEach(call => {
         const whereClause = call[0]?.where;
         if (whereClause && whereClause.id) {
@@ -397,9 +364,9 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
         serviceFulfillment: null
       };
 
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
-      mockPrisma.orderItem.findUnique.mockResolvedValue(orderItemWithoutFulfillment);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(orderItemWithoutFulfillment as any);
 
       // Step 1: Try to fetch results - should return 404
       const resultsRequest = new NextRequest(`http://localhost/api/services/${validOrderItemId}/results`);
@@ -452,8 +419,8 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
       });
       (isTerminalStatus as any).mockReturnValue(false);
 
-      mockPrisma.order.findUnique.mockResolvedValue(mockOrder);
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
+      vi.mocked(prisma.order.findUnique).mockResolvedValue(mockOrder as any);
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         const tx = {
           orderItem: { update: vi.fn().mockResolvedValue({ ...mockOrderItem, status: 'IN_PROGRESS' }) },
           serviceComment: { create: vi.fn().mockResolvedValue({ id: 'audit-123' }) }
@@ -473,17 +440,17 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
       expect(statusResponse.status).toBe(200);
 
       // Verify NO auto-creation attempts were made
-      expect(mockPrisma.servicesFulfillment.create).not.toHaveBeenCalled();
-      expect(mockPrisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.create).not.toHaveBeenCalled();
+      expect(prisma.servicesFulfillment.upsert).not.toHaveBeenCalled();
     });
   });
 
   describe('API Contract Consistency', () => {
     it('should maintain consistent error responses across all endpoints', async () => {
       // Arrange - All endpoints should return consistent 404 responses
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue(null);
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(null);
-      mockPrisma.orderItem.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(null);
 
       const nonExistentOrderItemId = 'non-existent-order-item';
 
@@ -568,8 +535,8 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
   describe('Data Integrity Preservation', () => {
     it('should maintain existing data relationships after ID standardization', async () => {
       // Arrange - Existing data structure should remain unchanged
-      mockPrisma.servicesFulfillment.findFirst.mockResolvedValue(mockServiceFulfillment);
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItem);
+      vi.mocked(prisma.servicesFulfillment.findFirst).mockResolvedValue(mockServiceFulfillment as any);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItem as any);
 
       // Step 1: Fetch results and verify data structure
       const resultsRequest = new NextRequest(`http://localhost/api/services/${validOrderItemId}/results`);
@@ -583,7 +550,7 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
       expect(resultsData.status).toBe('IN_PROGRESS');
 
       // Verify ServicesFulfillment was queried by orderItemId relationship
-      expect(mockPrisma.servicesFulfillment.findFirst).toHaveBeenCalledWith({
+      expect(prisma.servicesFulfillment.findFirst).toHaveBeenCalledWith({
         where: { orderItemId: validOrderItemId },
         include: expect.objectContaining({
           orderItem: expect.objectContaining({
@@ -599,9 +566,9 @@ describe('Fulfillment ID Standardization - Integration Tests', () => {
 
     it('should preserve audit trail functionality with OrderItem IDs', async () => {
       // Arrange
-      mockPrisma.servicesFulfillment.findUnique.mockResolvedValue({
+      vi.mocked(prisma.servicesFulfillment.findUnique).mockResolvedValue({
         orderItemId: validOrderItemId
-      });
+      } as any);
 
       const { ServiceCommentService } = await import('@/services/service-comment-service');
 
