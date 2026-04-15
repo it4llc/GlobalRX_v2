@@ -4,6 +4,8 @@
  * Uses only the new module-based permission format
  */
 
+import type { User } from 'next-auth';
+
 /**
  * Module permissions in the new format:
  * - user_admin: User management
@@ -23,16 +25,6 @@ export type ModulePermission =
   | 'vendors'; // deprecated
 
 export type UserType = 'internal' | 'vendor' | 'customer' | 'admin';
-
-interface User {
-  id: string;
-  email: string;
-  type?: UserType | string;  // Sometimes comes as string
-  userType?: UserType | string;  // Sometimes comes as string
-  vendorId?: string | null;
-  customerId?: string | null;
-  permissions?: Record<string, any>;
-}
 
 /**
  * Check if a user has a specific module permission
@@ -85,8 +77,8 @@ export function hasModulePermission(user: User | null | undefined, module: Modul
 export function getUserType(user: User | null | undefined): UserType | null {
   if (!user) return null;
 
-  // Check both 'type' and 'userType' fields for compatibility
-  const userType = user.type || user.userType;
+  // Check userType field (with fallback to legacy .type for test compatibility)
+  const userType = (user as any).type || user.userType;
 
   // If no userType is set, return null instead of defaulting to 'internal'
   if (!userType) return null;
