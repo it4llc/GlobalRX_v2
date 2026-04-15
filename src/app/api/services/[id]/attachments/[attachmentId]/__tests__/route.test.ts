@@ -36,24 +36,7 @@ vi.mock('@/lib/permission-utils', () => ({
   })
 }));
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    orderItem: {
-      findUnique: vi.fn()
-    },
-    serviceAttachment: {
-      findUnique: vi.fn(),
-      delete: vi.fn()
-    },
-    order: {
-      findUnique: vi.fn()
-    },
-    auditLog: {
-      create: vi.fn()
-    },
-    $transaction: vi.fn()
-  }
-}));
+// Removed local mock - using global mock from src/test/utils.ts
 
 vi.mock('fs/promises', () => {
   const readFileFn = vi.fn();
@@ -131,8 +114,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
 
       const mockFileContent = Buffer.from('PDF file content');
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
       // existsSync is already mocked to return true in the mock setup above
       // Mock readFile to return the content
       vi.mocked(fsPromises.readFile).mockResolvedValueOnce(mockFileContent);
@@ -189,8 +172,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
 
       const mockFileContent = Buffer.from('Vendor PDF content');
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
       // Mock existsSync to return true for any path (since path.join creates a full path)
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock readFile to return the content for any path
@@ -227,7 +210,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         }
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
       const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
@@ -277,9 +260,9 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
 
       const mockFileContent = Buffer.from('Customer PDF content');
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
       // Mock existsSync to return true for any path (since path.join creates a full path)
       vi.mocked(fs.existsSync).mockImplementation(() => true);
       // Mock readFile to return the content for any path
@@ -320,8 +303,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         customerId: 'customer-999' // Different customer
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(mockOrder as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
       const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
@@ -374,7 +357,7 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         }
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
       vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/999');
@@ -415,8 +398,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         uploadedAt: new Date()
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1');
       const params = { params: { id: '660e8400-e29b-41d4-a716-446655440004', attachmentId: '1' } };
@@ -456,8 +439,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         uploadedAt: new Date()
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
       // Mock existsSync to return false to simulate file not found
       vi.mocked(fs.existsSync).mockReturnValue(false); // File doesn't exist
 
@@ -501,8 +484,8 @@ describe('GET /api/services/[id]/attachments/[attachmentId]', () => {
         uploadedAt: new Date()
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
       // Mock existsSync to return true for any path
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock readFile to reject with an error
@@ -571,8 +554,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         uploadedAt: new Date()
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
       // Mock existsSync to return true for any path
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock unlink to succeed
@@ -580,7 +563,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
       });
-      vi.mocked(prisma.serviceAttachment.delete).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.serviceAttachment.delete).mockResolvedValueOnce(mockAttachment as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
@@ -622,7 +605,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         }
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
@@ -668,8 +651,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         uploadedAt: new Date()
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
       // Mock existsSync to return true for any path
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock unlink to succeed
@@ -677,7 +660,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
       });
-      vi.mocked(prisma.serviceAttachment.delete).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.serviceAttachment.delete).mockResolvedValueOnce(mockAttachment as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
@@ -711,7 +694,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         }
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
@@ -792,7 +775,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         }
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
       vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(null);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/999', {
@@ -825,7 +808,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         }
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
@@ -857,7 +840,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         }
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
@@ -899,14 +882,14 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         uploadedAt: new Date()
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
       // Mock existsSync to return false to simulate file not found
       vi.mocked(fs.existsSync).mockReturnValue(false); // File doesn't exist
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
       });
-      vi.mocked(prisma.serviceAttachment.delete).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.serviceAttachment.delete).mockResolvedValueOnce(mockAttachment as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
@@ -958,8 +941,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         uploadedAt: new Date()
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
       // Mock existsSync to return true for any path
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock unlink to succeed
@@ -967,7 +950,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
       });
-      vi.mocked(prisma.serviceAttachment.delete).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.serviceAttachment.delete).mockResolvedValueOnce(mockAttachment as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
@@ -1044,8 +1027,8 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
         uploadedAt: new Date()
       };
 
-      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem);
-      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValueOnce(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findUnique).mockResolvedValueOnce(mockAttachment as any);
       // Mock existsSync to return true for any path
       vi.mocked(fs.existsSync).mockReturnValue(true);
       // Mock unlink to fail with permission error
@@ -1053,7 +1036,7 @@ describe('DELETE /api/services/[id]/attachments/[attachmentId]', () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         return callback(prisma);
       });
-      vi.mocked(prisma.serviceAttachment.delete).mockResolvedValueOnce(mockAttachment);
+      vi.mocked(prisma.serviceAttachment.delete).mockResolvedValueOnce(mockAttachment as any);
 
       const request = new Request('http://localhost:3000/api/services/item-123/attachments/1', {
         method: 'DELETE'
