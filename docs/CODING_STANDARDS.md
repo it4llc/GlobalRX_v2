@@ -5,11 +5,25 @@
 
 ## INSTRUCTIONS FOR CLAUDE CODE
 
-This document defines the rules and standards that MUST be followed when writing,
-editing, or reviewing any code in the GlobalRx platform. Before writing any code,
-read this document in full. These standards are not suggestions — they are
-requirements. If you believe a standard cannot be followed for a specific reason,
-stop and ask the user before proceeding.
+This document defines the general coding rules and conventions for the GlobalRx platform. These standards are not suggestions — they are requirements. If you believe a standard cannot be followed for a specific reason, stop and ask before proceeding.
+
+This document covers **general, cross-cutting rules**: how to work with Andy, file naming, TypeScript, error handling, logging, privacy, documentation, and file size. Specialized rules live in separate documents — see "Where rules live" below.
+
+---
+
+## Where rules live
+
+Before starting any task, read the standards file that matches the work you are doing. Do not assume rules that apply to one area also apply to another.
+
+| If you are working on... | Read this file |
+|---|---|
+| API routes (`src/app/api/**`) | `API_STANDARDS.md` |
+| Database schema, Prisma, migrations | `DATABASE_STANDARDS.md` |
+| React components, forms, dialogs, tables, styling, translations | `COMPONENT_STANDARDS.md` |
+| Writing or fixing tests | `TESTING_STANDARDS.md` |
+| Anything else (or general principles) | This document |
+
+If your task touches more than one area, read every file that applies. Do not skim.
 
 ---
 
@@ -33,182 +47,33 @@ Every code file must begin with a comment showing its full path and filename.
 
 ### 1.2 Always Check Before Editing Existing Files
 
-Before modifying a file that already exists in the project, read it first.
-Understand what is already there before making any changes. Never assume what
-a file contains — always verify.
+Before modifying a file that already exists in the project, read it first. Understand what is already there before making any changes. Never assume what a file contains — always verify.
 
 ### 1.3 Plain Language First
 
-Andy is not a developer. Avoid technical jargon in explanations. When a technical
-term must be used, briefly explain what it means in plain English.
+Andy is not a developer. Avoid technical jargon in explanations. When a technical term must be used, briefly explain what it means in plain English.
 
 ### 1.4 Think Before Coding
 
-Before writing any code, summarize the approach in plain English first. Andy
-prefers to understand what is being built and why before implementation begins.
-Do not jump straight to code — briefly explain the plan, then proceed.
+Before writing any code, summarize the approach in plain English first. Andy prefers to understand what is being built and why before implementation begins. Do not jump straight to code — briefly explain the plan, then proceed.
 
 ### 1.5 Minimal Footprint
-Only change what is necessary to accomplish the task. Do not refactor unrelated
-code, rename things, or "clean up" files that are not part of the current task.
-Small, focused changes are safer and easier to review.
-Never create files that the architect's plan did not specify. If the architect
-says to modify one file, only that file is changed. If you believe a new file is
-genuinely needed that was not in the plan, stop immediately and explain why to
-Andy before creating anything.
-Never create files just to make tests pass. If a test requires a file that
-should not exist, the test is wrong and must be rewritten — not satisfied by
-creating the file. Creating ghost routes or duplicate service layers to satisfy
-tests introduces technical debt and bypasses the real application code path,
-meaning the tests prove nothing about how the app actually works.
+
+Only change what is necessary to accomplish the task. Do not refactor unrelated code, rename things, or "clean up" files that are not part of the current task. Small, focused changes are safer and easier to review.
+
+Never create files that the architect's plan did not specify. If the architect says to modify one file, only that file is changed. If you believe a new file is genuinely needed that was not in the plan, stop immediately and explain why to Andy before creating anything.
+
+Never create files just to make tests pass. If a test requires a file that should not exist, the test is wrong and must be rewritten — not satisfied by creating the file. Creating ghost routes or duplicate service layers to satisfy tests introduces technical debt and bypasses the real application code path, meaning the tests prove nothing about how the app actually works.
 
 ### 1.6 Confirm Before Deleting Anything
 
-Never delete a file, database record, or significant block of code without
-explicitly confirming with Andy first. Describe what will be removed and why
-before taking the action.
+Never delete a file, database record, or significant block of code without explicitly confirming with Andy first. Describe what will be removed and why before taking the action.
 
 ---
 
-## SECTION 2: React Hook Patterns
+## SECTION 2: File Naming and Organization
 
-### 2.1 Data Loading in useEffect
-
-When loading data in React hooks, carefully consider the conditions that trigger loading:
-
-**Common Bug Pattern to Avoid:**
-```typescript
-// ❌ WRONG - Prevents necessary data loading in edit mode
-useEffect(() => {
-  if (session?.user?.customerId && !editOrderId) {
-    fetchAvailableServices(); // Bug: Services won't load when editing
-  }
-}, [session, editOrderId, fetchAvailableServices]);
-```
-
-**Correct Pattern:**
-```typescript
-// ✅ CORRECT - Load data when needed regardless of mode
-useEffect(() => {
-  if (session?.user?.customerId) {
-    fetchAvailableServices(); // Services load in both create and edit modes
-  }
-}, [session, fetchAvailableServices]);
-```
-
-**Rule:** If data is needed in both create and edit modes, don't add edit-mode conditions that prevent loading. Only add conditions that actually determine whether the data is needed.
-
-### 2.2 Import Dependencies
-
-**All imports must be present before using APIs:**
-```typescript
-// ❌ WRONG - Missing import causes runtime error
-// Using logger.error() without importing logger
-
-// ✅ CORRECT - Import all dependencies
-import logger from '@/lib/logger';
-```
-
-**Rule:** Always import what you use. TypeScript will catch missing imports during build, but runtime errors can still occur if imports are forgotten during development.
-
-### 2.3 Preventing Infinite Render Loops
-
-When components pass callbacks to child components that update state, infinite render loops can occur if the callbacks are recreated on every render.
-
-**Common Bug Pattern to Avoid:**
-```typescript
-// ❌ WRONG - Callback recreated on every render, causing infinite loops
-const [scopes, setScopes] = useState({});
-const [selectedIds, setSelectedIds] = useState([]);
-
-const handleScopeChange = (id: string, scope: any) => {
-  const newScopes = { ...scopes, [id]: scope };
-  setScopes(newScopes);
-  // Update form with selectedIds and newScopes
-};
-
-return (
-  <ScopeSelector
-    onChange={handleScopeChange} // This callback changes every render
-  />
-);
-```
-
-**Correct Pattern:**
-```typescript
-// ✅ CORRECT - Use refs to stabilize callbacks
-const [scopes, setScopes] = useState({});
-const [selectedIds, setSelectedIds] = useState([]);
-
-// Store latest values in refs to avoid dependency on state
-const scopesRef = useRef(scopes);
-const selectedIdsRef = useRef(selectedIds);
-
-useEffect(() => { scopesRef.current = scopes; }, [scopes]);
-useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
-
-// Stable callback that doesn't change on every render
-const handleScopeChange = useCallback((id: string, scope: any) => {
-  const newScopes = { ...scopesRef.current, [id]: scope };
-  setScopes(newScopes);
-  // Use refs for latest values instead of state
-}, []); // No dependencies = stable callback
-
-return (
-  <ScopeSelector
-    onChange={handleScopeChange} // This callback is stable
-  />
-);
-```
-
-**Additional Rules:**
-- Always compare values before calling `onChange` in child components' `useEffect` hooks
-- Use `useRef` to track first render and avoid unnecessary initial calls
-- Consider using `useImperativeHandle` instead of `useEffect` for ref forwarding
-
-**Rule:** When state updates trigger callbacks passed to child components, use refs to hold latest values and create stable callbacks with `useCallback` to prevent infinite re-render loops.
-
----
-
-## SECTION 3: Component & Styling Standards
-
-**See [COMPONENT_STANDARDS.md](COMPONENT_STANDARDS.md) for complete component and styling rules.**
-
-### 3.1 Dialog Component Standards
-
-**Dialog components must support declarative control via props:**
-
-All modal, dialog, drawer, and popup components must accept an `open` prop that controls visibility state. This prevents integration issues where parent components need to manage dialog state predictably.
-
-**Required pattern:**
-```typescript
-interface DialogProps {
-  open?: boolean;  // Declarative control
-  onClose?: () => void;
-  // ... other props
-}
-
-// In component implementation:
-useEffect(() => {
-  if (open !== undefined && dialogRef.current) {
-    if (open) {
-      dialogRef.current.showModal();
-    } else {
-      dialogRef.current.close();
-    }
-  }
-}, [open]);
-```
-
-**Backward compatibility:** When adding declarative control to existing imperative-only components, maintain full backward compatibility. Components should work identically when the `open` prop is not provided.
-
-**Why this rule exists:** The ModalDialog component originally only supported imperative control via refs (showModal/close methods). Components trying to use it declaratively with an `open` prop failed silently, causing difficult-to-debug integration issues.
-
----
-
-## SECTION 4: File Naming and Organization
-
-### 4.1 Naming Conventions
+### 2.1 Naming Conventions
 
 | Type | Convention | Example |
 |------|-----------|---------|
@@ -218,7 +83,7 @@ useEffect(() => {
 | API route files | kebab-case | `route.ts` inside `[id]/` |
 | Type definition files | camelCase | `userTypes.ts` |
 
-### 4.2 Where Files Belong
+### 2.2 Where Files Belong
 
 ```
 src/
@@ -240,7 +105,7 @@ src/
 └── translations/               # Language files (en.json, es.json, etc.)
 ```
 
-### 4.3 Import Order
+### 2.3 Import Order
 
 Always organize imports in this order, with a blank line between each group:
 
@@ -261,33 +126,35 @@ import { getUserById } from '@/lib/utils';
 import type { User } from '@/types/user';
 ```
 
-Always use the `@/` prefix for internal imports. Never use relative paths
-like `../../components/ui/form`.
+Always use the `@/` prefix for internal imports. Never use relative paths like `../../components/ui/form`.
 
----
+### 2.4 Import What You Use
 
-## SECTION 5: API Route Standards
+All imports must be present before using any API. A missing import that happens to compile (for example, because another file in the project exports the same name) will still cause runtime errors. Always import every module, function, and type that your code references.
 
-**See [API_STANDARDS.md](API_STANDARDS.md) for complete API route requirements and patterns.**
-
----
-
-## SECTION 6: TypeScript Standards
-
-### 6.1 No `any` Types
-
-The use of `any` as a TypeScript type is prohibited. It defeats the purpose of
-TypeScript and makes code harder to maintain safely. If you are unsure of a type,
-use `unknown` and narrow it properly, or define an explicit type.
-
-**Common `any` Anti-Patterns to Avoid:**
-
-**1. User objects without proper typing:**
 ```typescript
-// ❌ WRONG - Don't use any for user objects
+// ✅ CORRECT — import all dependencies explicitly
+import logger from '@/lib/logger';
+
+logger.error('Operation failed', { reason });
+```
+
+---
+
+## SECTION 3: TypeScript Standards
+
+### 3.1 No `any` Types
+
+The use of `any` as a TypeScript type is prohibited. It defeats the purpose of TypeScript and makes code harder to maintain safely. If you are unsure of a type, use `unknown` and narrow it properly, or define an explicit type.
+
+**Common `any` anti-patterns to avoid:**
+
+**1. User and permission objects:**
+```typescript
+// ❌ WRONG
 const user: { id: string; permissions?: any } = ...
 
-// ✅ CORRECT - Define proper user types
+// ✅ CORRECT
 interface ServiceUser {
   id: string;
   userType: string;
@@ -296,93 +163,55 @@ interface ServiceUser {
 }
 ```
 
-**2. Prisma where clauses:**
+**2. Prisma where clauses and update data:**
 ```typescript
-// ❌ WRONG - Don't use any for where clauses
+// ❌ WRONG
 const where: any = {};
+const updateData: any = { status: newStatus };
 
-// ✅ CORRECT - Define typed where clause
+// ✅ CORRECT
 interface ServiceWhereClause {
   orderId?: string;
   status?: ServiceStatus;
   assignedVendorId?: string;
 }
 const where: ServiceWhereClause = {};
-```
 
-**3. Update data objects:**
-```typescript
-// ❌ WRONG - Don't use any for update data
-const updateData: any = { status: newStatus };
-
-// ✅ CORRECT - Define typed update interface
 interface ServiceUpdateData {
   status?: ServiceStatus;
   assignedVendorId?: string | null;
-  vendorNotes?: string | null;
   updatedAt?: Date;
 }
 const updateData: ServiceUpdateData = { status: newStatus };
 ```
 
-**4. Array operations and iterations:**
+**3. Array operations:**
 ```typescript
-// ❌ WRONG - Don't lose typing in forEach/map
-services.forEach((service: any) => {
-  delete service.order.customer;
-});
+// ❌ WRONG — lose typing inside forEach/map
+services.forEach((service: any) => { ... });
 
-// ✅ CORRECT - Maintain proper typing
-services.forEach((service) => {
-  // Use type assertions only when necessary
-  delete (service.order as any).customer;
-});
+// ✅ CORRECT — let TypeScript infer
+services.forEach((service) => { ... });
 ```
 
-**5. Change tracking objects:**
-```typescript
-// ❌ WRONG - Don't use generic objects for tracking
-const changes: Array<{
-  fieldName: string;
-  oldValue: any;
-  newValue: any;
-}> = [];
+**When you must use type assertions:** use them sparingly, document why, and prefer `as unknown as TargetType` over `as any`. If you keep reaching for assertions, the underlying data structure probably needs fixing instead.
 
-// ✅ CORRECT - Define proper change tracking type
-interface AuditChange {
-  fieldName: string;
-  changeType: 'status_change' | 'vendor_assignment' | 'note_update';
-  oldValue: string | number | boolean | null;
-  newValue: string | number | boolean | null;
-}
-const changes: AuditChange[] = [];
-```
+### 3.2 Strict Mode
 
-**When you MUST use type assertions:**
-- Use them sparingly and document why they're needed
-- Prefer `as unknown as TargetType` over `as any`
-- Consider if the underlying data structure should be fixed instead
+**Current State:** TypeScript strict mode is currently disabled but must be enabled as part of enterprise readiness improvements. The codebase contains a known number of `any` uses that must be replaced with proper typing before enabling strict mode.
 
-### 6.2 Strict Mode
+**Target:** Enable strict mode in `tsconfig.json`. Do not disable or work around strict mode checks once enabled.
 
-**Current State:** TypeScript strict mode is currently disabled but must be enabled
-as part of enterprise readiness improvements. The codebase contains 122 uses of 'any'
-type that must be replaced with proper typing before enabling strict mode.
+### 3.3 Types Live in `/src/types/`
 
-**Target:** Enable strict mode in `tsconfig.json`. Do not disable or work around
-strict mode checks once enabled.
+All shared type definitions belong in the `/src/types/` directory. Do not define types locally inside a component file if they are used in more than one place.
 
-### 6.3 Types Live in `/src/types/`
-
-All shared type definitions belong in the `/src/types/` directory. Do not define
-types locally inside a component file if they are used in more than one place.
-
-**Type Organization Best Practices:**
+**Best practices:**
 
 1. **Create feature-specific type files:**
-   - `src/types/service-fulfillment.ts` - All types for service fulfillment feature
-   - `src/types/order.ts` - All types for order management
-   - `src/types/user.ts` - All user and permission types
+   - `src/types/service-fulfillment.ts` — types for service fulfillment feature
+   - `src/types/order.ts` — types for order management
+   - `src/types/user.ts` — user and permission types
 
 2. **Export related types together:**
 ```typescript
@@ -390,27 +219,14 @@ types locally inside a component file if they are used in more than one place.
 export interface ServiceFulfillment { ... }
 export interface ServiceUser { ... }
 export interface ServiceWhereClause { ... }
-export interface ServiceUpdateData { ... }
 export type ServiceStatus = 'pending' | 'submitted' | 'processing' | 'completed' | 'cancelled';
 ```
 
-3. **Import types in services and components:**
-```typescript
-import type {
-  ServiceFulfillment,
-  ServiceUser,
-  ServiceWhereClause,
-  ServiceUpdateData
-} from '@/types/service-fulfillment';
-```
+3. **Never duplicate type definitions.** If you find yourself defining the same interface in multiple places, move it to `/src/types/`.
 
-4. **Never duplicate type definitions** - If you find yourself defining the same interface in multiple places, move it to `/src/types/`
+### 3.4 Zod Schemas as the Source of Truth
 
-### 6.4 Zod Schemas as the Source of Truth
-
-For any data that comes from a form or an API, define a Zod schema first and
-derive the TypeScript type from it. This ensures the type and the validation
-rule are always in sync.
+For any data that comes from a form or an API, define a Zod schema first and derive the TypeScript type from it. This ensures the type and the validation rule are always in sync.
 
 ```typescript
 const userSchema = z.object({
@@ -424,274 +240,172 @@ type UserFormData = z.infer<typeof userSchema>;
 
 ---
 
-## SECTION 7: Translation Standards
+## SECTION 4: Error Handling
 
-**See [COMPONENT_STANDARDS.md](COMPONENT_STANDARDS.md) for translation system requirements.**
+API-specific error handling rules (try/catch on every route, status code conventions) live in `API_STANDARDS.md`. This section covers error handling principles that apply to all code, not just API routes.
 
----
+### 4.1 User-Facing Error Messages
 
-## SECTION 8: Business Logic Standards
+When an operation fails in the UI, the user must see a clear, plain-English error message. Never let an error fail silently with no feedback.
 
-**See [DATABASE_STANDARDS.md](DATABASE_STANDARDS.md) for order ID format and customer code requirements.**
+### 4.2 Error Boundaries
 
----
+Every major route must have an `error.tsx` file defined to handle unexpected rendering errors gracefully.
 
-## SECTION 9: Security Standards
+### 4.3 Never Swallow Errors
 
-These rules protect the platform and the sensitive personal data it handles.
+Catching an exception and doing nothing is always wrong. If you catch an error, either:
+- Log it (following Section 5 rules) and continue with a safe fallback, or
+- Transform it into a user-facing error message and surface it, or
+- Re-throw it so a higher layer can handle it
 
-### 9.1 Authentication on Every API Route
-
-Every API route that reads or writes data must check authentication before
-doing anything else. **No exceptions.**
-
-**Fixed Issue:** All previously unauthenticated endpoints have been secured,
-including Data Rx endpoints and debug routes.
-
-**Critical:** Any API route without authentication is a security vulnerability.
-
-### 9.2 Role Checks Must Be Server-Side
-
-Never rely on the frontend hiding a button or page to protect a feature.
-Role and permission checks must happen in the API route, on the server.
-
-### 9.3 Validate All Input
-
-Never use data from a request body, query parameter, or URL without validating
-it first with a Zod schema. Assume all incoming data could be malformed or malicious.
-
-### 9.4 Additional Security Standards
-
-**For comprehensive API security standards, see [API_STANDARDS.md](API_STANDARDS.md).**
-
-**For database-related security standards, see [DATABASE_STANDARDS.md](DATABASE_STANDARDS.md).**
-
-
+A bare `catch {}` with no body hides real problems and makes bugs invisible.
 
 ---
 
-## SECTION 10: Error Handling Standards
+## SECTION 5: Logging and Personal Data
 
-### 10.1 Every API Route Needs Try/Catch
+### 5.1 Use Winston, Not Console
 
-All database calls and external API calls must be inside a try/catch block.
-Silent failures are not acceptable.
+All logging must go through the Winston logger. Do not use `console.log`, `console.error`, or `console.warn` in application code.
 
-### 10.2 User-Facing Error Messages
-
-When an API call fails in the UI, the user must see a clear, plain-English
-error message. Never let an error fail silently with no feedback.
-
-### 10.3 Error Boundaries
-
-Every major route must have an `error.tsx` file defined to handle unexpected
-rendering errors gracefully.
-
-### 10.4 Logging Standards
-
-**Current Issue:** The codebase contains 625 console statements across 140 files,
-including sensitive data (passwords, emails, permissions). This is a critical
-security vulnerability.
-
-**Requirements:**
-- Use Winston structured logging instead of console statements
-- Never log sensitive data (passwords, emails, tokens, personal information)
-- Replace all console.log/error/warn statements with proper logging
-- Use appropriate log levels: error, warn, info, debug
-- Log structured data in JSON format for production monitoring
-
-**Pattern:**
 ```typescript
-import logger from '@/lib/logger';
-
-// Wrong
+// ❌ WRONG
 console.log(`User ${email} failed login`);
 
-// Correct
+// ✅ CORRECT
+import logger from '@/lib/logger';
+
 logger.warn('Authentication failed', {
   event: 'auth_failure',
   reason: 'invalid_credentials'
-  // Never log email or other PII
+});
+```
+
+### 5.2 Never Log Personal Information
+
+Personal information must never appear in logs, anywhere, for any reason. This applies to both application logs and error messages.
+
+**Never log:**
+- Email addresses
+- Names (first, last, or full)
+- Physical addresses
+- Phone numbers
+- Social security numbers or other government IDs
+- Passwords or password hashes
+- Session tokens, API keys, or authentication headers
+- Date of birth
+- Any other field that identifies a real person
+
+If you need to correlate log entries to a user for debugging, log the user's internal ID (a UUID) — not their email or name. IDs are non-identifying to anyone without database access; emails and names are.
+
+**Rationale:** Logs are frequently shipped to third-party services (error trackers, log aggregators) and stored for long periods. Putting PII in logs turns every log destination into a place that has to be GDPR-compliant, which it usually is not.
+
+### 5.3 Log Levels
+
+Use the appropriate log level so production monitoring can filter noise from real problems:
+
+- `error` — something broke that needs human attention (a database call failed, an external API returned 500)
+- `warn` — something unexpected happened but the system recovered (an auth check failed, a retry succeeded on second attempt)
+- `info` — normal operational events worth recording (user logged in, order submitted)
+- `debug` — diagnostic detail, typically only enabled in development
+
+### 5.4 Structured, Not Concatenated
+
+Log structured data as a second argument, not concatenated into the message string. This makes logs searchable and filterable in production monitoring tools.
+
+```typescript
+// ❌ WRONG — concatenation, hard to filter
+logger.error(`Failed to create order ${orderId} for customer ${customerId}`);
+
+// ✅ CORRECT — structured
+logger.error('Failed to create order', {
+  event: 'order_create_failure',
+  orderId,
+  customerId,
 });
 ```
 
 ---
 
-## SECTION 11: Testing Standards
+## SECTION 6: Monitoring and Observability
 
-**See [TESTING_STANDARDS.md](TESTING_STANDARDS.md) for complete testing requirements and TDD workflow.**
+### 6.1 Required Monitoring
 
+Every production deployment must have:
+- **Error tracking** — Sentry integration for all environments
+- **Health checks** — `/api/health` and `/api/ready` endpoints
+- **Performance monitoring** — APM integration for production
+- **Structured logging** — Winston logger for all application events (see Section 5)
 
-## SECTION 12: Monitoring and Observability Standards
-
-**Current Issue:** No production monitoring, error tracking, or health checks exist.
-
-### 12.1 Required Monitoring
-
-- **Error tracking:** Sentry integration required for all environments
-- **Health checks:** `/api/health` and `/api/ready` endpoints required
-- **Performance monitoring:** APM integration for production
-- **Structured logging:** Winston logger for all application events
-
-### 12.2 Health Check Requirements
+### 6.2 Health Check Requirements
 
 Every application must provide:
-- **Liveness check** (`/api/health`) - service is running
-- **Readiness check** (`/api/ready`) - service can handle traffic
-- **Deep health check** - database and dependency verification
+- **Liveness check** (`/api/health`) — service is running
+- **Readiness check** (`/api/ready`) — service can handle traffic
+- **Deep health check** — database and dependency verification
 
 ---
 
-## SECTION 13: Data Privacy and Retention Standards
+## SECTION 7: Data Privacy and Retention
 
-**Current Issues:** Real credentials in seed data, no data retention policies, limited GDPR compliance.
+Logging rules for PII are in Section 5. This section covers broader data handling rules.
 
-### 13.1 Personal Data Handling
+### 7.1 Personal Data Handling
 
-- **Never log PII** - no emails, names, addresses in logs
-- **Anonymize test data** - no real credentials in seed files
-- **Data minimization** - only collect and return necessary data
-- **Retention policies** - automatic cleanup of old data
+- **Anonymize test data** — no real credentials, real names, or real emails in seed files
+- **Data minimization** — only collect and return necessary data; do not pull full database objects when a few fields will do
+- **Retention policies** — automatic cleanup of old data on a defined schedule
 
-### 13.2 GDPR Compliance Requirements
+### 7.2 GDPR Compliance
 
 All features handling personal data must support:
-- **Right to access** - user data export functionality
-- **Right to erasure** - user data deletion capability
-- **Right to rectification** - data correction workflows
-- **Data portability** - machine-readable export formats
+- **Right to access** — user data export functionality
+- **Right to erasure** — user data deletion capability
+- **Right to rectification** — data correction workflows
+- **Data portability** — machine-readable export formats
 
-### 13.3 Backup and Recovery Standards
+### 7.3 Backup and Recovery
 
-- **Automated backups** - daily database backups required
-- **Remote storage** - backups must be stored off-site
-- **Backup testing** - regular restore verification required
-- **Migration safety** - pre-migration backups mandatory
-
----
-
-## SECTION 14: Database Changes and Prisma Migrations
-
-**See [DATABASE_STANDARDS.md](DATABASE_STANDARDS.md) for complete database migration requirements and patterns.**
+- **Automated backups** — daily database backups required
+- **Remote storage** — backups must be stored off-site
+- **Backup testing** — regular restore verification required
+- **Migration safety** — pre-migration backups mandatory
 
 ---
 
-## SECTION 15: File Upload Patterns
+## SECTION 8: Documentation Standards
 
-### 15.1 File Object Serialization Issues
-
-**NEVER store File objects in state that will be JSON serialized**
-
-File objects cannot be JSON serialized. When `JSON.stringify()` is called on data containing File objects, they become empty `{}` objects, causing data loss.
-
-**Common Bug Pattern to Avoid:**
-```typescript
-// ❌ WRONG - File objects in state get lost during JSON serialization
-const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
-
-// When saving draft data that includes uploadedFiles:
-const draftData = {
-  subject: {...},
-  services: [...],
-  uploadedFiles  // File objects become {} when JSON.stringify() is called
-};
-fetch('/api/save-draft', {
-  body: JSON.stringify(draftData) // Files are lost here
-});
-```
-
-**Correct Pattern: Immediate Upload with Metadata Storage**
-```typescript
-// ✅ CORRECT - Upload immediately, store only JSON-serializable metadata
-const [uploadedDocuments, setUploadedDocuments] = useState<Record<string, {
-  fileName: string;
-  filePath: string;
-  fileSize: number;
-  mimeType?: string;
-  uploadedAt?: string;
-}>>({});
-
-// Upload file immediately when selected:
-const handleFileSelect = async (file: File, documentId: string) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('documentId', documentId);
-
-  const response = await fetch('/api/uploads', {
-    method: 'POST',
-    body: formData  // Use FormData for uploads, not JSON
-  });
-
-  const result = await response.json();
-  // Store only serializable metadata, not the File object
-  setUploadedDocuments(prev => ({
-    ...prev,
-    [documentId]: result.metadata
-  }));
-};
-```
-
-**Rule:** Always upload files immediately when selected and store only JSON-serializable metadata in component state. Never defer file uploads until form submission.
-
-### 15.2 FormData vs JSON for File Uploads
-
-**File uploads MUST use FormData, not JSON**
-
-```typescript
-// ✅ CORRECT - Use FormData for file uploads
-const formData = new FormData();
-formData.append('file', file);
-formData.append('documentId', documentId);
-
-fetch('/api/uploads', {
-  method: 'POST',
-  body: formData  // Browser automatically sets correct Content-Type
-});
-
-// ❌ WRONG - Cannot send files as JSON
-fetch('/api/uploads', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ file, documentId }) // File object becomes {}
-});
-```
-
-**Rule:** Use FormData for any request that includes file uploads. Let the browser automatically set the Content-Type header.
-
----
-
-## SECTION 16: Documentation Standards
-
-### 16.1 When Documentation is Required
+### 8.1 When Documentation is Required
 
 Documentation must be created or updated in these situations:
 
-1. **New Features** - Document how to use the feature
-2. **API Changes** - Update endpoint documentation
-3. **Complex Business Logic** - Explain the "why" not just the "what"
-4. **Non-Obvious Code** - If it took you time to figure out, document it
-5. **Breaking Changes** - Document migration path
-6. **Configuration Changes** - Update .env.example
+1. **New features** — document how to use the feature
+2. **API changes** — update endpoint documentation (see `API_STANDARDS.md` for JSDoc format)
+3. **Complex business logic** — explain the "why," not just the "what"
+4. **Non-obvious code** — if it took you time to figure out, document it
+5. **Breaking changes** — document migration path
+6. **Configuration changes** — update `.env.example`
 
-### 16.2 Code Comments
+### 8.2 Code Comments
 
 **When to add comments:**
 - Complex algorithms or business rules
 - Non-obvious workarounds or bug fixes
 - TODO items with context and ownership
-- API integration points
+- External integration points
 - Security considerations
 
 **When NOT to add comments:**
 - Obvious code that is self-documenting
-- Every function/variable (TypeScript types are documentation)
-- Redundant information
+- Every function and variable (TypeScript types are documentation)
+- Restating what the next line of code already says
 
 **Good comment:**
 ```typescript
-// Calculate order sequence: Reset to 0001 each day per customer
-// This ensures order IDs are readable (e.g., 20250223-XK7-0003)
-// and can be communicated over phone support
+// Calculate order sequence: reset to 0001 each day per customer
+// so that order IDs are human-readable (e.g., 20250223-XK7-0003)
+// and can be communicated over phone support.
 ```
 
 **Bad comment:**
@@ -700,282 +414,148 @@ Documentation must be created or updated in these situations:
 const name = formData.name;
 ```
 
-### 16.3 API Documentation
+### 8.3 Data Key Consistency
 
-Every API endpoint must have:
+When working with form field data, API responses, or any data structures where objects can be referenced by different keys, ensure consistent key usage throughout the data flow.
 
+**Common bug pattern:**
 ```typescript
-/**
- * GET /api/customers/[id]/packages
- *
- * Retrieves all packages for a specific customer
- *
- * Required permissions: customers.view
- *
- * Query params:
- *   - status?: 'active' | 'inactive' | 'all'
- *   - limit?: number (default: 25)
- *   - offset?: number (default: 0)
- *
- * Returns: { packages: Package[], total: number }
- *
- * Errors:
- *   - 401: Not authenticated
- *   - 403: Insufficient permissions
- *   - 404: Customer not found
- */
-```
-
-### 16.4 Data Key Consistency
-
-When working with form field data, API responses, or any data structures where objects can be referenced by different keys, **ensure consistent key usage throughout the data flow**.
-
-**Common Bug Pattern to Avoid:**
-```typescript
-// ❌ WRONG - Inconsistent keying causes data loss in forms
-// Draft order data comes with field names as keys
+// ❌ WRONG — inconsistent keying causes data loss in forms
+// Draft data comes with field names as keys
 const draftData = { "School Name": "Harvard", "Email": "test@example.com" };
 
 // But form expects field IDs as keys
 const formFields = { "uuid-123": "Harvard", "uuid-456": "test@example.com" };
 
-// This mismatch causes field values to not appear when editing drafts
+// This mismatch causes field values not to appear when editing drafts
 ```
 
-**Correct Pattern:**
+**Correct pattern:**
 ```typescript
-// ✅ CORRECT - Remap keys consistently before using data
-const remapFieldNamesToIds = (fieldsByName: Record<string, any>, fieldDefinitions: Field[]) => {
-  const remapped: Record<string, any> = {};
-
+// ✅ CORRECT — remap keys consistently before using data
+const remapFieldNamesToIds = (
+  fieldsByName: Record<string, unknown>,
+  fieldDefinitions: Field[]
+) => {
+  const remapped: Record<string, unknown> = {};
   Object.entries(fieldsByName).forEach(([fieldName, fieldValue]) => {
-    const matchingField = fieldDefinitions.find(field => field.name === fieldName);
+    const matchingField = fieldDefinitions.find(f => f.name === fieldName);
     if (matchingField) {
-      remapped[matchingField.id] = fieldValue; // Use ID as key, not name
+      remapped[matchingField.id] = fieldValue;
     }
   });
-
   return remapped;
 };
 ```
 
 **Rule:** When field data can be referenced by both name and ID, always establish which key type the consuming code expects and transform data accordingly before use.
 
-### 16.5 Business Logic Documentation
+### 8.4 Merge-Logic Documentation
 
-When implementing deduplication logic or data merging algorithms:
+When implementing deduplication or data-merging logic, document the merge strategy clearly in code comments. The reader needs to know which rule wins in a conflict:
 
-**Document the merge strategy clearly:**
-- **OR logic** - Use when the most restrictive rule should win (e.g., required fields)
-- **AND logic** - Use when all conditions must be met
-- **First-wins** - Only use when order matters and later entries should be ignored
-- **Last-wins** - Only use when the most recent value should override
+- **OR logic** — the most restrictive rule wins (e.g., if any service requires a field, the field is required)
+- **AND logic** — all conditions must be met
+- **First-wins** — only use when order matters and later entries should be ignored
+- **Last-wins** — only use when the most recent value should override
 
-**Example: Requirements Deduplication**
 ```typescript
-// BUG PREVENTION: When merging requirements from multiple services,
-// use OR logic for 'required' fields - if ANY service requires the field,
-// it should be marked as required in the UI.
-//
-// WRONG: First-wins logic (can hide required asterisks)
-// RIGHT: OR logic (most restrictive requirement wins)
+// Requirements deduplication uses OR logic: if ANY service requires
+// the field, it is marked required in the UI. First-wins would be
+// wrong here because it could hide a required field.
 if (existingField && isRequired) {
-  existingField.required = true; // OR logic: required if ANY service needs it
+  existingField.required = true;
 }
 ```
 
-### 16.6 README Updates
+### 8.5 README and Feature Docs
 
-Update README.md when:
-- Adding new dependencies
-- Changing setup/installation steps
-- Adding new npm scripts
-- Changing deployment process
+Update `README.md` when adding new dependencies, changing setup steps, adding new npm scripts, or changing the deployment process.
 
-### 16.7 Feature Documentation
-
-For significant features, create a markdown file in `/docs/features/`:
-
-```markdown
-# Feature Name
-
-## Overview
-Brief description of what the feature does
-
-## Usage
-How to use the feature from user perspective
-
-## Technical Implementation
-- Key components/files
-- Data flow
-- Database schema changes
-
-## Configuration
-Environment variables or settings needed
-
-## Testing
-How to test the feature works correctly
-```
+For significant features, create a markdown file in `docs/features/` covering:
+- **Overview** — what the feature does
+- **Usage** — how to use it from a user perspective
+- **Technical implementation** — key files, data flow, schema changes
+- **Configuration** — environment variables or settings needed
+- **Testing** — how to verify it works
 
 ---
 
-## SECTION 17: Status and Constant Management Standards
-
-### 17.1 No Hardcoded Status Values
-
-**Never hardcode status values** that are defined in constants files. Always reference the appropriate constant to prevent invalid data when constants are updated.
-
-**Common Bug Pattern to Avoid:**
-```typescript
-// ❌ WRONG - Hardcoded status that may become invalid
-const orderItem = await tx.orderItem.create({
-  data: {
-    orderId,
-    serviceId,
-    status: 'pending', // Bug: What if 'pending' is removed from valid statuses?
-  },
-});
-
-// ❌ WRONG - Hardcoded status in multiple locations
-await createService({ status: 'submitted' });
-await updateOrderItem(id, { status: 'processing' });
-```
-
-**Correct Pattern:**
-```typescript
-// ✅ CORRECT - Reference constants file
-import { SERVICE_STATUSES } from '@/constants/service-status';
-
-const orderItem = await tx.orderItem.create({
-  data: {
-    orderId,
-    serviceId,
-    status: order.statusCode, // Inherit from parent or use constant
-  },
-});
-
-// ✅ CORRECT - Use constants for status updates
-await createService({ status: SERVICE_STATUSES.SUBMITTED });
-await updateOrderItem(id, { status: SERVICE_STATUSES.PROCESSING });
-```
-
-**Why this rule exists:** In commit 3706b39, the 'pending' status was removed from SERVICE_STATUSES constant, but multiple locations in the codebase still hardcoded `status: 'pending'`, creating order items with invalid status values that didn't exist in the system.
-
-**Rule:** When setting status values, always:
-1. **Import the relevant constants** (`SERVICE_STATUSES`, `ORDER_STATUSES`, etc.)
-2. **Use constant values** instead of string literals
-3. **Inherit status from parent entities** when creating child records (order items inherit from orders)
-4. **Validate status values** against the constants before database operations
-
-**Files affected by this rule:** Any code that sets status fields on database models, especially OrderItem creation.
-
-### 17.2 Data Filtering by Relational Properties
-
-**Always filter data collections by matching relational properties** when displaying items that belong to specific parent entities.
-
-**Common Bug Pattern to Avoid:**
-```typescript
-// ❌ WRONG - Shows ALL fields for ALL services (no filtering)
-serviceItems.map(serviceItem => (
-  <div>
-    <h3>{serviceItem.name}</h3>
-    {allSearchFields.map(field => (  // BUG: Shows all fields for every service
-      <div>{field.name}: {values[field.id]}</div>
-    ))}
-  </div>
-))
-```
-
-**Correct Pattern:**
-```typescript
-// ✅ CORRECT - Filter fields to only show those belonging to current service
-serviceItems.map(serviceItem => (
-  <div>
-    <h3>{serviceItem.name}</h3>
-    {allSearchFields
-      .filter(field =>
-        field.serviceId === serviceItem.serviceId &&
-        field.locationId === serviceItem.locationId  // Match all relevant properties
-      )
-      .map(field => (
-        <div>{field.name}: {values[field.id]}</div>
-      ))
-    }
-  </div>
-))
-```
-
-**Why this rule exists:** In April 2026, a critical UX bug was discovered where search fields for ALL services were being displayed under EVERY service in the order summary. Users saw "School Name" fields under Criminal Search services and "County" fields under Education services, causing massive confusion. This occurred because the component iterated through all search fields without filtering by serviceId/locationId.
-
-**Rule:** When displaying collections that have parent-child relationships:
-1. **Always filter child items** to only show those belonging to the current parent
-2. **Match ALL relevant relational properties** (serviceId AND locationId, not just one)
-3. **Handle missing properties gracefully** - if either parent or child lacks required properties, exclude the item
-4. **Add regression tests** to verify filtering works correctly for multiple parent entities
-
-**Files affected by this rule:** Any component that displays data with parent-child relationships, especially order summaries, service details, and nested data displays.
-
----
-# File size guidance
+## SECTION 9: File Size Guidance
 
 This section is a soft trigger, not a hard cap. The goal is to catch files that have grown past the point where they can be maintained comfortably, before they become the kind of file nobody wants to touch.
 
-## The numbers
+### 9.1 The Numbers
 
 - **Under 300 lines** — no concern, this is the healthy range for most source files.
 - **300 to 500 lines** — starting to get large. No action required, but worth noticing. If you are about to add significant new content to a file in this range, consider whether the new content belongs in its own file.
 - **500 to 600 lines** — warning zone. Adding more code to a file in this range should be a deliberate decision, not a default. Before adding, ask whether the new content would be better placed in a new file.
-- **Over 600 lines** — hard stop for agents. No automated agent may add code to a source file over 600 lines without explicitly stopping to ask first (see the Implementer Agent Rule 10 in `.claude/agents/implementer.md`). Humans may override this rule, but the override should be a conscious decision, not an oversight.
+- **Over 600 lines** — hard stop for agents. No automated agent may add code to a source file over 600 lines without explicitly stopping to ask first (see Implementer Agent Rule 10 in `.claude/agents/implementer.md`). Humans may override this rule, but the override should be a conscious decision, not an oversight.
 
-## What this applies to
+### 9.2 What This Applies To
 
 This guidance applies to TypeScript, TSX, JavaScript, and JSX source files in `src/` and `prisma/`.
 
 It does **not** apply to:
 - Agent instruction files in `.claude/agents/` (those are documentation, not source code, and may be longer when the content is load-bearing)
-- Standards files in `docs/` (though see the note below — standards files should also stay readable)
+- Standards files in `docs/` (though see Section 9.5 below — standards files should also stay readable)
 - Configuration files (`.eslintrc`, `tsconfig.json`, `next.config.js`, etc.)
 - Generated files (Prisma client output, build artifacts, lockfiles)
 - Migration files (`prisma/migrations/*/migration.sql`)
 - Test files (subject to their own separate discipline — see `TESTING_STANDARDS.md`)
 
-## Why soft triggers instead of a hard cap
+### 9.3 Why Soft Triggers Instead of a Hard Cap
 
 Hard caps cause worse problems than they solve. When a file hits a hard limit, the pressure to "stay under" leads to creative workarounds: splitting things along arbitrary seams, creating wrapper files whose only purpose is to move lines out of another file, or moving functions into new files where they no longer have natural neighbors. All of those make the code harder to understand, not easier.
 
 A soft trigger does something different: it forces a deliberate pause. At 500 lines, the question is "should I be adding more here?" and the answer is usually "yes, but think about whether this belongs in a new file." At 600 lines, the question becomes a full stop — "this file has grown past the point where adding more is the right default, and a human needs to decide what to do."
 
-The deliberate pause is the point. It catches the failure mode where every individual addition seems reasonable in isolation but the cumulative effect is a file that has grown past the point of maintainability. That's exactly what happened to `src/lib/services/order-core.service.ts` in this project — no single addition was wrong, but the cumulative result was a file that is now a known piece of tech debt.
+The deliberate pause is the point. It catches the failure mode where every individual addition seems reasonable in isolation but the cumulative effect is a file that has grown past the point of maintainability.
 
-## What to do when a file is approaching or past the limit
+### 9.4 What To Do When a File Is Approaching the Limit
 
 The answer is almost never "shrink this file by deleting things." It is usually "split this file along a natural seam" or "put the new content in a new file instead of this one."
 
-Natural seams for service files usually run along responsibility boundaries: order queries vs order mutations vs order status transitions vs order view tracking, for example. Natural seams for component files usually run along sub-components that have grown complex enough to stand alone, or along hooks that are being defined inline and could live in their own hook file.
+Natural seams for service files usually run along responsibility boundaries: queries vs. mutations vs. status transitions vs. view tracking, for example. Natural seams for component files usually run along sub-components that have grown complex enough to stand alone, or along hooks defined inline that could live in their own hook file.
 
 When a file is genuinely over the limit and you are unsure how to split it, the right move is to log it as tech debt and continue working in the existing file for the current task. File splitting is its own project with its own risk surface, and doing it reactively in the middle of unrelated work is how regressions happen. Open a dedicated branch, split the file cleanly, make sure all tests still pass, and ship the split as its own PR.
 
-## Standards files are not exempt from readability
+### 9.5 Standards Files Are Not Exempt From Readability
 
-Standards files in `docs/` are not subject to the 500/600 line agent rule, but long standards files create their own problems. Agents asked to read a long standards file as "required reading" are more likely to skim the parts that feel less relevant, which means the rules that are actually load-bearing for the current task may get missed. If a standards file is growing past ~600 lines and contains content that would be better placed in a dedicated standards file (e.g. testing content that belongs in `TESTING_STANDARDS.md`), consider moving it. The point of having multiple standards files is that each one can stay focused and readable.
+Standards files in `docs/` are not subject to the 500/600 line agent rule, but long standards files create their own problems. Agents asked to read a long standards file as "required reading" are more likely to skim the parts that feel less relevant, which means the rules that are actually load-bearing for the current task may get missed. If a standards file is growing past ~600 lines and contains content that would be better placed in a dedicated standards file (e.g., testing content that belongs in `TESTING_STANDARDS.md`), move it. The point of having multiple standards files is that each one can stay focused and readable.
+
 ---
 
 ## QUICK REFERENCE CHECKLIST
 
-### Core Standards:
-- [ ] File path is in a comment at the top of the file
-- [ ] No `any` TypeScript types used (search for `: any`)
-- [ ] Imports use `@/` prefix (no relative paths)
-- [ ] File is named using the correct convention (PascalCase/camelCase/kebab-case)
-- [ ] Winston logger used instead of console statements
-- [ ] No PII (emails, passwords, tokens) logged anywhere
-- [ ] Documentation updated for new features or API changes
-- [ ] Complex business logic has explanatory comments
-- [ ] No hardcoded status values - use constants from `/src/constants/` files
-- [ ] Data collections filtered by relational properties when displaying parent-child relationships
+Use this checklist at the end of any task before declaring it complete. For specialized work (API routes, database, components, tests), also use the checklist in the matching standards file.
 
-### Specialized Standards:
-- [ ] **API Routes:** See [API_STANDARDS.md](API_STANDARDS.md) checklist
-- [ ] **Testing:** See [TESTING_STANDARDS.md](TESTING_STANDARDS.md) checklist
-- [ ] **Database:** See [DATABASE_STANDARDS.md](DATABASE_STANDARDS.md) checklist
-- [ ] **Components:** See [COMPONENT_STANDARDS.md](COMPONENT_STANDARDS.md) checklist
+### General coding:
+- [ ] File path is in a comment at the top of every file
+- [ ] No `any` TypeScript types used
+- [ ] Imports use `@/` prefix (no relative paths)
+- [ ] Imports organized in the correct order (React/Next → third-party → internal → types)
+- [ ] File is named using the correct convention (PascalCase / camelCase / kebab-case)
+- [ ] No new files created that the architect's plan did not specify
+
+### Error handling and logging:
+- [ ] No `console.*` statements in application code — Winston logger used instead
+- [ ] No personal information in any log entry (no emails, names, addresses, tokens)
+- [ ] Log levels used appropriately (error / warn / info / debug)
+- [ ] Log data is structured, not concatenated into strings
+- [ ] No bare `catch {}` blocks that swallow errors silently
+
+### Documentation:
+- [ ] Complex business logic has explanatory comments that explain "why," not "what"
+- [ ] New features have matching documentation updates
+- [ ] Merge or deduplication logic documents which rule wins in a conflict
+
+### File size:
+- [ ] No file grew past 600 lines without a conscious, explicit decision
+- [ ] If a file is approaching 500 lines, new content was considered for a separate file first
+
+### Specialized standards (see linked files):
+- [ ] **API routes:** `API_STANDARDS.md` checklist
+- [ ] **Database / Prisma / migrations:** `DATABASE_STANDARDS.md` checklist
+- [ ] **Components / forms / styling / translations:** `COMPONENT_STANDARDS.md` checklist
+- [ ] **Tests:** `TESTING_STANDARDS.md` checklist
