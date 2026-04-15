@@ -1,17 +1,18 @@
 # /GlobalRX_v2/docs/DATABASE_STANDARDS.md
-# GlobalRx Platform — Database & Migration Standards
+# GlobalRx Platform — Database, Schema & Migration Standards
 
 ---
 
 ## INSTRUCTIONS FOR CLAUDE CODE
 
-This document defines the database, Prisma, and migration standards that MUST be followed
-when working with the database in the GlobalRx platform. These standards are not
-suggestions — they are requirements.
+This document defines the rules that MUST be followed when working with the database in the GlobalRx platform. It covers business logic that is expressed in the database, schema invariants, Prisma migrations, migration safety, status value handling, and validation. These standards are not suggestions — they are requirements.
+
+For general coding rules, see `CODING_STANDARDS.md`.
+For API-level data handling (normalization at request boundaries, query patterns), see `API_STANDARDS.md`.
 
 ---
 
-## SECTION 1: Business Logic Standards
+## SECTION 1: Business Logic Expressed in the Database
 
 ### 1.1 Order ID Format
 
@@ -44,96 +45,148 @@ Example: `20250223-XK7-0003`
 
 ---
 
-## SECTION 2: Database Changes and Prisma Migrations
+## SECTION 2: Schema Invariants
 
-### 2.1 Prisma Migration Process
+These are absolute rules about how the database schema works in practice. The Prisma schema file may not enforce all of them directly — some are business invariants that depend on application code to maintain. Violating any of them has caused real production bugs. **Never violate these rules, regardless of what the schema file appears to allow.**
 
-**IMPORTANT:** This project runs in a non-interactive environment (Claude Code), so the standard `pnpm prisma migrate dev` will NOT work.
+### 2.1 `DSXRequirement.fieldKey` Is Immutable After Creation
 
-#### For Development (Non-Interactive) (local terminal):
+The `DSXRequirement` model (table `dsx_requirements`) has two name-like fields that serve different purposes:
+
+- **`name`** — the human-readable label shown in the UI. This is editable and changes freely.
+- **`fieldKey`** — the stable, camelCase storage key used in JSON data stored on orders. This has a `@unique` constraint in the Prisma schema. **It must never change after the requirement is created.**
+
+**Why this matters:**
+When a user fills out a background check order, the subject data (names, dates, addresses, etc.) is stored as JSON on the order record. Each field in that JSON is keyed by its `fieldKey`, not by its display label. If a user renames a requirement in Global Configurations, the label changes — but every existing order that used the old `fieldKey` would become unreadable if the `fieldKey` also changed. The data would still be there, but the application would no longer know how to find it.
+
+**Rules:**
+1. **`fieldKey` is set exactly once**, when the `DSXRequirement` is created
+2. **`fieldKey` must never be updated**, by migration, by API, by seed, or by direct SQL
+3. **Renaming a requirement changes `name` only** — never `fieldKey`
+4. **New requirements must use camelCase `fieldKey`** (e.g., `schoolName`, `dateOfBirth`), not kebab-case or snake_case
+5. **When checking for an existing requirement**, match on `fieldKey` (not `name`) — `fieldKey` is the stable identity
+6. **Migrations that modify `dsx_requirements`** must not touch the `fieldKey` column of any existing row
+
+**The `name` field can change at any time** — relabeling a field in the UI is a purely cosmetic change and should work without affecting any stored order data.
+
+### 2.2 Every `OrderItem` Must Have a Matching `ServicesFulfillment` Record
+
+Every row in `order_items` must have exactly one matching row in `services_fulfillment`, created in the same database transaction. This is a strict 1:1 relationship.
+
+**Note on the Prisma schema:** the `OrderItem` model declares the relation as `serviceFulfillment ServicesFulfillment?` with a question mark. The question mark is a Prisma quirk — Prisma requires one side of every 1:1 relation to be marked optional in the schema file. **Do not let this mislead you. The business invariant is that the relationship is mandatory.** An `OrderItem` without a `ServicesFulfillment` is a broken record.
+
+**Why this matters:**
+Comments, audit logs, attachments, badges, and results all attach to the `ServicesFulfillment` record, not the `OrderItem`. If an `OrderItem` is ever created without a matching `ServicesFulfillment`, every downstream feature that reads through the fulfillment record fails silently — comments have nowhere to go, attachments get orphaned, audit logs lose their parent, and status transitions behave unpredictably.
+
+**Rules:**
+1. **Never create an `OrderItem` outside a transaction** that also creates the matching `ServicesFulfillment`
+2. **The matching `ServicesFulfillment` is always created with `assignedVendorId: null`** — vendor assignment happens later, explicitly, based on service requirements and vendor availability
+3. **The canonical function for creating an `OrderItem`** is `OrderCoreService.addOrderItem` in `src/lib/services/order-core.service.ts`. It wraps both records in `prisma.$transaction()`. **Use this function.** Do not write new code that creates `OrderItem` records directly via `prisma.orderItem.create()` — you will forget the `ServicesFulfillment` and the bug will not surface until production.
+4. **`createCompleteOrder` (same file) also uses `addOrderItem`** in a loop when creating multiple items. If you are creating multiple order items at once, use `createCompleteOrder` or call `addOrderItem` inside a transaction yourself.
+5. **Tests that mock `prisma.orderItem.create()` must also mock the `ServicesFulfillment` creation** — otherwise the test passes but the production code path is not exercised
+
+**Known tech debt:** `order-core.service.ts` is a large file that is tracked as tech debt (see the file size guidance in `CODING_STANDARDS.md`). This does not change the rule — the transactional creation pattern inside that file is correct, even if the file itself eventually needs to be split. When the file is split, the transactional pattern must be preserved.
+
+### 2.3 `VendorOrganization` Has `contactEmail`, Not `email`
+
+The `VendorOrganization` model does not have an `email` field. The correct field name is `contactEmail`.
+
+**Wrong:**
+```typescript
+assignedVendor: { select: { email: true } }
+```
+
+**Correct:**
+```typescript
+assignedVendor: { select: { contactEmail: true } }
+```
+
+**This mistake will not be caught by tests** because Prisma mocks return whatever you tell them to return. The error only appears at runtime when a real database query executes against the real schema. Always check the schema file when selecting fields from `VendorOrganization`.
+
+---
+
+## SECTION 3: Prisma Migration Process
+
+### 3.1 This Project Does Not Use `prisma migrate dev`
+
+**IMPORTANT:** This project runs in a non-interactive environment (Claude Code), so the standard `pnpm prisma migrate dev` will NOT work. Attempting to use `migrate dev` will fail or produce unexpected results.
+
+### 3.2 The Required Migration Process
+
 ```bash
 # 1. Update the schema
-# Edit prisma/schema.prisma with your changes
+#    Edit prisma/schema.prisma with your changes
 
-# 2. Create migration directory with timestamp
+# 2. Create a migration directory with a timestamp
 mkdir -p prisma/migrations/$(date +%Y%m%d%H%M%S)_add_feature_name
 
-# 3. Write SQL migration file
-# Create migration.sql in the new directory with your SQL changes
+# 3. Write the SQL migration file
+#    Create migration.sql in the new directory with your SQL changes
 
 # 4. Apply the migration
 pnpm prisma migrate deploy
 
-# 5. Regenerate Prisma client for TypeScript types
+# 5. Regenerate the Prisma client so TypeScript types match
 pnpm prisma generate
 ```
 
-#### For Interactive Development:
-```bash
-# Standard Prisma workflow works here
-pnpm prisma migrate dev --name add_feature_name
-```
+### 3.3 Migration File Requirements
 
-### 2.2 Migration File Requirements
+- **Use descriptive names** — `add_service_comments`, not `update_db`
+- **Include indexes** for foreign keys and commonly queried fields
+- **Add appropriate CASCADE rules** for foreign key relationships
+- **Use correct PostgreSQL data types** (`TEXT` for UUIDs, `VARCHAR` for bounded strings)
 
-- Use descriptive names: `add_service_comments`, not `update_db`
-- Include indexes for foreign keys and commonly queried fields
-- Add appropriate CASCADE rules for foreign keys
-- Use correct PostgreSQL data types (TEXT for UUIDs, VARCHAR for limited strings)
+### 3.4 Schema Best Practices
 
-### 2.3 Schema Best Practices
-
-- Always add `@@map("table_name")` to use snake_case in database
+- Always add `@@map("table_name")` so Prisma uses snake_case in the database while keeping PascalCase models in code
 - Include audit fields: `createdAt`, `updatedAt`, `createdBy`, `updatedBy`
 - Use `@default(now())` for timestamps
 - Define both sides of relations properly
 
 ---
 
-## SECTION 3: Migration Safety Patterns
+## SECTION 4: Migration Safety Patterns
 
-All database migrations must follow these safety patterns to ensure production reliability and data integrity.
+Every database migration must follow the safety patterns in this section. These exist to make migrations idempotent, verifiable, and safe to run in production.
 
-### 3.1 CRITICAL REQUIREMENTS
+### 4.1 The Five Requirements
 
-1. **Every migration must be idempotent** - safe to run multiple times
-2. **Include comprehensive logging** for monitoring and debugging
-3. **Implement verification logic** to confirm migration success
-4. **Document business requirements** in SQL comments
+1. **Every migration must be idempotent** — safe to run multiple times without duplicating data
+2. **Include comprehensive logging** so progress can be tracked and failures diagnosed
+3. **Implement verification logic** to confirm the migration achieved its goal
+4. **Document business requirements** in SQL comments — explain *why*, not just *what*
 5. **Use atomic operations** within transactions where possible
 
-### 3.2 Migration File Structure
+### 4.2 Migration Template
 
-**GOOD Migration Template:**
+Use this as the template for every new migration:
+
 ```sql
 -- /GlobalRX_v2/prisma/migrations/YYYYMMDD_descriptive_name/migration.sql
-
--- Business requirement explanation: Why this migration is needed
--- Data integrity improvement: What data consistency issue this solves
+--
+-- Business requirement: Why this migration is needed
+-- Data integrity goal: What consistency issue this solves
 -- Safe to run multiple times (idempotent)
 
 -- Start logging
 DO $$
 BEGIN
-  RAISE NOTICE 'Starting migration_name migration...';
+  RAISE NOTICE 'Starting migration_name...';
 END $$;
 
--- Main migration operation with idempotency protection
-INSERT INTO target_table (
-  id,
-  required_field,
-  optional_field
-)
+-- Main operation with idempotency protection
+INSERT INTO target_table (id, required_field, optional_field)
 SELECT
   gen_random_uuid(),
   source.required_value,
-  NULL  -- Comment explaining why this defaults to NULL
+  NULL  -- Explanation: why this defaults to NULL
 FROM source_table source
 LEFT JOIN target_table target ON target.foreign_key = source.id
 WHERE target.id IS NULL  -- Only insert if record doesn't exist
 ON CONFLICT (unique_constraint) DO NOTHING;
 
--- Log results
+-- Log how many rows were affected
 DO $$
 DECLARE
   affected_count INTEGER;
@@ -142,7 +195,7 @@ BEGIN
   RAISE NOTICE 'Migration affected % records', affected_count;
 END $$;
 
--- Verification: Ensure migration achieved its goal
+-- Verification: did the migration achieve its goal?
 DO $$
 DECLARE
   expected_count INTEGER;
@@ -161,63 +214,41 @@ END $$;
 -- Final summary
 DO $$
 BEGIN
-  RAISE NOTICE 'Migration_name completed successfully';
+  RAISE NOTICE 'migration_name completed successfully';
 END $$;
 ```
 
-### 3.3 Migration Documentation Requirements
+### 4.3 Idempotency Patterns
 
-**In SQL Comments:**
-- Explain business requirement driving the migration
-- Document why specific default values are chosen
-- Explain any complex WHERE clauses or JOINs
-- Note any potential performance considerations
-
-**Business Logic Comments:**
+**For INSERT operations** — use `ON CONFLICT` to prevent duplicates:
 ```sql
--- Business rule: ServicesFulfillment records start unassigned (assignedVendorId = NULL)
--- to allow manual vendor assignment based on service requirements and vendor availability.
--- This prevents automatic assignments that might not match business requirements.
-assignedVendorId: NULL,
-```
-
-### 3.4 Idempotency Patterns
-
-**For INSERT operations:**
-```sql
--- Use ON CONFLICT to prevent duplicate insertions
 INSERT INTO table_name (unique_field, other_field)
-SELECT value1, value2
-FROM source_table
+SELECT value1, value2 FROM source_table
 ON CONFLICT (unique_field) DO NOTHING;
 ```
 
-**For UPDATE operations:**
+**For UPDATE operations** — use `WHERE` clauses to only update rows that actually need it:
 ```sql
--- Use WHERE clauses to only update records that need updating
 UPDATE table_name
 SET field = new_value
-WHERE field != new_value  -- Only update if different
+WHERE field != new_value
   AND condition_for_migration;
 ```
 
-**For UPSERT operations:**
+**For UPSERT operations** — use `ON CONFLICT DO UPDATE` for complex cases:
 ```sql
--- Use ON CONFLICT with DO UPDATE for complex upserts
 INSERT INTO table_name (key, field1, field2)
 VALUES (value1, value2, value3)
 ON CONFLICT (key) DO UPDATE SET
   field2 = EXCLUDED.field2
-WHERE table_name.field2 != EXCLUDED.field2;  -- Only update if different
+WHERE table_name.field2 != EXCLUDED.field2;
 ```
 
-### 3.5 Verification Requirements
+### 4.4 Verification Requirements
 
-Every migration must include verification logic:
+Every migration must include verification logic. At minimum, count verification:
 
-**Count Verification:**
 ```sql
--- Verify expected vs actual record counts
 DECLARE
   source_count INTEGER;
   target_count INTEGER;
@@ -231,9 +262,9 @@ BEGIN
 END
 ```
 
-**Data Integrity Verification:**
+For migrations that create or modify relationships, also verify no orphaned records exist:
+
 ```sql
--- Verify no orphaned records exist
 DECLARE
   orphaned_count INTEGER;
 BEGIN
@@ -244,36 +275,25 @@ BEGIN
 
   IF orphaned_count > 0 THEN
     RAISE WARNING 'Found % orphaned records', orphaned_count;
-  ELSE
-    RAISE NOTICE 'No orphaned records found';
   END IF;
 END
 ```
 
-### 3.6 Logging Standards
+### 4.5 Logging Standards
 
-**Required log messages:**
-- Migration start: `'Starting migration_name migration...'`
-- Progress updates: `'Processed % records'` or `'Created % new records'`
-- Verification results: `'Verification passed: % records confirmed'`
-- Migration completion: `'Migration_name completed successfully'`
+**Required messages:**
+- Migration start: `'Starting migration_name...'`
+- Progress: `'Processed % records'` or `'Created % new records'`
+- Verification result: `'Verification passed: % records confirmed'` or a `WARNING` on failure
+- Migration completion: `'migration_name completed successfully'`
 
-**Warning conditions:**
-- Verification failures: `RAISE WARNING 'Verification failed: ...'`
-- Unexpected counts: `RAISE WARNING 'Count mismatch: Expected %, got %'`
-- Data inconsistencies: `RAISE WARNING 'Found % inconsistent records'`
+**Warning conditions:** always use `RAISE WARNING` for verification failures, count mismatches, and data inconsistencies. Do not silently continue.
 
-### 3.7 Performance Considerations
+### 4.6 Large Data Migrations
 
-**For large data migrations:**
-- Consider batch processing for tables with > 10,000 records
-- Use efficient indexes for JOIN and WHERE operations
-- Monitor transaction log size during migration
-- Plan for maintenance window if migration affects production performance
+For tables with more than 10,000 records, consider batch processing to avoid long-running transactions:
 
-**Example batch processing:**
 ```sql
--- Process in batches to avoid long-running transactions
 DO $$
 DECLARE
   batch_size INTEGER := 1000;
@@ -281,7 +301,6 @@ DECLARE
   batch_count INTEGER;
 BEGIN
   LOOP
-    -- Process one batch
     INSERT INTO target_table (...)
     SELECT ... FROM source_table
     WHERE id > processed
@@ -290,7 +309,6 @@ BEGIN
 
     GET DIAGNOSTICS batch_count = ROW_COUNT;
     processed := processed + batch_count;
-
     RAISE NOTICE 'Processed % records (batch of %)', processed, batch_count;
 
     EXIT WHEN batch_count < batch_size;
@@ -298,204 +316,124 @@ BEGIN
 END $$;
 ```
 
-### 3.8 Common Migration Anti-Patterns to Avoid
+### 4.7 Anti-Patterns
 
-**❌ NEVER DO:**
-```sql
--- No verification
-INSERT INTO table_name SELECT * FROM source_table;
+**Never do:**
+- Bare inserts with no idempotency protection (`INSERT INTO table_name VALUES (...)`)
+- Migrations with no verification
+- Migrations with no logging
+- Destructive operations (`DELETE`, `DROP`, `TRUNCATE`) without safeguards and explicit human approval
 
--- No idempotency protection
-INSERT INTO table_name VALUES (...);
-
--- No logging
-ALTER TABLE table_name ADD COLUMN new_field TEXT;
-
--- Destructive operations without safeguards
-DELETE FROM table_name WHERE condition;
-```
-
-**✅ ALWAYS DO:**
-```sql
--- Comprehensive migration with all safety patterns
--- Include business requirement comments
--- Use idempotent operations
--- Add verification logic
--- Include detailed logging
--- Document the "why" not just the "what"
-```
+**Always do:**
+- Idempotent operations
+- Verification logic
+- Detailed logging
+- Business-requirement comments at the top of the file
 
 ---
 
-## SECTION 4: Checkbox/Toggle UI Logic Standard
+## SECTION 5: Status Value Consistency
 
-**CRITICAL:** When building checkbox or toggle interfaces that control database records, ensure that "unchecked" means "optional" or "disabled", NOT "deleted".
+**All status values in the database must be lowercase.** This applies to order status, service status, application status, and any other status-type field. Mixed casing caused real production bugs in March 2026 where "SUBMITTED", "Submitted", and "submitted" existed as three separate values in the same column, breaking comment filtering, terminal-status checks, and UI state.
 
-### 4.1 Common Checkbox Logic Bug
+### 5.1 The Single Source of Truth
 
-Many developers implement checkbox UIs by creating database records when checked and deleting records when unchecked. This causes data to disappear entirely rather than becoming optional, which breaks user expectations and can cause data loss.
-
-**Real-World Bug Example (Fixed March 15, 2026):**
-DSX matrix checkboxes were deleting DSXMapping records when unchecked, causing requirement fields to disappear entirely instead of becoming optional. Users expected unchecked fields to remain visible but optional.
-
-### 4.2 Bug Pattern Example
+Status values live in a constants file, not in schemas, not in components, not in Zod enums as string literals. Every other file references the constants file.
 
 ```typescript
-// ❌ WRONG - Deletes records when unchecked, fields disappear
-if (isChecked) {
-  await prisma.mapping.create({ /* data */ });
-} else {
-  await prisma.mapping.delete({ /* where */ }); // Field disappears!
-}
-```
-
-### 4.3 Correct Checkbox Pattern
-
-```typescript
-// ✅ CORRECT - Updates boolean flag, preserves records
-await prisma.mapping.upsert({
-  where: { /* unique key */ },
-  create: {
-    /* data */,
-    isRequired: isChecked
-  },
-  update: {
-    isRequired: isChecked  // Checked = required, unchecked = optional
-  }
-});
-```
-
-### 4.4 Prevention Guidelines
-
-- Use boolean flags (`isRequired`, `isEnabled`, `isActive`) instead of presence/absence of records
-- Preserve database records even when checkboxes are unchecked
-- "Unchecked" should mean "disabled/optional", not "deleted/non-existent"
-- Test the complete user flow: check → uncheck → check again
-- Verify that unchecked items remain in the UI as optional/disabled
-- Document the expected behavior clearly in code comments
-
-### 4.5 User Expectation Rules
-
-- **Checked checkbox** = "This field is required/enabled"
-- **Unchecked checkbox** = "This field is optional/disabled"
-- **Missing checkbox** = "This field doesn't exist" (avoid this pattern)
-
-**Files Fixed (March 15, 2026):**
-- `/src/app/api/dsx/route.ts` (lines 291-305) - DSX matrix checkbox logic
-- `/src/app/api/dsx/__tests__/dsx-required-fields.test.ts` - Tests verifying correct behavior
-
----
-
-## SECTION 5: Status Value Consistency Standard
-
-**CRITICAL:** All status values in the database must use consistent casing and be validated using constants to prevent validation failures and UI bugs.
-
-### 5.1 Status Casing Bug Pattern
-
-Mixed-case status values in the database cause widespread validation failures, UI bugs, and incorrect business logic execution. This pattern was identified and fixed in March 2026 when status values had three-way duplicates: ALL CAPS, Title Case, and lowercase.
-
-**Real-World Bug Example (Fixed March 20, 2026):**
-- Database contained "SUBMITTED", "Submitted", and "submitted" as separate values
-- Zod schemas used hardcoded Title Case values like "Submitted"
-- Frontend components received lowercase values from some APIs
-- Terminal status checks failed, causing Add Comment buttons to be incorrectly disabled
-- Comment template filtering broke due to case mismatches
-
-### 5.2 Root Cause Analysis
-
-**Multiple Problems Contributing to Status Inconsistency:**
-1. **Hardcoded Values in Schemas:** Zod schemas contained hardcoded status values instead of using constants
-2. **Inconsistent Data Entry:** Different parts of the system wrote status values with different casing
-3. **No Normalization:** API endpoints didn't normalize status values before database operations
-4. **Missing Validation:** Database constraints didn't enforce consistent casing
-
-### 5.3 Prevention Standards
-
-**Always Use Constants for Status Values:**
-```typescript
-// ✅ CORRECT - Use constants from single source of truth
-import { SERVICE_STATUSES } from '@/constants/service-status';
-
-export const serviceStatusSchema = z.enum([
-  SERVICE_STATUSES.COMPLETED,  // Uses lowercase constant
-  SERVICE_STATUSES.CANCELLED,
-  SERVICE_STATUSES.SUBMITTED
-]);
-
-// ❌ WRONG - Hardcoded values lead to inconsistency
-export const serviceStatusSchema = z.enum([
-  'Completed',  // Title case - won't match lowercase DB values
-  'Cancelled',
-  'Submitted'
-]);
-```
-
-**Always Normalize at API Boundaries:**
-```typescript
-// ✅ CORRECT - Normalize before database operations
-const normalizedStatus = inputStatus.toLowerCase();
-await prisma.service.updateMany({
-  where: { id: serviceId },
-  data: { status: normalizedStatus }
-});
-
-// ❌ WRONG - Use raw input without normalization
-await prisma.service.updateMany({
-  where: { id: serviceId },
-  data: { status: inputStatus }  // Could be any case
-});
-```
-
-**Define Status Constants in Single Location:**
-```typescript
-// /src/constants/service-status.ts
+// src/constants/service-status.ts
 export const SERVICE_STATUSES = {
-  DRAFT: 'draft',           // All lowercase for database consistency
+  DRAFT: 'draft',           // All lowercase — database format
   SUBMITTED: 'submitted',
   COMPLETED: 'completed',
-  CANCELLED: 'cancelled'
+  CANCELLED: 'cancelled',
 } as const;
 
 export const SERVICE_STATUS_VALUES = Object.values(SERVICE_STATUSES);
 ```
 
-### 5.4 Required Migration Pattern
+### 5.2 Never Hardcode Status Values
 
-When fixing status inconsistency, use this migration pattern:
+Anywhere you write a status value, it must come from the constants file — never a string literal.
 
-```sql
--- Step 1: Standardize all status values to lowercase
-UPDATE order_items SET status = LOWER(status) WHERE status IS NOT NULL;
-UPDATE service_fulfillment SET status = LOWER(status) WHERE status IS NOT NULL;
-UPDATE comment_template_availability SET status = LOWER(status) WHERE status IS NOT NULL;
+```typescript
+// ❌ WRONG — hardcoded string literal
+const orderItem = await tx.orderItem.create({
+  data: { orderId, serviceId, status: 'pending' },
+});
 
--- Step 2: Verify no duplicates remain
-DO $$
-DECLARE
-  duplicate_count INTEGER;
-BEGIN
-  SELECT COUNT(*) INTO duplicate_count
-  FROM (
-    SELECT status, COUNT(*) as cnt
-    FROM order_items
-    WHERE status IS NOT NULL
-    GROUP BY status
-    HAVING COUNT(*) > 1
-  ) duplicates;
+// ❌ WRONG — Title Case literal, won't match lowercase DB values
+await createService({ status: 'Submitted' });
 
-  IF duplicate_count > 0 THEN
-    RAISE WARNING 'Found % duplicate status values after normalization', duplicate_count;
-  END IF;
-END $$;
+// ✅ CORRECT — reference the constant
+import { SERVICE_STATUSES } from '@/constants/service-status';
+
+await createService({ status: SERVICE_STATUSES.SUBMITTED });
 ```
 
-### 5.5 Testing Requirements
+**Why this matters beyond casing:** In commit `3706b39`, the `pending` status was removed from `SERVICE_STATUSES`, but multiple locations in the codebase still hardcoded `status: 'pending'`, creating order items with invalid status values that didn't exist in the system. Referencing the constant would have caused a TypeScript error and caught the bug at build time.
 
-**Always Test With Mixed Case Inputs:**
+### 5.3 Zod Schemas Reference the Constants
+
 ```typescript
-// Test that API normalizes different case formats
-it('handles mixed case status values', async () => {
-  const testCases = ['COMPLETED', 'Completed', 'completed', 'CANCELLED', 'Cancelled'];
+// ❌ WRONG — hardcoded enum values drift from the constants
+export const serviceStatusSchema = z.enum(['Completed', 'Cancelled', 'Submitted']);
+
+// ✅ CORRECT — enum built from the constants
+import { SERVICE_STATUS_VALUES } from '@/constants/service-status';
+export const serviceStatusSchema = z.enum(SERVICE_STATUS_VALUES);
+```
+
+### 5.4 Normalize Incoming Status Values at API Boundaries
+
+When a status value arrives from a request body, query parameter, or external system, normalize it to lowercase before using it in any database query. Never trust that the caller sent lowercase.
+
+```typescript
+// ✅ CORRECT — normalize before touching the database
+const normalizedStatus = inputStatus.toLowerCase();
+await prisma.service.updateMany({
+  where: { id: serviceId },
+  data: { status: normalizedStatus },
+});
+```
+
+### 5.5 Inherit Status From Parent Entities When Appropriate
+
+When creating child records, inherit the status from the parent rather than defaulting it:
+
+```typescript
+// ✅ CORRECT — inherit from the parent order
+const orderItem = await tx.orderItem.create({
+  data: {
+    orderId,
+    serviceId,
+    status: order.statusCode, // Inherit from parent
+  },
+});
+```
+
+### 5.6 Display Code Must Not Hardcode Formatted Status Strings
+
+Display code (React components) must never hardcode Title Case or ALL CAPS status values to compare against database values. If you need to display a status in Title Case, use the `formatStatus()` helper — do not compare against the formatted string.
+
+```typescript
+// ❌ WRONG — won't match lowercase DB value
+if (service.status === 'Completed') { ... }
+
+// ✅ CORRECT — compare against the constant (lowercase)
+if (service.status === SERVICE_STATUSES.COMPLETED) { ... }
+
+// ✅ CORRECT — for display only, use the helper
+<span>{formatStatus(service.status)}</span>
+```
+
+### 5.7 Testing Requirement
+
+Any API endpoint that accepts a status value must have a test that exercises mixed-case input and verifies the value is lowercased before reaching the database:
+
+```typescript
+it('normalizes mixed-case status input to lowercase', async () => {
+  const testCases = ['COMPLETED', 'Completed', 'completed'];
 
   for (const statusInput of testCases) {
     const response = await request(app)
@@ -503,85 +441,141 @@ it('handles mixed case status values', async () => {
       .send({ status: statusInput });
 
     expect(response.status).toBe(200);
-    // Verify status was normalized to lowercase in database
     const service = await prisma.orderItem.findUnique({ where: { id: serviceId } });
     expect(service.status).toBe(statusInput.toLowerCase());
   }
 });
 ```
 
-### 5.6 Code Review Checklist
+---
 
-**When reviewing status-related code:**
-- [ ] Are status constants used instead of hardcoded strings?
-- [ ] Is input normalized before database operations?
-- [ ] Do Zod schemas reference constants, not hardcoded values?
-- [ ] Are status comparisons case-insensitive or normalized?
-- [ ] Do migrations handle existing inconsistent data?
-- [ ] Are tests covering different case formats?
+## SECTION 6: Checkbox and Toggle UI Logic
 
-### 5.7 Common Violations to Prevent
+**When a checkbox controls a database record, "unchecked" means "optional" or "disabled" — it must never mean "deleted".**
 
-**❌ Never Do:**
+### 6.1 The Bug Pattern
+
+A common implementation mistake is to create a database record when a checkbox is checked and delete the record when it's unchecked. This causes data to disappear entirely rather than becoming optional, breaking user expectations and sometimes causing data loss.
+
+**Real-world example (fixed March 15, 2026):** DSX matrix checkboxes were deleting `DSXMapping` records when unchecked, causing requirement fields to disappear entirely instead of becoming optional. Users expected unchecked fields to remain visible but optional.
+
+### 6.2 Wrong vs. Correct
+
 ```typescript
-// Hardcoded values in schemas
-status: z.enum(['Completed', 'Submitted', 'Cancelled'])
+// ❌ WRONG — deleting on uncheck, fields disappear
+if (isChecked) {
+  await prisma.mapping.create({ /* data */ });
+} else {
+  await prisma.mapping.delete({ /* where */ });
+}
 
-// No normalization before database queries
-await prisma.service.findMany({ where: { status: rawInput } })
-
-// Case-sensitive comparisons
-if (service.status === 'Completed') // Won't match lowercase DB value
-
-// Multiple constants for same concept
-const COMPLETED_STATUS = 'Completed';
-const completedStatus = 'completed';
+// ✅ CORRECT — upsert with a boolean flag, records preserved
+await prisma.mapping.upsert({
+  where: { /* unique key */ },
+  create: { /* data */, isRequired: isChecked },
+  update: { isRequired: isChecked },
+});
 ```
 
-**✅ Always Do:**
-```typescript
-// Use constants from single source
-status: z.enum(SERVICE_STATUS_VALUES)
+### 6.3 Rules
 
-// Normalize at boundaries
-const normalizedStatus = status.toLowerCase();
+- Use boolean flags (`isRequired`, `isEnabled`, `isActive`) rather than presence/absence of records
+- Preserve database records even when the checkbox is unchecked
+- "Unchecked" means "disabled/optional", not "deleted/non-existent"
+- Test the complete flow: check → uncheck → check again. Values must be preserved across the round trip.
+- Document expected behavior clearly in code comments
 
-// Use helper functions for comparisons
-if (isTerminalStatus(service.status)) // Handles normalization internally
+### 6.4 User Expectation Model
 
-// Single source of truth for constants
-import { SERVICE_STATUSES } from '@/constants/service-status';
-```
-
-**Files Fixed (March 20, 2026):**
-- Database migration: `/prisma/migrations/20260320121837_normalize_status_casing/migration.sql`
-- Schema updates: `/src/types/service-fulfillment.ts`, `/src/lib/schemas/*.ts`
-- API normalization: `/src/app/api/comment-templates/route.ts`, `/src/app/api/services/[id]/status/route.ts`
-- Component fixes: `/src/components/fulfillment/ServiceFulfillmentTable.tsx`
+| Checkbox state | What it means |
+|---|---|
+| Checked | This field is required/enabled |
+| Unchecked | This field is optional/disabled |
+| Missing | This field doesn't exist — avoid this case |
 
 ---
 
-## SECTION 6: VendorOrganization Field Names
+## SECTION 7: Required Field Validation
 
-The VendorOrganization model does not have an email field. The correct field name is contactEmail.
+When an API endpoint creates a database record, every required field in the Prisma schema must be either (a) provided in the request body and validated, (b) auto-generated by the API, or (c) derived from authentication context. Missing required fields cause 500 errors at runtime that should have been caught as 400s.
 
-**Wrong:**
+### 7.1 The Three Categories of Required Fields
+
+**User-provided required fields** — validated in the request body, return 400 if missing.
+Examples: `name`, `email`, `category`, `description`.
+
+**Auto-generated required fields** — generated by the API, not provided by the user.
+Examples: `code`, `slug`, unique identifiers derived from other fields. Must include uniqueness-conflict handling.
+
+**System-assigned required fields** — derived from authentication or request context, never in the request body.
+Examples: `createdById`, `updatedById`, `tenantId`.
+
+### 7.2 Correct Pattern
+
 ```typescript
-assignedVendor: { select: { email: true } }
+// ✅ CORRECT — all three categories handled
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { name, category } = await request.json();
+
+  // User-provided fields: validate, return 400 if missing
+  if (!name || !category) {
+    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  }
+
+  // Auto-generated field with uniqueness retry
+  const code = generateServiceCode(name);
+
+  try {
+    const newService = await prisma.service.create({
+      data: {
+        name,
+        category,
+        code,                          // Auto-generated
+        createdById: session.user.id,  // System-assigned
+        updatedById: session.user.id,  // System-assigned
+      },
+    });
+    return NextResponse.json(newService, { status: 201 });
+  } catch (error) {
+    // Handle unique-constraint violations gracefully
+  }
+}
 ```
 
-**Correct:**
+### 7.3 Auto-Generation With Uniqueness Handling
+
+When a field is auto-generated and has a unique constraint, implement retry logic for conflicts:
+
 ```typescript
-assignedVendor: { select: { contactEmail: true } }
+let code = baseCode;
+let suffix = 1;
+for (let attempt = 0; attempt < maxAttempts; attempt++) {
+  try {
+    return await prisma.service.create({ data: { ...data, code } });
+  } catch (error) {
+    if (error.code === 'P2002') { // Prisma unique constraint violation
+      code = baseCode + suffix++;
+      continue;
+    }
+    throw error;
+  }
+}
 ```
 
-This mistake will not be caught by tests because Prisma mocks return whatever you tell them to — the error only appears at runtime when a real database query executes.
+### 7.4 Testing Requirement
+
+Every create endpoint must have a test that sends an empty body and verifies a 400 response (not a 500), and a test that verifies auto-generated fields are actually generated.
 
 ---
 
-## SECTION 6: Migration Documentation
+## SECTION 8: Migration Documentation Template
 
-For database migrations or breaking changes:
+For database migrations or breaking schema changes, create documentation in the format below:
 
 ```markdown
 # Migration: [Description]
@@ -612,195 +606,43 @@ Steps to revert if needed
 
 ---
 
-## SECTION 7: Required Field Validation Standard
-
-**CRITICAL:** All database create operations must validate that required fields are provided, either by the user or through auto-generation.
-
-### 7.1 Required Field Bug Pattern
-
-API endpoints that create database records often fail with 500 errors when required fields are missing from the request. This pattern was identified and fixed in the Services API in March 2026.
-
-**Real-World Bug Example (Fixed March 25, 2026):**
-The `POST /api/services` endpoint was missing the required `code` field, causing a 500 error when creating services. The bug occurred because:
-- The Prisma schema required a non-null unique `code` field
-- The API endpoint didn't provide this field in the create operation
-- The frontend had no way to provide the code (it should be auto-generated)
-
-### 7.2 Root Cause Analysis
-
-**Common Problems Leading to Required Field Errors:**
-1. **Schema/API Mismatch:** Database schema requires field but API doesn't provide it
-2. **Missing Auto-Generation:** Fields that should be auto-generated aren't implemented
-3. **Incomplete Field Mapping:** Request body validation doesn't match database requirements
-4. **No Fallback Values:** No default values or generation logic for required fields
-
-### 7.3 Prevention Standards
-
-**Always Validate Required Fields Before Database Operations:**
-```typescript
-// ✅ CORRECT - Validate all required fields are provided or generated
-export async function POST(request: NextRequest) {
-  try {
-    const { name, category } = await request.json();
-
-    // Validate user-provided required fields
-    if (!name || !category) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    // Auto-generate required fields that users shouldn't provide
-    const code = generateServiceCode(name);
-
-    const newService = await prisma.service.create({
-      data: {
-        name,
-        category,
-        code, // Ensure all required fields are provided
-        createdById: userId,
-        updatedById: userId,
-      },
-    });
-
-    return NextResponse.json(newService);
-  } catch (error) {
-    // Handle Prisma constraint violations gracefully
-  }
-}
-
-// ❌ WRONG - Missing required fields causes runtime error
-export async function POST(request: NextRequest) {
-  const { name, category } = await request.json();
-
-  const newService = await prisma.service.create({
-    data: {
-      name,
-      category,
-      // Missing: code field is required by schema
-      createdById: userId,
-      updatedById: userId,
-    },
-  });
-}
-```
-
-**Implement Auto-Generation for Non-User Fields:**
-```typescript
-// ✅ CORRECT - Auto-generate codes from user-provided names
-function generateServiceCode(name: string): string {
-  return name
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s]/g, '')
-    .replace(/\s+/g, '')
-    .slice(0, 20) || 'SERVICE';
-}
-
-// Handle uniqueness conflicts with retry logic
-let code = baseCode;
-let suffix = 1;
-for (let attempt = 0; attempt < maxAttempts; attempt++) {
-  try {
-    const result = await prisma.service.create({ data: { ...data, code } });
-    return result;
-  } catch (error) {
-    if (error.code === 'P2002') { // Unique constraint violation
-      code = baseCode + suffix++;
-      continue;
-    }
-    throw error;
-  }
-}
-```
-
-### 7.4 Required Field Categories
-
-**User-Provided Required Fields:**
-- Should be validated in request body validation
-- Return 400 Bad Request if missing
-- Examples: name, email, category, description
-
-**Auto-Generated Required Fields:**
-- Should be generated by the API, not provided by user
-- Use consistent generation patterns
-- Include uniqueness conflict handling
-- Examples: codes, IDs, slugs, timestamps
-
-**System-Assigned Required Fields:**
-- Derived from authentication/context
-- Should not be in request body
-- Examples: createdById, updatedById, tenantId
-
-### 7.5 Testing Requirements
-
-**Always Test Required Field Validation:**
-```typescript
-it('should return 400 when required fields are missing', async () => {
-  const response = await request(app)
-    .post('/api/services')
-    .send({}); // Empty request body
-
-  expect(response.status).toBe(400);
-  expect(response.body.error).toBe('Missing required fields');
-});
-
-it('should auto-generate code field', async () => {
-  const response = await request(app)
-    .post('/api/services')
-    .send({ name: 'Test Service', category: 'Test' });
-
-  expect(response.status).toBe(201);
-  expect(response.body.code).toBeDefined();
-  expect(response.body.code).toMatch(/^[A-Z0-9]+$/);
-});
-```
-
-### 7.6 Code Review Checklist
-
-**When reviewing create operations:**
-- [ ] Are all Prisma schema required fields provided or generated?
-- [ ] Do validation errors return 400, not 500?
-- [ ] Are auto-generated fields implemented with uniqueness handling?
-- [ ] Are user-provided fields validated before database operations?
-- [ ] Do tests cover missing required field scenarios?
-- [ ] Are error messages user-friendly and actionable?
-
-**Files Fixed (March 25, 2026):**
-- `/src/app/api/services/route.ts` - Added code generation and validation
-- `/src/app/api/services/__tests__/route.test.ts` - Tests ensuring code field is provided
-
----
-
 ## DATABASE STANDARDS CHECKLIST
 
-### Migration Safety:
+### Schema invariants:
+- [ ] `DSXRequirement.fieldKey` is never modified for an existing row
+- [ ] New requirements use camelCase `fieldKey` (e.g., `schoolName`)
+- [ ] Requirement lookups match on `fieldKey`, not `name`
+- [ ] Every `OrderItem` creation goes through `OrderCoreService.addOrderItem` or another function that wraps both records in a transaction
+- [ ] No direct `prisma.orderItem.create()` calls outside the order-core service
+- [ ] `VendorOrganization` selects use `contactEmail`, not `email`
+
+### Migration safety:
 - [ ] Migration is idempotent (safe to run multiple times)
 - [ ] Includes comprehensive logging
-- [ ] Has verification logic to confirm success
+- [ ] Has verification logic that confirms success
 - [ ] Business requirements documented in SQL comments
 - [ ] Uses atomic operations where possible
-- [ ] Includes ON CONFLICT for inserts
-- [ ] WHERE clauses prevent redundant updates
+- [ ] Includes `ON CONFLICT` for inserts
+- [ ] `WHERE` clauses prevent redundant updates
 - [ ] Batch processing for large datasets (>10K records)
 
-### Prisma/Schema:
+### Prisma / schema:
 - [ ] Descriptive migration names used
 - [ ] Indexes on foreign keys and commonly queried fields
-- [ ] CASCADE rules defined for foreign keys
+- [ ] `CASCADE` rules defined for foreign keys
 - [ ] Using `@@map()` for snake_case table names
-- [ ] Audit fields included (createdAt, updatedAt)
+- [ ] Audit fields included (`createdAt`, `updatedAt`, `createdBy`, `updatedBy`)
 - [ ] Relations defined on both sides
+- [ ] Used `pnpm prisma migrate deploy`, never `migrate dev`
 
-### Database Logic:
-- [ ] Order IDs follow YYYYMMDD-CODE-NNNN format
-- [ ] Customer codes are 3-4 alphanumeric characters
+### Database logic:
+- [ ] Order IDs follow `YYYYMMDD-CODE-NNNN` format
+- [ ] Customer codes are 3–4 alphanumeric characters
 - [ ] Checkbox logic uses boolean flags, not record deletion
-- [ ] Using correct VendorOrganization field names
-- [ ] Status values use constants, not hardcoded strings
-- [ ] Status values normalized before database operations
-- [ ] Zod schemas reference constants for status values
-- [ ] Terminal status checks use consistent casing
-- [ ] Migration documentation created for changes
-- [ ] **Required database fields validated in API create operations**
-- [ ] **Auto-generation patterns implemented for required non-user fields**
+- [ ] Status values use constants from `/src/constants/`, never string literals
+- [ ] Status values are lowercase in the database
+- [ ] Zod schemas reference status constants, not hardcoded enums
+- [ ] Status values normalized (lowercased) at API boundaries before DB operations
+- [ ] Display code uses `formatStatus()` for Title Case, not hardcoded comparisons
+- [ ] Required fields validated or auto-generated in every create endpoint
+- [ ] Create endpoints return 400 (not 500) when required fields are missing

@@ -5,17 +5,19 @@
 
 ## INSTRUCTIONS FOR CLAUDE CODE
 
-This document defines the API-specific rules and standards that MUST be followed when writing,
-editing, or reviewing any API routes in the GlobalRx platform. These standards are not
-suggestions — they are requirements.
+This document defines the rules that MUST be followed when writing, editing, or reviewing API routes in the GlobalRx platform. It covers route structure, authentication, permissions, validation order, data normalization, query patterns, and the JSDoc documentation block every endpoint must carry. These standards are not suggestions — they are requirements.
+
+For general coding rules (TypeScript, file naming, logging), see `CODING_STANDARDS.md`.
+For database schema invariants and Prisma rules, see `DATABASE_STANDARDS.md`.
+For component-side patterns including file uploads, see `COMPONENT_STANDARDS.md`.
 
 ---
 
-## SECTION 1: API Route Standards
+## SECTION 1: API Route Structure
 
-Every API route must follow this structure without exception.
+Every API route must follow the structure in this section without exception.
 
-### 1.1 Required Elements for Every Route
+### 1.1 The Four Required Elements
 
 1. **Authentication check** — must be the very first thing in every route handler
 2. **Input validation** — validate all incoming data with Zod before using it
@@ -32,20 +34,21 @@ import { getServerSession } from 'next-auth';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
+import logger from '@/lib/logger';
 
-// Define the validation schema for incoming data
+// Zod schema defines the validation contract for incoming data
 const createResourceSchema = z.object({
   name: z.string().min(1, 'Name is required'),
 });
 
 export async function POST(request: NextRequest) {
-  // Step 1: Always check authentication first
+  // Step 1: Authentication — always first
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Step 2: Validate the incoming request body
+  // Step 2: Validate the incoming request body with Zod
   const body = await request.json();
   const validation = createResourceSchema.safeParse(body);
   if (!validation.success) {
@@ -55,45 +58,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Step 3: Perform database operation inside try/catch
+  // Step 3: Database operation inside try/catch
   try {
     const result = await prisma.resource.create({
       data: validation.data,
     });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    logger.error('Error creating resource:', { error });
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error('Failed to create resource', { event: 'resource_create_failure' });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// For routes with dynamic parameters (Next.js 15 Migration)
+// Routes with dynamic params (Next.js 15 — params is a Promise)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // CRITICAL: Next.js 15 requires params to be awaited before use
+  // Next.js 15: params must be awaited before use
   const { id } = await params;
 
-  // Step 1: Always check authentication first
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Continue with regular route logic...
+  // ... rest of handler
 }
 ```
 
 ### 1.3 HTTP Status Codes
 
-Always return the correct status code:
-
 | Situation | Status Code |
-|-----------|------------|
+|---|---|
 | Success (read) | 200 |
 | Success (created) | 201 |
 | Bad input from user | 400 |
@@ -104,584 +101,443 @@ Always return the correct status code:
 
 ### 1.4 Never Return More Data Than Needed
 
-When returning records, only include the fields the frontend actually needs.
-Do not return full database objects if only a few fields are required.
-Never return password hashes, tokens, or internal system fields.
+When returning records, only include the fields the frontend actually needs. Do not return full database objects when a few fields will do. Never return password hashes, tokens, internal flags, or other sensitive system fields.
 
 ---
 
-## SECTION 2: User Type Specific API Endpoints
+## SECTION 2: Validation Check Order
 
-Different user types must use the appropriate API endpoints. **Never try to make
-a single endpoint serve all user types** as this leads to permission confusion
-and security vulnerabilities.
+API route handlers must perform validation checks in a consistent order so that the right HTTP status code is returned for each failure mode and so that information is not leaked to unauthorized callers.
 
-**User Type Routing Rules:**
-- **Customer users** → use `/api/portal/*` endpoints (require customerId validation)
-- **Internal users** → use `/api/fulfillment/*` or `/api/admin/*` endpoints (require internal permissions)
-- **Vendor users** → use `/api/vendor/*` endpoints (require vendorId validation)
+### 2.1 The Required Sequence
 
-**Example of the correct pattern:**
+1. **401 Unauthorized** — authentication check (session exists)
+2. **User type skip (200)** — early exit for non-applicable user types where appropriate
+3. **400 Bad Request** — input validation (required parameters, format)
+4. **404 Not Found** — resource existence checks
+5. **403 Forbidden** — authorization checks (customer scoping, permissions)
+6. **200 Success** — business logic execution
+
+### 2.2 Why This Order Matters
+
+- **Authentication first** prevents any data leakage to unauthenticated callers
+- **User type skip early** prevents inappropriate 404s for admin/vendor users on customer-only endpoints (a stale URL should produce a graceful skip, not a confusing 404)
+- **Input validation before DB queries** fails fast on malformed requests
+- **Existence before authorization** keeps the distinction between "not found" and "not allowed" clear
+- **Authorization last** means we only check permissions after confirming the resource exists and could potentially be accessed
+
+### 2.3 Reference Implementation
+
 ```typescript
-// In a component that serves different user types
-const endpoint = user.type === 'customer'
-  ? `/api/portal/orders/${orderId}`
-  : `/api/fulfillment/orders/${orderId}`;
-```
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  // Step 1: Authentication — always first
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-**Common mistake that causes 401 errors:**
-```typescript
-// Wrong - all users hitting the same endpoint
-const endpoint = `/api/portal/orders/${orderId}`; // Only works for customer users!
-```
+  // Step 2: User type skip — non-customer users get a graceful skip on
+  // customer-only endpoints, not a 404 that suggests the resource is missing
+  if (session.user.userType !== 'customer') {
+    return NextResponse.json({ skipped: true }, { status: 200 });
+  }
 
-This pattern prevents the bug where internal users with fulfillment permissions
-receive 401 errors when trying to access customer-only endpoints.
+  // Step 3: Input validation
+  const { id } = await params;
+  if (!id) {
+    return NextResponse.json({ error: 'Resource ID is required' }, { status: 400 });
+  }
 
----
+  // Step 4: Resource existence
+  const resource = await prisma.resource.findUnique({ where: { id } });
+  if (!resource) {
+    return NextResponse.json({ error: 'Resource not found' }, { status: 404 });
+  }
 
-## SECTION 3: Centralized Permission Functions
+  // Step 5: Authorization (customer scoping)
+  if (resource.customerId !== session.user.customerId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
-All permission checking must use the centralized functions in `auth-utils.ts`.
-This ensures consistent permission logic across the entire application.
-
-**Data Rx Access Pattern:**
-```typescript
-import { canAccessDataRx } from '@/lib/auth-utils';
-
-// Always use centralized permission checking
-if (!canAccessDataRx(session.user)) {
-  return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+  // Step 6: Business logic
+  // ... perform the operation
 }
 ```
 
-**Why centralized permission checking matters:**
-- Consistent permission logic across all endpoints
-- Single source of truth for permission changes
-- Easier security auditing and testing
-- Prevents permission bypass vulnerabilities
+### 2.4 Common Anti-Patterns to Avoid
 
-**Customer Management Access Pattern:**
+- Checking authorization before existence (returns 403 when it should be 404)
+- Checking existence before authentication (information leakage)
+- Skipping the user type check (admin users get confusing 404s on customer endpoints)
+
+---
+
+## SECTION 3: Permissions
+
+### 3.1 Server-Side Only
+
+Never rely on the frontend hiding a button or page to protect a feature. Role and permission checks must happen in the API route, on the server. A hidden button is a UX choice; an unprotected endpoint is a security vulnerability.
+
+### 3.2 Use Centralized Permission Functions, Always
+
+All permission checking must use the centralized functions in `auth-utils.ts`. Never write inline permission checks inside route handlers.
+
 ```typescript
-import { canManageCustomers } from '@/lib/auth-utils';
+// ✅ CORRECT — centralized permission function
+import { canAccessDataRx, canManageCustomers } from '@/lib/auth-utils';
 
-// Always use centralized permission checking for customer operations
+if (!canAccessDataRx(session.user)) {
+  return NextResponse.json(
+    { error: 'Forbidden — insufficient permissions' },
+    { status: 403 }
+  );
+}
+
 if (!canManageCustomers(session.user)) {
   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 }
 ```
 
-**Breaking changes to permissions:**
-When permission requirements change (like the Data Rx 'dsx' → 'global_config' migration),
-centralized functions make it easy to:
-- Update permission logic in one place
-- Ensure all endpoints use the new requirements
-- Create comprehensive test coverage
-- Generate clear migration documentation
+```typescript
+// ❌ WRONG — inline permission check
+if (session.user.permissions?.dsx === true) { /* ... */ }
 
-**Bug Prevention:**
-The permission system migration revealed a common bug pattern:
-- API routes had inline permission checking for legacy permission format
-- Users were migrated to new module-based permissions
-- API routes returned 403 Forbidden because they only checked for old format
-- Frontend worked because it checked both formats
-- Solution: Replace all inline permission checking with centralized functions
+// ❌ WRONG — checking the deprecated permission shape directly
+if (session.user.role === 'admin' || session.user.permissions?.dsx) { /* ... */ }
+```
 
-**Critical Security Bug Fixed (March 5, 2026):**
-The DSX API permission migration revealed a critical security vulnerability:
-- `/api/dsx/remove-requirement` had NO permission checking at all
-- Any authenticated user could delete service requirements
-- This violated the "Authentication on Every API Route" rule
-- Other DSX endpoints checked for deprecated 'dsx' permission instead of 'global_config'
+**Why this rule is absolute:**
 
-**Mandatory Security Verification:**
-1. **NEVER ship an API endpoint without permission checking**
-2. **Always use centralized permission functions** (never inline permission checks)
-3. **Test API endpoints with different user permission levels** during development
-4. **Review ALL endpoints** when changing permission requirements
-5. **Document security-critical changes** with clear code comments explaining the fix
+When the permission system was migrated from the legacy `dsx` permission to the new module-based `global_config` permission, the central functions were updated in one place. But routes that had inline permission checks continued to look for the old `dsx` flag and returned 403 to users who legitimately had the new permission. The frontend (which checked both formats) worked; the backend (which checked only the old format) didn't. The bug was invisible to QA because it only affected users in a specific migration cohort.
+
+A worse instance: the `/api/dsx/remove-requirement` endpoint had no permission check at all. Any authenticated user could delete service requirements. Centralized functions would have made this impossible to ship — the function call would have been the obvious thing to add.
+
+### 3.3 Mandatory Security Verification
+
+1. **Never ship an API endpoint without an authentication check** (Section 1) **and a permission check** (this section, when the endpoint requires anything beyond "logged in")
+2. **Always use centralized permission functions** — never inline permission checks
+3. **Test endpoints with different user permission levels** during development
+4. **Review all related endpoints** when changing any permission requirement
+5. **Document security-critical changes** with code comments explaining the fix
 
 ---
 
-## SECTION 4: User Type Property Standard
+## SECTION 4: User Type Routing
 
-**CRITICAL:** Always use `session.user.userType` for user type checking. **Never use `session.user.type`.**
+Different user types must use different API endpoints. Never try to make a single endpoint serve all user types — that pattern leads to permission confusion and security vulnerabilities.
 
-**Correct Pattern:**
+### 4.1 Routing Rules
+
+- **Customer users** → `/api/portal/*` endpoints (require `customerId` validation)
+- **Internal users** → `/api/fulfillment/*` or `/api/admin/*` endpoints (require internal permissions)
+- **Vendor users** → `/api/vendor/*` endpoints (require `vendorId` validation)
+
+### 4.2 Correct Pattern
+
 ```typescript
+// In a component that serves different user types:
+const endpoint = user.type === 'customer'
+  ? `/api/portal/orders/${orderId}`
+  : `/api/fulfillment/orders/${orderId}`;
+```
+
+### 4.3 Common Mistake That Causes 401 Errors
+
+```typescript
+// ❌ WRONG — all users hitting the customer endpoint
+const endpoint = `/api/portal/orders/${orderId}`;
+// Internal users with fulfillment permissions get 401 here
+```
+
+This pattern is the cause of the recurring "internal user gets 401 when viewing an order" bug class.
+
+---
+
+## SECTION 5: User Type Property Standard
+
+**Always use `session.user.userType`. Never use `session.user.type`.**
+
+The session user object from NextAuth defines `userType`, not `type`. The `type` property does not exist. Code that reads `session.user.type` will get `undefined` and the conditional will always go down the "wrong" branch.
+
+```typescript
+// ✅ CORRECT
 const userType = session.user.userType;
 if (userType === 'internal' || userType === 'admin') {
   // Allow access
 }
-```
 
-**Incorrect Pattern (Bug-prone):**
-```typescript
-// ❌ WRONG - 'type' property doesn't exist
+// ❌ WRONG — property doesn't exist, returns undefined
 const userType = session.user.type;
-// ❌ WRONG - Fallback patterns hide the real issue
+
+// ❌ WRONG — fallback patterns hide the real bug
 const userType = session.user.type || session.user.userType;
-// ❌ WRONG - TypeScript workarounds mask the problem
+
+// ❌ WRONG — type cast bypasses the type system that would have caught this
 const userType = (session.user as any).userType;
 ```
 
-**Why this matters:**
-- The session user object from NextAuth uses `userType`, not `type`
-- This is defined in `/src/types/next-auth.d.ts`
-- Using the wrong property causes authorization failures
-- Fallback patterns hide bugs and make debugging difficult
-
-**Bug Prevention:**
-- Search for `session.user.type` in code reviews
-- Use TypeScript strict mode to catch property access errors
-- Never use `as any` casts to bypass type checking
-- Verify user type access patterns when debugging authorization issues
+**The type definition lives in `/src/types/next-auth.d.ts`.** When reviewing code, search for `session.user.type` (no surrounding word) — every match is a bug.
 
 ---
 
-## SECTION 5: Data Format Consistency Standard
+## SECTION 6: Data Normalization at Boundaries
 
-**CRITICAL:** Ensure consistent data formats across database storage, API responses, and frontend display.
+### 6.1 Normalize at Entry, Not Inside
 
-**Common Format Mismatch Bug:**
-Service status values are stored as title case in database ("Submitted", "Missing Information") but may be received from frontend or external systems as uppercase ("SUBMITTED", "MISSING INFORMATION"). This causes database query failures when case doesn't match.
+When data enters the API from a request body, query parameter, or external system, normalize it to the storage format before using it in any database operation. The normalization happens once, at the boundary — not scattered through downstream code.
 
-**Solution Pattern:**
+The most common case is status values, which the database stores in lowercase but which can arrive from external systems in any casing. **The full status casing rule and the constants reference live in `DATABASE_STANDARDS.md` Section 5.** This section covers normalization patterns that apply at the API boundary.
+
+### 6.2 Common Areas Requiring Normalization
+
+| Field type | Storage format | Normalize on receipt |
+|---|---|---|
+| Status values | lowercase | `inputStatus.toLowerCase()` |
+| Email addresses | lowercase | `email.toLowerCase()` |
+| Customer codes | uppercase, alphanumeric | strip whitespace, uppercase |
+| Service types | per the constants file | reference the constant |
+
+### 6.3 The Pattern
+
 ```typescript
-// Always normalize data before database queries
-const normalizedStatus = serviceStatus
-  .split(' ')
-  .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-  .join(' ');
+// ✅ CORRECT — normalize once, at the API boundary
+export async function PUT(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-// Use normalized value in database query
-await prisma.commentTemplateAvailability.findMany({
-  where: {
-    status: normalizedStatus  // Use normalized, not original
-  }
-});
+  const { status, email } = await request.json();
+
+  // Normalize at the boundary
+  const normalizedStatus = status?.toLowerCase();
+  const normalizedEmail = email?.toLowerCase();
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { status: normalizedStatus, email: normalizedEmail },
+  });
+}
 ```
 
-**Prevention Guidelines:**
-- Document expected data formats in API documentation
-- Normalize data at system boundaries (API route entry points)
-- Use database constraints to enforce format consistency
-- Add validation to catch format mismatches early
-- Test with different case formats to ensure normalization works
-- Never assume incoming data format matches storage format
+### 6.4 Document the Format
 
-**Common Areas Requiring Normalization:**
-- Status values (order status, service status, application status)
-- Email addresses (always lowercase before storage/lookup)
-- Customer codes (consistent case format)
-- Service types (consistent naming convention)
+When you write or update an API endpoint, document the expected and stored format of any field that needs normalization. Add a comment to the Zod schema and to the JSDoc block (Section 11). A future developer should not have to guess.
 
 ---
 
-## SECTION 6: Database Query Filter Logic Standard
+## SECTION 7: Query Filter Logic
 
-**CRITICAL:** Always verify that database query filters match business requirements, especially when filtering by presence/absence of related data.
+### 7.1 Be Careful With Negative Filters
 
-**Common Query Logic Bug:**
-When building dynamic query filters based on user type, be careful with inclusion/exclusion filters. A filter that excludes records (e.g., `assignedVendorId: { not: null }`) may unintentionally hide data that users need to see.
+Filters that exclude records (`{ not: null }`, `{ not: equals }`) are easy to get wrong. A filter intended to scope down a query can accidentally hide data that the user is supposed to see.
 
-**Bug Pattern Example:**
 ```typescript
-// ❌ WRONG - This excludes unassigned orders that internal users need to manage
+// ❌ WRONG — excludes unassigned orders that internal users need to manage
 if (userType === 'internal') {
-  whereClause.assignedVendorId = { not: null }; // Only shows assigned orders
+  whereClause.assignedVendorId = { not: null };
 }
 
-// ✅ CORRECT - Internal users should see ALL orders
+// ✅ CORRECT — internal users see ALL orders (assigned and unassigned)
 if (userType === 'vendor') {
-  whereClause.assignedVendorId = session.user.vendorId; // Vendor sees only their orders
+  whereClause.assignedVendorId = session.user.vendorId;
 }
-// Internal users: no filter = see all orders (assigned and unassigned)
+// Internal users: no filter on assignedVendorId
 ```
 
-**Prevention Guidelines:**
-- Write explicit tests for different user types and their expected data visibility
-- Document the business logic for who should see what data
-- Be especially careful with "not null" and "not equals" filters
-- Consider unassigned/null state records in your query logic
-- Use positive filters (include what should be seen) rather than negative filters (exclude what shouldn't be seen) when possible
-- Always test with edge cases like unassigned or empty state records
+**Rule:** prefer positive filters (include what should be seen) over negative filters (exclude what shouldn't be seen). When you must use a negative filter, write a test that exercises the "absent" case — unassigned records, null foreign keys, empty collections.
 
-**Common Query Filter Mistakes:**
-- Using `{ not: null }` when users need to see unassigned records
-- Forgetting to handle null/undefined foreign key relationships
-- Over-filtering data that users with broader permissions should see
-- Not considering the "unassigned" workflow state in business logic
-- **Returning all records when no filter matches** - When filtering by conditional criteria and no matches are found, ensure you return an empty result set rather than all records
+### 7.2 Always Handle the Empty-Match Case
 
----
+When filtering by IDs from a subquery or computed list, the case where the list is empty needs explicit handling. Without it, the filter is silently skipped and all records are returned.
 
-## SECTION 7: API Filter Empty Results Standard
-
-**CRITICAL:** When implementing conditional filtering (e.g., filtering by service type and status), always handle the "no matches" case explicitly to prevent unintended data exposure.
-
-**Common Bug Pattern:**
-API endpoints that filter data based on user-provided criteria often fail to handle the case where no records match the filter. Without explicit handling, the query returns ALL records instead of an empty set.
-
-**Real-World Bug Example (Fixed March 20, 2026):**
-The comment templates API filtered templates by service type and status. When no template availabilities matched the criteria, the filter was skipped entirely, causing ALL active templates to be returned instead of the expected empty array.
-
-**Bug Pattern Example:**
 ```typescript
-// ❌ WRONG - Returns all records when no matches found
+// ❌ WRONG — when availableTemplateIds is empty, the filter is skipped
+//           and ALL active templates are returned
 const templateWhere: TemplateWhereClause = { isActive: true };
-
 if (availableTemplateIds.length > 0) {
   templateWhere.id = { in: availableTemplateIds.map(a => a.templateId) };
-  // Bug: If no IDs match, no filter is applied = all active templates returned
 }
-```
 
-**Correct Empty Results Pattern:**
-```typescript
-// ✅ CORRECT - Explicitly handle empty results
+// ✅ CORRECT — explicit empty-set filter when no IDs match
 const templateWhere: TemplateWhereClause = { isActive: true };
-
 if (availableTemplateIds.length > 0) {
   templateWhere.id = { in: availableTemplateIds.map(a => a.templateId) };
 } else {
-  // CRITICAL: Force empty result set when no matches found
-  // This ensures the API contract is honored: filtering should only return
-  // records that match the criteria, not all records when none match.
+  // Force empty result: filter explicitly says "match nothing"
   templateWhere.id = { in: [] };
 }
 ```
 
-**Prevention Guidelines:**
-- Always test filtering endpoints with criteria that match zero records
-- Document the expected behavior when no results match the filter
-- Use explicit empty array filters (`{ in: [] }`) rather than skipping filter entirely
-- Consider whether "no matches" should return empty array or throw an error
-- Test the complete user flow: what should users see when no data matches their filter?
+**Real bug this prevents:** the comment templates API filtered templates by service type and status. When no template availabilities matched the criteria, the filter was skipped entirely, causing ALL active templates to be returned instead of the expected empty array. Customers saw templates they shouldn't have had access to.
 
-**Standard Patterns:**
+### 7.3 Always Include `orderBy` on Multi-Record Queries
+
+Prisma queries without an explicit `orderBy` return records in undefined order. The order is consistent enough to fool you in development and inconsistent enough to break the UI in production.
+
 ```typescript
-// For ID-based filtering
-if (matchingIds.length > 0) {
-  where.id = { in: matchingIds };
-} else {
-  where.id = { in: [] }; // Force empty results
-}
+// ❌ WRONG — services jump around in the UI when their status updates
+const items = await prisma.orderItem.findMany({
+  where: { orderId },
+  include: { service: true, location: true },
+});
 
-// For existence-based filtering
-if (hasMatchingCriteria) {
-  where.foreignKey = { not: null };
-} else {
-  // Be explicit about what should happen
-  where.id = { in: [] }; // Or throw error if no matches is invalid
-}
+// ✅ CORRECT — explicit, multi-level ordering
+const items = await prisma.orderItem.findMany({
+  where: { orderId },
+  include: { service: true, location: true },
+  orderBy: [
+    { service: { name: 'asc' } },
+    { createdAt: 'asc' },
+  ],
+});
+```
+
+**Standard ordering choices by data type:**
+
+| Data | Default order |
+|---|---|
+| User-facing lists (customers, vendors, services) | Alphabetical by name |
+| Order items | By service name, then creation time |
+| Audit trails / history | Chronological, newest first (`createdAt: 'desc'`) |
+| User lists | Last name then first name |
+| Document lists | Upload date, newest first |
+
+```typescript
+// User-facing list — alphabetical
+orderBy: { name: 'asc' }
+
+// Audit trail — newest first
+orderBy: { createdAt: 'desc' }
+
+// Multi-level
+orderBy: [
+  { service: { name: 'asc' } },
+  { createdAt: 'asc' },
+]
 ```
 
 ---
 
-## SECTION 8: API Response Format Handling Standard
+## SECTION 8: Defensive Response Handling
 
-**CRITICAL:** Always handle API responses defensively to prevent crashes when response format changes from arrays to paginated responses.
+When consuming an API response in client or service code, never assume the response shape will not change. APIs that return arrays today may be paginated tomorrow, returning `{ data: [...], meta: {...} }` instead.
 
-**Common API Response Bug:**
-Frontend code assumes APIs return plain arrays, but APIs can be updated to return paginated responses with `{ data: [...], meta: {...} }` format. This causes "map is not a function" errors when the array methods are called on the paginated object.
+### 8.1 The Bug Pattern
 
-**Bug Pattern Example:**
 ```typescript
-// ❌ WRONG - Assumes API always returns an array
+// ❌ WRONG — assumes a plain array
 fetch('/api/customers')
   .then(res => res.json())
-  .then(data => setCustomers(data)) // Breaks if API returns {data: [...], meta: {...}}
-  .then(() => customers.map(...))  // "customers.map is not a function" error
+  .then(data => setCustomers(data))    // Breaks if API now returns { data: [...] }
+  .then(() => customers.map(...));      // "customers.map is not a function"
 ```
 
-**Correct Defensive Pattern:**
+### 8.2 The Defensive Pattern
+
 ```typescript
-// ✅ CORRECT - Handles both array and paginated response formats
+// ✅ CORRECT — handles both array and paginated formats
 fetch('/api/customers')
   .then(res => res.json())
   .then(data => {
-    // Defensive handling: Support both formats
-    const customersArray = Array.isArray(data) ? data : data?.data || [];
+    const customersArray = Array.isArray(data) ? data : (data?.data ?? []);
     setCustomers(customersArray);
-  })
+  });
 ```
 
-**Prevention Guidelines:**
-- Always use defensive handling when consuming API responses
-- Extract arrays from paginated responses using `data?.data || []` fallback
-- Test with both response formats when possible
-- Comment the defensive handling to explain why it's necessary
-- Consider standardizing API response formats to prevent inconsistency
+### 8.3 The Reusable Helper
 
-**Common Locations Requiring Defensive Handling:**
-- Customer lists in forms and dropdowns
-- Vendor lists in assignment components
-- Service lists in configuration pages
-- Order lists in fulfillment dashboards
-- Any API endpoint that could be paginated in the future
+For any code that consumes API responses regularly, use a single helper:
 
-**Standard Defensive Pattern:**
 ```typescript
-// Standard pattern for API array responses
-const handleApiResponse = (data: unknown) => {
-  if (Array.isArray(data)) {
-    return data;
-  }
+const handleApiResponse = (data: unknown): unknown[] => {
+  if (Array.isArray(data)) return data;
   if (data && typeof data === 'object' && 'data' in data) {
     return Array.isArray(data.data) ? data.data : [];
   }
   return [];
 };
 
-// Usage in components
+// Usage
 fetch('/api/endpoint')
   .then(res => res.json())
-  .then(data => setItems(handleApiResponse(data)))
+  .then(data => setItems(handleApiResponse(data)));
 ```
+
+**Common locations that need this defensive pattern:** customer lists in forms and dropdowns, vendor lists in assignment components, service lists in configuration pages, order lists in fulfillment dashboards. Any endpoint that *could* be paginated in the future *should* be consumed defensively today.
 
 ---
 
-## SECTION 9: Database Query Ordering Standard
+## SECTION 9: Environment Variables
 
-**CRITICAL:** Always include explicit `orderBy` clauses in Prisma queries that return multiple records to ensure consistent display order across operations.
+### 9.1 No Secrets in Code
 
-**Common Ordering Bug:**
-Prisma queries without explicit `orderBy` clauses return records in undefined order. This causes UI instability when records appear to "jump around" or change positions after updates, even though the data itself is correct.
+Database URLs, API keys, passwords, and other secrets must only exist in environment variables (`.env.local`). Never hardcode secrets in any file that is committed to GitHub.
 
-**Real-World Bug Example (Fixed March 14, 2026):**
-Services within an order were changing display order when their status was updated because there was no explicit orderBy clause when fetching order items. This caused the database to return them in an undefined order, making services appear to "jump around" in the UI after status updates.
+### 9.2 Document Every Variable
 
-**Bug Pattern Example:**
-```typescript
-// ❌ WRONG - No orderBy specified, results returned in undefined order
-const items = await prisma.orderItem.findMany({
-  where: { orderId },
-  include: {
-    service: true,
-    location: true
-  }
-  // Missing orderBy - order can change between queries
-});
-```
-
-**Correct Ordering Pattern:**
-```typescript
-// ✅ CORRECT - Explicit ordering prevents UI instability
-const items = await prisma.orderItem.findMany({
-  where: { orderId },
-  include: {
-    service: true,
-    location: true
-  },
-  // CRITICAL: Always order by service name then creation time to prevent
-  // services from changing display order when their status is updated.
-  // Without explicit ordering, Prisma returns results in undefined order
-  // which caused UI instability when services moved around after status updates.
-  orderBy: [
-    { service: { name: 'asc' } },
-    { createdAt: 'asc' }
-  ]
-});
-```
-
-**Prevention Guidelines:**
-- Include explicit `orderBy` in every query that returns multiple records
-- Use meaningful sort orders (alphabetical for user-facing lists, chronological for logs)
-- Use multi-level sorting for consistent ordering when primary field has duplicates
-- Document the ordering choice in comments if the business logic is not obvious
-- Test UI stability by performing updates and verifying records don't move unexpectedly
-
-**Common Ordering Requirements:**
-- **Order items:** Sort by service name for consistent display
-- **Service lists:** Sort by name for easy scanning
-- **Status history:** Sort by date (newest first) for chronological order
-- **User lists:** Sort by last name then first name
-- **Document lists:** Sort by upload date or document type
-
-**Standard Patterns:**
-```typescript
-// For user-facing lists - alphabetical
-orderBy: { name: 'asc' }
-
-// For audit trails - chronological (newest first)
-orderBy: { createdAt: 'desc' }
-
-// For complex relationships - multi-level sorting
-orderBy: [
-  { service: { name: 'asc' } },
-  { createdAt: 'asc' }
-]
-```
-
-**Files Fixed (March 14, 2026):**
-- `/src/lib/services/order-core.service.ts` (lines 505-508, 567-570)
-- `/src/app/api/fulfillment/route.ts` (lines 143-146)
-- `/src/app/api/fulfillment/orders/[id]/route.ts` (lines 220-223)
+Every environment variable used in the project must be listed in `.env.example` with a short description of what it is. The example file should never contain real values — placeholder values only.
 
 ---
 
-## SECTION 10: API Error Check Sequence Standard
+## SECTION 10: Next.js 15 Dynamic Route Parameters
 
-**CRITICAL:** API route handlers must follow a consistent order of validation checks to ensure appropriate error responses and prevent unintended data exposure.
+Next.js 15 changed the type of `params` in route handlers from a synchronous object to a `Promise`. This is a breaking change from Next.js 14 and must be handled in every dynamic route (`[id]`, `[slug]`, etc.) in the codebase.
 
-**Standard Check Sequence:**
-When implementing API route handlers, perform validation checks in this exact order:
+### 10.1 The Required Pattern
 
-1. **401 Unauthorized** - Authentication check (session exists)
-2. **Customer type skip** - Early exit for non-applicable user types (return success skip status)
-3. **400 Bad Request** - Input validation (required parameters, format validation)
-4. **404 Not Found** - Resource existence checks (order exists, item exists)
-5. **403 Forbidden** - Authorization checks (customer scoping, permissions)
-6. **200 Success** - Business logic execution
-
-**Example Implementation:**
 ```typescript
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  // Step 1: Authentication check - ALWAYS first
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // Step 2: User type check - skip for non-applicable users
-  // WHY: Admin/vendor users on stale URLs shouldn't get 404s when the resource
-  // exists but belongs to a different customer - they should get graceful skips
-  if (session.user.userType !== 'customer') {
-    return NextResponse.json({ skipped: true }, { status: 200 });
-  }
-
-  // Step 3: Input validation
-  if (!params.id) {
-    return NextResponse.json({ error: 'Resource ID is required' }, { status: 400 });
-  }
-
-  // Step 4: Resource existence check
-  const resource = await prisma.resource.findUnique({ where: { id: params.id } });
-  if (!resource) {
-    return NextResponse.json({ error: 'Resource not found' }, { status: 404 });
-  }
-
-  // Step 5: Authorization check (customer scoping)
-  if (resource.customerId !== session.user.customerId) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  // Step 6: Business logic execution
-  // ... perform the requested operation
-}
-```
-
-**Why This Sequence Matters:**
-- **Authentication first** - Prevents any data leakage to unauthenticated users
-- **Type check early** - Prevents inappropriate 404s for admin/vendor users on customer-only endpoints
-- **Input validation before DB queries** - Fails fast on malformed requests
-- **Existence before authorization** - Clear distinction between "not found" and "not allowed"
-- **Authorization last** - Only after confirming resource exists and user should potentially access it
-
-**Common Anti-patterns:**
-- Checking authorization before existence (returns 403 when should return 404)
-- Checking existence before authentication (potential information leakage)
-- Missing user type skip checks (admin users get confusing 404s)
-
-**Pattern Established:** April 8, 2026 - Order View Tracking Phase 2A implementation
-
----
-
-## SECTION 11: Environment Variables
-
-### 11.1 No Secrets in Code
-
-Database URLs, API keys, passwords, and other secrets must only exist in
-environment variables (`.env.local`). Never hardcode secrets in any file
-that is committed to GitHub.
-
-### 11.2 Environment Variables Must Be Documented
-
-Every environment variable used in the project must be listed in `.env.example`
-with a description of what it is (but not its real value).
-
----
-
-## SECTION 12: Next.js 15 Migration Requirements
-
-**CRITICAL:** Next.js 15 introduced breaking changes to API route parameter handling that must be addressed in all dynamic route handlers.
-
-### 12.1 Dynamic Route Parameters are Now Promises
-
-In Next.js 15, the `params` object passed to API route handlers is now a Promise that must be awaited before accessing its properties. This is a breaking change from Next.js 14.
-
-**Next.js 14 (Old Pattern):**
-```typescript
+// ✅ CORRECT — Next.js 15 requires awaiting params
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }  // Synchronous object
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params; // Direct access worked in Next.js 14
-  // ...rest of handler
+  const { id } = await params;
+  // ... rest of handler
 }
 ```
 
-**Next.js 15 (Required Pattern):**
 ```typescript
+// ❌ WRONG — Next.js 14 pattern, will throw at runtime in Next.js 15
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }  // Now a Promise
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params; // MUST await before accessing properties
-  // ...rest of handler
+  const { id } = params;  // TypeError: cannot destructure property 'id' of undefined
+  // ... rest of handler
 }
 ```
 
-### 12.2 Migration Impact
+### 10.2 What to Update
 
-**Files Fixed (March 27, 2026):**
-- `/src/app/api/packages/[id]/route.ts` - Fixed GET, PUT, DELETE handlers
-- `/src/app/api/customers/[id]/packages/route.ts` - Fixed GET, POST handlers
+For any route with dynamic segments:
 
-**Runtime Error Before Fix:**
-Attempting to destructure properties from `params` without awaiting would cause runtime errors:
-```
-TypeError: Cannot destructure property 'id' of 'params' as it is undefined
-```
+1. **Update the TypeScript interface** to declare `params` as `Promise<{ ... }>`
+2. **Add `await`** before destructuring `params`
+3. **Add a brief comment** noting the Next.js 15 requirement so a future developer doesn't try to "simplify" the await away
+4. **Verify with a regression test** that the handler doesn't throw when called
 
-### 12.3 Required Changes for All Dynamic Routes
+### 10.3 Standard Comment
 
-For any API route with dynamic segments (`[id]`, `[slug]`, etc.):
-
-1. **Update the TypeScript interface** to indicate params is a Promise
-2. **Add await before destructuring** params properties
-3. **Add explanatory comments** about the Next.js 15 requirement
-4. **Test the route handlers** to ensure they work correctly
-
-**Standard Comment Pattern:**
 ```typescript
-// Next.js 15 Migration: params is now a Promise that must be awaited
-// before accessing its properties. This prevents runtime errors
-// when destructuring { id } from the params object.
+// Next.js 15: params is a Promise that must be awaited before destructuring
 const { id } = await params;
 ```
 
-### 12.4 Regression Test Requirements
-
-When fixing Next.js 15 params issues, comprehensive regression tests must be written to prevent future breakage:
-
-- Test that all handlers correctly extract parameters from awaited params
-- Test that handlers don't crash with runtime errors
-- Test business logic continues to work correctly after the fix
-- Add tests that would fail if someone accidentally removes the `await` keyword
-
 ---
 
-## SECTION 13: API Documentation
+## SECTION 11: API Documentation (JSDoc)
 
-Every API endpoint must have:
+Every API endpoint must have a JSDoc block describing its contract. This is the single source of truth for how the endpoint behaves — what it requires, what it returns, and what can go wrong.
+
+### 11.1 The Required Format
 
 ```typescript
 /**
  * GET /api/customers/[id]/packages
  *
- * Retrieves all packages for a specific customer
+ * Retrieves all packages for a specific customer.
  *
  * Required permissions: customers.view
  *
@@ -699,26 +555,58 @@ Every API endpoint must have:
  */
 ```
 
+### 11.2 What Every Block Must Cover
+
+- **Method and path** — exactly as Next.js routes it
+- **One-sentence description** of what the endpoint does
+- **Required permissions** — name the centralized function or permission key
+- **Query params and request body** — including types, defaults, and which are required
+- **Response shape** — what the success case returns
+- **Error cases** — every status code the handler can return, and what triggers it
+
+### 11.3 When to Update
+
+Update the JSDoc block any time you change the endpoint's behavior — adding a new query param, changing the response shape, adding a new error case, modifying permissions. A stale JSDoc block is worse than no JSDoc block, because it tells the next developer the wrong thing with confidence.
+
 ---
 
 ## API STANDARDS CHECKLIST
 
-### API Route Verification:
-- [ ] Authentication check is first thing in route handler
-- [ ] Input validation with Zod before using data
-- [ ] Try/catch wraps all database calls
-- [ ] Correct HTTP status codes returned
-- [ ] Only necessary data returned (no sensitive fields)
-- [ ] Using correct endpoint path for user type
-- [ ] Centralized permission functions used (not inline checks)
-- [ ] Using `session.user.userType` not `session.user.type`
-- [ ] Data normalized at API boundaries
-- [ ] Query filters handle empty results explicitly
-- [ ] Defensive handling for API responses
-- [ ] Explicit orderBy in all multi-record queries
-- [ ] No hardcoded secrets (use environment variables)
-- [ ] Environment variables documented in .env.example
-- [ ] API endpoint has JSDoc documentation
-- [ ] **Next.js 15 Migration:** Dynamic route params are awaited before use
-- [ ] **Next.js 15 Migration:** TypeScript interface shows params as Promise
-- [ ] **Next.js 15 Migration:** Regression tests verify params handling
+### Route structure:
+- [ ] Authentication check is the first thing in the handler
+- [ ] Input validated with Zod before being used
+- [ ] All database calls inside try/catch
+- [ ] Correct HTTP status code returned for each case
+- [ ] Only necessary fields returned (no password hashes, tokens, internal flags)
+
+### Validation order:
+- [ ] Checks run in order: 401 → user-type skip → 400 → 404 → 403 → 200
+- [ ] No 403 returned where the resource doesn't exist (should be 404)
+- [ ] No 404 returned for admin/vendor users on customer-only endpoints (should be skip-200)
+
+### Permissions:
+- [ ] Permission check uses a centralized function from `auth-utils.ts`
+- [ ] No inline permission checks (`session.user.permissions?.x === true`)
+- [ ] Endpoint cannot be called without authentication AND (where applicable) permission
+
+### User type and routing:
+- [ ] Uses `session.user.userType`, never `session.user.type`
+- [ ] Customer endpoints under `/api/portal/*`, internal under `/api/fulfillment/*` or `/api/admin/*`, vendor under `/api/vendor/*`
+- [ ] Endpoint not shared across user types in a way that requires per-type branching for permissions
+
+### Data and queries:
+- [ ] Status, email, and code values normalized at the API boundary before DB operations
+- [ ] Negative filters (`{ not: null }`) reviewed for false-exclusion bugs
+- [ ] Empty-match case handled explicitly (`{ in: [] }`) where filtering by a computed ID list
+- [ ] Explicit `orderBy` on every multi-record query
+- [ ] API responses consumed defensively (handles both array and `{ data: [...] }` shapes)
+
+### Environment and Next.js 15:
+- [ ] No hardcoded secrets — all values via environment variables
+- [ ] Every environment variable documented in `.env.example`
+- [ ] Dynamic route params typed as `Promise<{ ... }>` and awaited before destructuring
+
+### Documentation:
+- [ ] JSDoc block present on every endpoint
+- [ ] JSDoc covers method, path, permissions, params, response shape, and all error cases
+- [ ] JSDoc updated when endpoint behavior changes
