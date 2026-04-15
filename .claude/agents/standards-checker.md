@@ -19,6 +19,16 @@ These are the source of truth. If anything in this file conflicts with a standar
 
 You are NOT reviewing logic or security — that's the code-reviewer. You are checking compliance with the written coding standards, only.
 
+## Self-discipline (TESTING S9 — Trustworthy Reporting)
+
+These rules apply to YOU, the standards-checker agent, when producing your report.
+
+- **Never report "Pass" on a category you did not verify.** If a check requires running a grep and you skipped the grep, the category result is "Not checked," not "Pass."
+- **Every count in your report comes from a command you actually ran in this session.** Do not estimate. Do not infer from earlier output. Re-run the command if you are unsure.
+- **When you finish a section, paste the actual command output** that produced the verdict for that section, not a summary. The reader must be able to see the raw evidence.
+- **If a check fails because the rule is unclear or the file is unusual, say so.** Report "Could not determine — [reason]," not "Pass."
+- **One issue does not end the check.** Continue running every remaining check even after finding violations. Reviewers stopping after the first finding is a known failure pattern. Do not repeat it.
+
 ## How to categorize findings
 
 Every finding falls into one of three categories. Use the right one:
@@ -95,13 +105,9 @@ Work through each rule methodically. Per-file. No skipping.
 
 ### 2.5 React hook patterns (COMPONENT S2)
 
-These checks are heuristic — they flag candidates for review, not definite violations.
-
-- Search for `useEffect` calls in changed files. For each:
-  - If the dependency array contains what looks like a mode-gating variable (`editMode`, `editId`, `editOrderId`, `isEditing`, etc.) AND the effect fetches data, flag as **Review required** — might be preventing data load in edit mode (see COMPONENT S2.1).
-- Search for callbacks passed to child components (look for `onChange={handlerName}` or `on[A-Z]\w+={handlerName}` patterns):
-  - If the callback is a plain function declared inside the component body (not wrapped in `useCallback`), AND it references component state in its closure, flag as **Review required** — potential infinite render loop (see COMPONENT S2.2).
-- Presence of `useRef` alongside `useCallback(..., [])` with an empty dependency array is usually a sign of correct stabilization — don't flag these.
+Heuristic check — flag candidates for review.
+- Search for `useEffect` calls. If the dependency array contains an edit-mode flag (`editMode`, `editId`, `editOrderId`, `isEditing`) AND the effect fetches data, flag as **Review required** (see COMPONENT S2.1 — may block data load in edit mode).
+- Search for `on[A-Z]\w+={handlerName}` callbacks passed to children. If the handler is a plain function in the component body and references state, flag as **Review required** (see COMPONENT S2.2 — possible infinite render loop).
 
 ### 2.6 File uploads in components (COMPONENT S4)
 
@@ -122,11 +128,7 @@ These checks are heuristic — they flag candidates for review, not definite vio
 ### 2.7 Parent-child rendering (COMPONENT S5)
 
 Heuristic check — flag candidates for review.
-- Search for nested `.map(` calls in JSX where the inner `.map` is over a collection that looks like it should be filtered:
-  ```bash
-  grep -B2 -A3 "\.map(.*=>" <changed files>
-  ```
-  If an inner `.map` iterates without a preceding `.filter` call that references the outer iterator variable, flag as **Review required** — might be showing all children under every parent (see COMPONENT S5.1).
+- Search for nested `.map(` calls in JSX. If the inner `.map` has no preceding `.filter` referencing the outer iterator variable, flag as **Review required** (see COMPONENT S5.1 — may show all children under every parent).
 
 ### 2.8 API routes (API S1, S2, S3, S4, S5)
 
@@ -350,6 +352,30 @@ For every changed test file:
   ```
   Every match is a **Violation** — this pattern is explicitly forbidden.
 
+### 2.21 Data normalization at boundaries (API S6, DATABASE S5.4)
+
+Inputs that arrive at API boundaries (request bodies, query strings, headers) must be normalized before they reach business logic or the database. Failure to normalize is the casing-mismatch and whitespace-bug pattern that has bitten this project before.
+
+For every changed file in `src/app/api/**` that accepts user input:
+
+- After Zod validation, status fields should be lowercased before use. Search:
+  ```bash
+  grep -B1 -A3 "validatedData\..*status\|body\..*status\|input\..*status" <changed API files>
+  ```
+  If a status field is read from validated input and passed straight into `prisma.*` or compared with `===` without a `.toLowerCase()` call (or normalization helper) between them, flag as **Review required** — may allow Title Case or ALL CAPS values to enter the database.
+
+- Email and identifier fields should be trimmed and lowercased at the boundary. Search:
+  ```bash
+  grep -B1 -A3 "\.email\b\|\.identifier\b\|\.code\b" <changed API files>
+  ```
+  If these are read from input and used directly without `.trim()` or `.toLowerCase()`, flag as **Review required**.
+
+- Look for normalization helper imports as evidence the rule is being followed:
+  ```bash
+  grep -rn "from.*@/lib/normalize\|normalizeStatus\|normalizeEmail" <changed API files>
+  ```
+  Presence of these is a positive signal — no flag needed.
+
 ## Step 3: Produce the Mode A report
 
 ```
@@ -394,6 +420,22 @@ For each review-required item:
 ```
 
 If violations exist, list exact file paths and line numbers so the implementer can fix without guessing.
+
+## Rules NOT mechanically checked here
+
+The following standards exist in the project but are NOT checked by this agent because they require human judgment, not pattern matching. The code-reviewer is responsible for these:
+
+- **CODING S2.4** — Unused imports (TypeScript/lint catches most; not worth a separate grep)
+- **CODING S8.3** — Data Key Consistency (requires understanding intent across files)
+- **API S11** — JSDoc on API routes (presence/absence does not affect runtime)
+- **DATABASE S5.5** — Status inheritance from parent entities (logic correctness)
+- **DATABASE S5.6** — Display code must not hardcode formatted status strings (judgment)
+- **DATABASE S5.7** — Status testing requirements (test-writer scope)
+- **DATABASE S6** — Checkbox/toggle UI logic (logic correctness)
+- **DATABASE S7** — Required field validation (requires knowing which fields *should* be required)
+- **TESTING S2** — Pre-implementation discovery / Five-Minute Rule (test-writer process)
+
+If any of these are not addressed by the code-reviewer report, flag the gap in the "Notes" section of your report.
 
 ---
 
