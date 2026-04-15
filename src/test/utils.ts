@@ -258,6 +258,9 @@ export function createMockPrisma(): any {
       deleteMany: vi.fn(),
       count: vi.fn(),
       groupBy: vi.fn(),
+      upsert: vi.fn(),
+      createMany: vi.fn(),
+      aggregate: vi.fn(),
     },
     serviceAuditLog: {
       findUnique: vi.fn(),
