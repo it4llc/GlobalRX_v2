@@ -953,6 +953,9 @@ During a dedicated e2e test maintenance pass, or before merging Phase 2D which w
 - Any test user seeding / README documentation
 
 ---
+### TD-035 — Pre-existing TypeScript errors across test files and utilities
+
+pnpm tsc --noEmit reports errors in src/test/setup.ts (missing vitest globals), src/__tests__/404-error-handling/missing-services-fulfillment.test.ts (Prisma mock type mismatches), src/lib/utils/__tests__/customer-order-permissions.test.ts, src/lib/vendorUtils.ts, and several E2E spec files. Most are related to the 167 skipped tests on temp/skip-failing-tests commit 3c3a641. Revealed during Phase 2D code review on 2026-04-14; not caused by Phase 2D. Cleanup should be scoped as its own branch and paired with the deferred-test cleanup.
 
 ## Resolved Items
 

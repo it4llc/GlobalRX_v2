@@ -212,28 +212,34 @@ Before you type CONTINUE, please check:
 - Are there any concerns about what will be changed?
 - Are there any open questions that need answers first?
 
-Type CONTINUE to move to Stage 3 (Test Writing).
+Type CONTINUE to move to Stage 3 (Test Writing — Pass 1).
 ---
 
 STOP. Do not proceed. Wait for Andy to type CONTINUE.
 
 ---
 
-## STAGE 3: Test Writing
+## STAGE 3: Test Writing (Pass 1)
 
 Only run this stage after Andy has typed CONTINUE.
 
-Run the test-writer agent.
+Run the test-writer-1 agent.
 
 Tell the agent:
-"Before doing any work, output the 'Absolute rules I am operating under' section
-required by your agent file. List every rule verbatim.
+"Before doing any work, read .claude/agents/test-writer-shared.md in full and output the exact confirmation line required by that file. Then follow the test-writer-1 process to write Pass 1 tests for the feature specified in docs/specs/[filename].md.
 
-Then write all tests for the feature specified in docs/specs/[filename].md
-Read the spec file and output the Spec Confirmation Block before writing any tests.
-Write unit tests, API route tests, and end-to-end tests.
-Do not write any production code.
-All tests should fail when first run — that is correct."
+Pass 1 writes ONLY:
+- Schema and validation tests (for Zod schemas defined in the technical plan)
+- End-to-end tests (Playwright)
+
+Pass 1 does NOT write:
+- Component tests (deferred to Pass 2 in Stage 5)
+- API route tests (deferred to Pass 2 in Stage 5)
+- Unit tests for service or utility functions (deferred to Pass 2 in Stage 5)
+
+Run the Phase Test Inventory gate before writing any tests. If the inventory returns 0 test files, produce the Pass 1 summary stating so and stop — that is a valid and complete result for this stage.
+
+Output the Spec Confirmation Block, the Source Files Read Log (Pass 1 version), and the Pattern Match Block as required by the test-writer-1 agent file. Do not write any production code. Pass 1 tests should fail when first run — that is correct."
 
 After the agent finishes, run the tests:
 ```bash
@@ -261,17 +267,21 @@ is staged, STOP and report to Andy.
 Then show this summary and STOP:
 
 ---
-STAGE 3 COMPLETE — Test Writing
+STAGE 3 COMPLETE — Test Writing (Pass 1)
 
 Spec file used: docs/specs/[filename].md
 Spec Confirmation Block produced: Yes / No
 Checkpoint commit: [commit hash]
 
-Tests written:
-- Unit tests: [n]
-- API route tests: [n]
+Tests written in Pass 1:
+- Schema / validation tests: [n]
 - End-to-end tests: [n]
-- Total: [n]
+- Total Pass 1 tests: [n]
+
+Tests deferred to Pass 2 (will run in Stage 5):
+- Component tests: [n expected]
+- API route tests: [n expected]
+- Unit tests for service / utility functions: [n expected]
 
 Test run result: [n] failing (this is correct — they should all fail before code is written)
 
@@ -311,7 +321,7 @@ Run the implementer agent.
 
 Tell the agent:
 "Before doing any work, output the 'Absolute rules I am operating under for this run'
-section required by your agent file. List Rules 1 through 6 verbatim. Do not
+section required by your agent file. List Rules 1 through 10 verbatim. Do not
 abbreviate. Do not summarize. If you skip this output, your work will be
 discarded and you will be asked to start over.
 
@@ -402,14 +412,96 @@ Before you type CONTINUE, please check:
 - Are you satisfied with the test results?
 - Were any test files touched during this stage? (should be no)
 
-Type CONTINUE to move to Stage 5 (Code Review).
+Type CONTINUE to move to Stage 5 (Test Writing — Pass 2).
 ---
 
 STOP. Do not proceed. Wait for Andy to type CONTINUE.
 
 ---
 
-## STAGE 5: Code Review
+## STAGE 5: Test Writing (Pass 2)
+
+Only run this stage after Andy has typed CONTINUE.
+
+Run the test-writer-2 agent.
+
+Tell the agent:
+"Before doing any work, read .claude/agents/test-writer-shared.md in full and output the exact confirmation line required by that file. Then follow the test-writer-2 process to write Pass 2 tests for the feature.
+
+Pass 2 writes:
+- Component tests (React Testing Library) for every component the implementer created
+- API route tests (Vitest) for every route handler the implementer created
+- Unit tests for every service or utility function with real application logic that the implementer created
+
+You MUST read every source file the implementer created before writing any test. You MUST output the Source Files Read Log (Pass 2 version), the Pattern Match Block, and the Mock Reference Table as required by the test-writer-2 agent file.
+
+The Mocking Rules (M1 through M4) in test-writer-2.md are the load-bearing discipline of this pass. Apply them at all times. If you find yourself considering an exception to any mocking rule, STOP and ask rather than rationalizing it.
+
+At the end of Pass 2, the completion summary MUST include the Mock Self-Verification section with every vi.mock() call pasted verbatim from every test file created, plus the four rule compliance confirmations (M1 through M4). Without this section, the work is incomplete."
+
+After the agent finishes, run the tests:
+```bash
+pnpm vitest run 2>&1
+```
+
+If test-writer-2 did not output the confirmation line from test-writer-shared.md — send it back. If it did not output the Mock Reference Table before writing tests — send it back. If the Mock Self-Verification section is missing from the summary — send it back. Do not accept Pass 2 work without these.
+
+Pass 2 tests should PASS on first run (unlike Pass 1, which expects failures). If any Pass 2 test fails, the failure is telling you something — either the mock is wrong, the assertion is wrong, or the implementer's code has a bug. Investigate before proceeding, do not rewrite the test to make it pass.
+
+### Stage 5 checkpoint commit
+
+Once Pass 2 tests are written and passing, commit them:
+
+```bash
+git add .
+git status
+git commit -m "checkpoint(stage-5): Pass 2 tests written and passing"
+```
+
+Review the git status output before committing. Only test files should be staged. If anything outside of test directories is staged, STOP and report to Andy — Pass 2 should not modify production code.
+
+Then show this summary and STOP:
+
+---
+STAGE 5 COMPLETE — Test Writing (Pass 2)
+
+Shared rules confirmation produced by test-writer-2: Yes / No
+Mock Reference Table produced: Yes / No
+Mock Self-Verification section included in summary: Yes / No
+Rule M1 compliance confirmed (never mock subject of test): Yes / No
+Rule M2 compliance confirmed (never mock children whose rendering matters): Yes / No
+Rule M3 compliance confirmed (no scripted return values for utility functions): Yes / No
+Rule M4 compliance confirmed (no invented exceptions): Yes / No
+Checkpoint commit: [commit hash]
+
+Tests written in Pass 2:
+- Component tests: [n]
+- API route tests: [n]
+- Unit tests for service / utility functions: [n]
+- Total Pass 2 tests: [n]
+
+Combined test count:
+- Pass 1 tests: [n from Stage 3]
+- Pass 2 tests: [n]
+- Grand total: [n]
+
+Test run result:
+- Passing: [n]
+- Failing: [n, must be 0]
+
+Before you type CONTINUE, please check:
+- Did every vi.mock call appear in the self-verification section?
+- Are all four mocking rule compliance answers "Yes"?
+- Are all Pass 2 tests passing?
+
+Type CONTINUE to move to Stage 6 (Code Review).
+---
+
+STOP. Do not proceed. Wait for Andy to type CONTINUE.
+
+---
+
+## STAGE 6: Code Review
 
 Only run this stage after Andy has typed CONTINUE.
 
@@ -432,7 +524,7 @@ tests. Your job is to read and report only.
 Your report must end with one of these verdicts:
 APPROVED / APPROVED WITH CONDITIONS / REQUIRES REWORK"
 
-### Stage 5 checkpoint commit
+### Stage 6 checkpoint commit
 
 Code review does not modify files, so there is nothing to commit at this stage
 unless the verdict is REQUIRES REWORK and the implementer makes fixes. If the
@@ -442,13 +534,13 @@ are verified passing:
 ```bash
 git add .
 git status
-git commit -m "checkpoint(stage-5): code review fixes applied"
+git commit -m "checkpoint(stage-6): code review fixes applied"
 ```
 
 Then show this summary and STOP:
 
 ---
-STAGE 5 COMPLETE — Code Review
+STAGE 6 COMPLETE — Code Review
 
 Verdict: [APPROVED / APPROVED WITH CONDITIONS / REQUIRES REWORK]
 Checkpoint commit (if fixes applied): [commit hash, or N/A]
@@ -471,14 +563,14 @@ Tests must still pass after fixes. Tell me when fixes are done and I will
 re-run the code review before showing this summary again.
 
 [If APPROVED or APPROVED WITH CONDITIONS:]
-Type CONTINUE to move to Stage 6 (Standards Check).
+Type CONTINUE to move to Stage 7 (Standards Check).
 ---
 
 STOP. Do not proceed. Wait for Andy to type CONTINUE.
 
 ---
 
-## STAGE 6: Standards Check
+## STAGE 7: Standards Check
 
 Only run this stage after Andy has typed CONTINUE.
 
@@ -511,7 +603,7 @@ the implementer back, the prompt MUST include:
 After fixes, re-run the standards-checker. Run pnpm vitest run again after fixes
 to confirm still 0 failures. Do not show the summary until violations = 0.
 
-### Stage 6 checkpoint commit
+### Stage 7 checkpoint commit
 
 Once violations are 0 (whether there were any to fix or not), commit any
 fixes that were made:
@@ -519,7 +611,7 @@ fixes that were made:
 ```bash
 git add .
 git status
-git commit -m "checkpoint(stage-6): standards check passed"
+git commit -m "checkpoint(stage-7): standards check passed"
 ```
 
 If no fixes were needed, you may skip the commit (nothing to stage). The
@@ -528,7 +620,7 @@ git status should be clean.
 Then show this summary and STOP:
 
 ---
-STAGE 6 COMPLETE — Standards Check
+STAGE 7 COMPLETE — Standards Check
 
 Violations found: [n, should be 0]
 Files checked: [list]
@@ -548,14 +640,14 @@ Test results after any fixes:
 - Passing: [n]
 - Failing: 0
 
-Type CONTINUE to move to Stage 7 (Documentation).
+Type CONTINUE to move to Stage 8 (Documentation).
 ---
 
 STOP. Do not proceed. Wait for Andy to type CONTINUE.
 
 ---
 
-## STAGE 7: Documentation
+## STAGE 8: Documentation
 
 Only run this stage after Andy has typed CONTINUE.
 
@@ -577,14 +669,14 @@ You may add inline comments to existing source files but you may NOT change
 any logic in those files. You may NOT modify any test file. You may NOT
 delete any file. You may NOT run any tests."
 
-### Stage 7 checkpoint commit
+### Stage 8 checkpoint commit
 
 Once documentation updates are complete, commit them:
 
 ```bash
 git add .
 git status
-git commit -m "checkpoint(stage-7): documentation updated, feature complete"
+git commit -m "checkpoint(stage-8): documentation updated, feature complete"
 ```
 
 Review git status before committing. Documentation files (docs/, README.md,
@@ -599,13 +691,14 @@ PIPELINE COMPLETE
 Feature: [Feature Name]
 Spec file: docs/specs/[filename].md
 
-Stage 1: Business Analysis      COMPLETE — spec saved to docs/specs/   [commit hash]
-Stage 2: Technical Planning     COMPLETE — plan confirmed              [commit hash]
-Stage 3: Test Writing           COMPLETE — [n] tests, all initially failing  [commit hash]
-Stage 4: Implementation         COMPLETE — [n] tests passing, 0 failing  [commit hash]
-Stage 5: Code Review            COMPLETE — [verdict]                   [commit hash if fixes]
-Stage 6: Standards Check        COMPLETE — 0 violations                [commit hash if fixes]
-Stage 7: Documentation          COMPLETE                               [commit hash]
+Stage 1: Business Analysis        COMPLETE — spec saved to docs/specs/         [commit hash]
+Stage 2: Technical Planning       COMPLETE — plan confirmed                    [commit hash]
+Stage 3: Test Writing (Pass 1)    COMPLETE — [n] tests, all initially failing  [commit hash]
+Stage 4: Implementation           COMPLETE — [n] tests passing, 0 failing      [commit hash]
+Stage 5: Test Writing (Pass 2)    COMPLETE — [n] tests passing                 [commit hash]
+Stage 6: Code Review              COMPLETE — [verdict]                         [commit hash if fixes]
+Stage 7: Standards Check          COMPLETE — 0 violations                      [commit hash if fixes]
+Stage 8: Documentation            COMPLETE                                     [commit hash]
 
 Files created: [list]
 Files modified: [list]
