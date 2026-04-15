@@ -10,7 +10,7 @@
 | # | Bucket | Status | Errors removed | Date |
 |---|--------|--------|----------------|------|
 | 1 | Delete dead .old/.original files | Complete | 67 | 2026-04-15 |
-| 2 | Fix Prisma mock typing pattern in tests | In progress | 132 | 2026-04-15 |
+| 2 | Fix Prisma mock typing pattern in tests | In progress | 148 | 2026-04-15 |
 | 3 | Add types to old components | Not started | — | — |
 | 4 | Schema drift in production API routes | Not started | — | — |
 | 5 | Long tail | Not started | — | — |
@@ -52,3 +52,16 @@ Project errors: 3,098 → 3,042 (56 removed)
 Tests: still 2,631 passing, 167 skipped, 0 failing
 Global mock methods added to src/test/utils.ts: none
 Deferred items: 2 bad assertions in status/fulfillment-id-standardization.test.ts logged to TECH_DEBT.md as TD-036
+
+### 2026-04-15 — Bucket 2 Batch 2B
+Branch: cleanup/bucket2-batch-2b
+Applied proven Prisma mock fix pattern to 4 files:
+- src/components/portal/orders/hooks/__tests__/useOrderFormState.address-block-bug.test.ts (15 → 15, no Prisma mocks)
+- src/components/portal/orders/hooks/__tests__/useOrderFormState.test.ts (10 → 10, no Prisma mocks)
+- src/components/services/__tests__/ServiceCommentSection-fulfillment-id-standardization.test.tsx (34 → 34, no Prisma mocks)
+- src/__tests__/integration/fulfillment-id-standardization.integration.test.ts (58 → 42)
+
+Project errors: 3,042 → 3,026 (16 removed)
+Tests: still 2,631 passing, 167 skipped, 0 failing
+Global mock methods added to src/test/utils.ts: none
+Deferred assertions (TD-XXX in TECH_DEBT.md): none
