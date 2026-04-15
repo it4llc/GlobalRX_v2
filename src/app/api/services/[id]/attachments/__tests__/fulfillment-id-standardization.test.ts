@@ -29,28 +29,6 @@ vi.mock('@/lib/permission-utils', () => ({
   hasPermission: mockHasPermission
 }));
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    orderItem: {
-      findUnique: vi.fn(),
-      update: vi.fn()
-    },
-    order: {
-      findUnique: vi.fn()
-    },
-    serviceAttachment: {
-      findMany: vi.fn(),
-      create: vi.fn()
-    },
-    user: {
-      findUnique: vi.fn()
-    },
-    auditLog: {
-      create: vi.fn()
-    },
-    $transaction: vi.fn()
-  }
-}));
 
 vi.mock('@/types/service-results', () => ({
   isTerminalStatus: vi.fn()
@@ -87,7 +65,6 @@ vi.mock('crypto', () => ({
 }));
 
 const mockGetServerSession = vi.mocked(getServerSession);
-const mockPrisma = vi.mocked(prisma);
 
 describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardization', () => {
   const validOrderItemId = 'order-item-123';
@@ -103,7 +80,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetServerSession.mockResolvedValue(mockSession);
+    mockGetServerSession.mockResolvedValue(mockSession as any);
     mockHasPermission.mockReturnValue(true);
   });
 
@@ -144,8 +121,8 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         }
       ];
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItem);
-      mockPrisma.serviceAttachment.findMany.mockResolvedValue(mockAttachments);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findMany).mockResolvedValue(mockAttachments as any);
 
       // Act
       const response = await GET(request, { params: { id: validOrderItemId } });
@@ -153,14 +130,14 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
 
       // Assert
       expect(response.status).toBe(200);
-      expect(mockPrisma.orderItem.findUnique).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findUnique).toHaveBeenCalledWith({
         where: { id: validOrderItemId },
         include: {
           serviceFulfillment: true
         }
       });
 
-      expect(mockPrisma.serviceAttachment.findMany).toHaveBeenCalledWith({
+      expect(prisma.serviceAttachment.findMany).toHaveBeenCalledWith({
         where: { serviceFulfillmentId: 'fulfillment-123' },
         orderBy: { uploadedAt: 'desc' }
       });
@@ -178,7 +155,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
       const nonExistentOrderItemId = 'non-existent-order-item';
       const request = new NextRequest(`http://localhost/api/services/${nonExistentOrderItemId}/attachments`);
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(null);
 
       // Act
       const response = await GET(request, { params: { id: nonExistentOrderItemId } });
@@ -187,7 +164,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
       // Assert
       expect(response.status).toBe(404);
       expect(result.error).toBe('Service not found');
-      expect(mockPrisma.orderItem.findUnique).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findUnique).toHaveBeenCalledWith({
         where: { id: nonExistentOrderItemId },
         include: {
           serviceFulfillment: true
@@ -206,7 +183,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         serviceFulfillment: null
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await GET(request, { params: { id: orderItemWithoutFulfillment } });
@@ -256,7 +233,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         uploadedBy: 'user-123'
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItem);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItem as any);
 
       const { isTerminalStatus } = await import('@/types/service-results');
       (isTerminalStatus as any).mockReturnValue(false);
@@ -268,7 +245,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
       (randomUUID as any).mockReturnValue('uuid123-uuid456-uuid789');
 
       // Mock transaction
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         const tx = {
           serviceAttachment: {
             create: vi.fn().mockResolvedValue(mockNewAttachment)
@@ -286,7 +263,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
 
       // Assert
       expect(response.status).toBe(201);
-      expect(mockPrisma.orderItem.findUnique).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findUnique).toHaveBeenCalledWith({
         where: { id: validOrderItemId },
         include: {
           serviceFulfillment: true
@@ -310,7 +287,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         body: formData
       });
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(null);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(null);
 
       // Act
       const response = await POST(request, { params: { id: nonExistentOrderItemId } });
@@ -319,7 +296,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
       // Assert
       expect(response.status).toBe(404);
       expect(result.error).toBe('Service not found');
-      expect(mockPrisma.orderItem.findUnique).toHaveBeenCalledWith({
+      expect(prisma.orderItem.findUnique).toHaveBeenCalledWith({
         where: { id: nonExistentOrderItemId },
         include: {
           serviceFulfillment: true
@@ -348,7 +325,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         serviceFulfillment: null
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await POST(request, { params: { id: orderItemWithoutFulfillment } });
@@ -377,8 +354,8 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         }
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItem);
-      mockPrisma.serviceAttachment.findMany.mockResolvedValue([]);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItem as any);
+      vi.mocked(prisma.serviceAttachment.findMany).mockResolvedValue([]);
 
       // Act
       const response = await GET(request, { params: { id: validOrderItemId } });
@@ -411,7 +388,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         }
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItem);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItem as any);
 
       const { isTerminalStatus } = await import('@/types/service-results');
       (isTerminalStatus as any).mockReturnValue(false);
@@ -464,8 +441,8 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         customerId: 'different-customer'  // Different customer
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItem);
-      mockPrisma.order.findUnique.mockResolvedValue(mockOrder);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItem as any);
+      vi.mocked(prisma.order.findUnique).mockResolvedValue(mockOrder as any);
 
       // Act
       const response = await GET(request, { params: { id: validOrderItemId } });
@@ -489,7 +466,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         serviceFulfillment: null
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await GET(request, { params: { id: orderItemId } });
@@ -497,7 +474,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
       // Assert
       expect(response.status).toBe(404);
       // ServicesFulfillment should not be created - route expects it to exist
-      expect(mockPrisma.orderItem.update).not.toHaveBeenCalled();
+      expect(prisma.orderItem.update).not.toHaveBeenCalled();
     });
 
     it('should not auto-create missing ServicesFulfillment records on POST', async () => {
@@ -521,7 +498,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         serviceFulfillment: null
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await POST(request, { params: { id: orderItemId } });
@@ -529,7 +506,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
       // Assert
       expect(response.status).toBe(404);
       // ServicesFulfillment should not be created - route expects it to exist
-      expect(mockPrisma.orderItem.update).not.toHaveBeenCalled();
+      expect(prisma.orderItem.update).not.toHaveBeenCalled();
     });
 
     it('should return standardized error format', async () => {
@@ -543,7 +520,7 @@ describe('GET/POST /api/services/[id]/attachments - Fulfillment ID Standardizati
         serviceFulfillment: null
       };
 
-      mockPrisma.orderItem.findUnique.mockResolvedValue(mockOrderItemWithoutFulfillment);
+      vi.mocked(prisma.orderItem.findUnique).mockResolvedValue(mockOrderItemWithoutFulfillment as any);
 
       // Act
       const response = await GET(request, { params: { id: orderItemId } });

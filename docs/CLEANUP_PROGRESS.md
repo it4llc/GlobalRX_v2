@@ -10,7 +10,7 @@
 | # | Bucket | Status | Errors removed | Date |
 |---|--------|--------|----------------|------|
 | 1 | Delete dead .old/.original files | Complete | 67 | 2026-04-15 |
-| 2 | Fix Prisma mock typing pattern in tests | Not started | — | — |
+| 2 | Fix Prisma mock typing pattern in tests | In progress | 132 | 2026-04-15 |
 | 3 | Add types to old components | Not started | — | — |
 | 4 | Schema drift in production API routes | Not started | — | — |
 | 5 | Long tail | Not started | — | — |
@@ -30,3 +30,25 @@ Removed 3 dead files:
 Errors: 3,174 → 3,107 (67 removed)
 Files with errors: 264 → 261
 Tests: still 2,631 passing, 167 skipped, 0 failing
+
+### 2026-04-15 — Bucket 2 Pilot
+Branch: cleanup/bucket2-prisma-mock-pilot
+Applied Prisma mock fix pattern (proof of concept) to pilot file:
+- src/app/api/services/[id]/comments/__tests__/fulfillment-id-standardization.test.ts (36 → 27)
+
+Project errors: 3,107 → 3,098 (9 removed)
+Tests: still 2,631 passing, 167 skipped, 0 failing
+Added upsert, createMany, aggregate to servicesFulfillment in src/test/utils.ts
+
+### 2026-04-15 — Bucket 2 Batch 2A
+Branch: cleanup/bucket2-batch-2a
+Applied proven Prisma mock fix pattern to 4 files:
+- src/app/api/services/[id]/results/__tests__/fulfillment-id-standardization.test.ts (23 → 12)
+- src/app/api/services/[id]/status/__tests__/fulfillment-id-standardization.test.ts (31 → 17)
+- src/app/api/services/[id]/attachments/__tests__/fulfillment-id-standardization.test.ts (30 → 15)
+- src/__tests__/404-error-handling/missing-services-fulfillment.test.ts (42 → 26)
+
+Project errors: 3,098 → 3,042 (56 removed)
+Tests: still 2,631 passing, 167 skipped, 0 failing
+Global mock methods added to src/test/utils.ts: none
+Deferred items: 2 bad assertions in status/fulfillment-id-standardization.test.ts logged to TECH_DEBT.md as TD-036
