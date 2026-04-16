@@ -975,6 +975,52 @@ pnpm tsc --noEmit reports errors in src/test/setup.ts (missing vitest globals), 
 
 **Priority:** Low (test still validates other behavior; deferred assertion is a coverage gap, not a correctness issue).
 
+---
+
+### TD-037 — Migrate test mocks from legacy .type to .userType field
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Testing / Authentication                    |
+| Severity    | Low                                        |
+| Identified  | April 15, 2026 - Bucket 4-pre TypeScript cleanup |
+| Identified by | Branch fix/centralize-user-type-auth-utils |
+
+**Description:**
+The getUserType helper in src/lib/auth-utils.ts reads from (user as any).type || user.userType. The .type branch and the as any cast are defensive support for legacy test mocks. The official session user type (defined in src/types/next-auth.d.ts) only has .userType. The as any cast bypasses TypeScript's type checking on this property and is a code smell.
+
+**Why deferred:**
+The fallback is functioning correctly. This is purely a code hygiene / type safety improvement. To avoid regressing 16 tests, we kept the defensive .type fallback in getUserType.
+
+**When to fix:**
+Low priority cleanup task. Address when working on test modernization or TypeScript strict mode improvements.
+
+**Scope:**
+14 test files contain 66 occurrences of .type set on mocked user/session objects:
+- src/app/api/vendors/__tests__/usertype-bug.test.ts
+- src/app/api/vendors/[id]/__tests__/route.test.ts
+- src/app/api/data-rx/documents/__tests__/route.test.ts
+- src/app/api/fulfillment/orders/[id]/status/__tests__/route.test.ts
+- src/app/api/fulfillment/orders/[id]/__tests__/route.test.ts
+- src/app/api/comment-templates/__tests__/create-template-usertype-bug.test.ts
+- src/app/api/comment-templates/__tests__/route.test.ts
+- src/app/api/orders/[id]/lock/__tests__/route.test.ts
+- src/app/api/orders/[id]/assign/__tests__/route.test.ts
+- src/components/layout/ViewToggle.test.tsx
+- src/components/comment-templates/CommentTemplateGrid.test.tsx
+- src/hooks/useCommentTemplates.test.ts
+- src/lib/schemas/vendorSchemas.test.ts
+- src/lib/schemas/__tests__/comment-management-permission.test.ts
+
+**Resolution:**
+In each file, find every mock user/session object that sets type: '<value>' (where <value> is internal, admin, vendor, or customer) and change the field name to userType: '<value>'. After all files are updated, remove the (user as any).type || portion of the getUserType function in src/lib/auth-utils.ts, leaving only const userType = user.userType;. Verify the full test suite still passes (expected: 2631+ passing / 0 failing) and the TS error count does not increase.
+
+**Estimated effort:**
+1-2 hours, mostly mechanical find-and-replace per file with verification after each.
+
+**Risk:**
+Low if done carefully. Risk: a test elsewhere may incidentally rely on .type being unset (unlikely but possible). Mitigation: run full test suite after each file is migrated, not just at the end.
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
