@@ -1058,14 +1058,15 @@ interface Session {
 2. As a wildcard string: `permissions.fulfillment === '*'`
 3. As an object with action flags: `permissions.fulfillment?.view === true`, `?.manage`, `?.edit`
 4. As a string array: `Array.isArray(permissions.fulfillment) && permissions.fulfillment.includes('*')`
+5. As an admin flag: `permissions.admin === true` (not defined in the permissions type at all — same missing-field issue as fulfillment)
 
-**Impact:** 73 TypeScript errors across 12 route files. More importantly, runtime permission checks are inconsistent — the same permission is interpreted differently depending on which route is handling the request, which is a latent security/correctness risk.
+**Impact:** 73+ TypeScript errors across 12 route files. More importantly, runtime permission checks are inconsistent — the same permission is interpreted differently depending on which route is handling the request, which is a latent security/correctness risk.
 
 **Files affected (sample, not exhaustive):**
 - `src/app/api/fulfillment/route.ts`
-- `src/app/api/fulfillment/orders/[id]/route.ts`
+- `src/app/api/fulfillment/orders/[id]/route.ts` (admin)
 - `src/app/api/fulfillment/services/route.ts`
-- `src/app/api/fulfillment/services/[id]/route.ts`
+- `src/app/api/fulfillment/services/[id]/route.ts` (both admin and fulfillment)
 - `src/app/api/fulfillment/services/[id]/history/route.ts`
 - `src/app/api/services/[id]/status/route.ts`
 
@@ -1098,6 +1099,27 @@ The Prisma ServiceComment model requires templateId (String) and finalText (Stri
 - (b) Ensure the code always provides values
 
 Requires a design decision — not a type-level fix.
+
+**Status:** Logged, not started.
+
+### TD-040: `service.order.subject` field access in fulfillment service route
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | API routes / Prisma queries                 |
+| Severity    | Low (2 TypeScript errors, no known runtime impact) |
+| Identified  | April 15, 2026 - TypeScript cleanup, Bucket 4 |
+| Identified by | Code review during TS schema-drift fixes  |
+
+**Description:**
+In `src/app/api/fulfillment/services/[id]/route.ts` (around lines 116-120), the code accesses `service.order?.subject` but the Prisma query's select/include does not return `subject`, so TypeScript reports it as nonexistent.
+
+**Investigation needed:**
+1. Does the `Order` model in Prisma have a `subject` field? If yes, add `subject: true` to the Prisma select in the query that fetches the service.
+2. If `subject` does not exist on the Order model (renamed or removed), this code is dead and should be cleaned up.
+3. Check if there's a `subjectName` or similar field that replaced it.
+
+**Do NOT fix by:** Using `as any` to silence the error.
 
 **Status:** Logged, not started.
 
