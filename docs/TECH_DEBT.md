@@ -1075,6 +1075,32 @@ interface Session {
 
 **Status:** Logged, not started.
 
+---
+
+### TD-039: ServiceCommentData missing required Prisma fields in services/[id]/status/route.ts
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | API / Prisma Schema                        |
+| Severity    | Major (Runtime error risk)                 |
+| Identified  | April 15, 2026 - TypeScript cleanup, Bucket 4 pilot |
+| Identified by | TypeScript error analysis                 |
+
+**Description:**
+The Prisma ServiceComment model requires templateId (String) and finalText (String) — neither is optional, neither has a default. But the code only provides these fields conditionally (when statusChangeTemplate?.id exists and hasCommentTemplateModel is true). If those conditions are false, the serviceComment.create() call will fail at runtime with a Prisma validation error.
+
+**Location:** src/app/api/services/[id]/status/route.ts, lines ~337-355
+
+**Problem:** Schema drift between Prisma model requirements and code implementation.
+
+**Fix options:**
+- (a) Make templateId and finalText optional in the Prisma schema if blank comments are valid, or
+- (b) Ensure the code always provides values
+
+Requires a design decision — not a type-level fix.
+
+**Status:** Logged, not started.
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
