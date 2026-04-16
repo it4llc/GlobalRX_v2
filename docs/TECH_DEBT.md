@@ -1123,6 +1123,8 @@ In `src/app/api/fulfillment/services/[id]/route.ts` (around lines 116-120), the 
 
 **Status:** Logged, not started.
 
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
