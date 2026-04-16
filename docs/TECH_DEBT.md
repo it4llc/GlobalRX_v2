@@ -1021,6 +1021,60 @@ In each file, find every mock user/session object that sets type: '<value>' (whe
 **Risk:**
 Low if done carefully. Risk: a test elsewhere may incidentally rely on .type being unset (unlikely but possible). Mitigation: run full test suite after each file is migrated, not just at the end.
 
+---
+
+### TD-038: permissions.fulfillment shape inconsistency across route files
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Type definitions / Permissions              |
+| Severity    | Major (Type safety & runtime inconsistency) |
+| Identified  | April 15, 2026 - TypeScript cleanup, Bucket 4 recon |
+| Identified by | TypeScript error analysis                 |
+
+**Description:**
+The fulfillment permission is checked as four different shapes across the codebase, but is not even defined in the TypeScript type definition.
+
+**Location:** Type defined in `src/types/next-auth.d.ts`. Used inconsistently across 12 route files under `src/app/api/`.
+
+**Current type definition:**
+```typescript
+interface Session {
+  user: {
+    permissions: {
+      countries?: string[];
+      services?: string[];
+      dsx?: string[];
+      customers?: string[];
+      // NOTE: fulfillment field is missing entirely!
+    };
+    // ... rest of user fields
+  }
+}
+```
+
+**Problem:** The fulfillment permission is checked as four different shapes across the codebase:
+1. As a boolean: `permissions.fulfillment === true`
+2. As a wildcard string: `permissions.fulfillment === '*'`
+3. As an object with action flags: `permissions.fulfillment?.view === true`, `?.manage`, `?.edit`
+4. As a string array: `Array.isArray(permissions.fulfillment) && permissions.fulfillment.includes('*')`
+
+**Impact:** 73 TypeScript errors across 12 route files. More importantly, runtime permission checks are inconsistent — the same permission is interpreted differently depending on which route is handling the request, which is a latent security/correctness risk.
+
+**Files affected (sample, not exhaustive):**
+- `src/app/api/fulfillment/route.ts`
+- `src/app/api/fulfillment/orders/[id]/route.ts`
+- `src/app/api/fulfillment/services/route.ts`
+- `src/app/api/fulfillment/services/[id]/route.ts`
+- `src/app/api/fulfillment/services/[id]/history/route.ts`
+- `src/app/api/services/[id]/status/route.ts`
+
+**Do NOT fix by:** Widening the type to a union (`boolean | string | string[] | { view, manage, edit }`). That would silence the compiler but lock in the inconsistency permanently.
+
+**Proper fix:** Run through the full feature pipeline (business-analyst → architect → ...). Decide on one canonical shape for fulfillment permission, then refactor all 12 route files to use it. Update next-auth.d.ts last, once usage is consistent.
+
+**Status:** Logged, not started.
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
