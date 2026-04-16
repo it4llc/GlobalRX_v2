@@ -129,7 +129,7 @@ export async function PUT(
     }
 
     const { status: newStatus, comment, confirmReopenTerminal } = validation.data;
-    userId = session.user.id;
+    userId = session.user.id!; // Non-null assertion: session is validated at line 86-89
 
     // Step 4: Get service and check if it exists
     // NOTE: Status updates do not require ServicesFulfillment to exist.
@@ -340,7 +340,7 @@ export async function PUT(
           statusChangedFrom: currentStatus,
           statusChangedTo: newStatus,
           comment: commentText,
-          createdBy: userId,
+          createdBy: userId!,  // userId guaranteed assigned - session validated at line 132
           createdAt: new Date(),
           isInternalOnly: false
         };
@@ -392,7 +392,7 @@ export async function PUT(
                     orderId: orderId,
                     fromStatus: 'draft',
                     toStatus: 'submitted',
-                    changedBy: userId, // Use the actual user who triggered the change
+                    changedBy: userId!,  // userId guaranteed assigned - session validated at line 132
                     isAutomatic: true, // This flag indicates it was automatic
                     notes: `Automatically updated - all services submitted (triggered by user action on service ${serviceId})`
                   }
@@ -404,7 +404,7 @@ export async function PUT(
                 await ActivityTrackingService.updateOrderActivity(
                   tx,
                   orderId,
-                  userId,
+                  userId!,  // userId guaranteed assigned - session validated at line 132
                   autoProgressActorUserType,
                   true // isCustomerVisible - order status change is customer-visible
                 );
@@ -432,7 +432,7 @@ export async function PUT(
         await ActivityTrackingService.updateOrderItemActivity(
           tx,
           serviceId,
-          userId,
+          userId!,  // userId guaranteed assigned - session validated at line 132
           actorUserType,
           true // isCustomerVisible - status changes are customer-visible
         );
@@ -487,7 +487,7 @@ export async function PUT(
 
   } catch (error) {
     logger.error('Failed to update service status', {
-      serviceId: params.id,
+      serviceId: (await params).id,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
 
