@@ -1125,6 +1125,41 @@ In `src/app/api/fulfillment/services/[id]/route.ts` (around lines 116-120), the 
 
 ---
 
+### TD-041: OrderData Hydration — Phases 2 & 3 (remaining display surfaces and label cleanup)
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | OrderData display, translations, label sources |
+| Severity    | Medium (functional — some surfaces still show raw data) |
+| Identified  | April 16, 2026 — OrderData Hydration Phase 1 |
+| Identified by | Andy + Claude working session              |
+
+**Description:**
+Phase 1 of the OrderData Hydration work is complete — the fulfillment order details page now shows resolved labels, formatted addresses, and document filenames instead of UUIDs, raw JSON, and metadata blobs. However, other display surfaces still show raw values, and duplicate label sources still exist in the codebase.
+
+**Full spec:** `docs/specs/OrderData_Hydration_Design_Document.md`
+
+**Phase 2 — Sweep Other Display Surfaces:**
+- Audit all components consuming `OrderData` (known: `order-details-dialog.tsx` in customer portal; search for `item.data` and `orderData` patterns)
+- Wire hydration into `/api/portal/orders/[id]` and any other endpoints found
+- Update identified components to use `hydratedData` prop
+- Remove hardcoded label maps (e.g., `{ key: 'middleName', label: 'Middle Name' }`)
+- Remove raw `data` array from API responses once all consumers migrated
+
+**Phase 3 — Translation Coverage and Label Cleanup:**
+- Create missing translation entries for fields with human-readable fieldKeys
+- Add translation keys for address piece labels (`addressConfig.street1`, etc.)
+- Remove duplicate label sources: reverse map in `order-core.service.ts`, known-labels list in `service-order-data.service.ts`, `formatFieldName()` method
+- Verify no code paths depend on removed duplicates
+
+**Estimated effort:** 4-7 days total across both phases.
+
+**Do NOT fix by:** Adding more hardcoded label maps. All label resolution must go through the hydration service.
+
+**Status:** Logged, not started.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
