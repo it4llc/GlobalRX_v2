@@ -9,6 +9,7 @@ import { ServiceOrderDataService } from '@/lib/services/service-order-data.servi
 import { updateServiceFulfillmentSchema } from '@/lib/schemas/service-fulfillment.schemas';
 import { getServerTranslations } from '@/lib/i18n/server-translations';
 import logger from '@/lib/logger';
+import type { UpdateServiceFulfillmentRequest } from '@/types/service-fulfillment';
 
 interface RouteParams {
   params: Promise<{
@@ -79,7 +80,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const service = await ServiceFulfillmentService.getServiceById(
       id,
       {
-        userType,
+        userType: userType!, // Non-null assertion: session.user validated at line 43
         vendorId: session.user.vendorId || undefined,
         customerId: session.user.customerId || undefined
       }
@@ -93,11 +94,11 @@ export async function GET(request: Request, { params }: RouteParams) {
     if (isCustomer && session.user.customerId) {
       // The service should have been filtered by ServiceFulfillmentService
       // but we'll double-check here for security
-      const order = service.order || {};
+      const order = service.order || { customerId: undefined };
       if (order.customerId && order.customerId !== session.user.customerId) {
         logger.warn('Customer attempted to access service from another customer', {
           customerId: session.user.customerId,
-          orderCustomerId: order.customerId,
+          orderCustomerId: order.customerId!,
           serviceId: id
         });
         return NextResponse.json({ error: t('api.errors.serviceNotFound') }, { status: 404 });
@@ -311,7 +312,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       const { prisma } = await import('@/lib/prisma');
       const vendor = await prisma.vendorOrganization.findUnique({
         where: { id: updates.assignedVendorId },
-        select: { id: true, name: true, deactivated: true }
+        select: { id: true, name: true, isActive: true }
       });
 
       if (!vendor) {
@@ -321,7 +322,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         );
       }
 
-      if (vendor.deactivated) {
+      if (!vendor.isActive) {
         return NextResponse.json(
           { error: t('api.errors.cannotAssignToDeactivatedVendor') },
           { status: 400 }
@@ -349,10 +350,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     const updatedService = await ServiceFulfillmentService.updateService(
       id,
-      updates,
+      updates as UpdateServiceFulfillmentRequest,
       {
-        id: session.user.id,
-        userType,
+        id: session.user.id!,
+        userType: userType!,
         vendorId: session.user.vendorId || undefined,
         permissions: session.user.permissions
       },
