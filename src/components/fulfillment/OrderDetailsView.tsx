@@ -1,4 +1,4 @@
-// /GlobalRx_v2/src/components/fulfillment/OrderDetailsView.tsx
+// src/components/fulfillment/OrderDetailsView.tsx
 // Main content component for displaying order information in fulfillment workflow.
 //
 // LAYOUT REDESIGN CHANGES (feature/order-details-layout):
@@ -27,6 +27,7 @@ import { useTranslation } from '@/contexts/TranslationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ServiceFulfillmentTable } from './ServiceFulfillmentTable';
 import { hasNewActivity } from '@/lib/utils/activity-comparison';
+import type { HydratedOrderDataRecord } from '@/types/order-data-hydration';
 
 interface OrderDetailsViewProps {
   order?: {
@@ -73,6 +74,8 @@ interface OrderDetailsViewProps {
         completedAt: string | null;
       };
     }>;
+    /** Display-ready OrderData keyed by orderItemId — from Phase 1 hydration */
+    hydratedOrderData?: Record<string, HydratedOrderDataRecord[]>;
     statusHistory?: Array<{
       id: string;
       status?: string;
@@ -347,7 +350,7 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                 services={order.items
                   .filter(item => item.id) // Ensure item has a valid ID
                   .map((item) => {
-                    // Convert data array to orderData object
+                    // Convert data array to orderData object (legacy format — kept for backward compatibility)
                     // The data field contains field-value pairs that represent service-specific requirements
                     const orderData = item.data?.reduce((acc, dataItem) => {
                       if (dataItem.fieldName && dataItem.fieldValue) {
@@ -386,7 +389,9 @@ export function OrderDetailsView({ order, error, loading, onRetry }: OrderDetail
                       completedAt: item.serviceFulfillment?.completedAt || null,
                       createdAt: order.createdAt.toString(),
                       updatedAt: order.updatedAt.toString(),
-                      orderData,  // Include the orderData field for requirements display
+                      orderData,  // Legacy format — kept for backward compatibility
+                      // Hydrated display-ready records for this item (Phase 1)
+                      hydratedOrderData: order.hydratedOrderData?.[item.id] || null,
                       service: item.service ? {
                         id: item.service.id,
                         name: item.service.name,

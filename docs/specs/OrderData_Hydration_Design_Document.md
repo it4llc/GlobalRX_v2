@@ -1,7 +1,7 @@
 # OrderData Hydration & Display Architecture — Design Document
 
 **Last Updated:** April 16, 2026
-**Status:** Planning — Ready for Spec Writing
+**Status:** Phase 1 COMPLETE (merged to `dev`) — Phases 2 & 3 remaining (see TD-041)
 
 ---
 
@@ -79,8 +79,10 @@ This fallback chain ensures the system degrades gracefully. Partial translation 
 ### Address Storage
 
 - Address values are stored in **one form**: as a JSON string in `OrderData.fieldValue` for `address_block` type fields
-- Example: `{"street1":"123 Main St","city":"Brisbane","state":"f53e7f72-...","postalCode":"4000"}`
-- The `state` value inside this JSON is a UUID pointing to a row in the `countries` table at the subregion 1 level
+- **Two formats exist** depending on when the order was created:
+  - Older format: `{"street1":"123 Main St","city":"Brisbane","state":"f53e7f72-...","postalCode":"4000"}` — state is a UUID
+  - Newer format: `{"street1":"123 Main St","city":"Sydney","state":"Northern Territory","stateId":"cdaade9b-...","stateName":"Northern Territory","postalCode":"1234"}` — state is already resolved, stateId has the UUID
+- The address resolver handles both formats: if `state` is a UUID it resolves through `countries`; if it's already a name it uses it as-is
 - The `address_entries` table exists in the schema but has zero rows in the database as of April 16, 2026 — it is not in active use and is likely reserved for future functionality (candidate invite address history)
 
 ### Document Storage
@@ -116,25 +118,28 @@ This fallback chain ensures the system degrades gracefully. Partial translation 
 
 What we found during investigation on April 16, 2026:
 
-### Bug 1: Field labels show as UUIDs
+### Bug 1: Field labels show as UUIDs — ✅ FIXED (Phase 1)
 
 - `OrderData.fieldName` stores a UUID pointing to `dsx_requirements.id`
 - `OrderDetailsView.tsx` treats this UUID as if it were a human-readable label
 - Users see `007a7957-92c0-4ec4-9a93-f5cd56260f10` instead of `"Company Address"`
+- **Fix:** Hydration service resolves labels via dsx_requirements lookup with translation fallback
 
-### Bug 2: Address values show as raw JSON with embedded UUIDs
+### Bug 2: Address values show as raw JSON with embedded UUIDs — ✅ FIXED (Phase 1)
 
 - `OrderData.fieldValue` for address_block fields contains JSON like:
   `{"street1":"sfbsf","city":"sdfgsd","state":"f53e7f72-8bbe-4017-994a-499b681bfc70","postalCode":"dfgsds"}`
 - The display renders this JSON as-is, showing curly braces, key names, and a UUID for the state
 - The correct rendering would use the per-piece labels from `addressConfig` and resolve the state UUID to "Queensland"
+- **Fix:** Address resolver parses JSON, applies addressConfig labels, resolves geographic UUIDs. ServiceRequirementsDisplay renders each piece on its own labeled line.
 
-### Bug 3: Document entries show as raw JSON
+### Bug 3: Document entries show as raw JSON — ✅ FIXED (Phase 1)
 
 - `OrderData.fieldValue` for document entries contains JSON metadata with documentId, storagePath, mimeType, size, etc.
 - The display renders this JSON as-is instead of showing the readable filename
+- **Fix:** Document resolver parses JSON, extracts originalName. ServiceRequirementsDisplay renders filename with file size.
 
-### Bug 4: Duplicate and inconsistent label sources exist
+### Bug 4: Duplicate and inconsistent label sources exist — ⏳ Phase 3
 
 - Hardcoded labels exist in multiple places outside the translation system:
   - `src/components/portal/order-details-dialog.tsx` has `{ key: 'middleName', label: 'Middle Name' }`
@@ -171,27 +176,29 @@ These decisions were made during the investigation on April 16, 2026:
 A single server-side function that takes raw `OrderData` records and a language code, and returns display-ready objects.
 
 The function:
-1. Collects all unique `fieldName` UUIDs from the input records
-2. Batch-fetches the corresponding `dsx_requirements` rows in a single query
-3. Loads the appropriate language translation file (based on the language code parameter)
-4. For each record, resolves the label through the fallback chain: translation → `dsx_requirements.name` → "Unknown field" placeholder (with warning log)
-5. Delegates to the appropriate value handler based on data type:
+1. Collects all unique `fieldName` values from the input records
+2. Detects the format of each fieldName (UUID vs fieldKey vs plain label) and routes the lookup accordingly
+3. Batch-fetches the corresponding `dsx_requirements` rows (by `id` for UUIDs, by `fieldKey` for non-UUIDs)
+4. Loads the appropriate language translation file (based on the language code parameter)
+5. For each record, resolves the label through the fallback chain: translation → `dsx_requirements.name` → fieldName itself (if readable) → "Unknown field" placeholder (with warning log)
+6. Delegates to the appropriate value handler based on data type:
    - `address_block` → Layer 2 address resolver
    - `document` → Layer 2 document resolver
    - All other types → use raw `fieldValue` as `displayValue`
-6. Returns hydrated records
+7. Returns hydrated records
 
-Proposed shape of each hydrated record:
+Hydrated record shape:
 
 ```
 {
-  requirementId: string,    // the dsx_requirements UUID (original OrderData.fieldName)
+  requirementId: string,    // the dsx_requirements UUID (or original fieldName for legacy data)
   label: string,            // resolved through the fallback chain
   fieldKey: string,         // dsx_requirements.fieldKey
   dataType: string,         // from fieldData.dataType ("text", "address_block", "date", etc.)
   requirementType: string,  // dsx_requirements.type ("field" or "document")
   rawValue: string,         // original OrderData.fieldValue
   displayValue: string,     // formatted for display
+  displayOrder?: number,    // from service_requirements — used for sorting
 }
 ```
 
@@ -265,23 +272,24 @@ Every API endpoint that returns order-related data includes hydrated `OrderData`
 The hydration call passes the requesting user's language preference (defaulting to `en-US` until language selection is implemented in the fulfillment portal).
 
 Endpoints affected:
-- `/api/fulfillment/orders/[id]` — order details for internal/vendor users
-- `/api/portal/orders/[id]` — order details for customer users
-- Any other endpoint returning order or order-item data with attached `OrderData`
+- `/api/fulfillment/orders/[id]` — order details for internal/vendor users — ✅ DONE (Phase 1)
+- `/api/portal/orders/[id]` — order details for customer users — ⏳ Phase 2
+- Any other endpoint returning order or order-item data with attached `OrderData` — ⏳ Phase 2
 
 ### Layer 4: Client Consumption
 
 Every display component that reads raw `OrderData` arrays is updated to read the hydrated form instead. Components affected:
 
-- `src/components/fulfillment/OrderDetailsView.tsx`
-- `src/components/services/ServiceRequirementsDisplay.tsx`
-- `src/components/portal/order-details-dialog.tsx`
+- `src/components/fulfillment/OrderDetailsView.tsx` — ✅ DONE (Phase 1)
+- `src/components/services/ServiceRequirementsDisplay.tsx` — ✅ DONE (Phase 1, with legacy fallback preserved)
+- `src/components/fulfillment/ServiceFulfillmentTable.tsx` — ✅ DONE (Phase 1, passes hydratedData through)
+- `src/components/portal/order-details-dialog.tsx` — ⏳ Phase 2
 - Any other component identified during the Phase 2 audit
 
 Display rules by type:
 - **Text fields:** Show label and `displayValue` on one line
 - **Address blocks:** Show parent label as a heading, then each `addressPiece` on its own labeled line
-- **Documents:** Show label and `displayValue` (filename), ideally as a clickable download link
+- **Documents:** Show label and `displayValue` (filename) with file size, ideally as a clickable download link
 
 Hardcoded label maps in components are removed.
 
@@ -291,29 +299,44 @@ Hardcoded label maps in components are removed.
 
 The work is divided into three phases. Each phase delivers visible user value on its own. You can stop after any phase and the system is better than it was.
 
-### Phase 1 — Fix the Unreadable Surfaces
+### Phase 1 — Fix the Unreadable Surfaces — ✅ COMPLETE
 
 **Goal:** Users stop seeing UUIDs, raw JSON, and raw document metadata in the fulfillment order details page. Field labels show as configured in DataRx (with translation support built in from the start, defaulting to `en-US`). Addresses render as labeled lines. Documents render as filenames.
 
-**Scope:**
-- Build Layer 1 hydration function with language code parameter (batch-fetch `dsx_requirements`, load translation file, apply fallback chain)
-- Build Layer 2 address resolver (parse JSON, resolve geographic UUIDs through `countries` at any subdivision level, apply `addressConfig` labels)
-- Build Layer 2 document resolver (parse JSON, extract `originalName` and metadata)
-- Update `/api/fulfillment/orders/[id]` to return hydrated data alongside raw data
-- Update `OrderDetailsView.tsx` to use hydrated data instead of running its own reduce
-- Update `ServiceRequirementsDisplay.tsx` if needed to render the new hydrated shape (address labeled lines, document filenames)
+**Completed:** April 16, 2026
+**Branch:** `feature/order-data-hydration` (merged to `dev`)
+**Tests:** 2667 passed, 36 hydration-specific tests, zero regressions
 
-**What ships:**
-- `OrderDetailsView` shows real labels, readable addresses, and document filenames
-- Users stop seeing UUIDs, JSON blobs, and raw metadata in the fulfillment order details page
-- Translation infrastructure is in place — when language selection is added to the fulfillment portal later, labels automatically display in the selected language
-- When the candidate portal is built, it calls the same hydration function with the candidate's language preference
+**What was built:**
+
+| Step | File | Purpose |
+|------|------|---------|
+| 1 | `src/types/order-data-hydration.ts` | Types: HydratedOrderDataRecord, AddressPiece, DocumentMetadata, RawOrderDataRecord, type guards |
+| 2 | `src/lib/services/order-data-resolvers.ts` | resolveDocumentValue(), resolveAddressValue(), collectGeographicUuids() |
+| 3 | `src/lib/services/order-data-hydration.service.ts` | Main hydrateOrderData() function — multi-format fieldName lookup, batch fetches, label fallback chain |
+| 4 | `src/lib/services/__tests__/order-data-resolvers.test.ts` | 19 resolver tests |
+| 4 | `src/lib/services/__tests__/order-data-hydration.service.test.ts` | 17 hydration service tests |
+| 5 | `src/app/api/fulfillment/orders/[id]/route.ts` | API route wired: hydrates data, groups by itemId, sorts by displayOrder |
+| 6 | `src/components/fulfillment/OrderDetailsView.tsx` | Passes hydratedOrderData to ServiceFulfillmentTable |
+| 6 | `src/components/fulfillment/ServiceFulfillmentTable.tsx` | Passes hydratedData to ServiceRequirementsDisplay |
+| 6 | `src/components/services/ServiceRequirementsDisplay.tsx` | Renders hydrated data (labels, address pieces, documents); legacy fallback preserved |
+| 7 | Browser smoke test | Verified all three data types render correctly with real data |
+
+**Discoveries during implementation (not in original design):**
+
+1. **Three generations of fieldName format:** OrderData.fieldName stores three formats depending on when the order was created:
+   - UUID → references `dsx_requirements.id` (newest orders)
+   - fieldKey → matches `dsx_requirements.fieldKey` (e.g., "firstName", "ddfba175abf341c4")
+   - Plain label → already human-readable (e.g., "Company Address") (oldest orders)
+   - **Fix:** Hydration service detects the format and routes the lookup: UUID → query by id, non-UUID → query by fieldKey, not found → use fieldName itself if readable
+
+2. **Two address value formats:** Newer orders pre-resolve state names in the JSON (`"state":"Northern Territory"` + `"stateId":"uuid"` + `"stateName":"Northern Territory"`). Older orders store just the UUID in `"state"`. The resolver handles both — it checks if the value is a UUID before attempting geographic resolution.
+
+3. **Display ordering via service_requirements:** Field display order is managed by `service_requirements.displayOrder` (configured via the DSX tab's drag-and-drop UI). The API route fetches displayOrder and sorts each item's hydrated records to match.
 
 **What stays broken:** Other surfaces (customer portal order details dialog, etc.) may still show raw values. Hardcoded label strings elsewhere in the codebase still exist. Address piece labels are not yet translated (they use `addressConfig` labels in English).
 
-**Estimated size:** Medium. One hydration function, two value resolvers, one API endpoint change, one or two component updates. Probably 2-3 days of focused work.
-
-### Phase 2 — Sweep Other Display Surfaces
+### Phase 2 — Sweep Other Display Surfaces — ⏳ NOT STARTED
 
 **Goal:** Every display surface showing `OrderData` uses the same hydration. No more raw values anywhere.
 
@@ -328,7 +351,7 @@ The work is divided into three phases. Each phase delivers visible user value on
 
 **Estimated size:** Medium. Depends on how many surfaces are found in the audit. Probably 2-4 days.
 
-### Phase 3 — Translation Coverage and Label Cleanup
+### Phase 3 — Translation Coverage and Label Cleanup — ⏳ NOT STARTED
 
 **Goal:** Improve translation coverage. Eliminate duplicate sources of field labels. Add translation support for address piece labels.
 
@@ -356,12 +379,12 @@ All based on schema inspection and live data queries, April 16, 2026.
 |--------|------|-------|
 | `id` | uuid | PK |
 | `orderItemId` | uuid | FK to `order_items` |
-| `fieldName` | string (uuid) | **Misnamed — actually a FK to `dsx_requirements.id`** |
+| `fieldName` | string | **Stores three formats:** UUID (→ dsx_requirements.id), fieldKey (→ dsx_requirements.fieldKey), or plain label (already readable). See "Discoveries" in Phase 1 notes. |
 | `fieldValue` | string | Raw value; JSON for `address_block` and `document` types; plain string for `text` types |
 | `fieldType` | string | Field type metadata |
 | `createdAt` | timestamp | |
 
-Observation: the column name `fieldName` is misleading. It stores a UUID reference, not a name. Renaming the column is out of scope for this work but worth noting for future schema passes.
+Observation: the column name `fieldName` is misleading. It stores a reference (UUID, fieldKey, or legacy label), not always a name. Renaming the column is out of scope for this work but worth noting for future schema passes.
 
 **Live data type distribution** (as of April 16, 2026):
 
@@ -375,10 +398,10 @@ Observation: the column name `fieldName` is misleading. It stores a UUID referen
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `id` | uuid | PK — this is what `OrderData.fieldName` references |
+| `id` | uuid | PK — this is what `OrderData.fieldName` references (UUID format) |
 | `name` | string | **Authoritative base label** — e.g., "Graduation Date", "First Name/Given Name", "Copy of degree" |
 | `type` | string | "field" or "document" |
-| `fieldKey` | string | Immutable key; some human-written (`mothersMaidenName`), some auto-generated hex fragments |
+| `fieldKey` | string | Immutable key; some human-written (`mothersMaidenName`), some auto-generated hex fragments. Also used as `OrderData.fieldName` in fieldKey-format data. |
 | `fieldData` | json | Field configuration — includes `dataType`, `addressConfig` for address blocks, `shortName`, `instructions`, etc. |
 | `documentData` | json | Document configuration — includes `scope`, `instructions`, `retentionHandling` |
 | `formData` | json | Form configuration |
@@ -397,6 +420,19 @@ Key `documentData` properties:
 - `scope`: "per_search" or similar — how the document applies
 - `instructions`: help text for the user
 - `retentionHandling`: data retention policy
+
+### `service_requirements` table (Prisma: `ServiceRequirement`)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid | PK |
+| `serviceId` | uuid | FK to `services` |
+| `requirementId` | uuid | FK to `dsx_requirements` |
+| `displayOrder` | int | **Controls field display sequence.** Configured via DSX tab drag-and-drop. Default 999. |
+| `createdAt` | timestamp | |
+| `updatedAt` | timestamp | |
+
+Unique constraint on `(serviceId, requirementId)`. The hydration pipeline uses this table to sort each item's records into the configured display order.
 
 ### `countries` table (multi-level geographic hierarchy)
 
@@ -452,6 +488,8 @@ LIMIT 5;
 
 Results confirmed: `OrderData.fieldName` UUID joins cleanly to `dsx_requirements.id`, producing labels like "Company Address", "Company Name", "School Address".
 
+**Additional finding:** Not all fieldName values are UUIDs. Some are fieldKeys (e.g., "firstName"), some are plain labels (e.g., "Company Address"). See "Discoveries" in Phase 1 notes.
+
 ### Address value storage
 
 ```sql
@@ -462,7 +500,7 @@ WHERE dr."fieldData"->>'dataType' = 'address_block'
 LIMIT 5;
 ```
 
-Results confirmed: every `address_block` field stores its value as a JSON string in `OrderData.fieldValue` with keys like `street1`, `city`, `state`, `postalCode`. State values are UUIDs.
+Results confirmed: every `address_block` field stores its value as a JSON string in `OrderData.fieldValue` with keys like `street1`, `city`, `state`, `postalCode`. State values are UUIDs in older data, pre-resolved names in newer data.
 
 ### Document value storage
 
@@ -513,19 +551,33 @@ grep "middleName\|firstName" src/translations/en-US.json
 
 Result: `"module.fulfillment.firstName": "First Name"`, `"module.fulfillment.middleName": "Middle Name"`. Confirms the key pattern is `module.fulfillment.{fieldKey}`.
 
+### Display order (discovered during Phase 1)
+
+```sql
+SELECT sr."displayOrder", dr.name, dr."fieldKey"
+FROM service_requirements sr
+JOIN dsx_requirements dr ON dr.id = sr."requirementId"
+WHERE sr."serviceId" = '<service-id>'
+ORDER BY sr."displayOrder";
+```
+
+Result: Fields are ordered by `displayOrder` (1000, 1010, 1020, 2000, 3000, 3010), configured via the DSX tab's drag-and-drop UI. The hydration pipeline uses this to sort records in the API response.
+
 ---
 
 ## Open Questions
 
-### Remaining (to be resolved during spec writing or implementation)
+### Resolved during Phase 1
 
-1. **Hydration function location:** Should hydration live on `ServiceOrderDataService` (extending an existing service) or in a new dedicated service? The existing service has server-side dependencies (Prisma, logger) which is appropriate, but it also has the `formatFieldName()` method which this work supersedes.
+1. **Hydration function location:** → New dedicated service at `src/lib/services/order-data-hydration.service.ts`. Keeps it separate from the legacy `ServiceOrderDataService` and its `formatFieldName()` method.
 
-2. **Performance and batching:** For an order with many fields, hydration involves fetching `dsx_requirements` rows, loading a translation file, and potentially multiple `countries` rows for address UUIDs. The hydration function should batch these lookups. Worth confirming this approach is sufficient or whether caching (e.g., in-memory cache of translation files and frequently-used `dsx_requirements` rows) is needed.
+2. **Performance and batching:** → Batch approach is sufficient for current data volumes. One query for dsx_requirements (split into UUID-by-id + non-UUID-by-fieldKey), one for translations, one for geographic names, one for display orders. No caching needed yet.
+
+4. **Regression test strategy:** → Unit tests with mocked Prisma returning known data. 36 tests covering hydration service and resolvers. Full suite regression (2667 tests) verified.
+
+### Remaining (to be resolved during Phase 2-3)
 
 3. **Order creation flow:** The order creation UI shows labels correctly today. How does it source them? Does it read `dsx_requirements.name` directly, or use translations, or use one of the hardcoded sources? Understanding this determines whether Phase 3 cleanup could break the creation flow.
-
-4. **Regression test strategy:** Previous attempt at e2e regression tests was unusable. For this work, is API-route testing (with mocked Prisma returning known `dsx_requirements`, `countries`, and translation data) sufficient?
 
 5. **Translation key for hex-fragment fieldKeys:** Some `fieldKey` values are auto-generated hex fragments (e.g., `86d871feeb2142e0`). These will never have human-authored translations. Should the translation system ignore them entirely (relying on `dsx_requirements.name` fallback), or should the translation save endpoint auto-populate entries for new fields using the DataRx label as the default value for all languages?
 
