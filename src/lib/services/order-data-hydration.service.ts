@@ -11,6 +11,14 @@
 // Called by: API routes that return order details
 // Uses:     src/lib/services/order-data-resolvers.ts
 // Types:    src/types/order-data-hydration.ts
+//
+// MULTI-FORMAT SUPPORT (Phase 1):
+// OrderData.fieldName can store three formats depending on when the
+// order was created:
+//   1. UUID  → references dsx_requirements.id  (newest orders)
+//   2. fieldKey → matches dsx_requirements.fieldKey (e.g. "firstName", "ddfba175abf341c4")
+//   3. Plain label → already human-readable (e.g. "Company Address") (oldest orders)
+// The hydration service detects the format and routes the lookup accordingly.
 
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
@@ -25,6 +33,21 @@ import type {
   RawOrderDataRecord,
   HydratedOrderDataRecord,
 } from '@/types/order-data-hydration';
+
+// ---------------------------------------------------------------------------
+// UUID detection helper
+// ---------------------------------------------------------------------------
+
+/** Standard UUID v4 pattern used to distinguish fieldName formats. */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Returns true if the string is a standard UUID (v4 with dashes).
+ * Used to decide whether to look up by dsx_requirements.id or .fieldKey.
+ */
+function isUuid(value: string): boolean {
+  return UUID_PATTERN.test(value);
+}
 
 // ---------------------------------------------------------------------------
 // Translation key pattern
@@ -48,7 +71,8 @@ function buildTranslationKey(fieldKey: string): string {
  * Hydrate raw OrderData records into display-ready objects.
  *
  * This is the main entry point. It:
- *   1. Batch-fetches all referenced dsx_requirements in one query
+ *   1. Batch-fetches all referenced dsx_requirements in one or two queries
+ *      (by id for UUID fieldNames, by fieldKey for non-UUID fieldNames)
  *   2. Loads the translation file for the requested language
  *   3. Batch-fetches all geographic UUIDs from address fields in one query
  *   4. Resolves each record through the label fallback chain and
@@ -69,29 +93,63 @@ export async function hydrateOrderData(
   // -------------------------------------------------------------------------
   // Step 1: Batch-fetch all referenced dsx_requirements
   // -------------------------------------------------------------------------
+  // OrderData.fieldName can be a UUID (references dsx_requirements.id) or a
+  // non-UUID string (matches dsx_requirements.fieldKey or is a plain label).
+  // We split them and query each group appropriately.
 
-  // Collect unique requirement UUIDs (stored in OrderData.fieldName)
-  const requirementIds = [...new Set(records.map(r => r.fieldName))];
+  const uniqueFieldNames = [...new Set(records.map(r => r.fieldName))];
+  const uuidFieldNames: string[] = [];
+  const nonUuidFieldNames: string[] = [];
 
-  let requirementsMap: Map<string, DsxRequirementRow>;
+  for (const fn of uniqueFieldNames) {
+    if (isUuid(fn)) {
+      uuidFieldNames.push(fn);
+    } else {
+      nonUuidFieldNames.push(fn);
+    }
+  }
+
+  // Map keyed by the original fieldName value so the main loop can do a
+  // simple get(record.fieldName) regardless of which lookup found it.
+  let requirementsMap: Map<string, DsxRequirementRow> = new Map();
+
   try {
-    const requirements = await prisma.dSXRequirement.findMany({
-      where: { id: { in: requirementIds } },
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        fieldKey: true,
-        fieldData: true,
-        documentData: true,
-      },
-    });
+    const selectFields = {
+      id: true,
+      name: true,
+      type: true,
+      fieldKey: true,
+      fieldData: true,
+      documentData: true,
+    } as const;
 
-    requirementsMap = new Map(requirements.map(r => [r.id, r]));
+    // Batch 1: UUID fieldNames → look up by dsx_requirements.id
+    if (uuidFieldNames.length > 0) {
+      const byId = await prisma.dSXRequirement.findMany({
+        where: { id: { in: uuidFieldNames } },
+        select: selectFields,
+      });
+      for (const r of byId) {
+        requirementsMap.set(r.id, r);
+      }
+    }
+
+    // Batch 2: Non-UUID fieldNames → look up by dsx_requirements.fieldKey
+    if (nonUuidFieldNames.length > 0) {
+      const byFieldKey = await prisma.dSXRequirement.findMany({
+        where: { fieldKey: { in: nonUuidFieldNames } },
+        select: selectFields,
+      });
+      for (const r of byFieldKey) {
+        // Key by fieldKey since that's what record.fieldName contains
+        requirementsMap.set(r.fieldKey, r);
+      }
+    }
   } catch (error) {
     logger.error('Failed to fetch dsx_requirements for hydration', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      requirementIds,
+      uuidCount: uuidFieldNames.length,
+      fieldKeyCount: nonUuidFieldNames.length,
     });
     // Return minimally hydrated records so the UI still shows something
     return records.map(r => buildFallbackRecord(r));
@@ -156,12 +214,28 @@ export async function hydrateOrderData(
     const req = requirementsMap.get(record.fieldName);
 
     if (!req) {
-      // The dsx_requirement for this field was not found — possibly deleted
-      logger.warn('OrderData references unknown dsx_requirement', {
-        orderDataId: record.id,
-        fieldName: record.fieldName,
-      });
-      hydrated.push(buildFallbackRecord(record));
+      // Not found via id or fieldKey lookup.
+      // Try translation as a last-chance label lookup using fieldName as a
+      // potential fieldKey (handles edge cases where the requirement was
+      // deleted but the translation still exists).
+      const translationKey = buildTranslationKey(record.fieldName);
+      if (translations[translationKey]) {
+        hydrated.push({
+          requirementId: record.fieldName,
+          label: translations[translationKey],
+          fieldKey: record.fieldName,
+          dataType: 'unknown',
+          requirementType: 'field',
+          rawValue: record.fieldValue,
+          displayValue: record.fieldValue,
+        });
+      } else {
+        logger.warn('OrderData references unknown dsx_requirement', {
+          orderDataId: record.id,
+          fieldName: record.fieldName,
+        });
+        hydrated.push(buildFallbackRecord(record));
+      }
       continue;
     }
 
@@ -247,13 +321,27 @@ function getAddressConfig(req: DsxRequirementRow): Record<string, { enabled: boo
 
 /**
  * Create a minimal hydrated record when we can't find the matching
- * dsx_requirement. Shows "Unknown field" as label and the raw value
- * as displayValue. This ensures data is never hidden from the user.
+ * dsx_requirement. The label is chosen based on the fieldName format:
+ *
+ *   - UUID → "Unknown field" (the UUID is meaningless to the user)
+ *   - Hex-only fragment (≥8 chars) → "Unknown field" (auto-generated fieldKey, not readable)
+ *   - Anything else → use fieldName itself as the label (e.g., "Company Address" from old data)
+ *
+ * This ensures data is never hidden from the user.
  */
 function buildFallbackRecord(record: RawOrderDataRecord): HydratedOrderDataRecord {
+  const fn = record.fieldName;
+
+  // UUIDs are not readable labels
+  const isUuidValue = UUID_PATTERN.test(fn);
+  // Hex-only fragments like "ddfba175abf341c4" are auto-generated fieldKeys — not readable
+  const isHexFragment = !isUuidValue && /^[0-9a-f]+$/i.test(fn) && fn.length >= 8;
+
+  const label = (isUuidValue || isHexFragment) ? 'Unknown field' : fn;
+
   return {
-    requirementId: record.fieldName,
-    label: 'Unknown field',
+    requirementId: fn,
+    label,
     fieldKey: '',
     dataType: 'unknown',
     requirementType: 'field',

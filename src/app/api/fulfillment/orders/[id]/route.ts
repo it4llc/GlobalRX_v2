@@ -1,4 +1,4 @@
-// /GlobalRX_v2/src/app/api/fulfillment/orders/[id]/route.ts
+// src/app/api/fulfillment/orders/[id]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -11,6 +11,11 @@ import {
   filterDataForCustomer,
   getVisibleCommentCount
 } from '@/lib/utils/customer-order-permissions';
+import { hydrateOrderData } from '@/lib/services/order-data-hydration.service';
+import type {
+  RawOrderDataRecord,
+  HydratedOrderDataRecord,
+} from '@/types/order-data-hydration';
 import type {
   ServiceCommentWithRelations,
   ServiceCommentResponse
@@ -42,6 +47,8 @@ import type {
  *   - Vendor users: Can only view orders assigned to them (filtered by assignedVendorId)
  *
  * Returns: Full order details with appropriate filtering based on user type
+ *   - items[].data: Raw OrderData records (backward compatible, kept during Phase 1)
+ *   - hydratedOrderData: Display-ready records keyed by orderItemId (new in Phase 1)
  *
  * Errors:
  *   - 400: Order ID is required
@@ -399,17 +406,119 @@ export async function GET(
       // Continue with empty arrays - don't fail the whole request
     }
 
+    // Step 8.5: Hydrate order data for display-ready output
+    //
+    // WHY: Raw OrderData records store UUID references as field names and
+    // JSON blobs as values. The hydration service resolves those into
+    // human-readable labels, formatted addresses, and parsed document
+    // metadata so the frontend can display them without any lookups.
+    //
+    // HOW: We collect all raw records from all items, hydrate them in one
+    // batch call (single DB query for label lookups), then group the
+    // results back by orderItemId so the frontend can look up
+    // hydratedOrderData[itemId] for each item.
+    //
+    // ORDERING: After hydration, we fetch displayOrder from the
+    // service_requirements table (configured via the DSX tab's drag-and-drop)
+    // and sort each item's records so they appear in the same sequence
+    // as the order creation form.
+    //
+    // SAFETY: If hydration fails for any reason, we log a warning and
+    // return an empty map — the raw data[] on each item is still there
+    // as a fallback so the page still loads.
+    let hydratedOrderDataMap: Record<string, HydratedOrderDataRecord[]> = {};
+
+    try {
+      const allRawRecords: RawOrderDataRecord[] = [];
+      const itemIdByRecordIndex: string[] = [];
+
+      // Build a map from itemId → serviceId for display order lookup
+      const serviceIdByItemId = new Map<string, string>();
+
+      for (const item of (order.items || []) as Array<(typeof order.items)[number] & { data?: RawOrderDataRecord[] }>) {
+        if (item.service?.id) {
+          serviceIdByItemId.set(item.id, item.service.id);
+        }
+        if (item.data && Array.isArray(item.data) && item.data.length > 0) {
+          for (const rawRecord of item.data) {
+            allRawRecords.push(rawRecord as unknown as RawOrderDataRecord);
+            itemIdByRecordIndex.push(item.id);
+          }
+        }
+      }
+
+      if (allRawRecords.length > 0) {
+        const hydratedRecords = await hydrateOrderData(allRawRecords, 'en-US');
+
+        // Fetch display orders from service_requirements in one query.
+        // This is the sequence configured via the DSX tab's drag-and-drop UI.
+        const allServiceIds = [...new Set([...serviceIdByItemId.values()])];
+        const displayOrderMap = new Map<string, number>();
+
+        if (allServiceIds.length > 0) {
+          try {
+            const displayOrderRows = await prisma.serviceRequirement.findMany({
+              where: { serviceId: { in: allServiceIds } },
+              select: { serviceId: true, requirementId: true, displayOrder: true },
+            });
+            for (const row of displayOrderRows) {
+              displayOrderMap.set(`${row.serviceId}:${row.requirementId}`, row.displayOrder);
+            }
+          } catch (error) {
+            logger.warn('Failed to fetch display orders — fields will appear in default order', {
+              orderId,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+          }
+        }
+
+        // Group hydrated records by orderItemId and attach display order.
+        for (let i = 0; i < hydratedRecords.length; i++) {
+          const itemId = itemIdByRecordIndex[i];
+          const serviceId = serviceIdByItemId.get(itemId) || '';
+          const record = hydratedRecords[i];
+
+          // Look up configured display order (default 999 if not found)
+          const orderKey = `${serviceId}:${record.requirementId}`;
+          record.displayOrder = displayOrderMap.get(orderKey) ?? 999;
+
+          if (!hydratedOrderDataMap[itemId]) {
+            hydratedOrderDataMap[itemId] = [];
+          }
+          hydratedOrderDataMap[itemId].push(record);
+        }
+
+        // Sort each item's records by displayOrder so fields match the DSX configuration
+        for (const itemId of Object.keys(hydratedOrderDataMap)) {
+          hydratedOrderDataMap[itemId].sort(
+            (a, b) => (a.displayOrder ?? 999) - (b.displayOrder ?? 999)
+          );
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to hydrate order data — raw data still available', {
+        orderId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      // hydratedOrderDataMap stays empty — frontend falls back to raw data
+    }
+
     // Step 9: Filter data based on user type
     // Define a type for the response that extends the base order
     interface OrderResponse extends Omit<typeof order, 'serviceFulfillments' | 'comments'> {
       serviceFulfillments?: ServicesFulfillment[];
       comments?: Partial<CommentWithUser>[];
       commentCount?: number;
+      /** Display-ready OrderData keyed by orderItemId. New in Phase 1 hydration. */
+      hydratedOrderData?: Record<string, HydratedOrderDataRecord[]>;
     }
     let responseData: OrderResponse = { ...order };
 
     // Add service fulfillments
     responseData.serviceFulfillments = serviceFulfillments;
+
+    // Attach hydrated order data map
+    responseData.hydratedOrderData = hydratedOrderDataMap;
 
     // Handle comment filtering based on user type
     if (isCustomer || isVendor) {

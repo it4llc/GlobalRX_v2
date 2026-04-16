@@ -81,6 +81,8 @@ export interface HydratedOrderDataRecord {
    *  - addresses: comma-joined summary of resolved pieces
    *  - documents: the filename (originalName) */
   displayValue: string;
+  /** Display order from service_requirements — used to sort fields in the configured sequence */
+  displayOrder?: number;
   /** Present only for address_block fields — each enabled address piece
    *  with its label and resolved value, displayed as labeled lines */
   addressPieces?: AddressPiece[];

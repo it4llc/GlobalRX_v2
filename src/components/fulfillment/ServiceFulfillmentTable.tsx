@@ -13,6 +13,7 @@ import type { DialogRef } from '@/components/ui/modal-dialog';
 import { ServiceCommentSection } from '@/components/services/ServiceCommentSection';
 import { ServiceResultsSection } from '@/components/services/ServiceResultsSection';
 import { ServiceRequirementsDisplay } from '@/components/services/ServiceRequirementsDisplay';
+import type { HydratedOrderDataRecord } from '@/types/order-data-hydration';
 import { useServiceComments } from '@/hooks/useServiceComments';
 import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
 import { UpdateServiceFulfillmentRequest } from '@/types/service-fulfillment';
@@ -45,6 +46,7 @@ interface ServiceFulfillment {
   attachmentsCount?: number;
   // Order data fields (service-specific requirements)
   orderData?: Record<string, string> | null; // OrderData from API is Record<string, string>
+  hydratedOrderData?: HydratedOrderDataRecord[] | null; // Display-ready records from Phase 1 hydration
   service: {
     id: string;
     name: string;
@@ -1148,8 +1150,7 @@ export function ServiceFulfillmentTable({
                     <td colSpan={100} className="px-2 sm:px-4 md:px-6 py-4 bg-gray-50">
                       <div className="expanded-content-container space-y-6 w-full max-w-6xl lg:max-w-7xl mx-auto">
                         {/* Requirements Section - Business Rule 1: Must be shown above results and comments */}
-                        <ServiceRequirementsDisplay orderData={service.orderData} />
-
+                       <ServiceRequirementsDisplay orderData={service.orderData} hydratedData={service.hydratedOrderData} />
                         {/* Divider */}
                         <hr className="border-gray-200" />
 
