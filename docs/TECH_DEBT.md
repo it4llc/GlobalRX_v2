@@ -1160,6 +1160,31 @@ Phase 1 of the OrderData Hydration work is complete — the fulfillment order de
 
 ---
 
+### TD-042: Dashboard customer orders page needs server-side pagination
+
+**Status:** Open
+**Priority:** Medium
+**Filed:** 2026-04-16
+**Context:** fix/order-count-pagination bug fix
+
+**Description:**
+The customer dashboard (`src/app/portal/dashboard/page.tsx`) fetches orders with a client-side limit of 1000 and paginates in the browser. This works for current customer volumes but will not scale when customers exceed 1000 orders.
+
+**Why it was deferred:**
+Converting to server-side pagination requires adding compound status filter support to the portal orders API (`/api/portal/orders`). The dashboard's "pending" filter combines `submitted` and `processing` statuses, which the API currently cannot express as a single query parameter. The fulfillment API was updated with `in_progress` compound filter support as part of the pagination fix, but the portal orders API was not — doing so would have expanded the bug fix scope beyond what was necessary.
+
+**What needs to happen:**
+1. Add compound status filter support to `/api/portal/orders` (e.g., `status=pending` maps to `statusCode: { in: ['submitted', 'processing'] }`)
+2. Convert the dashboard page from client-side to server-side pagination (same pattern as the fulfillment page fix)
+3. Remove the `limit=1000` cap
+
+**Affected files:**
+- `src/app/api/portal/orders/route.ts`
+- `src/app/portal/dashboard/page.tsx`
+- Possibly `src/lib/services/order.service.ts` (if the compound filter is handled at the service layer)
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_

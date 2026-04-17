@@ -88,7 +88,6 @@ export default function FulfillmentPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalOrders: 0,
@@ -101,6 +100,7 @@ export default function FulfillmentPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     // Check if user has fulfillment permission OR is a customer user
@@ -116,17 +116,24 @@ export default function FulfillmentPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [currentPage, statusFilter, searchQuery]);
 
-  useEffect(() => {
-    filterOrders();
-  }, [orders, statusFilter, searchQuery]);
 
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      const offset = (currentPage - 1) * limit;
       const params = new URLSearchParams();
-      params.append('limit', '100'); // Fetch more orders for stats
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+
+      if (statusFilter && statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
 
       const response = await fetch(`/api/fulfillment?${params}`);
       if (!response.ok) {
@@ -135,6 +142,7 @@ export default function FulfillmentPage() {
 
       const data = await response.json();
       setOrders(data.orders);
+      setTotalCount(data.total || 0);
 
       // Use stats from API response
       if (data.stats) {
@@ -147,37 +155,6 @@ export default function FulfillmentPage() {
     }
   };
 
-  const filterOrders = () => {
-    let filtered = [...orders];
-
-    // Apply status filter
-    if (statusFilter && statusFilter !== 'all') {
-      if (statusFilter === 'in_progress') {
-        // In Progress = orders NOT in Draft, Completed, or Cancelled status
-        filtered = filtered.filter(order =>
-          order.statusCode !== 'draft' &&
-          order.statusCode !== 'completed' &&
-          order.statusCode !== 'cancelled'
-        );
-      } else {
-        filtered = filtered.filter(order => order.statusCode === statusFilter);
-      }
-    }
-
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(order =>
-        order.orderNumber.toLowerCase().includes(query) ||
-        order.subject?.firstName?.toLowerCase().includes(query) ||
-        order.subject?.lastName?.toLowerCase().includes(query) ||
-        order.customer?.name?.toLowerCase().includes(query)
-      );
-    }
-
-    setFilteredOrders(filtered);
-    setCurrentPage(1); // Reset to first page when filtering
-  };
 
   const handleOrderClick = (orderId: string) => {
     // Phase 2a design decision: Open order details page in a new tab
@@ -207,10 +184,8 @@ export default function FulfillmentPage() {
   };
 
   // Pagination
-  const totalPages = Math.ceil(filteredOrders.length / limit);
-  const startIndex = (currentPage - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(totalCount / limit);
+  const paginatedOrders = orders;
 
   if (loading) {
     return (
@@ -246,7 +221,10 @@ export default function FulfillmentPage() {
           Business Requirement: Unified experience with Total Orders, Total Services, In Progress */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <button
-          onClick={() => setStatusFilter('all')}
+          onClick={() => {
+            setStatusFilter('all');
+            setCurrentPage(1);
+          }}
           className={`bg-white rounded-lg shadow p-6 transition-all hover:shadow-md ${
             statusFilter === 'all' ? 'ring-2 ring-blue-500 bg-blue-50' : ''
           }`}
@@ -275,7 +253,10 @@ export default function FulfillmentPage() {
         </div>
 
         <button
-          onClick={() => setStatusFilter('in_progress')}
+          onClick={() => {
+            setStatusFilter('in_progress');
+            setCurrentPage(1);
+          }}
           className={`bg-white rounded-lg shadow p-6 transition-all hover:shadow-md ${
             statusFilter === 'in_progress' ? 'ring-2 ring-yellow-500 bg-yellow-50' : ''
           }`}
@@ -302,10 +283,16 @@ export default function FulfillmentPage() {
                 type="search"
                 placeholder={t('module.fulfillment.searchPlaceholder')}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full sm:w-64"
               />
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}>
                 <SelectTrigger className="w-full sm:w-48">
                   <SelectValue placeholder={t('module.fulfillment.filterByStatus')} />
                 </SelectTrigger>
@@ -322,7 +309,7 @@ export default function FulfillmentPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {filteredOrders.length === 0 ? (
+          {orders.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500">{t('module.fulfillment.noOrdersFound')}</p>
             </div>
@@ -381,8 +368,8 @@ export default function FulfillmentPage() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <p className="text-sm text-gray-600">
-                    {t('module.fulfillment.showing')} {startIndex + 1} {t('module.fulfillment.to')} {Math.min(endIndex, filteredOrders.length)} {t('module.fulfillment.of')}{' '}
-                    {filteredOrders.length} {t('module.fulfillment.orders').toLowerCase()}
+                    {t('module.fulfillment.showing')} {((currentPage - 1) * limit) + 1} {t('module.fulfillment.to')} {Math.min(currentPage * limit, totalCount)} {t('module.fulfillment.of')}{' '}
+                    {totalCount} {t('module.fulfillment.orders').toLowerCase()}
                   </p>
                   <div className="flex gap-2">
                     <Button
