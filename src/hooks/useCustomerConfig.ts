@@ -57,7 +57,7 @@ const LOGO_REQUIREMENTS = {
 };
 
 export function useCustomerConfig(customerId: string | null) {
-  const { fetchWithAuth, checkPermission } = useAuth();
+  const { fetchWithAuth, canManageCustomers } = useAuth();
 
   const [customer, setCustomer] = useState<CustomerDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,14 +83,9 @@ export function useCustomerConfig(customerId: string | null) {
     dataRetentionDays: null, // Default to "Delete at Global Rule"
   });
 
-  // Permission checks - check for new module-based permissions
-  // BUG FIX: Previously only checked for legacy 'customers.view/edit' permissions.
-  // This caused the frontend to hide customer management features for internal users
-  // who had the new module-based permissions (customer_config, global_config) but not
-  // the old format. Now we check both formats to ensure compatibility during the transition.
-  // Users with customer_config or global_config can manage customers
-  const canView = checkPermission('customer_config') || checkPermission('global_config') || checkPermission('customers', 'view');
-  const canEdit = checkPermission('customer_config') || checkPermission('global_config') || checkPermission('customers', 'edit');
+  // Permission checks - using centralized helper
+  const canView = canManageCustomers();
+  const canEdit = canManageCustomers();
 
   // Email validation - empty is OK, but if provided must be valid format
   const validateEmail = useCallback((email: string | null | undefined): boolean => {
