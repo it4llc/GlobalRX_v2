@@ -45,7 +45,7 @@ interface User {
 
 export default function CustomerUsersPage() {
   const { id: customerId } = useParams();
-  const { fetchWithAuth, checkPermission } = useAuth();
+  const { fetchWithAuth, canManageCustomers } = useAuth();
   const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,7 +55,7 @@ export default function CustomerUsersPage() {
   const [isDeleteUserOpen, setIsDeleteUserOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  const canManageUsers = checkPermission('customers', 'edit') || checkPermission('admin');
+  const canManageUsers = canManageCustomers();
 
   useEffect(() => {
     fetchCustomerUsers();

@@ -4,6 +4,7 @@ import logger from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { canManageCustomers } from '@/lib/auth-utils';
 
 /**
  * @route PATCH /api/customers/[id]/toggle-available
@@ -25,7 +26,7 @@ export async function PATCH(
     }
 
     // Check permissions
-    if (!session.user.permissions?.customers?.edit) {
+    if (!canManageCustomers(session.user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
