@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     interface OrderWhereClause {
       assignedVendorId?: string | { not: null };
       customerId?: string;
-      statusCode?: string;
+      statusCode?: string | { notIn: string[] };
       OR?: Array<{
         orderNumber?: { contains: string; mode: 'insensitive' };
         subject?: { path: string[]; string_contains: string };
@@ -102,7 +102,11 @@ export async function GET(request: NextRequest) {
 
     // Add status filter if provided
     if (status) {
-      whereClause.statusCode = status;
+      if (status === 'in_progress') {
+        whereClause.statusCode = { notIn: ['draft', 'completed', 'cancelled'] };
+      } else {
+        whereClause.statusCode = status;
+      }
     }
 
     // Add search filter if provided
