@@ -334,7 +334,10 @@ function buildFallbackRecord(record: RawOrderDataRecord): HydratedOrderDataRecor
 
   // UUIDs are not readable labels
   const isUuidValue = UUID_PATTERN.test(fn);
-  // Hex-only fragments like "ddfba175abf341c4" are auto-generated fieldKeys — not readable
+  // WHY: Some requirements use auto-generated hex fieldKeys like "ddfba175abf341c4"
+  // when created through certain DSX flows. These are not human-readable and should
+  // show as "Unknown field" rather than the hex string. The 8-char minimum prevents
+  // false positives on short codes like "ab12" that might be intentional labels.
   const isHexFragment = !isUuidValue && /^[0-9a-f]+$/i.test(fn) && fn.length >= 8;
 
   const label = (isUuidValue || isHexFragment) ? 'Unknown field' : fn;

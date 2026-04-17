@@ -124,7 +124,10 @@ export function resolveAddressValue(
     // Resolve the display value
     let resolvedValue: string;
     if (GEOGRAPHIC_KEYS.has(key)) {
-      // This value might be a UUID pointing to the countries table
+      // WHY: Newer orders store pre-resolved names ("Northern Territory") while
+      // older orders store UUIDs. We check if it's a UUID before attempting lookup
+      // to handle both formats transparently. This backward compatibility was
+      // discovered during Phase 1 implementation when testing with mixed-age data.
       const lookedUp = geoNameMap.get(rawValue);
       if (lookedUp) {
         resolvedValue = lookedUp;
