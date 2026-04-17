@@ -35,7 +35,7 @@ interface Customer {
 }
 
 export default function CustomerList() {
-  const { checkPermission, fetchWithAuth } = useAuth();
+  const { canManageCustomers, fetchWithAuth } = useAuth();
   const router = useRouter();
   
   // State variables
@@ -58,9 +58,9 @@ export default function CustomerList() {
   const [isDuplicateProcessing, setIsDuplicateProcessing] = useState(false);
   
   // Permissions
-  const canCreate = checkPermission('customers', 'create');
-  const canEdit = checkPermission('customers', 'edit');
-  const canDelete = checkPermission('customers', 'delete');
+  const canCreate = canManageCustomers();
+  const canEdit = canManageCustomers();
+  const canDelete = canManageCustomers();
   
   // Column widths for consistent layout
   const columnWidths = {

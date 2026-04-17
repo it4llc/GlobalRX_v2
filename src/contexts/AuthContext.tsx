@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { hasPermission, normalizePermissions } from '@/lib/permission-utils';
+import { canManageCustomers as authCanManageCustomers } from '@/lib/auth-utils';
 import clientLogger from '@/lib/client-logger';
 
 interface AuthContextType {
@@ -12,6 +13,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   checkPermission: (resource: string, action?: string) => boolean;
+  canManageCustomers: () => boolean;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
@@ -22,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => ({ success: false }),
   logout: async () => {},
   checkPermission: () => false,
+  canManageCustomers: () => false,
   fetchWithAuth: async () => new Response(),
 });
 
@@ -69,6 +72,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const checkPermission = (resource: string, action?: string): boolean => {
     if (!session?.user) return false;
     return hasPermission(session.user, resource, action);
+  };
+
+  const canManageCustomers = (): boolean => {
+    if (!session?.user) return false;
+    return authCanManageCustomers(session.user);
   };
 
   // Fetch with authentication and error handling
@@ -137,6 +145,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         login,
         logout,
         checkPermission,
+        canManageCustomers,
         fetchWithAuth,
       }}
     >

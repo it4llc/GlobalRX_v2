@@ -1185,6 +1185,60 @@ Converting to server-side pagination requires adding compound status filter supp
 
 ---
 
+TD-043 — Legacy Super-Admin Detection in Users API Routes
+FieldDetailAreaUser Admin / API RoutesSeverityWarningIdentifiedApril 17, 2026 - Customer Permission Key Fix InvestigationIdentified byBug Investigator
+Description:
+src/app/api/users/[id]/route.ts (lines 34, 107, 272) and src/app/api/users/route.ts (lines 28, 99) use a legacy "super admin" detection pattern that checks perms.customers?.includes?.('*') alongside similar checks on countries, services, and dsx. All four of these permission keys are from the old format. The customers key has been replaced by customer_config, and dsx has been replaced by global_config, so this check no longer correctly identifies admin users who were set up using the new permission format.
+This was discovered during the customer permission key mismatch investigation but pulled out of that fix because it's a different logical problem — it's about super-admin detection, not customer management permissions. Mixing a key rename with a logic redesign in the same PR would be harder to verify and roll back.
+Why deferred:
+The fix requires understanding the full intended behavior of the "has all wildcards" check and replacing it with the correct centralized functions (canManageUsers(), canAccessGlobalConfig(), etc.). This is a logic change, not just a key rename, and needs its own investigation.
+When to fix:
+During the next work on user management permissions or during a permissions system cleanup pass.
+Affected files:
+
+src/app/api/users/[id]/route.ts
+src/app/api/users/route.ts
+
+Recommendation:
+Replace the hasAllWildcards pattern with the centralized helper functions from src/lib/auth-utils.ts that already handle both old and new permission formats.
+
+TD-044 — NextAuth Type Definition Still Shows Old Permission Format
+FieldDetailAreaTypeScript Types / SessionSeverityWarning (Type Safety)IdentifiedApril 17, 2026 - Customer Permission Key Fix InvestigationIdentified byArchitect
+Description:
+src/types/next-auth.d.ts (lines 14-19) defines the session user's permissions type as:
+typescriptpermissions: {
+  countries?: string[];
+  services?: string[];
+  dsx?: string[];
+  customers?: string[];
+}
+This reflects the old permission format. The actual permissions stored in the database and used at runtime now include module-based keys like customer_config, global_config, user_admin, vendors, fulfillment, and candidate_workflow — none of which appear in this type definition. The type definition is misleading and provides no type safety for the current permission structure.
+Why deferred:
+Updating the type definition could surface TypeScript errors across the codebase wherever the old permission keys are still referenced — which is exactly the set of files being fixed in the current customer permission bug. Updating the types at the same time as the permission fix would mix two concerns. Better to fix the runtime behavior first, then update the types.
+When to fix:
+After the customer permission key fix is merged and verified. Update the type definition to match the actual runtime permission structure and resolve any resulting TypeScript errors.
+Affected files:
+
+src/types/next-auth.d.ts
+Any file that currently relies on the old type shape for autocompletion or type checking
+
+Recommendation:
+Update the permissions type to include all current module-based keys with their correct types (boolean or string array). Consider making it a union type or using a Record to handle both legacy and new formats during the transition period.
+
+TD-045 — normalizePermissions() Still References Old Permission Keys
+FieldDetailAreaPermission UtilitiesSeverityWarningIdentifiedApril 17, 2026 - Customer Permission Key Fix InvestigationIdentified byBug Investigator
+Description:
+src/lib/permission-utils.ts line 88 in the normalizePermissions() function still references the old customers key in its resources array. If this function is used to normalize permissions at login or session creation, it may strip or mishandle the new customer_config key since it's not in the recognized list.
+Why deferred:
+Changing what normalizePermissions() recognizes could affect session creation and permission loading for all users. Needs careful analysis of where this function is called and whether existing users in the database have permissions stored under the old keys that still need to be normalized. Changing it without that analysis risks breaking permission loading for legacy users.
+When to fix:
+After the customer permission key fix is merged. Investigate all callers of normalizePermissions() to understand whether it needs to handle both old and new keys simultaneously (migration support) or can be updated to only recognize new keys.
+Affected files:
+
+src/lib/permission-utils.ts
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
