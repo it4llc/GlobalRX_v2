@@ -91,7 +91,7 @@ export default function CustomerDashboard() {
       // Fetch real order statistics and more orders (same as My Orders page)
       const [statsResponse, ordersResponse] = await Promise.all([
         fetch('/api/portal/orders/stats'),
-        fetch('/api/portal/orders?limit=50'), // Show more orders, same as My Orders page default
+        fetch('/api/portal/orders?limit=1000'), // Show more orders, same as My Orders page default
       ]);
 
       if (statsResponse.ok) {
