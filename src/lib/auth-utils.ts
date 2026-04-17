@@ -132,14 +132,14 @@ export function canManageVendors(user: User | null | undefined): boolean {
 
 /**
  * Check if a user can manage customers
- * ONLY internal users with customer_config or global_config permission
+ * ONLY internal users with customer_config permission
  * Vendor and customer users are explicitly excluded
  */
 export function canManageCustomers(user: User | null | undefined): boolean {
   // Explicitly exclude vendor and customer users
   if (isVendorUser(user) || isCustomerUser(user)) return false;
   if (!isInternalUser(user)) return false;
-  return hasModulePermission(user, 'customer_config') || hasModulePermission(user, 'global_config');
+  return hasModulePermission(user, 'customer_config');
 }
 
 /**

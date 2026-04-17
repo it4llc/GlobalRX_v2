@@ -131,16 +131,14 @@ export function OrderDetailsSidebar({
 }: OrderDetailsSidebarProps) {
   const { toastError } = useToast();
   const { t } = useTranslation();
-  const { user, checkPermission } = useAuth();
+  const { user, canManageCustomers } = useAuth();
 
   // Check if current user is a customer - customers get read-only view
   const isCustomer = user?.userType === 'customer';
   const isVendor = user?.userType === 'vendor';
 
   // Check if user has permission to view customer configurations
-  const canViewCustomerConfigs = checkPermission('customers', 'view') ||
-                                  checkPermission('customers', '*') ||
-                                  checkPermission('admin', '*');
+  const canViewCustomerConfigs = canManageCustomers();
 
   // Use either callback prop
   const handleStatusChange = onStatusChange || onStatusUpdate;

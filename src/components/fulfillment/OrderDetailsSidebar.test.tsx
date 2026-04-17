@@ -29,7 +29,8 @@ vi.mock('@/contexts/AuthContext', () => ({
         return true;
       }
       return false;
-    })
+    }),
+    canManageCustomers: vi.fn(() => true)
   }))
 }));
 

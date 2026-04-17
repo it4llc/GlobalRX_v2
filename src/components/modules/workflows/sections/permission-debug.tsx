@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AlertBox } from '@/components/ui/alert-box';
 
 export function PermissionDebug() {
-  const { checkPermission, user, fetchWithAuth } = useAuth();
+  const { checkPermission, canManageCustomers, user, fetchWithAuth } = useAuth();
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,11 +21,11 @@ export function PermissionDebug() {
       const clientPermissions = {
         'workflows.view': checkPermission('workflows', 'view'),
         'workflows.edit': checkPermission('workflows', 'edit'),
-        'customers.view': checkPermission('customers', 'view'),
-        'customers.edit': checkPermission('customers', 'edit'),
+        'customers.view': canManageCustomers(),
+        'customers.edit': canManageCustomers(),
         'admin': checkPermission('admin'),
-        'canEdit': checkPermission('workflows', 'edit') || 
-                  checkPermission('customers', 'edit') || 
+        'canEdit': checkPermission('workflows', 'edit') ||
+                  canManageCustomers() ||
                   checkPermission('admin'),
         'rawPermissions': user?.permissions
       };

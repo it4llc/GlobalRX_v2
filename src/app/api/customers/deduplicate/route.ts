@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import logger from '@/lib/logger';
 import { getErrorDetails } from '@/lib/utils';
+import { canManageCustomers } from '@/lib/auth-utils';
 
 // Validation schema
 const deduplicateSchema = z.object({
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Authorization check - Require specific edit permission for deduplication
     // Deduplication is a destructive operation that modifies customer data
-    if (!session.user?.permissions?.customers?.edit) {
+    if (!canManageCustomers(session.user)) {
       return NextResponse.json(
         { error: 'You need customers.edit permission to deduplicate customers' },
         { status: 403 }

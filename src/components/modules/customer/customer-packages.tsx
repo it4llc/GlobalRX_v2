@@ -47,7 +47,7 @@ interface CustomerPackagesProps {
 }
 
 export default function CustomerPackages({ customerId }: CustomerPackagesProps) {
-  const { checkPermission, fetchWithAuth } = useAuth();
+  const { canManageCustomers, fetchWithAuth } = useAuth();
   
   // State
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
@@ -68,7 +68,7 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
   }, [editingPackageId]);
   
   // Permissions
-  const canEdit = checkPermission('customers', 'edit');
+  const canEdit = canManageCustomers();
   
   // Fetch customer data and packages
   useEffect(() => {

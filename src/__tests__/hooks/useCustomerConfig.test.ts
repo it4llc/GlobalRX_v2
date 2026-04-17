@@ -23,11 +23,13 @@ import { useCustomerConfig } from '@/hooks/useCustomerConfig';
 // Mock dependencies
 const mockFetchWithAuth = vi.fn();
 const mockCheckPermission = vi.fn();
+const mockCanManageCustomers = vi.fn();
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
     fetchWithAuth: mockFetchWithAuth,
     checkPermission: mockCheckPermission,
+    canManageCustomers: mockCanManageCustomers,
   }),
 }));
 
@@ -63,6 +65,7 @@ describe('useCustomerConfig', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCheckPermission.mockReturnValue(true);
+    mockCanManageCustomers.mockReturnValue(true);
   });
 
   describe('loadCustomer', () => {
@@ -102,6 +105,7 @@ describe('useCustomerConfig', () => {
 
     it('should handle permission denied - no customer data visible without permission', async () => {
       mockCheckPermission.mockReturnValue(false);
+      mockCanManageCustomers.mockReturnValue(false);
 
       const { result } = renderHook(() => useCustomerConfig('customer-123'));
 
@@ -412,40 +416,23 @@ describe('useCustomerConfig', () => {
   });
 
   describe('permissions', () => {
-    it('should check view and edit permissions separately', () => {
-      mockCheckPermission.mockImplementation((resource, action) => {
-        if (resource === 'customers' && action === 'view') return true;
-        if (resource === 'customers' && action === 'edit') return false;
-        return false;
-      });
+    it('should grant both view and edit when user has customer management permission', () => {
+      mockCheckPermission.mockReturnValue(true);
+      mockCanManageCustomers.mockReturnValue(true);
 
       const { result } = renderHook(() => useCustomerConfig('customer-123'));
 
       expect(result.current.canView).toBe(true);
-      expect(result.current.canEdit).toBe(false);
+      expect(result.current.canEdit).toBe(true);
     });
 
-    it('should allow view-only users to see all customer data including billing', async () => {
-      mockCheckPermission.mockImplementation((resource, action) => {
-        if (resource === 'customers' && action === 'view') return true;
-        if (resource === 'customers' && action === 'edit') return false;
-        return false;
-      });
-
-      mockFetchWithAuth.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockCustomerData,
-      });
+    it('should deny both view and edit when user lacks customer management permission', () => {
+      mockCheckPermission.mockReturnValue(false);
+      mockCanManageCustomers.mockReturnValue(false);
 
       const { result } = renderHook(() => useCustomerConfig('customer-123'));
 
-      await waitFor(() => {
-        expect(result.current.customer).toEqual(mockCustomerData);
-      });
-
-      // View-only users can see all fields including billing info
-      expect(result.current.customer.invoiceTerms).toBe('Net 30');
-      expect(result.current.customer.invoiceContact).toBe('billing@acme.com');
+      expect(result.current.canView).toBe(false);
       expect(result.current.canEdit).toBe(false);
     });
   });

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth'; // Adjust the path as needed
 import logger from '@/lib/logger';
+import { canManageCustomers } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,8 +33,14 @@ export async function GET(request: NextRequest) {
       },
       // Check specific permissions relevant to customers
       permissionChecks: {
-        hasCustomersView: Boolean(session.user?.permissions?.customers?.view),
-        hasCustomersAll: Boolean(session.user?.permissions?.customers?.all),
+        // Legacy permission checks (old format)
+        hasCustomersView_OLD: Boolean(session.user?.permissions?.customers?.view),
+        hasCustomersAll_OLD: Boolean(session.user?.permissions?.customers?.all),
+        // New module-based permission checks
+        hasCustomerConfig_NEW: Boolean(session.user?.permissions?.customer_config),
+        hasGlobalConfig_NEW: Boolean(session.user?.permissions?.global_config),
+        // Consolidated check
+        canManageCustomers: canManageCustomers(session.user),
         hasFulfillment: session.user?.permissions?.fulfillment,
         userTypeCheck: session.user?.type || session.user?.userType || 'not set'
       }
