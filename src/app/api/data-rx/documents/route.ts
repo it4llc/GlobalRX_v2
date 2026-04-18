@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { canAccessDataRx } from '@/lib/auth-utils';
 import logger, { logDatabaseError } from '@/lib/logger';
+import { generateFieldKey } from '@/lib/utils/field-key';
 
 /**
  * GET /api/data-rx/documents
@@ -255,11 +256,15 @@ export async function POST(request: NextRequest) {
           retentionHandling: retentionHandling || "no_delete"
         };
 
+        // Generate unique fieldKey for new document
+        const fieldKey = await generateFieldKey(documentNameToUse, prisma);
+
         // Create new document
         document = await prisma.dSXRequirement.create({
           data: {
             name: documentNameToUse,
             type,
+            fieldKey,
             documentData,
             disabled
           }
