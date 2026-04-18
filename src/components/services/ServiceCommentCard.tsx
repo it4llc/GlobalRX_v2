@@ -126,13 +126,6 @@ export function ServiceCommentCard({ comment, onEdit, onDelete }: ServiceComment
             </span>
           )}
 
-          {/* Template name */}
-          {!comment.isStatusChange && (comment.templateName || comment.template?.name) && (
-            <span className="text-xs text-gray-600">
-              Template: {comment.templateName || comment.template?.name}
-            </span>
-          )}
-
           {/* Edit timestamp if exists */}
           {updatedInfo && !isCustomer && (
             <span className="text-xs text-gray-500 italic">
