@@ -3,7 +3,8 @@
 **Spec file:** `docs/specs/uploaded-document-access.md`
 **Date:** 2026-04-17
 **Requested by:** Andy
-**Status:** Approved
+**Status:** Implemented
+**Implementation Date:** 2026-04-18
 
 ## Summary
 Make document filenames clickable links in the order item details view, allowing users to directly download documents that were uploaded during order submission or fulfillment. This applies to both documents attached at order creation (stored in order_data table) and documents added during fulfillment (stored in service_attachments table).
