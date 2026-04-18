@@ -546,10 +546,25 @@ export class OrderCoreService {
             }
           }
         }
+      }
 
-        // TODO: Handle document uploads for this order item
-        // const documents = data.uploadedDocuments?.[serviceItem.itemId];
-        // if (documents) { ... }
+      // Save uploaded documents to order_data
+      if (data.uploadedDocuments && firstOrderItemId) {
+        for (const [documentId, documentMetadata] of Object.entries(data.uploadedDocuments)) {
+          if (documentMetadata && typeof documentMetadata === 'object') {
+            // Save document metadata as order_data with fieldType='document'
+            // Documents are uploaded immediately when selected (not when order saves)
+            // The upload endpoint returns JSON-serializable metadata
+            await tx.orderData.create({
+              data: {
+                orderItemId: firstOrderItemId,
+                fieldName: documentId, // Use document requirement ID as field name
+                fieldValue: JSON.stringify(documentMetadata), // Store metadata as JSON
+                fieldType: 'document', // Distinguishes from regular search field data
+              },
+            });
+          }
+        }
       }
 
       // Save subject field values to order_data table to preserve structured data (like address blocks)
