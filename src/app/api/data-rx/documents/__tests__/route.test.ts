@@ -16,7 +16,8 @@ vi.mock('@/lib/prisma', () => ({
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
-      findUnique: vi.fn()
+      findUnique: vi.fn(),
+      findFirst: vi.fn()
     }
   }
 }));
@@ -349,6 +350,7 @@ describe('POST /api/data-rx/documents', () => {
         disabled: false
       };
 
+      vi.mocked(prisma.dSXRequirement.findFirst).mockResolvedValueOnce(null); // No collision on fieldKey
       vi.mocked(prisma.dSXRequirement.create).mockResolvedValueOnce(newDocument);
 
       const request = new Request('http://localhost:3000/api/data-rx/documents', {
@@ -448,6 +450,7 @@ describe('POST /api/data-rx/documents', () => {
         disabled: false
       };
 
+      vi.mocked(prisma.dSXRequirement.findFirst).mockResolvedValueOnce(null); // No collision on fieldKey
       vi.mocked(prisma.dSXRequirement.create).mockResolvedValueOnce(newDocument);
 
       const request = new Request('http://localhost:3000/api/data-rx/documents', {
@@ -501,6 +504,7 @@ describe('POST /api/data-rx/documents', () => {
         disabled: false
       };
 
+      vi.mocked(prisma.dSXRequirement.findFirst).mockResolvedValueOnce(null); // No collision on fieldKey
       vi.mocked(prisma.dSXRequirement.create).mockResolvedValueOnce(newDocument);
 
       const request = new Request('http://localhost:3000/api/data-rx/documents', {
