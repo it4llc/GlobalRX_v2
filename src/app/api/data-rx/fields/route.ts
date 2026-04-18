@@ -6,39 +6,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import logger from '@/lib/logger';
 import { canAccessDataRx } from '@/lib/auth-utils';
+import { generateFieldKey } from '@/lib/utils/field-key';
 
-/**
- * Generate a stable camelCase key from a field label
- * @param label The human-readable field label
- * @returns A camelCase key suitable for use as a JSON property name
- */
-function generateFieldKey(label: string): string {
-  // Split on spaces, hyphens, slashes, dots, apostrophes, and parentheses
-  const words = label.split(/[\s\-\/\.\'\(\)]+/).filter(word => word.length > 0);
-
-  if (words.length === 0) {
-    return 'field';
-  }
-
-  // Join as camelCase (first word lowercase, subsequent words capitalized first letter)
-  const camelCase = words.map((word, index) => {
-    const cleanWord = word.replace(/[^a-zA-Z0-9]/g, ''); // Remove any remaining non-alphanumeric
-    if (index === 0) {
-      return cleanWord.toLowerCase();
-    }
-    return cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1).toLowerCase();
-  }).join('');
-
-  // Ensure the result starts with a lowercase letter
-  const result = camelCase.charAt(0).toLowerCase() + camelCase.slice(1);
-
-  // If result is empty or doesn't start with a letter, prefix with 'field'
-  if (!result || !/^[a-z]/i.test(result)) {
-    return 'field' + result;
-  }
-
-  return result;
-}
 
 function standardizeFieldData(fieldData: any): any {
   if (!fieldData) return {};
@@ -181,14 +150,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique fieldKey
-    let fieldKey = generateFieldKey(data.fieldLabel);
-    let keyCounter = 2;
-
-    // Check for existing fieldKey and append number if necessary
-    while (await prisma.dSXRequirement.findFirst({ where: { fieldKey } })) {
-      fieldKey = `${generateFieldKey(data.fieldLabel)}${keyCounter}`;
-      keyCounter++;
-    }
+    const fieldKey = await generateFieldKey(data.fieldLabel, prisma);
 
     // Create field with standardized property names
     const fieldDataToSave = {
