@@ -297,10 +297,7 @@ export function ServiceCommentSection({ serviceId, orderItemId, orderId, service
           onCancel={() => setIsCreateModalOpen(false)}
           serviceId={serviceId}
           serviceName={serviceName}
-          templates={availableTemplates?.map(t => ({
-            ...t,
-            templateText: t.text
-          }))}
+          templates={availableTemplates}
         />
       )}
 
