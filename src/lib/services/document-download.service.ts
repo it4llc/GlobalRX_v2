@@ -48,7 +48,7 @@ export async function getDocumentFromOrderData(orderDataId: string) {
                 customerId: true
               }
             },
-            servicesFulfillment: {
+            serviceFulfillment: {
               select: {
                 assignedVendorId: true
               }
@@ -91,7 +91,7 @@ export async function getDocumentFromOrderData(orderDataId: string) {
       orderDataId,
       orderId: orderData.orderItem?.orderId,
       customerId: orderData.orderItem?.order?.customerId,
-      vendorId: orderData.orderItem?.servicesFulfillment?.assignedVendorId
+      vendorId: orderData.orderItem?.serviceFulfillment?.assignedVendorId
     };
   } catch (error) {
     logger.error('Error fetching document from order_data', {
@@ -125,7 +125,7 @@ export async function streamFile(
     }
 
     // Construct full path to file
-    const uploadsDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
+    const uploadsDir = process.env.UPLOADS_DIR || process.cwd();
     const fullPath = path.join(uploadsDir, filePath);
 
     // Check if file exists
