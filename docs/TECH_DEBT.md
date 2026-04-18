@@ -1202,6 +1202,8 @@ src/app/api/users/route.ts
 Recommendation:
 Replace the hasAllWildcards pattern with the centralized helper functions from src/lib/auth-utils.ts that already handle both old and new permission formats.
 
+--- 
+
 TD-044 — NextAuth Type Definition Still Shows Old Permission Format
 FieldDetailAreaTypeScript Types / SessionSeverityWarning (Type Safety)IdentifiedApril 17, 2026 - Customer Permission Key Fix InvestigationIdentified byArchitect
 Description:
@@ -1238,6 +1240,24 @@ Affected files:
 src/lib/permission-utils.ts
 
 ---
+
+TD-046: ServiceFulfillmentTable.tsx exceeds 600-line hard stop
+
+File: src/components/fulfillment/ServiceFulfillmentTable.tsx
+Issue: File is 1460 lines, far exceeding the 600-line hard stop defined in CODING_STANDARDS.md Section 9. Contains dialog components, filter controls, table rows, and expansion logic that should be extracted into separate components.
+Impact: Low (functional, but difficult to maintain and review)
+Suggested fix: Extract into smaller components: expanded row content, filter controls, dialog modals, and table row rendering.
+Discovered during: Uploaded Document Access feature standards check (2026-04-18)
+
+---
+
+TD-047: Fulfillment routes use inline permission checks instead of centralized auth-utils
+
+File: src/app/api/fulfillment/documents/[id]/route.ts (and other fulfillment routes)
+Issue: Permission checks for fulfillment.view, candidate_workflow.view, etc. are done inline with multiple format checks rather than using centralized functions from auth-utils.ts. This pattern is consistent with existing fulfillment routes but violates API_STANDARDS.md Section 3.2.
+Impact: Low (functional, but creates inconsistency and duplication across routes)
+Suggested fix: Create centralized permission-checking functions in auth-utils.ts and refactor all fulfillment routes to use them.
+Discovered during: Uploaded Document Access feature standards check (2026-04-18)
 
 ## Resolved Items
 
