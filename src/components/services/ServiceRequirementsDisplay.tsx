@@ -125,7 +125,7 @@ export const ServiceRequirementsDisplay = React.memo(({
              Resolved labels, formatted addresses, parsed documents.
              This path is active once the API returns hydratedOrderData. */
           <dl className="space-y-3" data-testid="hydrated-requirements">
-            {console.log('HYDRATED DATA:', hydratedData), hydratedData!.map((record) => {
+            {hydratedData!.map((record) => {
 
               {/* Address block: parent label as heading, each piece on its own labeled line */}
               if (isAddressRecord(record)) {
@@ -163,7 +163,6 @@ export const ServiceRequirementsDisplay = React.memo(({
 
               {/* Document: label + filename with file size */}
               if (isDocumentRecord(record)) {
-                console.log('DOCUMENT RECORD:', record.requirementId, record.orderDataId, record.document);
                 // Determine the download URL based on user type
                 const downloadUrl = userType === 'customer'
                   ? `/api/portal/documents/${record.orderDataId}`
