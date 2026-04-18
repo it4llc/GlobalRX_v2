@@ -63,6 +63,8 @@ export interface DocumentMetadata {
  * Every hydrated record has these fields regardless of data type.
  */
 export interface HydratedOrderDataRecord {
+  /** The order_data record UUID - needed for document download URLs */
+  orderDataId: string;
   /** The dsx_requirements UUID (original OrderData.fieldName value) */
   requirementId: string;
   /** Resolved display label via fallback chain:

@@ -1150,7 +1150,11 @@ export function ServiceFulfillmentTable({
                     <td colSpan={100} className="px-2 sm:px-4 md:px-6 py-4 bg-gray-50">
                       <div className="expanded-content-container space-y-6 w-full max-w-6xl lg:max-w-7xl mx-auto">
                         {/* Requirements Section - Business Rule 1: Must be shown above results and comments */}
-                       <ServiceRequirementsDisplay orderData={service.orderData} hydratedData={service.hydratedOrderData} />
+                       <ServiceRequirementsDisplay
+                          orderData={service.orderData}
+                          hydratedData={service.hydratedOrderData}
+                          userType={user?.userType}
+                        />
                         {/* Divider */}
                         <hr className="border-gray-200" />
 
