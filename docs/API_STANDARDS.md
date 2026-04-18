@@ -570,6 +570,58 @@ Update the JSDoc block any time you change the endpoint's behavior — adding a 
 
 ---
 
+## SECTION 12: Document Download API Endpoints
+
+### 12.1 Uploaded Document Access
+
+The platform provides two endpoints for downloading documents that were uploaded to order items:
+
+```typescript
+/**
+ * GET /api/portal/documents/[id]
+ *
+ * Downloads a document uploaded to an order item (customer access).
+ * Customers can only download documents from their own orders.
+ *
+ * Required permissions: Must be a customer user
+ * Path params: id - The order_data record ID containing the document metadata
+ *
+ * Returns: File stream with appropriate Content-Type header
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Not a customer user or attempting to access another customer's document
+ *   - 404: Document record not found or file missing on disk
+ */
+```
+
+```typescript
+/**
+ * GET /api/fulfillment/documents/[id]
+ *
+ * Downloads a document uploaded to an order item (internal/admin/vendor access).
+ * - Internal/admin users can download any document
+ * - Vendor users can only download documents from orders assigned to them
+ *
+ * Required permissions: Must be internal, admin, or vendor user
+ * Path params: id - The order_data record ID containing the document metadata
+ *
+ * Returns: File stream with appropriate Content-Type header
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Vendor attempting to access unassigned order's document
+ *   - 404: Document record not found or file missing on disk
+ */
+```
+
+Both endpoints use the shared `document-download.service.ts` utility which provides:
+- `validateFilePath(path)` — ensures the path doesn't escape the uploads directory
+- `getDocumentFromOrderData(id, session)` — retrieves and validates document access
+- `streamFile(filePath, mimeType)` — streams the file with proper headers
+
+---
+
 ## API STANDARDS CHECKLIST
 
 ### Route structure:

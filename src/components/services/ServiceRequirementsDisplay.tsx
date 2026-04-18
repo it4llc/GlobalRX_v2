@@ -20,6 +20,8 @@ interface ServiceRequirementsDisplayProps {
   hydratedData?: HydratedOrderDataRecord[] | null;
   serviceName?: string;
   isLoading?: boolean;
+  /** User type for determining which API endpoint to use for document downloads */
+  userType?: string;
 }
 
 /**
@@ -102,6 +104,7 @@ export const ServiceRequirementsDisplay = React.memo(({
   orderData,
   hydratedData,
   serviceName = '',
+  userType,
 }: ServiceRequirementsDisplayProps) => {
   const hasHydratedData = hydratedData && hydratedData.length > 0;
   const hasLegacyData = orderData && typeof orderData === 'object' && Object.keys(orderData).length > 0;
@@ -160,6 +163,11 @@ export const ServiceRequirementsDisplay = React.memo(({
 
               {/* Document: label + filename with file size */}
               if (isDocumentRecord(record)) {
+                // Determine the download URL based on user type
+                const downloadUrl = userType === 'customer'
+                  ? `/api/portal/documents/${record.orderDataId}`
+                  : `/api/fulfillment/documents/${record.orderDataId}`;
+
                 return (
                   <div
                     key={record.requirementId}
@@ -176,12 +184,20 @@ export const ServiceRequirementsDisplay = React.memo(({
                       data-testid={`field-value-${record.fieldKey}`}
                       className="text-sm text-gray-900"
                     >
-                      <span>{record.document.filename}</span>
-                      {record.document.size > 0 && (
-                        <span className="ml-2 text-xs text-gray-500">
-                          ({formatFileSize(record.document.size)})
-                        </span>
-                      )}
+                      <a
+                        href={downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                        data-testid={`document-link-${record.fieldKey}`}
+                      >
+                        <span>{record.document.filename}</span>
+                        {record.document.size > 0 && (
+                          <span className="ml-2 text-xs text-gray-500">
+                            ({formatFileSize(record.document.size)})
+                          </span>
+                        )}
+                      </a>
                     </dd>
                   </div>
                 );

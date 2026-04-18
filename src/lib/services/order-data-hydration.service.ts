@@ -221,6 +221,7 @@ export async function hydrateOrderData(
       const translationKey = buildTranslationKey(record.fieldName);
       if (translations[translationKey]) {
         hydrated.push({
+          orderDataId: record.id,
           requirementId: record.fieldName,
           label: translations[translationKey],
           fieldKey: record.fieldName,
@@ -252,6 +253,7 @@ export async function hydrateOrderData(
 
     // Base record fields shared by all types
     const base: HydratedOrderDataRecord = {
+      orderDataId: record.id,
       requirementId: req.id,
       label,
       fieldKey: req.fieldKey,
@@ -343,6 +345,7 @@ function buildFallbackRecord(record: RawOrderDataRecord): HydratedOrderDataRecor
   const label = (isUuidValue || isHexFragment) ? 'Unknown field' : fn;
 
   return {
+    orderDataId: record.id,
     requirementId: fn,
     label,
     fieldKey: '',

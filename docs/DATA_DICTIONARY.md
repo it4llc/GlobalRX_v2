@@ -488,15 +488,24 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 **Model:** `OrderData`
 **Table:** `order_data`
 **Status:** ACTIVE
-**Description:** Stores form field responses and service-specific data that doesn't exist in ServicesFulfillment (company names, addresses, degree types, etc.).
+**Description:** Stores form field responses, service-specific data, and uploaded document metadata. Records with `fieldType='document'` contain document metadata in the `fieldValue` field.
 
 **Columns:**
 - `id` (String, required): UUID primary key
 - `orderItemId` (String, required): Order item this data belongs to
 - `fieldName` (String, required): Name of the data field
-- `fieldValue` (String, required): Value of the data field
-- `fieldType` (String, required): Type of data (text, date, number, etc.)
+- `fieldValue` (String, required): Value of the data field. For documents (when `fieldType='document'`), contains JSON with structure: `{"storagePath": "string", "originalName": "string", "mimeType": "string", "size": number, "uploadedAt": "ISO date", "uploadedBy": "user ID"}`
+- `fieldType` (String, required): Type of data (text, date, number, document, etc.)
 - `createdAt` (DateTime, required): Creation timestamp
+
+**Document Storage:**
+When `fieldType='document'`, the `fieldValue` contains a JSON object with:
+- `storagePath`: Relative path to the uploaded file in storage
+- `originalName`: Original filename provided by user
+- `mimeType`: MIME type of the uploaded file
+- `size`: File size in bytes
+- `uploadedAt`: ISO timestamp when file was uploaded
+- `uploadedBy`: UUID of the user who uploaded the file
 
 **Relationships:**
 - Belongs to `OrderItem` via `orderItemId`
