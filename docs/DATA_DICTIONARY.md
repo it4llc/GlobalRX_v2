@@ -787,7 +787,7 @@ When `fieldType='document'`, the `fieldValue` contains a JSON object with:
 **Model:** `OrderStatus`
 **Table:** `order_statuses`
 **Status:** REMOVED (Removed March 18, 2026 via migration remove_orphaned_tables)
-**Description:** Was intended as a lookup table for order statuses but the application stores status directly as strings in orders.statusCode and tracks history in order_status_history.
+**Description:** Was intended as a lookup table for order statuses but the application stores status directly as strings in orders.statusCode and tracks history in order_status_history. Status colors are now handled by `src/lib/status-colors.ts` in the UI layer.
 
 **Columns:**
 - `id` (String, required): UUID primary key

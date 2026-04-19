@@ -68,6 +68,27 @@ Use these existing classes — do not recreate them:
 
 Tailwind utility classes are acceptable for layout and spacing adjustments. Always use Tailwind's responsive prefixes (`sm:`, `md:`, `lg:`) for responsive behavior — never use media queries in inline styles.
 
+### 1.5 Status Color Classes
+
+All status color styling MUST come from the centralized mappings in `src/lib/status-colors.ts`. No component should define its own status-to-color mapping.
+
+Two functions are available:
+- `getOrderStatusColorClasses(status)` — returns background and text color classes
+- `getOrderStatusBadgeClasses(status)` — returns background, text, and border color classes
+
+**Official color mappings:**
+
+| Status | Background | Text |
+|---|---|---|
+| draft | bg-gray-100 | text-gray-800 |
+| submitted | bg-blue-100 | text-blue-800 |
+| processing | bg-green-50 | text-green-600 |
+| completed | bg-green-200 | text-green-900 |
+| missing information | bg-red-100 | text-red-800 |
+| cancelled | bg-purple-100 | text-purple-800 |
+| cancelled-dnb | bg-purple-100 | text-purple-800 |
+| default | bg-gray-100 | text-gray-800 |
+
 ---
 
 ## SECTION 2: React Hook Patterns
