@@ -38,23 +38,10 @@ export const SERVICE_STATUS_DISPLAY_ORDER: ServiceStatus[] = [
   SERVICE_STATUSES.CANCELLED_DNB
 ];
 
-// Status colors for UI display
-export const SERVICE_STATUS_COLORS: Record<ServiceStatus, string> = {
-  [SERVICE_STATUSES.DRAFT]: 'gray',
-  [SERVICE_STATUSES.SUBMITTED]: 'blue',
-  [SERVICE_STATUSES.PROCESSING]: 'yellow',
-  [SERVICE_STATUSES.MISSING_INFO]: 'orange',
-  [SERVICE_STATUSES.COMPLETED]: 'green',
-  [SERVICE_STATUSES.CANCELLED]: 'red',
-  [SERVICE_STATUSES.CANCELLED_DNB]: 'red'
-};
+// Status colors have been moved to src/lib/status-colors.ts
+// That is now the single source of truth for all status color mappings
 
 // Helper function to validate a status string
 export function isValidServiceStatus(status: string): status is ServiceStatus {
   return SERVICE_STATUS_VALUES.includes(status as ServiceStatus);
-}
-
-// Helper function to get display color for a status
-export function getStatusColor(status: ServiceStatus): string {
-  return SERVICE_STATUS_COLORS[status] || 'gray';
 }

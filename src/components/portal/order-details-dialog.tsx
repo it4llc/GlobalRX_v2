@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { getOrderStatusColorClasses } from '@/lib/status-colors';
 
 interface OrderItem {
   id: string;
@@ -41,22 +42,6 @@ interface OrderDetailsDialogProps {
   isInternalUser?: boolean; // Flag to determine which endpoint to use
 }
 
-const getStatusColor = (statusCode: string): string => {
-  switch (statusCode.toLowerCase()) {
-    case 'draft':
-      return 'bg-gray-100 text-gray-800';
-    case 'submitted':
-      return 'bg-blue-100 text-blue-800';
-    case 'processing':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'completed':
-      return 'bg-green-100 text-green-800';
-    case 'cancelled':
-      return 'bg-red-100 text-red-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-};
 
 const formatStatus = (statusCode: string): string => {
   return statusCode.charAt(0).toUpperCase() + statusCode.slice(1);
@@ -176,7 +161,7 @@ export default function OrderDetailsDialog({ orderId, open, onClose, isInternalU
               <div className="border-b pb-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-semibold">{order.orderNumber}</h3>
-                  <span className={`inline-flex px-3 py-1 text-sm font-medium rounded-full ${getStatusColor(order.statusCode)}`}>
+                  <span className={`inline-flex px-3 py-1 text-sm font-medium rounded-full ${getOrderStatusColorClasses(order.statusCode)}`}>
                     {formatStatus(order.statusCode)}
                   </span>
                 </div>

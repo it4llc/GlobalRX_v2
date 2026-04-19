@@ -26,6 +26,7 @@ import clientLogger from '@/lib/client-logger';
 import { useToast } from '@/hooks/useToast';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { getOrderStatusColorClasses } from '@/lib/status-colors';
 
 interface OrderDetailsSidebarProps {
   order?: {
@@ -215,10 +216,10 @@ export function OrderDetailsSidebar({
         <section>
           <h3 className="text-xs font-semibold text-gray-500 mb-2">{t('common.status')}:</h3>
           {isCustomer ? (
-            // For customers, show status as read-only text
-            <div className="text-base text-black">
+            // For customers, show status as read-only text with color coding
+            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getOrderStatusColorClasses(order.statusCode)}`}>
               {formatStatus(order.statusCode)}
-            </div>
+            </span>
           ) : (
             // For internal users, show status dropdown
             <OrderStatusDropdown
