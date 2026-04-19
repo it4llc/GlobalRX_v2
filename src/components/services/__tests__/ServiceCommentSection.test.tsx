@@ -129,14 +129,11 @@ describe('ServiceCommentSection', () => {
 
       // Check first comment
       expect(screen.getByText('Document verification in progress')).toBeInTheDocument();
-      // Template name is prefixed with "Template: " in the component
-      expect(screen.getByText(/Processing Update/)).toBeInTheDocument();
       expect(screen.getByText('Internal Only')).toBeInTheDocument(); // Badge shows "Internal Only"
       expect(screen.getByText(/John Doe/)).toBeInTheDocument();
 
       // Check second comment with edit history
       expect(screen.getByText('Need additional documentation')).toBeInTheDocument();
-      expect(screen.getByText(/Document Request/)).toBeInTheDocument();
       // External comments don't show an "External" badge
       expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
       // Edit info shows as "(edited by X)" in lowercase

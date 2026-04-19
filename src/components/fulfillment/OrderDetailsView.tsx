@@ -23,6 +23,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, AlertTriangle, RotateCcw } from 'lucide-react';
+import { getOrderStatusColorClasses } from '@/lib/status-colors';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ServiceFulfillmentTable } from './ServiceFulfillmentTable';
@@ -141,18 +142,6 @@ const formatStatus = (status: string): string => {
     .join(' ');
 };
 
-// Get status color class
-const getStatusColorClass = (status: string): string => {
-  const statusColors: Record<string, string> = {
-    pending: 'text-yellow-600 bg-yellow-50',
-    processing: 'text-blue-600 bg-blue-50',
-    completed: 'text-green-600 bg-green-50',
-    cancelled: 'text-red-600 bg-red-50',
-    on_hold: 'text-gray-600 bg-gray-50',
-    failed: 'text-pink-600 bg-pink-50',
-  };
-  return statusColors[status] || 'text-gray-600 bg-gray-50';
-};
 
 // Format user name for display
 const formatUserName = (user?: { firstName?: string; lastName?: string; email: string }, unknownText?: string): string => {

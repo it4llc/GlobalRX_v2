@@ -77,33 +77,9 @@ export function formatStatusDisplay(status: string): string {
   return formatServiceStatus(status);
 }
 
-// Helper to get status color class
-// Uses lowercase status values to match database
-export function getStatusColorClass(status: string): string {
-  // Normalize to lowercase for comparison
-  const normalizedStatus = status.toLowerCase();
-
-  switch (normalizedStatus) {
-    case 'draft':
-      return 'bg-gray-100 text-gray-800';
-    case 'pending':  // Backward compatibility during migration - treat as submitted
-    case 'submitted':
-      return 'bg-blue-100 text-blue-800';
-    case 'processing':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'missing_info':
-    case 'missing information':
-      return 'bg-orange-100 text-orange-800';
-    case 'completed':
-      return 'bg-green-100 text-green-800';
-    case 'cancelled':
-    case 'cancelled_dnb':
-    case 'cancelled-dnb':
-      return 'bg-red-100 text-red-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-}
+// Re-export from the centralized status colors module
+// This maintains backward compatibility for files importing from here
+export { getOrderStatusColorClasses as getStatusColorClass } from '@/lib/status-colors';
 
 // Helper to validate status transition (for future use if business rules are added)
 export function canTransitionStatus(from: string, to: string): { allowed: boolean; reason?: string } {
