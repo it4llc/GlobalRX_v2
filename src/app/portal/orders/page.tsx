@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import { ServiceStatusList } from '@/components/orders/ServiceStatusList';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { getOrderStatusColorClasses } from '@/lib/status-colors';
 
 interface OrderItem {
   id: string;
@@ -43,22 +44,6 @@ interface OrdersResponse {
   offset: number;
 }
 
-const getStatusColor = (statusCode: string): string => {
-  switch (statusCode.toLowerCase()) {
-    case 'draft':
-      return 'bg-gray-100 text-gray-800';
-    case 'submitted':
-      return 'bg-blue-100 text-blue-800';
-    case 'processing':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'completed':
-      return 'bg-green-100 text-green-800';
-    case 'cancelled':
-      return 'bg-red-100 text-red-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-};
 
 
 export default function OrdersPage() {
@@ -293,7 +278,7 @@ export default function OrdersPage() {
                         <ServiceStatusList items={order.items} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.statusCode)}`}>
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getOrderStatusColorClasses(order.statusCode)}`}>
                           {t(`services.status.${order.statusCode}`)}
                         </span>
                       </td>

@@ -435,11 +435,11 @@ describe('OrderStatusDropdown', () => {
       const statusColors = {
         'draft': 'bg-gray-100',
         'submitted': 'bg-blue-100',
-        'processing': 'bg-blue-100',
-        'missing_info': 'bg-yellow-100',
-        'completed': 'bg-green-100',
-        'cancelled': 'bg-red-100',
-        'cancelled_dnb': 'bg-red-100'
+        'processing': 'bg-green-50',
+        'missing_info': 'bg-red-100',
+        'completed': 'bg-green-200',
+        'cancelled': 'bg-purple-100',
+        'cancelled_dnb': 'bg-purple-100'
       };
 
       Object.entries(statusColors).forEach(([status, className]) => {
