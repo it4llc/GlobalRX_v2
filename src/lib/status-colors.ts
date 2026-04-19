@@ -1,3 +1,4 @@
+// /GlobalRX_v2/src/lib/status-colors.ts
 /**
  * Single source of truth for order and service status colors.
  * No other file should define its own status color mappings.
