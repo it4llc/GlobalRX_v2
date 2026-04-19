@@ -10,6 +10,8 @@ vi.mock('next/navigation', () => ({
   useRouter: vi.fn()
 }));
 
+import { useAuth } from '@/contexts/AuthContext';
+
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: vi.fn(() => ({
     user: {
@@ -420,6 +422,103 @@ describe('OrderDetailsSidebar', () => {
 
       const sidebar = screen.getByRole('complementary');
       expect(sidebar).toHaveClass('mobile-layout');
+    });
+  });
+
+  describe('customer status color coding', () => {
+    // REGRESSION TEST: proves bug fix for missing customer status color coding
+    it('customer sees order status with proper color coding', () => {
+      // This test asserts the CORRECT behavior (color-coded status for customers)
+      // It will FAIL before the fix (status appears without color classes)
+      // It will PASS after the fix (status appears with color classes)
+
+      // Mock auth context to simulate customer user
+      vi.mocked(useAuth).mockReturnValue({
+        user: {
+          id: 'customer-user-123',
+          userType: 'customer',
+          permissions: {}
+        },
+        checkPermission: vi.fn(() => false),
+        canManageCustomers: vi.fn(() => false)
+      } as any);
+
+      // Render with processing status
+      render(<OrderDetailsSidebar order={mockOrder} onStatusUpdate={mockOnStatusUpdate} />);
+
+      // Find the status display element
+      const statusElement = screen.getByText('Processing');
+
+      // Assert CORRECT behavior - status should have color classes
+      // Processing status should have light green color classes
+      // This assertion will FAIL before the fix and PASS after the fix
+      expect(statusElement).toHaveClass('bg-green-50');
+      expect(statusElement).toHaveClass('text-green-600');
+    });
+
+    it('customer sees different status values with appropriate color coding', () => {
+      // Mock auth context to simulate customer user
+      vi.mocked(useAuth).mockReturnValue({
+        user: {
+          id: 'customer-user-123',
+          userType: 'customer',
+          permissions: {}
+        },
+        checkPermission: vi.fn(() => false),
+        canManageCustomers: vi.fn(() => false)
+      } as any);
+
+      // Test draft status (gray color)
+      const draftOrder = { ...mockOrder, statusCode: 'draft' };
+      const { rerender } = render(<OrderDetailsSidebar order={draftOrder} onStatusUpdate={mockOnStatusUpdate} />);
+      let statusElement = screen.getByText('Draft');
+      expect(statusElement).toHaveClass('bg-gray-100');
+      expect(statusElement).toHaveClass('text-gray-800');
+
+      // Test submitted status (blue color)
+      const submittedOrder = { ...mockOrder, statusCode: 'submitted' };
+      rerender(<OrderDetailsSidebar order={submittedOrder} onStatusUpdate={mockOnStatusUpdate} />);
+      statusElement = screen.getByText('Submitted');
+      expect(statusElement).toHaveClass('bg-blue-100');
+      expect(statusElement).toHaveClass('text-blue-800');
+
+      // Test completed status (green color)
+      const completedOrder = { ...mockOrder, statusCode: 'completed' };
+      rerender(<OrderDetailsSidebar order={completedOrder} onStatusUpdate={mockOnStatusUpdate} />);
+      statusElement = screen.getByText('Completed');
+      expect(statusElement).toHaveClass('bg-green-200');
+      expect(statusElement).toHaveClass('text-green-900');
+
+      // Test cancelled status (red color)
+      const cancelledOrder = { ...mockOrder, statusCode: 'cancelled' };
+      rerender(<OrderDetailsSidebar order={cancelledOrder} onStatusUpdate={mockOnStatusUpdate} />);
+      statusElement = screen.getByText('Cancelled');
+      expect(statusElement).toHaveClass('bg-purple-100');
+      expect(statusElement).toHaveClass('text-purple-800');
+    });
+
+    it('internal users still see status dropdown with color coding', () => {
+      // Mock auth context back to internal user
+      vi.mocked(useAuth).mockReturnValue({
+        user: {
+          id: 'user-123',
+          userType: 'internal',
+          permissions: { fulfillment: true }
+        },
+        checkPermission: vi.fn((resource: string, action: string) => {
+          if (resource === 'fulfillment' && action === 'edit') {
+            return true;
+          }
+          return false;
+        }),
+        canManageCustomers: vi.fn(() => true)
+      } as any);
+
+      render(<OrderDetailsSidebar order={mockOrder} onStatusUpdate={mockOnStatusUpdate} />);
+
+      // Internal users should see the dropdown component
+      const statusDropdown = screen.getByTestId('order-status-dropdown');
+      expect(statusDropdown).toBeInTheDocument();
     });
   });
 });

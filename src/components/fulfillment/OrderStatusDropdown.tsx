@@ -13,6 +13,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
+import { getOrderStatusBadgeClasses } from '@/lib/status-colors';
 import { cn } from '@/lib/utils';
 import { ORDER_STATUS_VALUES, type OrderStatus } from '@/lib/schemas/orderStatusSchemas';
 
@@ -67,26 +68,6 @@ const formatStatusLabel = (status: string, options: StatusOption[]): string => {
     .join(' ');
 };
 
-// Get status color class
-const getStatusColorClass = (status: string): string => {
-  // Normalize status to lowercase for matching
-  const normalizedStatus = status.toLowerCase().replace(/\s+/g, '_');
-
-  const statusColors: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-800 border-gray-300',
-    submitted: 'bg-blue-100 text-blue-800 border-blue-300',
-    processing: 'bg-blue-100 text-blue-800 border-blue-300',
-    missing_info: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-    completed: 'bg-green-100 text-green-800 border-green-300',
-    cancelled: 'bg-red-100 text-red-800 border-red-300',
-    cancelled_dnb: 'bg-red-100 text-red-800 border-red-300',
-    // Legacy statuses for backward compatibility
-    pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-    on_hold: 'bg-gray-100 text-gray-800 border-gray-300',
-    closed: 'bg-gray-100 text-gray-800 border-gray-300'
-  };
-  return statusColors[normalizedStatus] || '';
-};
 
 export function OrderStatusDropdown({
   orderId,
@@ -210,7 +191,7 @@ export function OrderStatusDropdown({
         className={cn(
           'flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-md border',
           'transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500',
-          getStatusColorClass(currentStatus),
+          getOrderStatusBadgeClasses(currentStatus),
           disabled && 'cursor-not-allowed opacity-50',
           isLoading && 'cursor-wait'
         )}

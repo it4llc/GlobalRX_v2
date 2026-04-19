@@ -10,9 +10,7 @@ import {
   SERVICE_STATUSES,
   SERVICE_STATUS_VALUES,
   SERVICE_STATUS_DISPLAY_ORDER,
-  SERVICE_STATUS_COLORS,
   isValidServiceStatus,
-  getStatusColor,
   type ServiceStatus
 } from '../service-status';
 
@@ -58,11 +56,7 @@ describe('Service Status Constants', () => {
       expect(SERVICE_STATUS_DISPLAY_ORDER).toHaveLength(7); // Not 8!
     });
 
-    it('should not have pending in status colors', () => {
-      // REGRESSION TEST: Ensure pending has no color mapping
-      expect(SERVICE_STATUS_COLORS).not.toHaveProperty('pending');
-      expect(Object.keys(SERVICE_STATUS_COLORS)).toHaveLength(7); // Not 8!
-    });
+    // Status colors test removed - colors moved to src/lib/status-colors.ts
   });
 
   describe('SERVICE_STATUSES object', () => {
@@ -134,30 +128,7 @@ describe('Service Status Constants', () => {
     });
   });
 
-  describe('SERVICE_STATUS_COLORS', () => {
-    it('should define colors for all statuses', () => {
-      SERVICE_STATUS_VALUES.forEach(status => {
-        expect(SERVICE_STATUS_COLORS).toHaveProperty(status);
-      });
-    });
-
-    it('should use appropriate colors for each status', () => {
-      expect(SERVICE_STATUS_COLORS['draft']).toBe('gray');
-      expect(SERVICE_STATUS_COLORS['submitted']).toBe('blue');
-      expect(SERVICE_STATUS_COLORS['processing']).toBe('yellow');
-      expect(SERVICE_STATUS_COLORS['missing_info']).toBe('orange');
-      expect(SERVICE_STATUS_COLORS['completed']).toBe('green');
-      expect(SERVICE_STATUS_COLORS['cancelled']).toBe('red');
-      expect(SERVICE_STATUS_COLORS['cancelled_dnb']).toBe('red');
-    });
-
-    it('should not define colors for non-existent statuses', () => {
-      const colorKeys = Object.keys(SERVICE_STATUS_COLORS);
-      colorKeys.forEach(key => {
-        expect(SERVICE_STATUS_VALUES).toContain(key);
-      });
-    });
-  });
+  // SERVICE_STATUS_COLORS tests removed - functionality moved to src/lib/status-colors.ts
 
   describe('isValidServiceStatus helper', () => {
     it('should return true for valid statuses', () => {
@@ -190,23 +161,7 @@ describe('Service Status Constants', () => {
     });
   });
 
-  describe('getStatusColor helper', () => {
-    it('should return correct color for each status', () => {
-      expect(getStatusColor('draft' as ServiceStatus)).toBe('gray');
-      expect(getStatusColor('submitted' as ServiceStatus)).toBe('blue');
-      expect(getStatusColor('processing' as ServiceStatus)).toBe('yellow');
-      expect(getStatusColor('missing_info' as ServiceStatus)).toBe('orange');
-      expect(getStatusColor('completed' as ServiceStatus)).toBe('green');
-      expect(getStatusColor('cancelled' as ServiceStatus)).toBe('red');
-      expect(getStatusColor('cancelled_dnb' as ServiceStatus)).toBe('red');
-    });
-
-    it('should return default color for undefined status', () => {
-      // This tests the fallback behavior
-      const invalidStatus = 'invalid' as any;
-      expect(getStatusColor(invalidStatus)).toBe('gray');
-    });
-  });
+  // getStatusColor tests removed - functionality moved to src/lib/status-colors.ts
 
   describe('TypeScript types', () => {
     it('should only allow valid status values in ServiceStatus type', () => {

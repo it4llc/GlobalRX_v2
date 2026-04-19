@@ -18,6 +18,7 @@ import { useServiceComments } from '@/hooks/useServiceComments';
 import { SERVICE_STATUSES, SERVICE_STATUS_VALUES, type ServiceStatus } from '@/constants/service-status';
 import { UpdateServiceFulfillmentRequest } from '@/types/service-fulfillment';
 import clientLogger from '@/lib/client-logger';
+import { getOrderStatusColorClasses } from '@/lib/status-colors';
 import { formatServiceStatus } from '@/lib/status-utils';
 import { NewActivityDot } from '@/components/ui/NewActivityDot';
 
@@ -122,15 +123,6 @@ const statusIcons: Record<string, React.ReactNode> = {
   [SERVICE_STATUSES.CANCELLED_DNB]: <XCircle className="w-4 h-4 text-red-500" />
 };
 
-const statusColors: Record<string, string> = {
-  [SERVICE_STATUSES.DRAFT]: 'bg-gray-100 text-gray-800',
-  [SERVICE_STATUSES.SUBMITTED]: 'bg-blue-100 text-blue-800',
-  [SERVICE_STATUSES.PROCESSING]: 'bg-blue-100 text-blue-800',
-  [SERVICE_STATUSES.MISSING_INFO]: 'bg-orange-100 text-orange-800',
-  [SERVICE_STATUSES.COMPLETED]: 'bg-green-100 text-green-800',
-  [SERVICE_STATUSES.CANCELLED]: 'bg-gray-100 text-gray-800',
-  [SERVICE_STATUSES.CANCELLED_DNB]: 'bg-red-100 text-red-800'
-};
 
 // Status formatting moved to centralized utility: src/lib/status-utils.ts
 
@@ -1027,7 +1019,7 @@ export function ServiceFulfillmentTable({
                         value={service.status}
                         onChange={(e) => handleStatusChange(service.orderItemId, e.target.value)}
                         disabled={loadingService === service.orderItemId || statusDisabled}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[service.status] || 'bg-gray-100 text-gray-800'}`}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getOrderStatusColorClasses(service.status)}`}
                         aria-label={`Status for ${service.service.name}`}
                       >
                         {SERVICE_STATUS_VALUES.map(status => (
@@ -1036,7 +1028,7 @@ export function ServiceFulfillmentTable({
                       </select>
                     ) : (
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[service.status] || 'bg-gray-100 text-gray-800'}`}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getOrderStatusColorClasses(service.status)}`}
                       >
                         {statusIcons[service.status]}
                         {formatServiceStatus(service.status)}

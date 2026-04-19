@@ -187,7 +187,19 @@ Located at `src/components/fulfillment/OrderStatusDropdown.tsx`
 - Optimistic UI updates with error rollback
 - Loading states to prevent duplicate submissions
 - Keyboard navigation support for accessibility
-- Status-specific color coding
+- Status-specific color coding (colors centralized in `src/lib/status-colors.ts`)
+
+**Status Colors:**
+
+| Status | Background | Text |
+|---|---|---|
+| draft | bg-gray-100 | text-gray-800 |
+| submitted | bg-blue-100 | text-blue-800 |
+| processing | bg-green-50 | text-green-600 |
+| completed | bg-green-200 | text-green-900 |
+| missing information | bg-red-100 | text-red-800 |
+| cancelled | bg-purple-100 | text-purple-800 |
+| cancelled-dnb | bg-purple-100 | text-purple-800 |
 
 **Error Handling:**
 - Network error recovery

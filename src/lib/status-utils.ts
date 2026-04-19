@@ -1,5 +1,7 @@
 // /GlobalRx_v2/src/lib/status-utils.ts
 
+import { getOrderStatusColorClasses } from '@/lib/status-colors';
+
 /**
  * Status Utility Functions
  *
@@ -78,6 +80,9 @@ export function areStatusesEqual(status1: string | null | undefined, status2: st
   return normalizeServiceStatus(status1) === normalizeServiceStatus(status2);
 }
 
+// Re-export getOrderStatusColorClasses for convenience
+export { getOrderStatusColorClasses } from '@/lib/status-colors';
+
 /**
  * Gets the display color class for a status value.
  * This maintains consistency with existing status color schemes.
@@ -86,21 +91,5 @@ export function areStatusesEqual(status1: string | null | undefined, status2: st
  * @returns {string} The CSS class string for the status color (Tailwind classes)
  */
 export function getServiceStatusColor(status: string | null | undefined): string {
-  const normalized = normalizeServiceStatus(status);
-
-  const statusColors: Record<string, string> = {
-    'draft': 'bg-gray-100 text-gray-800',
-    'pending': 'bg-blue-100 text-blue-800',
-    'submitted': 'bg-blue-100 text-blue-800',
-    'processing': 'bg-blue-100 text-blue-800',
-    'in_progress': 'bg-blue-100 text-blue-800',
-    'pending_review': 'bg-yellow-100 text-yellow-800',
-    'missing_info': 'bg-orange-100 text-orange-800',
-    'missing_information': 'bg-orange-100 text-orange-800',
-    'completed': 'bg-green-100 text-green-800',
-    'cancelled': 'bg-red-100 text-red-800',
-    'cancelled_dnb': 'bg-red-100 text-red-800',
-  };
-
-  return statusColors[normalized] || 'bg-gray-100 text-gray-800';
+  return getOrderStatusColorClasses(status || 'draft');
 }
