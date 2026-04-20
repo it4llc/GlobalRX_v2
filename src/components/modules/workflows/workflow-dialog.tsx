@@ -129,12 +129,7 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
         : '/api/workflows';
       
       const method = workflow ? 'PUT' : 'POST';
-      
-      // Make sure packageIds is an array of strings
-      if (data.packageIds && !Array.isArray(data.packageIds)) {
-        data.packageIds = [data.packageIds as unknown as string];
-      }
-      
+
       // Make sure expirationDays is a number
       if (typeof data.expirationDays === 'string') {
         data.expirationDays = parseInt(data.expirationDays);

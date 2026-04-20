@@ -1259,6 +1259,16 @@ Impact: Low (functional, but creates inconsistency and duplication across routes
 Suggested fix: Create centralized permission-checking functions in auth-utils.ts and refactor all fulfillment routes to use them.
 Discovered during: Uploaded Document Access feature standards check (2026-04-18)
 
+---
+
+TD-048: Consolidate duplicate package dialog components
+
+Files: src/components/modules/customer/package-dialog.tsx, src/components/modules/customer/package-dialog-new.tsx
+Issue: Two near-identical package dialog components exist. package-dialog-new.tsx is the active one (used by the main packages page). package-dialog.tsx is used only by the scope page. Both have workflow dropdowns.
+Impact: Low (functional, but confusing and doubles maintenance)
+Suggested fix: Merge into one component, update all imports
+Discovered during: Candidate Invite Phase 1 (2026-04-20)
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_

@@ -20,14 +20,22 @@ const packageSchema = z.object({
 });
 
 /**
- * @route GET /api/customers/[id]/packages
- * @desc Get all packages for a specific customer
- * @access Private - Requires customers.view permission
+ * GET /api/customers/[id]/packages
  *
- * CRITICAL: Next.js 15 requires params to be awaited before use.
- * In Next.js 15 App Router, the params object is a Promise that must be
- * awaited before accessing its properties. This is a breaking change
- * from Next.js 14 where params was a synchronous object.
+ * Retrieves all packages for a specific customer with their services and workflow.
+ *
+ * Required permissions: canManageCustomers (checks customer_config, global_config, or admin)
+ *
+ * Path params:
+ *   - id: UUID of the customer
+ *
+ * Returns: Array of package objects with services and workflow
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Customer not found
+ *   - 500: Internal server error
  */
 export async function GET(
   request: NextRequest,
@@ -117,13 +125,29 @@ export async function GET(
 }
 
 /**
- * @route POST /api/customers/[id]/packages
- * @desc Create a new package for a customer
- * @access Private - Requires customers.edit permission
+ * POST /api/customers/[id]/packages
  *
- * CRITICAL: Next.js 15 requires params to be awaited before use.
- * This endpoint was broken before the fix because it attempted to use
- * the id from params without awaiting the Promise first.
+ * Creates a new package for a customer with the specified services.
+ *
+ * Required permissions: canManageCustomers (checks customer_config, global_config, or admin)
+ *
+ * Path params:
+ *   - id: UUID of the customer
+ *
+ * Request body:
+ *   - name: string (required, min 1 character)
+ *   - description?: string | null
+ *   - services: Array<{ serviceId: string (UUID), scope: any }> (required)
+ *   - workflowId?: string (UUID) | null
+ *
+ * Returns: Created package object with services
+ *
+ * Errors:
+ *   - 400: Validation failed or services not available to customer
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Customer not found
+ *   - 500: Internal server error
  */
 export async function POST(
   request: NextRequest,
