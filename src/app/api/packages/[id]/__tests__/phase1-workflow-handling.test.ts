@@ -113,13 +113,6 @@ describe('Phase 1 - Package workflowId handling (FIXED)', () => {
 
       const response = await PUT(request, { params: Promise.resolve({ id: 'pkg-123' }) });
 
-      // Debug: see what error we're getting
-      if (response.status !== 200) {
-        const errorData = await response.clone().json();
-        console.log('Response status:', response.status);
-        console.log('Response body:', JSON.stringify(errorData, null, 2));
-      }
-
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data).toBeDefined();
