@@ -80,8 +80,9 @@ export async function GET(
 
     return NextResponse.json(transformedWorkflows);
   } catch (error: unknown) {
-    console.error('WORKFLOWS GET ERROR:', error);
-    logger.error('Error fetching customer workflows:', error);
+    logger.error('Error fetching customer workflows:', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     return NextResponse.json(
       { error: 'Error fetching customer workflows' },
       { status: 500 }
