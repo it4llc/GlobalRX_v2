@@ -100,7 +100,7 @@ describe('Phase 1 - Package workflowId handling (FIXED)', () => {
           id: '550e8400-e29b-41d4-a716-446655440001',
           name: 'Test Workflow'
         },
-        services: []
+        packageServices: []
       } as any);
 
       const request = new Request('http://localhost:3000/api/packages/pkg-123', {
@@ -165,7 +165,7 @@ describe('Phase 1 - Package workflowId handling (FIXED)', () => {
         name: 'Package with Workflow',
         workflowId: null,
         workflow: null,
-        services: []
+        packageServices: []
       } as any);
 
       const request = new Request('http://localhost:3000/api/packages/pkg-123', {
@@ -289,7 +289,7 @@ describe('Phase 1 - Package workflowId handling (FIXED)', () => {
           id: 'existing-workflow-id',
           name: 'Existing Workflow'
         },
-        services: []
+        packageServices: []
       } as any);
 
       const request = new Request('http://localhost:3000/api/packages/pkg-123', {
@@ -322,7 +322,7 @@ describe('Phase 1 - Package workflowId handling (FIXED)', () => {
           name: 'Test Workflow'
         },
         customer: { name: 'Test Customer' },
-        services: []
+        packageServices: []
       } as any);
 
       const request = new Request('http://localhost:3000/api/packages/pkg-123');
@@ -344,7 +344,7 @@ describe('Phase 1 - Package workflowId handling (FIXED)', () => {
         workflowId: null,
         workflow: null,
         customer: { name: 'Test Customer' },
-        services: []
+        packageServices: []
       } as any);
 
       const request = new Request('http://localhost:3000/api/packages/pkg-123');

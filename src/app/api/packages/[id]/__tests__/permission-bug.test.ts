@@ -54,7 +54,7 @@ describe('Package API Permission Bug Tests', () => {
         id: 'customer1',
         name: 'Test Customer'
       },
-      services: [
+      packageServices: [
         {
           serviceId: 'service1',
           scope: { type: 'standard' },
@@ -394,7 +394,7 @@ describe('Package API Permission Bug Tests', () => {
       vi.mocked(prisma.package.findUnique).mockResolvedValueOnce({
         id: 'pkg1',
         customer: { name: 'Test' },
-        services: []
+        packageServices: []
       } as any);
 
       const request = new Request('http://localhost:3000/api/packages/pkg1');
@@ -414,7 +414,7 @@ describe('Package API Permission Bug Tests', () => {
       vi.mocked(prisma.package.findUnique).mockResolvedValueOnce({
         id: 'pkg1',
         customer: { name: 'Test' },
-        services: []
+        packageServices: []
       } as any);
 
       const request = new Request('http://localhost:3000/api/packages/pkg1');
@@ -434,7 +434,7 @@ describe('Package API Permission Bug Tests', () => {
       vi.mocked(prisma.package.findUnique).mockResolvedValueOnce({
         id: 'pkg1',
         customer: { name: 'Test' },
-        services: []
+        packageServices: []
       } as any);
 
       const request = new Request('http://localhost:3000/api/packages/pkg1');

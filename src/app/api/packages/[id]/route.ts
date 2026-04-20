@@ -62,7 +62,7 @@ export async function GET(
       include: {
         customer: true,
         workflow: true,
-        services: {
+        packageServices: {
           include: {
             service: true
           }
@@ -88,8 +88,8 @@ export async function GET(
       workflow: pkg.workflow,
       createdAt: pkg.createdAt,
       updatedAt: pkg.updatedAt,
-      // Transform services to match the expected format in the form
-      services: pkg.services.map((ps: any) => ({
+      // Transform packageServices to match the expected format in the form
+      services: pkg.packageServices.map((ps: any) => ({
         serviceId: ps.serviceId,
         scope: ps.scope
       }))
@@ -266,12 +266,12 @@ export async function PUT(
       return pkg;
     });
 
-    // Get the updated package with services and workflow
+    // Get the updated package with packageServices and workflow
     const packageWithServices = await prisma.package.findUnique({
       where: { id },
       include: {
         workflow: true,
-        services: {
+        packageServices: {
           include: {
             service: true
           }
