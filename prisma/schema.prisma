@@ -148,9 +148,10 @@ model Package {
   customerId      String
   name            String
   description     String?
+  workflowId      String?
   packageServices PackageService[]
   customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  workflows       Workflow[]
+  workflow        Workflow?        @relation(fields: [workflowId], references: [id], onDelete: Restrict)
 
   @@map("packages")
 }
@@ -267,18 +268,16 @@ model Workflow {
   disabled          Boolean           @default(false)
   createdAt         DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
-  packageId         String
   createdById       String?
   updatedById       String?
   reminderEnabled   Boolean           @default(false)
   reminderFrequency Int               @default(7)
   maxReminders      Int               @default(3)
   sections          WorkflowSection[]
+  packages          Package[]
   createdBy         User?             @relation("WorkflowCreatedBy", fields: [createdById], references: [id])
-  package           Package           @relation(fields: [packageId], references: [id])
   updatedBy         User?             @relation("WorkflowUpdatedBy", fields: [updatedById], references: [id])
 
-  @@index([packageId])
   @@index([createdById])
   @@index([updatedById])
   @@map("workflows")

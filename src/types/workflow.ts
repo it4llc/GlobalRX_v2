@@ -17,17 +17,9 @@ export const workflowBaseSchema = z.object({
   disabled: z.boolean().default(false),
 });
 
-export const workflowCreateSchema = workflowBaseSchema.extend({
-  packageIds: z.array(z.string().uuid()).optional(),
-});
+export const workflowCreateSchema = workflowBaseSchema;
 
-export const workflowUpdateSchema = workflowBaseSchema.extend({
-  packageIds: z.array(z.string().uuid()).optional(),
-}).partial();
-
-export const workflowPackageSchema = z.object({
-  packageId: z.string().uuid(),
-});
+export const workflowUpdateSchema = workflowBaseSchema.partial();
 
 // Section type enum
 export const SectionTypeEnum = z.enum([

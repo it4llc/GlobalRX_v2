@@ -33,16 +33,10 @@ export async function GET(
     const workflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
       include: {
-        package: {
+        packages: {
           select: {
             id: true,
             name: true,
-            customer: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
           },
         },
         sections: {
@@ -92,10 +86,9 @@ export async function GET(
       updatedAt: workflow.updatedAt,
       createdById: workflow.createdById,
       updatedById: workflow.updatedById,
-      packageId: workflow.packageId,
-      packageIds: [workflow.packageId],
       // Include related data
-      package: workflow.package,
+      packages: workflow.packages,
+      packagesCount: workflow.packages.length,
       sections: workflow.sections,
       createdBy: workflow.createdBy,
       updatedBy: workflow.updatedBy
@@ -149,7 +142,7 @@ export async function PUT(
       );
     }
 
-    const { packageIds, ...workflowData } = validationResult.data;
+    const workflowData = validationResult.data;
 
     // Check if workflow exists
     const existingWorkflow = await prisma.workflow.findUnique({
@@ -160,32 +153,21 @@ export async function PUT(
       return NextResponse.json({ error: "Workflow not found" }, { status: 404 });
     }
 
-    // Update the packageId if provided
+    // Update data
     let updateData: any = {
       ...workflowData,
       updatedById: userId,
     };
-
-    // If packageIds are provided, update the packageId
-    if (packageIds && packageIds.length > 0) {
-      updateData.packageId = packageIds[0];
-    }
 
     // Update workflow
     const updatedWorkflow = await prisma.workflow.update({
       where: { id: workflowId },
       data: updateData,
       include: {
-        package: {
+        packages: {
           select: {
             id: true,
             name: true,
-            customer: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
           },
         },
         sections: {
@@ -210,13 +192,7 @@ export async function PUT(
       },
     });
 
-    // Transform the data
-    const transformedWorkflow = {
-      ...updatedWorkflow,
-      packageIds: [updatedWorkflow.packageId],
-    };
-
-    return NextResponse.json(transformedWorkflow);
+    return NextResponse.json(updatedWorkflow);
   } catch (error: unknown) {
     logger.error("Error updating workflow:", error);
     return NextResponse.json(
@@ -249,13 +225,27 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // First check if the workflow exists
+    // First check if the workflow exists and count packages using it
     const workflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
+      include: {
+        packages: true
+      }
     });
 
     if (!workflow) {
       return NextResponse.json({ error: "Workflow not found" }, { status: 404 });
+    }
+
+    // Check if any packages are using this workflow
+    if (workflow.packages && workflow.packages.length > 0) {
+      return NextResponse.json(
+        {
+          error: `This workflow cannot be deleted because it is assigned to ${workflow.packages.length} package(s). Please reassign or remove the workflow from those packages first.`,
+          packagesCount: workflow.packages.length
+        },
+        { status: 400 }
+      );
     }
 
     // Soft delete the workflow by setting disabled to true

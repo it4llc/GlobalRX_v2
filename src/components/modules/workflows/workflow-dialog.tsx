@@ -30,7 +30,6 @@ const workflowSchema = z.object({
   reminderEnabled: z.boolean().default(false),
   reminderFrequency: z.number().min(1).max(30).default(7),
   maxReminders: z.number().min(1).max(10).default(3),
-  packageIds: z.array(z.string()).optional(),
 });
 
 type WorkflowFormData = z.infer<typeof workflowSchema>;
@@ -51,7 +50,6 @@ interface WorkflowDialogProps {
     reminderEnabled?: boolean;
     reminderFrequency?: number;
     maxReminders?: number;
-    packageIds?: string[];
     customerId?: string;
   };
   customerId?: string;
@@ -63,8 +61,6 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [packages, setPackages] = useState<Array<{ id: string; name: string }>>([]);
-  const [loadingPackages, setLoadingPackages] = useState(true);
 
   const form = useForm<WorkflowFormData>({
     resolver: zodResolver(workflowSchema),
@@ -77,7 +73,6 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
       autoCloseEnabled: true,
       extensionAllowed: false,
       extensionDays: undefined,
-      packageIds: [],
     },
   });
 
@@ -96,7 +91,6 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
         reminderEnabled: workflow.reminderEnabled ?? false,
         reminderFrequency: workflow.reminderFrequency || 7,
         maxReminders: workflow.maxReminders || 3,
-        packageIds: workflow.packageIds || [],
       });
     } else {
       form.reset({
@@ -111,34 +105,10 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
         reminderEnabled: false,
         reminderFrequency: 7,
         maxReminders: 3,
-        packageIds: [],
       });
     }
   }, [workflow, form]);
 
-  // Fetch available packages for the customer
-  useEffect(() => {
-    const fetchPackages = async () => {
-      try {
-        setLoadingPackages(true);
-        // Fetch packages for the specific customer
-        const url = customerId ? `/api/customers/${customerId}/packages` : '/api/packages';
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch packages');
-        const data = await response.json();
-        setPackages(data);
-      } catch (err) {
-        clientLogger.error('Error fetching packages:', err);
-        setError('Failed to load packages');
-      } finally {
-        setLoadingPackages(false);
-      }
-    };
-
-    if (open) {
-      fetchPackages();
-    }
-  }, [open, customerId]);
 
   // Reset state when dialog opens/closes
   useEffect(() => {
@@ -482,42 +452,6 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
                   )}
                 />
               </>
-            )}
-
-            {!loadingPackages && packages.length > 0 && (
-              <FormField
-                control={form.control}
-                name="packageIds"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('module.candidateWorkflow.assignedPackage')}</FormLabel>
-                    <div className="space-y-2">
-                      {packages.map((pkg: any) => (
-                        <div key={pkg.id} className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            id={`package-${pkg.id}`}
-                            checked={field.value?.includes(pkg.id)}
-                            onChange={() => {
-                              // Radio buttons should select just one package
-                              field.onChange([pkg.id]);
-                              clientLogger.info(`Selected package: ${pkg.id}`);
-                            }}
-                            className="rounded-full border-gray-300"
-                          />
-                          <label htmlFor={`package-${pkg.id}`} className="text-sm">
-                            {pkg.name}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                    <FormDescription>
-                      {t('module.candidateWorkflow.packageSelectionDescription')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             )}
 
             <DialogFooter>
