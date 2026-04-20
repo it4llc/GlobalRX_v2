@@ -130,7 +130,8 @@ export async function PUT(
     // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
     // BUG FIX: Remove .view from permission check - only edit/admin should be allowed to update
     const hasCustomerConfigPermission =
-      session.user.permissions?.customer_config ||
+      session.user.permissions?.customer_config === true ||
+      session.user.permissions?.customer_config === '*' ||
       session.user.permissions?.customer_config?.edit ||
       session.user.permissions?.customer_config?.['*'] ||
       (Array.isArray(session.user.permissions?.customer_config) && session.user.permissions.customer_config.includes('*'));
@@ -312,7 +313,8 @@ export async function DELETE(
     // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
     // BUG FIX: Remove .view from permission check - only edit/admin should be allowed to delete
     const hasCustomerConfigPermission =
-      session.user.permissions?.customer_config ||
+      session.user.permissions?.customer_config === true ||
+      session.user.permissions?.customer_config === '*' ||
       session.user.permissions?.customer_config?.edit ||
       session.user.permissions?.customer_config?.['*'] ||
       (Array.isArray(session.user.permissions?.customer_config) && session.user.permissions.customer_config.includes('*'));
