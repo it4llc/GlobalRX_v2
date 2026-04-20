@@ -7,7 +7,24 @@ import { workflowUpdateSchema } from "@/types/workflow";
 import { hasPermission } from "@/lib/permission-utils";
 import logger from '@/lib/logger';
 
-// GET: Fetch a single workflow by ID
+/**
+ * GET /api/workflows/[id]
+ *
+ * Retrieves a single workflow by ID with packages and sections.
+ *
+ * Required permissions: customer_config.view or admin
+ *
+ * Path params:
+ *   - id: UUID of the workflow
+ *
+ * Returns: Workflow object with packages, sections, and user metadata
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Workflow not found
+ *   - 500: Internal server error
+ */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -104,7 +121,28 @@ export async function GET(
   }
 }
 
-// PUT: Update a workflow
+/**
+ * PUT /api/workflows/[id]
+ *
+ * Updates a workflow's configuration and metadata.
+ *
+ * Required permissions: customer_config.edit or admin
+ *
+ * Path params:
+ *   - id: UUID of the workflow
+ *
+ * Request body:
+ *   - All fields from workflowUpdateSchema (name, description, status, settings, etc.)
+ *
+ * Returns: Updated workflow object with packages and sections
+ *
+ * Errors:
+ *   - 400: Validation failed
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Workflow not found
+ *   - 500: Internal server error
+ */
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -202,7 +240,25 @@ export async function PUT(
   }
 }
 
-// DELETE: Delete a workflow
+/**
+ * DELETE /api/workflows/[id]
+ *
+ * Soft deletes a workflow by setting disabled flag. Prevents deletion if packages are assigned.
+ *
+ * Required permissions: customer_config.edit or admin
+ *
+ * Path params:
+ *   - id: UUID of the workflow
+ *
+ * Returns: { message: "Workflow deleted successfully" }
+ *
+ * Errors:
+ *   - 400: Cannot delete - workflow has assigned packages
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Workflow not found
+ *   - 500: Internal server error
+ */
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }

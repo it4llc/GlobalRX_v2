@@ -18,14 +18,22 @@ const packageUpdateSchema = z.object({
 });
 
 /**
- * @route GET /api/packages/[id]
- * @desc Get a specific package by ID
- * @access Private - Requires customers.view permission
+ * GET /api/packages/[id]
  *
- * CRITICAL: Next.js 15 requires params to be awaited before use.
- * In Next.js 15 App Router, the params object is a Promise that must be
- * awaited before accessing its properties. Failure to await results in
- * runtime errors when trying to access params.id directly.
+ * Retrieves a specific package by ID with its services and workflow.
+ *
+ * Required permissions: customer_config.view, customer_config.edit, customer_config.*, or admin
+ *
+ * Path params:
+ *   - id: UUID of the package
+ *
+ * Returns: Package object with services and workflow
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Package not found
+ *   - 500: Internal server error
  */
 export async function GET(
   request: NextRequest,
@@ -106,11 +114,29 @@ export async function GET(
 }
 
 /**
- * @route PUT /api/packages/[id]
- * @desc Update a specific package
- * @access Private - Requires customers.edit permission
+ * PUT /api/packages/[id]
  *
- * CRITICAL: Next.js 15 requires params to be awaited before use.
+ * Updates a package's name, description, services, and/or workflow assignment.
+ *
+ * Required permissions: customer_config.edit, customer_config.*, or admin
+ *
+ * Path params:
+ *   - id: UUID of the package
+ *
+ * Request body:
+ *   - name?: string (min 1 character)
+ *   - description?: string | null
+ *   - services?: Array<{ serviceId: string (UUID), scope: any }>
+ *   - workflowId?: string (UUID) | null
+ *
+ * Returns: Updated package object with services and workflow
+ *
+ * Errors:
+ *   - 400: Validation failed or services not available to customer
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Package not found
+ *   - 500: Internal server error
  */
 export async function PUT(
   request: NextRequest,
@@ -290,11 +316,22 @@ export async function PUT(
 }
 
 /**
- * @route DELETE /api/packages/[id]
- * @desc Delete a package
- * @access Private - Requires customers.edit permission
+ * DELETE /api/packages/[id]
  *
- * CRITICAL: Next.js 15 requires params to be awaited before use.
+ * Deletes a package and its associated package services (cascade delete).
+ *
+ * Required permissions: customer_config.edit, customer_config.*, or admin
+ *
+ * Path params:
+ *   - id: UUID of the package
+ *
+ * Returns: { success: true }
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Package not found
+ *   - 500: Internal server error
  */
 export async function DELETE(
   request: NextRequest,

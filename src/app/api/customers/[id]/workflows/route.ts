@@ -5,7 +5,24 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { canManageCustomers } from '@/lib/auth-utils';
 
-// GET: Fetch workflows for a specific customer
+/**
+ * GET /api/customers/[id]/workflows
+ *
+ * Retrieves all active workflows for a specific customer with their packages and sections.
+ *
+ * Required permissions: canManageCustomers (checks customer_config, global_config, or admin)
+ *
+ * Path params:
+ *   - id: UUID of the customer
+ *
+ * Returns: Array of workflow objects with packages and sections
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Customer not found
+ *   - 500: Internal server error
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -7,7 +7,27 @@ import { workflowCreateSchema } from "@/types/workflow";
 import { hasPermission } from "@/lib/permission-utils";
 import logger from '@/lib/logger';
 
-// GET: Fetch workflows with filtering and pagination
+/**
+ * GET /api/workflows
+ *
+ * Retrieves workflows with filtering, search, and pagination support.
+ *
+ * Required permissions: customer_config.view or admin
+ *
+ * Query params:
+ *   - page?: number (default: 1)
+ *   - pageSize?: number (default: 10)
+ *   - status?: string | 'all'
+ *   - includeDisabled?: boolean (default: false)
+ *   - search?: string (searches name and description)
+ *
+ * Returns: { workflowCount: number, totalCount: number, totalPages: number, page: number, workflows: Workflow[] }
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 500: Internal server error
+ */
 export async function GET(request: NextRequest) {
   try {
     logger.info('Workflows API: Starting request');
@@ -115,7 +135,24 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: Create a new workflow
+/**
+ * POST /api/workflows
+ *
+ * Creates a new workflow with the specified configuration.
+ *
+ * Required permissions: customer_config.edit or admin
+ *
+ * Request body:
+ *   - All fields from workflowCreateSchema (name, description, status, settings, customerId, etc.)
+ *
+ * Returns: Created workflow object with packages and sections
+ *
+ * Errors:
+ *   - 400: Validation failed
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 500: Internal server error
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
