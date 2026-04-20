@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
           createdAt: 'desc'
         },
         include: {
-          package: true,
+          packages: true,
           sections: true
         }
       }),
@@ -93,10 +93,10 @@ export async function GET(request: NextRequest) {
       disabled: workflow.disabled,
       createdAt: workflow.createdAt,
       updatedAt: workflow.updatedAt,
-      packageId: workflow.packageId,
-      package: workflow.package,
-      sectionCount: workflow.sections.length,
-      sections: workflow.sections
+      packages: workflow.packages || [],
+      packagesCount: workflow.packages?.length || 0,
+      sectionCount: workflow.sections?.length || 0,
+      sections: workflow.sections || []
     }));
 
     return NextResponse.json({
@@ -142,23 +142,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { packageIds, ...workflowData } = validationResult.data;
+    const workflowData = validationResult.data;
 
-    // Check if a package ID is provided
-    if (!packageIds || packageIds.length === 0) {
-      return NextResponse.json(
-        { error: "A package must be selected for the workflow" },
-        { status: 400 }
-      );
-    }
-
-    // Use the first packageId from the array (since we now support only one package per workflow)
-    const packageId = packageIds[0];
-
-    // Create workflow with direct package relationship
+    // Create workflow without package relationship (packages will link to workflows)
     const workflowCreateData = {
       ...workflowData,
-      packageId: packageId,
       // Add user tracking fields
       createdById: userId,
       updatedById: userId,
@@ -173,7 +161,7 @@ export async function POST(request: NextRequest) {
     const completeWorkflow = await prisma.workflow.findUnique({
       where: { id: newWorkflow.id },
       include: {
-        package: true,
+        packages: true,
         sections: true
       }
     });

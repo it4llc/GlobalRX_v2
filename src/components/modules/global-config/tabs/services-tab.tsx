@@ -48,7 +48,7 @@ export function ServicesTab() {
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   // Initialize with functionality types in the desired order
-  const [functionalityTypes, setFunctionalityTypes] = useState<string[]>(['record', 'verification-edu', 'verification-emp', 'other']);
+  const [functionalityTypes, setFunctionalityTypes] = useState<string[]>(['record', 'verification-edu', 'verification-emp', 'other', 'idv']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);

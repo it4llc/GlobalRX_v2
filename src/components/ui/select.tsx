@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 
 // Common styles - REDUCED HEIGHT to h-7 (28px)
 const selectTriggerStyles = "flex h-7 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-0 text-sm shadow-sm hover:border-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:cursor-not-allowed disabled:opacity-50";
-const selectContentStyles = "relative z-[9999] min-w-[8rem] overflow-hidden rounded-md border border-gray-200 bg-white text-black shadow-md";
+const selectContentStyles = "relative z-[9999] min-w-[8rem] overflow-visible rounded-md border border-gray-200 bg-white text-black shadow-md";
 const selectItemStyles = "relative flex cursor-pointer select-none items-center rounded-sm py-1 pl-8 pr-2 text-sm outline-none hover:bg-blue-50 focus:bg-blue-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
 
 // Components with consistent styling
@@ -56,12 +56,14 @@ function SelectContent({
   className,
   children,
   position = "popper",
+  container,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content> & {
   position?: "item-aligned" | "popper"
+  container?: HTMLElement | null
 }) {
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={container}>
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
@@ -78,7 +80,7 @@ function SelectContent({
           className={cn(
             "p-1 bg-white",
             position === "popper" &&
-              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+              "max-h-60 w-full min-w-[var(--radix-select-trigger-width)]"
           )}
         >
           {children}

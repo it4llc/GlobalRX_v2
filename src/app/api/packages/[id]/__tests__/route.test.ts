@@ -69,7 +69,7 @@ describe('GET /api/packages/[id]', () => {
         customer: { name: 'Test Customer' },
         createdAt: new Date(),
         updatedAt: new Date(),
-        services: []
+        packageServices: []
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
@@ -175,7 +175,7 @@ describe('GET /api/packages/[id]', () => {
         customer: { name: 'Test Customer' },
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-02'),
-        services: [
+        packageServices: [
           {
             serviceId: 'service-1',
             scope: { type: 'basic' }
@@ -258,7 +258,7 @@ describe('PUT /api/packages/[id]', () => {
         .mockResolvedValueOnce({ // Second call for returning updated data
           ...mockPackage,
           name: 'Updated Package',
-          services: []
+          packageServices: []
         });
 
       // Call the handler

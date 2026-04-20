@@ -339,10 +339,12 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `customerId` (String, required): Customer who owns the package
 - `name` (String, required): Package name
 - `description` (String, optional): Package description
+- `workflowId` (String, optional): Workflow assigned to this package
 
 **Relationships:**
 - Belongs to `Customer` via `customerId`
-- Has many `PackageService`, `Workflow`
+- Belongs to `Workflow` via `workflowId` (optional)
+- Has many `PackageService`
 
 ### PackageService
 **Model:** `PackageService`
@@ -702,7 +704,6 @@ When `fieldType='document'`, the `fieldValue` contains a JSON object with:
 - `disabled` (Boolean, required): Whether workflow is currently active
 - `createdAt` (DateTime, required): Creation timestamp
 - `updatedAt` (DateTime, required): Last modification timestamp
-- `packageId` (String, required): Package this workflow belongs to
 - `createdById` (String, optional): User who created the workflow
 - `updatedById` (String, optional): User who last updated the workflow
 - `reminderEnabled` (Boolean, required): Whether reminders are sent
@@ -710,7 +711,7 @@ When `fieldType='document'`, the `fieldValue` contains a JSON object with:
 - `maxReminders` (Int, required): Maximum number of reminders
 
 **Relationships:**
-- Belongs to `Package` via `packageId`
+- Has many `Package` (packages can reference this workflow)
 - Has many `WorkflowSection`
 
 ### WorkflowSection

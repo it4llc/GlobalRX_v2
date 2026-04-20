@@ -215,6 +215,7 @@ describe('Workflow API Permission Bug Tests', () => {
           expirationDays: 30,
           autoCloseEnabled: false,
           extensionAllowed: false,
+          customerId: '550e8400-e29b-41d4-a716-446655440000',
           packageIds: [packageId]
         })
       });
@@ -256,6 +257,7 @@ describe('Workflow API Permission Bug Tests', () => {
         method: 'POST',
         body: JSON.stringify({
           name: 'Workflow 2',
+          customerId: '550e8400-e29b-41d4-a716-446655440000',
           packageIds: [packageId]
         })
       });
