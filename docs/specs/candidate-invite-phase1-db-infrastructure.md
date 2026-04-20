@@ -3,7 +3,8 @@
 **Spec file:** `docs/specs/candidate-invite-phase1-db-infrastructure.md`
 **Date:** April 18, 2026
 **Requested by:** Andy
-**Status:** Confirmed
+**Status:** Implemented
+**Implementation Date:** April 20, 2026
 
 ---
 

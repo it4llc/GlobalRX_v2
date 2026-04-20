@@ -293,7 +293,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Workflow not found" }, { status: 404 });
     }
 
-    // Check if any packages are using this workflow
+    // Phase 1 Business Rule: Block deletion if packages are assigned
+    // This enforces referential integrity since packages depend on workflows
     if (workflow.packages && workflow.packages.length > 0) {
       return NextResponse.json(
         {
