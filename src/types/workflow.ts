@@ -17,7 +17,9 @@ export const workflowBaseSchema = z.object({
   disabled: z.boolean().default(false),
 });
 
-export const workflowCreateSchema = workflowBaseSchema;
+export const workflowCreateSchema = workflowBaseSchema.extend({
+  customerId: z.string().uuid('Invalid customer ID format')
+});
 
 export const workflowUpdateSchema = workflowBaseSchema.partial();
 

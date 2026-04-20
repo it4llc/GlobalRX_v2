@@ -297,6 +297,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
       const submitData = {
         name: data.name,
         description: data.description,
+        workflowId: data.workflowId || null,
         services: data.services.map((svc: any) => ({
           serviceId: svc.serviceId,
           scope: svc.scope

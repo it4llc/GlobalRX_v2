@@ -35,6 +35,7 @@ describe('Workflow Schema Validation - Phase 1 Changes', () => {
         name: 'Test Workflow',
         description: 'Test description',
         status: 'draft' as const,
+        customerId: '550e8400-e29b-41d4-a716-446655440000',
         packageIds: ['550e8400-e29b-41d4-a716-446655440000'] // This field should be removed
       };
 
@@ -48,7 +49,8 @@ describe('Workflow Schema Validation - Phase 1 Changes', () => {
       const workflowWithoutPackageIds = {
         name: 'Test Workflow',
         description: 'Test description',
-        status: 'draft' as const
+        status: 'draft' as const,
+        customerId: '550e8400-e29b-41d4-a716-446655440000'
       };
 
       const result = workflowCreateSchema.parse(workflowWithoutPackageIds);

@@ -137,6 +137,7 @@ model Customer {
   orders           Order[]
   packages         Package[]
   users            User[]            @relation("CustomerUserRelation")
+  workflows        Workflow[]
 
   @@index([masterAccountId])
   @@index([billingAccountId])
@@ -273,11 +274,14 @@ model Workflow {
   reminderEnabled   Boolean           @default(false)
   reminderFrequency Int               @default(7)
   maxReminders      Int               @default(3)
+  customerId        String
   sections          WorkflowSection[]
   packages          Package[]
+  customer          Customer          @relation(fields: [customerId], references: [id])
   createdBy         User?             @relation("WorkflowCreatedBy", fields: [createdById], references: [id])
   updatedBy         User?             @relation("WorkflowUpdatedBy", fields: [updatedById], references: [id])
 
+  @@index([customerId])
   @@index([createdById])
   @@index([updatedById])
   @@map("workflows")

@@ -2,7 +2,7 @@
 import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,11 +15,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LoadingIndicator } from '@/components/ui/loading-indicator';
 import { AlertBox } from '@/components/ui/alert-box';
 import { ScopeSelector } from './scope-selector';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Validation schema
 const packageSchema = z.object({
   name: z.string().min(1, "Package name is required"),
   description: z.string().optional().nullable(),
+  workflowId: z.string().uuid().optional().nullable(),
   services: z.array(z.object({
     serviceId: z.string().uuid(),
     scope: z.any() // This will be validated based on service type
@@ -46,7 +54,8 @@ interface PackageDialogProps {
 export function PackageDialog({ customerId, packageId, onClose, open }: PackageDialogProps) {
   const dialogRef = useRef<DialogRef>(null);
   const { fetchWithAuth } = useAuth();
-  
+  const [selectPortalContainer, setSelectPortalContainer] = useState<HTMLDivElement | null>(null);
+
   // Core state
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,9 +68,11 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [scopes, setScopes] = useState<Record<string, any>>({});
+  const [workflows, setWorkflows] = useState<Array<{ id: string; name: string }>>([]);
   
   // Initialize form with resolver
   const {
+    control,
     register,
     handleSubmit,
     formState: { errors, isValid, isDirty: formIsDirty, dirtyFields },
@@ -73,7 +84,8 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
     defaultValues: {
       name: '',
       description: '',
-      services: [] 
+      workflowId: null,
+      services: []
     },
     mode: 'onChange'
   });
@@ -117,7 +129,18 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
         
         const services = customerData.services || [];
         setAvailableServices(services);
-        
+
+        // Fetch available workflows for this customer
+        const workflowsResponse = await fetchWithAuth(`/api/customers/${customerId}/workflows`);
+        if (workflowsResponse.ok) {
+          const workflowsData = await workflowsResponse.json();
+          // The customer workflows endpoint returns an array directly
+          const activeWorkflows = (Array.isArray(workflowsData) ? workflowsData : []).filter((w: any) => !w.disabled);
+          setWorkflows(activeWorkflows);
+        } else {
+          setWorkflows([]);
+        }
+
         // If editing, load package data
         if (packageId) {
           const packageResponse = await fetchWithAuth(`/api/packages/${packageId}`);
@@ -164,6 +187,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
           clientLogger.info("Setting basic fields first...");
           setValue('name', packageData.name || '', { shouldDirty: false });
           setValue('description', packageData.description || '', { shouldDirty: false });
+          setValue('workflowId', packageData.workflowId || null, { shouldDirty: false });
           
           // Then update services 
           clientLogger.info("Setting services field...");
@@ -282,11 +306,12 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
       setIsSubmitting(true);
       setError(null);
       
-      // For disabled packages when we force enable the button, 
+      // For disabled packages when we force enable the button,
       // ensure data has all required fields
       const completeData = {
         name: data.name || originalName.current,
         description: data.description,
+        workflowId: data.workflowId || null,
         services: data.services || selectedServiceIds.map((id: any) => ({
           serviceId: id,
           scope: scopes[id] || null
@@ -410,6 +435,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
         </div>
       ) : (
         <div className="py-4">
+          <div ref={setSelectPortalContainer} />
           {error && (
             <AlertBox
               type="error"
@@ -494,6 +520,35 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
                       <div>Force Button Enabled: {forceEnabled ? 'Yes' : 'No'}</div>
                       <div>Button Should Be Enabled: {(isValid || forceEnabled) && (isDirty || forceEnabled || !packageId) ? 'Yes' : 'No'}</div>
                     </div>
+                  </FormRow>
+
+                  <FormRow
+                    label="Workflow"
+                    htmlFor="workflowId"
+                    error={errors.workflowId?.message}
+                  >
+                    <Controller
+                      control={control}
+                      name="workflowId"
+                      render={({ field }) => (
+                        <Select
+                          onValueChange={(value) => field.onChange(value === 'none' ? null : value)}
+                          value={field.value || 'none'}
+                        >
+                          <SelectTrigger id="workflowId">
+                            <SelectValue placeholder="Select a workflow" />
+                          </SelectTrigger>
+                          <SelectContent container={selectPortalContainer}>
+                            <SelectItem value="none">No workflow assigned</SelectItem>
+                            {workflows.map((workflow) => (
+                              <SelectItem key={workflow.id} value={workflow.id}>
+                                {workflow.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                   </FormRow>
                 </FormTable>
               </div>
