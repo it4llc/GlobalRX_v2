@@ -16,11 +16,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LoadingIndicator } from '@/components/ui/loading-indicator';
 import { AlertBox } from '@/components/ui/alert-box';
 import { ScopeSelector } from './scope-selector';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Validation schema
 const packageSchema = z.object({
   name: z.string().min(1, "Package name is required"),
   description: z.string().optional().nullable(),
+  workflowId: z.string().uuid().optional().nullable(),
   services: z.array(z.object({
     serviceId: z.string().uuid(),
     scope: z.any() // This will be validated based on service type
@@ -70,6 +78,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
+  const [workflows, setWorkflows] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [scopes, setScopes] = useState<Record<string, any>>({});
   
@@ -86,6 +95,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
     defaultValues: {
       name: '',
       description: '',
+      workflowId: null,
       services: [] // Will be populated after service selection
     }
   });
@@ -121,6 +131,21 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
           servicesCount: services?.length
         });
         setAvailableServices(services);
+
+        // Fetch available workflows
+        clientLogger.debug('Fetching workflows');
+        const workflowsResponse = await fetchWithAuth('/api/workflows');
+        if (workflowsResponse.ok) {
+          const workflowsData = await workflowsResponse.json();
+          const activeWorkflows = (workflowsData.workflows || []).filter((w: any) => !w.disabled);
+          setWorkflows(activeWorkflows);
+          clientLogger.debug('Workflows loaded', {
+            count: activeWorkflows.length
+          });
+        } else {
+          clientLogger.warn('Failed to fetch workflows');
+          setWorkflows([]);
+        }
         
         // If editing an existing package, fetch its details
         if (packageId) {
@@ -166,6 +191,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
           reset({
             name: packageData.name,
             description: packageData.description,
+            workflowId: packageData.workflowId || null,
             services: packageData.services.map((svc: any) => ({
               serviceId: svc.serviceId,
               scope: svc.scope
@@ -271,6 +297,7 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
       const submitData = {
         name: data.name,
         description: data.description,
+        workflowId: data.workflowId || null,
         services: data.services.map((svc: any) => ({
           serviceId: svc.serviceId,
           scope: svc.scope
@@ -387,6 +414,35 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
                       {...register('description')}
                       placeholder="Enter package description"
                       rows={3}
+                    />
+                  </FormRow>
+
+                  <FormRow
+                    label="Workflow"
+                    htmlFor="workflowId"
+                    error={errors.workflowId?.message}
+                  >
+                    <Controller
+                      control={control}
+                      name="workflowId"
+                      render={({ field }) => (
+                        <Select
+                          onValueChange={(value) => field.onChange(value === 'none' ? null : value)}
+                          value={field.value || 'none'}
+                        >
+                          <SelectTrigger id="workflowId">
+                            <SelectValue placeholder="Select a workflow" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No workflow assigned</SelectItem>
+                            {workflows.map((workflow) => (
+                              <SelectItem key={workflow.id} value={workflow.id}>
+                                {workflow.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     />
                   </FormRow>
                 </FormTable>

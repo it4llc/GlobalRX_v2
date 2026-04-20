@@ -13,7 +13,8 @@ const packageUpdateSchema = z.object({
   services: z.array(z.object({
     serviceId: z.string().uuid(),
     scope: z.any() // Will validate the structure based on service type in the handler
-  })).optional()
+  })).optional(),
+  workflowId: z.string().uuid().optional().nullable()
 });
 
 /**
@@ -60,7 +61,8 @@ export async function GET(
       where: { id },
       include: {
         customer: true,
-        services: {
+        workflow: true,
+        packageServices: {
           include: {
             service: true
           }
@@ -82,10 +84,12 @@ export async function GET(
       description: pkg.description,
       customerId: pkg.customerId,
       customerName: pkg.customer.name,
+      workflowId: pkg.workflowId,
+      workflow: pkg.workflow,
       createdAt: pkg.createdAt,
       updatedAt: pkg.updatedAt,
-      // Transform services to match the expected format in the form
-      services: pkg.services.map((ps: any) => ({
+      // Transform packageServices to match the expected format in the form
+      services: pkg.packageServices.map((ps: any) => ({
         serviceId: ps.serviceId,
         scope: ps.scope
       }))
@@ -124,10 +128,11 @@ export async function PUT(
 
     // Check permissions
     // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
+    // BUG FIX: Remove .view from permission check - only edit/admin should be allowed to update
     const hasCustomerConfigPermission =
-      session.user.permissions?.customer_config ||
+      session.user.permissions?.customer_config === true ||
+      session.user.permissions?.customer_config === '*' ||
       session.user.permissions?.customer_config?.edit ||
-      session.user.permissions?.customer_config?.view ||
       session.user.permissions?.customer_config?.['*'] ||
       (Array.isArray(session.user.permissions?.customer_config) && session.user.permissions.customer_config.includes('*'));
 
@@ -211,6 +216,20 @@ export async function PUT(
       }
     }
 
+    // If workflowId is provided, validate that the workflow exists
+    if (data.workflowId !== undefined && data.workflowId !== null) {
+      const workflowExists = await prisma.workflow.findUnique({
+        where: { id: data.workflowId }
+      });
+
+      if (!workflowExists) {
+        return NextResponse.json(
+          { error: 'Workflow not found', workflowId: data.workflowId },
+          { status: 400 }
+        );
+      }
+    }
+
     // Update package with transaction to handle service relationships
     const updatedPackage = await prisma.$transaction(async (tx) => {
       // Update the package
@@ -219,6 +238,7 @@ export async function PUT(
         data: {
           name: data.name,
           description: data.description,
+          workflowId: data.workflowId
         }
       });
 
@@ -246,11 +266,12 @@ export async function PUT(
       return pkg;
     });
 
-    // Get the updated package with services
+    // Get the updated package with packageServices and workflow
     const packageWithServices = await prisma.package.findUnique({
       where: { id },
       include: {
-        services: {
+        workflow: true,
+        packageServices: {
           include: {
             service: true
           }
@@ -290,10 +311,11 @@ export async function DELETE(
 
     // Check permissions
     // BUG FIX: Changed from 'customers' to 'customer_config' to match User Admin permission key
+    // BUG FIX: Remove .view from permission check - only edit/admin should be allowed to delete
     const hasCustomerConfigPermission =
-      session.user.permissions?.customer_config ||
+      session.user.permissions?.customer_config === true ||
+      session.user.permissions?.customer_config === '*' ||
       session.user.permissions?.customer_config?.edit ||
-      session.user.permissions?.customer_config?.view ||
       session.user.permissions?.customer_config?.['*'] ||
       (Array.isArray(session.user.permissions?.customer_config) && session.user.permissions.customer_config.includes('*'));
 

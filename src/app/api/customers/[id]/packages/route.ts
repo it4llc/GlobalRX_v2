@@ -15,7 +15,8 @@ const packageSchema = z.object({
   services: z.array(z.object({
     serviceId: z.string().uuid(),
     scope: z.any() // Will validate the structure based on service type in the handler
-  }))
+  })),
+  workflowId: z.string().uuid().optional().nullable()
 });
 
 /**
@@ -78,6 +79,7 @@ export async function GET(
     const packages = await prisma.package.findMany({
       where: { customerId: id },
       include: {
+        workflow: true,
         packageServices: {
           include: {
             service: true
@@ -91,6 +93,8 @@ export async function GET(
       id: pkg.id,
       name: pkg.name,
       description: pkg.description,
+      workflowId: pkg.workflowId,
+      workflow: pkg.workflow,
       createdAt: pkg.createdAt,
       updatedAt: pkg.updatedAt,
       // Transform packageServices into the services format expected by the frontend
@@ -219,6 +223,20 @@ export async function POST(
       }
     }
 
+    // If workflowId is provided, validate that the workflow exists
+    if (data.workflowId !== undefined && data.workflowId !== null) {
+      const workflowExists = await prisma.workflow.findUnique({
+        where: { id: data.workflowId }
+      });
+
+      if (!workflowExists) {
+        return NextResponse.json(
+          { error: 'Workflow not found', workflowId: data.workflowId },
+          { status: 400 }
+        );
+      }
+    }
+
     // Create package with transaction to handle service relationships
     const newPackage = await prisma.$transaction(async (tx) => {
       // Create the package
@@ -227,6 +245,7 @@ export async function POST(
           name: data.name,
           description: data.description,
           customerId: id,
+          workflowId: data.workflowId
         }
       });
 

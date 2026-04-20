@@ -37,16 +37,14 @@ export async function GET(
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    // Fetch workflows for this customer using the updated schema with direct package relationship
+    // Fetch workflows for this customer using the direct customerId relation
     const workflows = await prisma.workflow.findMany({
       where: {
-        package: {
-          customerId: customerId
-        },
+        customerId: customerId,
         disabled: false,
       },
       include: {
-        package: true,
+        packages: true,
         sections: true
       },
       orderBy: {
@@ -72,17 +70,17 @@ export async function GET(
       disabled: workflow.disabled,
       createdAt: workflow.createdAt,
       updatedAt: workflow.updatedAt,
-      packageId: workflow.packageId,
-      package: workflow.package,
+      packages: workflow.packages,
       sectionCount: workflow.sections.length,
       sections: workflow.sections,
       // For compatibility with existing frontend code
-      packageIds: [workflow.packageId],
+      packageIds: workflow.packages.map((pkg: any) => pkg.id),
       customerId: customerId
     }));
 
     return NextResponse.json(transformedWorkflows);
   } catch (error: unknown) {
+    console.error('WORKFLOWS GET ERROR:', error);
     logger.error('Error fetching customer workflows:', error);
     return NextResponse.json(
       { error: 'Error fetching customer workflows' },
