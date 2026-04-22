@@ -1269,6 +1269,36 @@ Impact: Low (functional, but confusing and doubles maintenance)
 Suggested fix: Merge into one component, update all imports
 Discovered during: Candidate Invite Phase 1 (2026-04-20)
 
+### TD-049: Playwright e2e test infrastructure not functional
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Testing / E2E Infrastructure                |
+| Severity    | Medium                                      |
+| Identified  | April 22, 2026 - Candidate Invite Phase 2 Pass 1 |
+| Identified by | Test verification checkpoint              |
+
+**Description:**
+E2E test files exist in tests/e2e/ but cannot actually run. The test-writer Pass 1 for Candidate Invite Phase 2 created tests/e2e/workflow-configuration-phase2.spec.ts with 27 Playwright tests, but these tests cannot be executed. Likely a setup/configuration issue with Playwright.
+
+**Why deferred:**
+Unit and API route tests provide sufficient coverage for features. E2E tests would provide additional regression protection but are not blocking feature delivery.
+
+**When to fix:**
+During a dedicated testing infrastructure improvement pass, or before the next major feature that requires E2E coverage.
+
+**What needs to be done:**
+- Investigate Playwright config in playwright.config.ts
+- Verify browsers are installed (npx playwright install)
+- Confirm test runner works with a simple smoke test
+- Document setup requirements for running E2E tests
+- Consider adding E2E tests to CI pipeline once working
+
+**Impact:**
+Blocks all E2E test coverage across the project, not just this feature. Coverage gaps will grow over time as more features are added without E2E regression tests.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_

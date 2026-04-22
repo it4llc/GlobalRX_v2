@@ -136,6 +136,11 @@ export default function CustomerWorkflowsPage() {
     // or navigate to a dedicated view page if needed
     handleEditWorkflow(workflowId);
   };
+
+  // Handle managing workflow sections
+  const handleManageSections = (workflowId: string) => {
+    router.push(`/customer-configs/${customerId}/workflows/sections?workflowId=${workflowId}`);
+  };
   
   // Handle deleting a workflow
   const handleDeleteWorkflow = async (workflowId: string) => {
@@ -260,6 +265,11 @@ export default function CustomerWorkflowsPage() {
                       {
                         label: t('common.edit'),
                         onClick: () => handleEditWorkflow(workflow.id),
+                        color: 'rgb(37, 99, 235)',
+                      },
+                      {
+                        label: 'Manage Sections',
+                        onClick: () => handleManageSections(workflow.id),
                         color: 'rgb(37, 99, 235)',
                       },
                       {

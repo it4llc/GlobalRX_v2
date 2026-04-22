@@ -17,6 +17,11 @@ import { ArrowLeft } from 'lucide-react';
 interface WorkflowSection {
   id: string;
   name: string;
+  placement: 'before_services' | 'after_services';
+  type: 'text' | 'document';
+  content?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
   displayOrder: number;
   isRequired: boolean;
   dependsOnSection?: string | null;
@@ -124,7 +129,7 @@ function WorkflowSectionsContent() {
   }, [workflowId, fetchWithAuth, refreshKey, customerId]);
   
   // Handle "add section" button click
-  const handleAddSection = () => {
+  const handleAddSection = (placement?: 'before_services' | 'after_services') => {
     setSelectedSection(undefined);
     setDialogOpen(true);
   };
@@ -135,9 +140,12 @@ function WorkflowSectionsContent() {
     setDialogOpen(true);
   };
   
-  // Handle dialog close with success
-  const handleDialogSuccess = () => {
-    setRefreshKey(prev => prev + 1);
+  // Handle dialog close
+  const handleDialogClose = (refreshData: boolean) => {
+    setDialogOpen(false);
+    if (refreshData) {
+      setRefreshKey(prev => prev + 1);
+    }
   };
   
   // Handle back button click - go back to customer workflows
@@ -238,16 +246,15 @@ function WorkflowSectionsContent() {
         workflowId={workflowId}
         onAddSection={handleAddSection}
         onEditSection={handleEditSection}
+        refreshTrigger={refreshKey}
       />
       
       {/* Section dialog */}
       <WorkflowSectionDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
         workflowId={workflowId}
         section={selectedSection}
-        availableSections={sections}
-        onSuccess={handleDialogSuccess}
+        onClose={handleDialogClose}
       />
     </div>
   );

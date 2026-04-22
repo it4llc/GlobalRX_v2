@@ -30,6 +30,9 @@ const workflowSchema = z.object({
   reminderEnabled: z.boolean().default(false),
   reminderFrequency: z.number().min(1).max(30).default(7),
   maxReminders: z.number().min(1).max(10).default(3),
+  emailSubject: z.string().max(200).optional(),
+  emailBody: z.string().max(5000).optional(),
+  gapToleranceDays: z.number().min(1).max(365).optional().nullable(),
 });
 
 type WorkflowFormData = z.infer<typeof workflowSchema>;
@@ -50,6 +53,9 @@ interface WorkflowDialogProps {
     reminderEnabled?: boolean;
     reminderFrequency?: number;
     maxReminders?: number;
+    emailSubject?: string;
+    emailBody?: string;
+    gapToleranceDays?: number | null;
     customerId?: string;
   };
   customerId?: string;
@@ -91,6 +97,9 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
         reminderEnabled: workflow.reminderEnabled ?? false,
         reminderFrequency: workflow.reminderFrequency || 7,
         maxReminders: workflow.maxReminders || 3,
+        emailSubject: workflow.emailSubject || '',
+        emailBody: workflow.emailBody || '',
+        gapToleranceDays: workflow.gapToleranceDays,
       });
     } else {
       form.reset({
@@ -448,6 +457,98 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
                 />
               </>
             )}
+
+            <div className="space-y-4 border-t pt-4 mt-4">
+              <h3 className="text-lg font-semibold">Email Template</h3>
+              <p className="text-sm text-muted-foreground">
+                Configure the email template for candidate invitations. Use placeholder variables to personalize emails.
+              </p>
+
+              <FormField
+                control={form.control}
+                name="emailSubject"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Subject</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Invitation to complete background check"
+                        maxLength={200}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Maximum 200 characters
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="emailBody"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Body</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        rows={8}
+                        placeholder="Dear {{candidateFirstName}},\n\nYou have been invited to complete a background check..."
+                        maxLength={5000}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Maximum 5000 characters. Available variables:
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-mono">
+                        <div>{'{{candidateFirstName}}'}</div>
+                        <div>{'{{candidateLastName}}'}</div>
+                        <div>{'{{candidateEmail}}'}</div>
+                        <div>{'{{candidatePhone}}'}</div>
+                        <div>{'{{companyName}}'}</div>
+                        <div>{'{{inviteLink}}'}</div>
+                        <div>{'{{expirationDate}}'}</div>
+                      </div>
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="space-y-4 border-t pt-4 mt-4">
+              <h3 className="text-lg font-semibold">Validation Settings</h3>
+
+              <FormField
+                control={form.control}
+                name="gapToleranceDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gap Tolerance (Days)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="365"
+                        {...field}
+                        value={field.value ?? ''}
+                        onChange={e => {
+                          const value = e.target.value;
+                          field.onChange(value === '' ? null : parseInt(value));
+                        }}
+                        placeholder="Leave empty to skip gap validation"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Maximum number of days allowed between employment or address history entries.
+                      Leave empty to skip gap validation.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <DialogFooter>
               <Button
