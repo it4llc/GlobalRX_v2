@@ -129,6 +129,10 @@ describe('POST /api/workflows/[id]/sections/[sectionId]/upload', () => {
     });
 
     it('should return 400 when no file provided', async () => {
+      vi.mocked(prisma.workflow.findUnique).mockResolvedValueOnce({ id: '123' } as any);
+      vi.mocked(prisma.workflowSection.findFirst).mockResolvedValueOnce({ id: '456', workflowId: '123', type: 'document' } as any);
+      vi.mocked(prisma.order.count).mockResolvedValueOnce(0);
+
       const formData = new FormData();
 
       const request = new NextRequest('http://localhost:3000/api/workflows/123/sections/456/upload', {
@@ -210,6 +214,10 @@ describe('POST /api/workflows/[id]/sections/[sectionId]/upload', () => {
     });
 
     it('should reject other file types', async () => {
+      vi.mocked(prisma.workflow.findUnique).mockResolvedValueOnce({ id: '123' } as any);
+      vi.mocked(prisma.workflowSection.findFirst).mockResolvedValueOnce({ id: '456', workflowId: '123', type: 'document' } as any);
+      vi.mocked(prisma.order.count).mockResolvedValueOnce(0);
+
       const formData = new FormData();
       formData.append('file', new File(['test'], 'test.jpg', { type: 'image/jpeg' }));
 
@@ -227,6 +235,10 @@ describe('POST /api/workflows/[id]/sections/[sectionId]/upload', () => {
     });
 
     it('should reject files over 10MB', async () => {
+      vi.mocked(prisma.workflow.findUnique).mockResolvedValueOnce({ id: '123' } as any);
+      vi.mocked(prisma.workflowSection.findFirst).mockResolvedValueOnce({ id: '456', workflowId: '123', type: 'document' } as any);
+      vi.mocked(prisma.order.count).mockResolvedValueOnce(0);
+
       const largeFile = new File(['x'.repeat(11 * 1024 * 1024)], 'large.pdf', { type: 'application/pdf' });
 
       const formData = new FormData();
