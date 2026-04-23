@@ -70,7 +70,7 @@ export async function GET(
     });
 
     // Transform the data to match the expected format with updated structure
-    const transformedWorkflows = workflows.map((workflow: any) => ({
+    const transformedWorkflows = workflows.map((workflow: Record<string, unknown> & { packages: { id: string }[]; sections: { id: string }[] }) => ({
       id: workflow.id,
       name: workflow.name,
       description: workflow.description,
@@ -94,7 +94,7 @@ export async function GET(
       sectionCount: workflow.sections.length,
       sections: workflow.sections,
       // For compatibility with existing frontend code
-      packageIds: workflow.packages.map((pkg: any) => pkg.id),
+      packageIds: workflow.packages.map((pkg: { id: string }) => pkg.id),
       customerId: customerId
     }));
 
