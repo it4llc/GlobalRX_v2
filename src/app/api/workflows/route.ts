@@ -1,4 +1,4 @@
-// src/app/api/workflows/route-prisma.ts
+// src/app/api/workflows/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || undefined;
 
     // Build filter object
-    const filter: any = {};
+    const filter: Record<string, unknown> = {};
     
     if (status && status !== 'all') {
       filter.status = status;
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
     logger.info('Workflows API: Found workflows', { count: workflows.length, totalCount });
 
     // Transform the data to match the expected format
-    const transformedWorkflows = workflows.map((workflow: any) => ({
+    const transformedWorkflows = workflows.map((workflow: Record<string, unknown> & { packages?: { id: string }[]; sections?: { id: string }[] }) => ({
       id: workflow.id,
       name: workflow.name,
       description: workflow.description,
@@ -111,6 +111,10 @@ export async function GET(request: NextRequest) {
       reminderFrequency: workflow.reminderFrequency,
       maxReminders: workflow.maxReminders,
       disabled: workflow.disabled,
+      // Include Phase 2 fields
+      emailSubject: workflow.emailSubject,
+      emailBody: workflow.emailBody,
+      gapToleranceDays: workflow.gapToleranceDays,
       createdAt: workflow.createdAt,
       updatedAt: workflow.updatedAt,
       packages: workflow.packages || [],

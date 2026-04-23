@@ -49,6 +49,7 @@ model User {
   orderItemsUpdated      OrderItem[]           @relation("OrderItemUpdatedBy")
   orderViews             OrderView[]
   orderItemViews         OrderItemView[]
+  createdCandidateInvitations CandidateInvitation[] @relation("creator")
 
   @@index([customerId])
   @@index([vendorId])
@@ -138,6 +139,7 @@ model Customer {
   packages         Package[]
   users            User[]            @relation("CustomerUserRelation")
   workflows        Workflow[]
+  candidateInvitations CandidateInvitation[]
 
   @@index([masterAccountId])
   @@index([billingAccountId])
@@ -275,6 +277,9 @@ model Workflow {
   reminderFrequency Int               @default(7)
   maxReminders      Int               @default(3)
   customerId        String
+  emailSubject      String?           @map("email_subject")      // Phase 2 field
+  emailBody         String?           @db.Text @map("email_body") // Phase 2 field
+  gapToleranceDays  Int?              @map("gap_tolerance_days") // Phase 2 field
   sections          WorkflowSection[]
   packages          Package[]
   customer          Customer          @relation(fields: [customerId], references: [id])
@@ -290,11 +295,16 @@ model Workflow {
 model WorkflowSection {
   id               String   @id @default(uuid())
   workflowId       String
-  name             String
+  name             String   // Not unique - duplicates allowed
   displayOrder     Int
   isRequired       Boolean  @default(true)
   dependsOnSection String?
   dependencyLogic  String?
+  placement        String   @default("before_services")  // Phase 2 field
+  type             String   @default("text")             // Phase 2 field
+  content          String?  @db.Text                     // Phase 2 field
+  fileUrl          String?  @map("file_url")             // Phase 2 field
+  fileName         String?  @map("file_name")            // Phase 2 field
   createdAt        DateTime @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   workflow         Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
@@ -347,6 +357,7 @@ model Order {
   servicesFulfillment ServicesFulfillment[]
   lock                OrderLock?
   orderViews          OrderView[]
+  candidateInvitations CandidateInvitation[]
 
   @@index([customerId])
   @@index([statusCode])
@@ -354,6 +365,38 @@ model Order {
   @@index([assignedVendorId])
   @@index([closedBy])
   @@map("orders")
+}
+
+model CandidateInvitation {
+  id               String    @id @default(uuid())
+  orderId          String    @map("order_id")
+  customerId       String    @map("customer_id")
+  token            String    @unique
+  firstName        String    @map("first_name")
+  lastName         String    @map("last_name")
+  email            String
+  phoneCountryCode String?   @map("phone_country_code")
+  phoneNumber      String?   @map("phone_number")
+  passwordHash     String?   @map("password_hash")
+  status           String    @default("draft")
+  expiresAt        DateTime  @db.Timestamptz(6) @map("expires_at")
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  createdBy        String    @map("created_by")
+  completedAt      DateTime? @db.Timestamptz(6) @map("completed_at")
+  lastAccessedAt   DateTime? @db.Timestamptz(6) @map("last_accessed_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customer         Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  creator          User      @relation("creator", fields: [createdBy], references: [id])
+
+  @@index([token])
+  @@index([orderId])
+  @@index([customerId])
+  @@index([email])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("candidate_invitations")
 }
 
 model OrderStatusHistory {

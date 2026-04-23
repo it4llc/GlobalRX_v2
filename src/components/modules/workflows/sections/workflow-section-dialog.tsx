@@ -1,646 +1,396 @@
 'use client';
-import clientLogger, { errorToLogMeta } from '@/lib/client-logger';
 
-import * as React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import * as z from 'zod';
+import { useAuth } from '@/contexts/AuthContext';
+import { DialogRef, ModalDialog, DialogFooter } from '@/components/ui/modal-dialog';
+import { FormTable, FormRow } from '@/components/ui/form';
+import { clientLogger, errorToLogMeta } from '@/lib/client-logger';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Form, 
-  FormControl, 
-  FormDescription, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from '@/components/ui/react-hook-form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useTranslation } from '@/contexts/TranslationContext';
-import { useAuth } from '@/contexts/AuthContext'; // Ensure this is from contexts, NOT from hooks
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AlertBox } from '@/components/ui/alert-box';
-import { SectionTypeEnum } from '@/types/workflow';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { PlacementEnum, SectionTypeEnum } from '@/types/workflow-section';
+import { useTranslation } from '@/contexts/TranslationContext';
 
-// Form configuration schema
-const formConfigSchema = z.object({
-  textContent: z.string().optional(),
-  requireSignature: z.boolean().optional().default(false),
-  requireCheckbox: z.boolean().optional().default(false),
-  showIpAddress: z.boolean().optional().default(false),
-});
-
-// Define the schema for section form
-const sectionFormSchema = z.object({
-  name: z.string()
-    .min(2, { message: 'Section name must be at least 2 characters long' })
-    .max(100, { message: 'Section name must not exceed 100 characters' }),
-  displayOrder: z.coerce.number().int().nonnegative(),
+// Validation schema for workflow section
+const sectionSchema = z.object({
+  name: z.string().min(1, 'Section name is required').max(100),
+  placement: PlacementEnum,
+  type: SectionTypeEnum,
+  content: z.string().max(50000).optional(),
+  displayOrder: z.union([
+    z.string().transform((val) => val === '' ? 0 : parseInt(val, 10)),
+    z.number()
+  ]).default(0),
   isRequired: z.boolean().default(true),
-  dependsOnSection: z.string().optional().nullable(),
-  dependencyLogic: z.string().optional().nullable(),
-  sectionType: z.enum(SectionTypeEnum.options).default('form'),
-  configuration: z.union([
-    formConfigSchema,
-    z.record(z.string(), z.any()).optional()
-  ]).optional(),
 });
 
-// Type for the form data
-type SectionFormValues = z.infer<typeof sectionFormSchema>;
+type SectionFormValues = z.infer<typeof sectionSchema>;
 
-// Section interface
 interface WorkflowSection {
   id: string;
   name: string;
+  placement: 'before_services' | 'after_services';
+  type: 'text' | 'document';
+  content?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
   displayOrder: number;
   isRequired: boolean;
-  dependsOnSection?: string | null;
-  dependencyLogic?: string | null;
-  sectionType?: string;
-  configuration?: any;
-  workflowId: string;
 }
 
-// Props for the dialog component
 interface WorkflowSectionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   workflowId: string;
-  section?: WorkflowSection;
-  availableSections: WorkflowSection[];
-  onSuccess?: () => void;
+  section: WorkflowSection | null;
+  placement?: 'before_services' | 'after_services';
+  onClose: (refreshData: boolean) => void;
+  open: boolean;
 }
 
-export function WorkflowSectionDialog({ 
-  open, 
-  onOpenChange, 
-  workflowId, 
-  section, 
-  availableSections,
-  onSuccess 
+export function WorkflowSectionDialog({
+  workflowId,
+  section,
+  placement: defaultPlacement,
+  onClose,
+  open
 }: WorkflowSectionDialogProps) {
+  const dialogRef = useRef<DialogRef>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { fetchWithAuth } = useAuth();
   const { t } = useTranslation();
-  const { fetchWithAuth, checkPermission } = useAuth();
-  
-  // Check customer_config permissions
-  // BUG FIX: Changed from 'workflows'/'customers' to 'customer_config' to match User Admin permission key
-  const canEdit = checkPermission('customer_config', 'edit') ||
-                 checkPermission('admin');
-  
+  const [selectPortalContainer, setSelectPortalContainer] = useState<HTMLDivElement | null>(null);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  
-  // Initialize the form with default values
-  const form = useForm<SectionFormValues>({
-    resolver: zodResolver(sectionFormSchema),
-    defaultValues: {
-      name: '',
-      displayOrder: availableSections.length, // Default to last position
-      isRequired: true,
-      dependsOnSection: null,
-      dependencyLogic: null,
-      sectionType: 'form',
-      configuration: {
-        textContent: '',
-        requireSignature: false,
-        requireCheckbox: false,
-        showIpAddress: false
-      },
-    },
-  });
-  
-  // Update form when section changes
+  const [uploadedFile, setUploadedFile] = useState<{ fileName: string; fileUrl: string } | null>(
+    section?.fileName && section?.fileUrl
+      ? { fileName: section.fileName, fileUrl: section.fileUrl }
+      : null
+  );
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Open/close dialog based on prop
   useEffect(() => {
-    if (section) {
-      form.reset({
-        name: section.name,
-        displayOrder: section.displayOrder,
-        isRequired: section.isRequired,
-        dependsOnSection: section.dependsOnSection || null,
-        dependencyLogic: section.dependencyLogic || null,
-        sectionType: section.sectionType || 'form',
-        configuration: section.configuration || {
-          textContent: '',
-          requireSignature: false,
-          requireCheckbox: false,
-          showIpAddress: false
-        },
-      });
-    } else {
-      // For new section, set display order to end of list
-      form.reset({
-        name: '',
-        displayOrder: availableSections.length,
-        isRequired: true,
-        dependsOnSection: null,
-        dependencyLogic: null,
-        sectionType: 'form',
-        configuration: {
-          textContent: '',
-          requireSignature: false,
-          requireCheckbox: false,
-          showIpAddress: false
-        },
-      });
-    }
-  }, [section, form, availableSections.length]);
-  
-  // Reset messages when dialog opens/closes
-  useEffect(() => {
-    if (open) {
-      setError(null);
-      setSuccessMessage(null);
+    if (open && dialogRef.current) {
+      dialogRef.current.showModal();
+    } else if (!open && dialogRef.current) {
+      dialogRef.current.close();
     }
   }, [open]);
-  
-  // Filter out current section from dependency options to prevent circular dependencies
-  const dependencyOptions = availableSections.filter(s => !section || s.id !== section.id);
-  
-  // Handle form submission
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+    setValue,
+    watch,
+    reset
+  } = useForm<SectionFormValues>({
+    resolver: zodResolver(sectionSchema),
+    mode: 'onChange',
+    defaultValues: {
+      name: section?.name || '',
+      placement: section?.placement || defaultPlacement || 'before_services',
+      type: section?.type || 'text',
+      content: section?.content || '',
+      displayOrder: section?.displayOrder ?? 0,
+      isRequired: section?.isRequired ?? true,
+    }
+  });
+
+  const watchedType = watch('type');
+  const watchedName = watch('name');
+  const watchedPlacement = watch('placement');
+
+  // Removed debug logging
+
+  // Reset form when dialog opens with different section
+  useEffect(() => {
+    if (open) {
+      reset({
+        name: section?.name || '',
+        placement: section?.placement || defaultPlacement || 'before_services',
+        type: section?.type || 'text',
+        content: section?.content || '',
+        displayOrder: section?.displayOrder ?? 0,
+        isRequired: section?.isRequired ?? true,
+      });
+      setUploadedFile(
+        section?.fileName && section?.fileUrl
+          ? { fileName: section.fileName, fileUrl: section.fileUrl }
+          : null
+      );
+      setError(null);
+    }
+  }, [open, section, defaultPlacement, reset]);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['.pdf', '.docx', '.doc'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    if (!allowedTypes.includes(fileExtension)) {
+      setError('Only PDF and Word documents are allowed (.pdf, .docx, .doc)');
+      return;
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size must not exceed 10MB');
+      return;
+    }
+
+    // If editing existing section with document type, upload immediately
+    if (section?.id && watchedType === 'document') {
+      setIsUploading(true);
+      setError(null);
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetchWithAuth(
+          `/api/workflows/${workflowId}/sections/${section.id}/upload`,
+          {
+            method: 'POST',
+            body: formData,
+          }
+        );
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to upload file');
+        }
+
+        const result = await response.json();
+        setUploadedFile({
+          fileName: result.fileName,
+          fileUrl: result.fileUrl,
+        });
+
+        clientLogger.info('File uploaded successfully', {
+          sectionId: section.id,
+          fileName: result.fileName,
+        });
+      } catch (err) {
+        const logMeta = errorToLogMeta(err);
+        clientLogger.error('File upload failed', logMeta);
+        setError(logMeta.message || 'Failed to upload file');
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      // For new sections, just store metadata
+      setUploadedFile({
+        fileName: file.name,
+        fileUrl: '', // Will be set after section creation
+      });
+    }
+  };
+
   const onSubmit = async (data: SectionFormValues) => {
     setIsSubmitting(true);
     setError(null);
-    setSuccessMessage(null);
-    
-    clientLogger.info('Permission check before submitting:', {
-      canEdit,
-      'customer_config.edit': checkPermission('customer_config', 'edit'),
-      'admin': checkPermission('admin')
-    });
-    
-    // Check permissions one more time
-    if (!canEdit) {
-      setError('You do not have permission to edit workflow sections. Required permission: customer_config');
-      setIsSubmitting(false);
-      return;
-    }
-    
+
     try {
-      const url = section 
+      const url = section
         ? `/api/workflows/${workflowId}/sections/${section.id}`
         : `/api/workflows/${workflowId}/sections`;
-      
+
       const method = section ? 'PUT' : 'POST';
-      
-      // Log the form data being submitted
-      clientLogger.info('Submitting form data:', {
+
+      // Don't send file data in JSON request
+      const requestData = {
         ...data,
-        // Convert dependency values for optional fields
-        dependsOnSection: data.dependsOnSection || null,
-        dependencyLogic: data.dependencyLogic || null
-      });
-      
-      // Make sure all required fields are present and have the correct types
-      const requestBody = {
-        name: data.name,
-        displayOrder: Number(data.displayOrder),
-        isRequired: Boolean(data.isRequired),
-        dependsOnSection: data.dependsOnSection || null,
-        dependencyLogic: data.dependencyLogic || null,
-        sectionType: data.sectionType || 'form',
-        configuration: data.configuration || {}
+        displayOrder: data.displayOrder ?? 0,
       };
-      
+
       const response = await fetchWithAuth(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData),
       });
-      
+
       if (!response.ok) {
-        // Try to parse error details
-        let errorMessage = `Failed to ${section ? 'update' : 'create'} section (${response.status})`;
-        let errorDetails = {};
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-          errorDetails = errorData.permissionCheck || {};
-          
-          // For validation errors, add more details
-          if (response.status === 400 && errorData.details) {
-            clientLogger.info('Validation error details:', errorData.details);
-            
-            // Format validation errors for display
-            if (errorData.details.issues && Array.isArray(errorData.details.issues)) {
-              const validationErrors = errorData.details.issues.map((issue: any) => 
-                `${issue.path.join('.')}: ${issue.message}`
-              ).join('; ');
-              
-              errorMessage += ` - Validation errors: ${validationErrors}`;
-            }
-          }
-          
-          clientLogger.info('API Error Response:', errorData);
-        } catch (e) {
-          // Ignore parsing error
-          clientLogger.info('Error parsing API response:', e);
+        const errorData = await response.json();
+        if (response.status === 409) {
+          throw new Error('This workflow has active orders and cannot be modified');
         }
-        
-        clientLogger.info('API Error Status:', response.status, 'URL:', url);
-        clientLogger.info('Form data submitted:', data);
-        
-        // For forbidden errors, provide more detailed message
-        if (response.status === 403) {
-          errorMessage += `. Permission check failed: ${JSON.stringify(errorDetails)}`;
-        }
-        
-        throw new Error(errorMessage);
+        throw new Error(errorData.error || `Failed to ${section ? 'update' : 'create'} section`);
       }
-      
-      // Show success message
-      const action = section ? 'updated' : 'created';
-      setSuccessMessage(`Section ${action} successfully!`);
-      
-      // Close dialog after delay
-      setTimeout(() => {
-        onSuccess?.();
-        onOpenChange(false);
-      }, 1500);
+
+      const result = await response.json();
+
+      // If creating new document section and file was selected, upload it now
+      if (!section && data.type === 'document' && uploadedFile && fileInputRef.current?.files?.[0]) {
+        const file = fileInputRef.current.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const uploadResponse = await fetchWithAuth(
+          `/api/workflows/${workflowId}/sections/${result.id}/upload`,
+          {
+            method: 'POST',
+            body: formData,
+          }
+        );
+
+        if (!uploadResponse.ok) {
+          clientLogger.error('Failed to upload file for new section', {
+            sectionId: result.id,
+            status: uploadResponse.status,
+          });
+        }
+      }
+
+      clientLogger.info(`Section ${section ? 'updated' : 'created'} successfully`, {
+        sectionId: result.id,
+        workflowId,
+      });
+
+      onClose(true);
     } catch (err) {
-      clientLogger.error('Error saving section:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      const logMeta = errorToLogMeta(err);
+      clientLogger.error(`Failed to ${section ? 'update' : 'create'} section`, logMeta);
+      setError(logMeta.message || `Failed to ${section ? 'update' : 'create'} section`);
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
+  const characterCount = watch('content')?.length || 0;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
-          <DialogTitle>
-            {section 
-              ? t('module.candidateWorkflow.editSection')
-              : t('module.candidateWorkflow.createSection')
-            }
-          </DialogTitle>
-          <DialogDescription>
-            {t('module.candidateWorkflow.sectionDescription')}
-          </DialogDescription>
-        </DialogHeader>
-        
-        {error && (
-          <AlertBox type="error" title={t('common.error')} message={error} />
-        )}
-        
-        {successMessage && (
-          <AlertBox type="success" title={t('common.success')} message={successMessage} />
-        )}
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Section name */}
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('common.name')}</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={t('module.candidateWorkflow.sectionNamePlaceholder')} />
-                  </FormControl>
-                  <FormDescription>
-                    {t('module.candidateWorkflow.sectionNameDescription')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {/* Display order */}
-            {/* Section Type (only editable for new sections) */}
-            <FormField
-              control={form.control}
-              name="sectionType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('module.candidateWorkflow.sectionType')}</FormLabel>
-                  <FormControl>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      disabled={!!section} // Disable for existing sections
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('module.candidateWorkflow.selectSectionType')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="form">
-                          {t('module.candidateWorkflow.sectionTypes.form')}
-                        </SelectItem>
-                        <SelectItem value="idInfo">
-                          {t('module.candidateWorkflow.sectionTypes.idInfo')}
-                        </SelectItem>
-                        <SelectItem value="personalInfo">
-                          {t('module.candidateWorkflow.sectionTypes.personalInfo')}
-                        </SelectItem>
-                        <SelectItem value="employment">
-                          {t('module.candidateWorkflow.sectionTypes.employment')}
-                        </SelectItem>
-                        <SelectItem value="education">
-                          {t('module.candidateWorkflow.sectionTypes.education')}
-                        </SelectItem>
-                        <SelectItem value="other">
-                          {t('module.candidateWorkflow.sectionTypes.other')}
-                        </SelectItem>
-                        <SelectItem value="documents">
-                          {t('module.candidateWorkflow.sectionTypes.documents')}
-                        </SelectItem>
-                        <SelectItem value="summary">
-                          {t('module.candidateWorkflow.sectionTypes.summary')}
-                        </SelectItem>
-                        <SelectItem value="consent">
-                          {t('module.candidateWorkflow.sectionTypes.consent')}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormDescription>
-                    {t('module.candidateWorkflow.sectionTypeDescription')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="displayOrder"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('module.candidateWorkflow.displayOrder')}</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      {...field} 
-                      min={0}
-                      onChange={(e) => field.onChange(parseInt(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t('module.candidateWorkflow.displayOrderDescription')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {/* Is Required toggle */}
-            <FormField
-              control={form.control}
-              name="isRequired"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                  <div className="space-y-0.5">
-                    <FormLabel>{t('module.candidateWorkflow.required')}</FormLabel>
-                    <FormDescription>
-                      {t('module.candidateWorkflow.requiredDescription')}
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {/* Form/Notice specific configuration */}
-            {form.watch('sectionType') === 'form' && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="configuration.textContent"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('module.candidateWorkflow.textContent')}</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          {...field} 
-                          placeholder={t('module.candidateWorkflow.textContentPlaceholder')}
-                          rows={5}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        {t('module.candidateWorkflow.textContentDescription')}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+    <ModalDialog
+      ref={dialogRef}
+      title={section ? 'Edit Workflow Section' : 'Add Workflow Section'}
+      onClose={() => onClose(false)}
+      footer={
+        <DialogFooter
+          onCancel={() => onClose(false)}
+          onConfirm={handleSubmit(onSubmit)}
+          confirmText={section ? 'Update' : 'Create'}
+          disabled={!isValid || isSubmitting || isUploading}
+          loading={isSubmitting}
+        />
+      }
+    >
+      <div ref={setSelectPortalContainer} />
+      {error && <AlertBox type="error" message={error} className="mb-4" />}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="configuration.requireSignature"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                        <div className="space-y-0.5">
-                          <FormLabel>{t('module.candidateWorkflow.requireSignature')}</FormLabel>
-                          <FormDescription>
-                            {t('module.candidateWorkflow.requireSignatureDescription')}
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <FormTable>
+          <FormRow label="Section Name" required error={errors.name?.message}>
+            <Input
+              {...register('name')}
+              placeholder="Enter section name"
+              disabled={isSubmitting}
+            />
+          </FormRow>
 
-                  <FormField
-                    control={form.control}
-                    name="configuration.requireCheckbox"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                        <div className="space-y-0.5">
-                          <FormLabel>{t('module.candidateWorkflow.requireCheckbox')}</FormLabel>
-                          <FormDescription>
-                            {t('module.candidateWorkflow.requireCheckboxDescription')}
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+          <FormRow label="Placement" required error={errors.placement?.message}>
+            <Select
+              value={watch('placement')}
+              onValueChange={(value) => setValue('placement', value as 'before_services' | 'after_services', { shouldValidate: true })}
+              disabled={isSubmitting}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent container={selectPortalContainer}>
+                <SelectItem value="before_services">Before Services</SelectItem>
+                <SelectItem value="after_services">After Services</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormRow>
 
-                <FormField
-                  control={form.control}
-                  name="configuration.showIpAddress"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>{t('module.candidateWorkflow.showIpAddress')}</FormLabel>
-                        <FormDescription>
-                          {t('module.candidateWorkflow.showIpAddressDescription', 'If enabled, display and capture the user\'s IP address')}
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
+          <FormRow label="Section Type" required error={errors.type?.message}>
+            <Select
+              value={watch('type')}
+              onValueChange={(value) => setValue('type', value as 'text' | 'document', { shouldValidate: true })}
+              disabled={isSubmitting || !!section}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent container={selectPortalContainer}>
+                <SelectItem value="text">Text Content</SelectItem>
+                <SelectItem value="document">Document Upload</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormRow>
 
-            {/* Dependencies */}
-            {dependencyOptions.length > 0 && (
-              <FormField
-                control={form.control}
-                name="dependsOnSection"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('module.candidateWorkflow.dependsOn')}</FormLabel>
-                    <Select
-                      onValueChange={(value) => field.onChange(value === "none" ? null : value)}
-                      value={field.value || "none"}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('module.candidateWorkflow.noDependency')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">
-                          {t('module.candidateWorkflow.noDependency')}
-                        </SelectItem>
-                        {dependencyOptions.map((section) => (
-                          <SelectItem key={section.id} value={section.id}>
-                            {section.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      {t('module.candidateWorkflow.dependencyDescription')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            
-            {/* Dependency Logic - Only show if a dependency is selected */}
-            {form.watch('dependsOnSection') && (
-              <FormField
-                control={form.control}
-                name="dependencyLogic"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('module.candidateWorkflow.dependencyLogic')}</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value || "completed"}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('module.candidateWorkflow.completed')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="completed">
-                          {t('module.candidateWorkflow.completed')}
-                        </SelectItem>
-                        <SelectItem value="skipped">
-                          {t('module.candidateWorkflow.skipped')}
-                        </SelectItem>
-                        <SelectItem value="either">
-                          {t('module.candidateWorkflow.either')}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      {t('module.candidateWorkflow.dependencyLogicDescription')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
+          {watchedType === 'text' && (
+            <FormRow
+              label="Content"
+              error={errors.content?.message}
+              description={`${characterCount}/50000 characters`}
+            >
+              <Textarea
+                {...register('content')}
+                placeholder="Enter section content"
                 disabled={isSubmitting}
-              >
-                {t('common.cancel')}
-              </Button>
-              {error && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={async () => {
-                    try {
-                      const response = await fetchWithAuth('/api/debug-workflow-permissions');
-                      const data = await response.json();
-                      clientLogger.info('Debug permissions:', data);
-                      setError(`Permissions debug info has been logged to console.`);
-                    } catch (err) {
-                      clientLogger.error('Error fetching permissions debug:', err);
-                    }
-                  }}
-                >
-                  Debug Permissions
-                </Button>
-              )}
-              <Button type="submit" disabled={isSubmitting || successMessage !== null}>
-                {isSubmitting ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    {t('common.saving')}
-                  </>
-                ) : successMessage ? (
-                  <>
-                    <svg className="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {t('common.saved')}
-                  </>
-                ) : (
-                  section ? t('common.save') : t('common.create')
+                rows={8}
+                className="font-mono text-sm"
+              />
+            </FormRow>
+          )}
+
+          {watchedType === 'document' && (
+            <FormRow
+              label="Document"
+              description="Accepted formats: PDF, Word (.pdf, .docx, .doc)"
+            >
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.doc"
+                  onChange={handleFileUpload}
+                  disabled={isSubmitting || isUploading}
+                  className="mb-2"
+                />
+                {isUploading && <p className="text-sm text-muted-foreground">Uploading...</p>}
+                {uploadedFile && (
+                  <p className="text-sm text-muted-foreground">
+                    Current file: {uploadedFile.fileName}
+                  </p>
                 )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+              </div>
+            </FormRow>
+          )}
+
+          <FormRow label="Display Order" error={errors.displayOrder?.message}>
+            <Input
+              type="number"
+              {...register('displayOrder')}
+              placeholder="0"
+              disabled={isSubmitting}
+              min={0}
+            />
+          </FormRow>
+
+          <FormRow label="Required">
+            <Checkbox
+              checked={watch('isRequired')}
+              onCheckedChange={(checked) => setValue('isRequired', checked as boolean, { shouldValidate: true })}
+              disabled={isSubmitting}
+            />
+          </FormRow>
+        </FormTable>
+      </form>
+    </ModalDialog>
   );
 }
