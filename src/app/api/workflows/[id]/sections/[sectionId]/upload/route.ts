@@ -56,49 +56,6 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Parse form data early to validate file
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-    }
-
-    // Validate file extension
-    const fileName = file.name.toLowerCase();
-    const fileExtension = path.extname(fileName);
-    if (!ALLOWED_FILE_EXTENSIONS.includes(fileExtension)) {
-      return NextResponse.json(
-        {
-          error: 'Invalid file type',
-          message: `Only PDF and Word documents are allowed (.pdf, .docx, .doc). You provided: ${fileExtension}`
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate MIME type
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        {
-          error: 'Invalid file type',
-          message: `File type ${file.type} is not allowed. Only PDF and Word documents are accepted.`
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate file size (max 10MB)
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        {
-          error: 'File too large',
-          message: `File size must not exceed ${MAX_FILE_SIZE / (1024 * 1024)}MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`
-        },
-        { status: 400 }
-      );
-    }
-
     // Check if workflow exists
     const workflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
@@ -152,6 +109,49 @@ export async function POST(
           message: 'This workflow has orders in draft or processing status. Complete or cancel these orders before making changes.'
         },
         { status: 409 }
+      );
+    }
+
+    // Parse form data early to validate file
+    const formData = await request.formData();
+    const file = formData.get('file') as File | null;
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    }
+
+    // Validate file extension
+    const fileName = file.name.toLowerCase();
+    const fileExtension = path.extname(fileName);
+    if (!ALLOWED_FILE_EXTENSIONS.includes(fileExtension)) {
+      return NextResponse.json(
+        {
+          error: 'Invalid file type',
+          message: `Only PDF and Word documents are allowed (.pdf, .docx, .doc). You provided: ${fileExtension}`
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate MIME type
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        {
+          error: 'Invalid file type',
+          message: `File type ${file.type} is not allowed. Only PDF and Word documents are accepted.`
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        {
+          error: 'File too large',
+          message: `File size must not exceed ${MAX_FILE_SIZE / (1024 * 1024)}MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`
+        },
+        { status: 400 }
       );
     }
 

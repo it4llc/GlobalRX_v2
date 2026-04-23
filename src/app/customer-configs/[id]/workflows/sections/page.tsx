@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WorkflowSectionList } from '@/components/modules/workflows/sections/workflow-section-list';
 import { WorkflowSectionDialog } from '@/components/modules/workflows/sections/workflow-section-dialog';
-import { PermissionDebug } from '@/components/modules/workflows/sections/permission-debug';
 import { ArrowLeft } from 'lucide-react';
 
 interface WorkflowSection {
@@ -207,23 +206,6 @@ function WorkflowSectionsContent() {
           <h1 className="text-2xl font-bold">
             {workflow?.name ? `${t('module.candidateWorkflow.workflowSections')}: ${workflow.name}` : t('module.candidateWorkflow.workflowSections')}
           </h1>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              try {
-                const response = await fetchWithAuth('/api/debug-workflow-permissions');
-                const data = await response.json();
-                clientLogger.info('Debug permissions:', data);
-                alert('Permissions debug info logged to console');
-              } catch (err) {
-                clientLogger.error('Error fetching permissions debug:', err);
-                alert('Error checking permissions: ' + (err instanceof Error ? err.message : String(err)));
-              }
-            }}
-          >
-            Debug Permissions
-          </Button>
         </div>
         
         {workflow?.status === 'archived' && (
@@ -239,7 +221,6 @@ function WorkflowSectionsContent() {
       )}
       
       {/* Debug component */}
-      <PermissionDebug />
       
       {/* Section list component */}
       <WorkflowSectionList

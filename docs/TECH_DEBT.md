@@ -1269,6 +1269,8 @@ Impact: Low (functional, but confusing and doubles maintenance)
 Suggested fix: Merge into one component, update all imports
 Discovered during: Candidate Invite Phase 1 (2026-04-20)
 
+--- 
+
 ### TD-049: Playwright e2e test infrastructure not functional
 
 | Field       | Detail                                      |
@@ -1296,6 +1298,34 @@ During a dedicated testing infrastructure improvement pass, or before the next m
 
 **Impact:**
 Blocks all E2E test coverage across the project, not just this feature. Coverage gaps will grow over time as more features are added without E2E regression tests.
+
+---
+
+### TD-050 — Test Mock Objects Using `as any` in Phase 2 Workflow Tests
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Test Files / TypeScript                     |
+| Severity    | Warning (Code Quality)                      |
+| Identified  | April 23, 2026 - Candidate Invite Phase 2 Code Review |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+57 instances of `as any` across 5 test files introduced in the Phase 2 workflow configuration feature. These are used to cast partial mock objects (e.g., `{ id: '123' } as any`) when mocking Prisma responses in unit tests. Affected files:
+- `src/app/api/workflows/[id]/__tests__/phase2-route.test.ts` (9)
+- `src/app/api/workflows/[id]/sections/[sectionId]/__tests__/route.test.ts` (21)
+- `src/app/api/workflows/[id]/sections/[sectionId]/upload/__tests__/route.test.ts` (13)
+- `src/app/api/workflows/[id]/sections/__tests__/route.test.ts` (11)
+- `src/types/__tests__/workflow-section-schema.test.ts` (3)
+
+**Why deferred:**
+Test mock `as any` casts are low risk — they only affect test code, not production. Fixing properly requires creating typed mock factory helpers for each Prisma model, which is a significant effort for minimal safety benefit.
+
+**When to fix:**
+When creating a shared test utilities module or during a broader TypeScript strictness cleanup.
+
+**Recommendation:**
+Create typed mock factory functions (e.g., `createMockWorkflow(overrides)`) that return properly typed objects with sensible defaults. This eliminates `as any` and makes tests more maintainable.
 
 ---
 

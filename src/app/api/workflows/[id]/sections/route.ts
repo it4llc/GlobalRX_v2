@@ -256,6 +256,28 @@ export async function POST(
  *   - 409: Workflow has active orders
  *   - 500: Internal server error
  */
+/**
+ * PATCH /api/workflows/[id]/sections
+ *
+ * Batch updates display order for workflow sections after drag-and-drop reordering.
+ *
+ * Required permissions: customer_config.edit or admin
+ *
+ * Path params:
+ *   - id: UUID of the workflow
+ *
+ * Request body:
+ *   - updates: Array of { id: string, displayOrder: number } objects
+ *
+ * Returns: { message: "Display orders updated successfully" }
+ *
+ * Errors:
+ *   - 400: Invalid request body
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 409: Workflow has active orders (cannot modify)
+ *   - 500: Internal server error
+ */
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }

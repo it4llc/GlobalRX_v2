@@ -223,7 +223,7 @@ export async function PUT(
     }
 
     // Update data
-    let updateData: any = {
+    let updateData: Record<string, unknown> = {
       ...workflowData,
       updatedById: userId,
     };

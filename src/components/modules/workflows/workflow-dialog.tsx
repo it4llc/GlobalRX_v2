@@ -79,6 +79,12 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
       autoCloseEnabled: true,
       extensionAllowed: false,
       extensionDays: undefined,
+      reminderEnabled: false,
+      reminderFrequency: 7,
+      maxReminders: 3,
+      emailSubject: '',
+      emailBody: '',
+      gapToleranceDays: undefined,
     },
   });
 
@@ -158,7 +164,12 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
       if (typeof data.maxReminders === 'string') {
         data.maxReminders = parseInt(data.maxReminders);
       }
-      
+
+      // Make sure gapToleranceDays is a number or null
+      if (data.gapToleranceDays !== undefined && data.gapToleranceDays !== null && typeof data.gapToleranceDays === 'string') {
+        data.gapToleranceDays = data.gapToleranceDays === '' ? null : parseInt(data.gapToleranceDays);
+      }
+
       // Log what we're sending
       clientLogger.info('Sending workflow data:', JSON.stringify(data, null, 2));
       
@@ -192,7 +203,15 @@ export function WorkflowDialog({ open, onOpenChange, workflow, customerId, onSuc
         onOpenChange(false);
       }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      if (err instanceof Error) {
+        if (err.message.includes('active orders') || err.message.includes('Cannot modify workflow')) {
+          setError('This workflow is locked because it has orders currently in draft or processing status. Complete or cancel those orders before making changes.');
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError('An error occurred');
+      }
     } finally {
       setIsSubmitting(false);
     }

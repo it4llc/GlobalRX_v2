@@ -111,6 +111,10 @@ export async function GET(request: NextRequest) {
       reminderFrequency: workflow.reminderFrequency,
       maxReminders: workflow.maxReminders,
       disabled: workflow.disabled,
+      // Include Phase 2 fields
+      emailSubject: workflow.emailSubject,
+      emailBody: workflow.emailBody,
+      gapToleranceDays: workflow.gapToleranceDays,
       createdAt: workflow.createdAt,
       updatedAt: workflow.updatedAt,
       packages: workflow.packages || [],

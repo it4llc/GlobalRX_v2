@@ -20,15 +20,21 @@ interface Workflow {
   id: string;
   name: string;
   description: string;
-  status: 'draft' | 'active' | 'archived';
+  status: "draft" | "active" | "archived";
   defaultLanguage: string;
   expirationDays: number;
   autoCloseEnabled: boolean;
   extensionAllowed: boolean;
+  extensionDays?: number;
+  reminderEnabled?: boolean;
+  reminderFrequency?: number;
+  maxReminders?: number;
+  emailSubject?: string;
+  emailBody?: string;
+  gapToleranceDays?: number | null;
   createdAt: string;
   updatedAt: string;
   disabled: boolean;
-  customerId?: string;
 }
 
 export default function CustomerWorkflowsPage() {
