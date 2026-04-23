@@ -32,8 +32,17 @@ export const workflowSectionSchema = z.object({
   isRequired: z.boolean().default(true),
 });
 
-// Create schema requires all fields except optional ones
-export const workflowSectionCreateSchema = workflowSectionSchema;
+// Create schema - displayOrder is optional and will be auto-assigned if not provided
+export const workflowSectionCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  placement: PlacementEnum,
+  type: SectionTypeEnum,
+  content: z.string().max(50000).optional(),
+  fileUrl: z.string().optional(),
+  fileName: z.string().optional(),
+  displayOrder: z.number().int().nonnegative().optional(),
+  isRequired: z.boolean().default(true),
+});
 
 // Update schema allows partial updates
 export const workflowSectionUpdateSchema = workflowSectionSchema.partial();

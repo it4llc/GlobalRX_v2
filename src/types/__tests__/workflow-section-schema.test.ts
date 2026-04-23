@@ -155,15 +155,15 @@ describe('WorkflowSection Schema Validation - Phase 2', () => {
         expect(() => workflowSectionCreateSchema.parse(section)).toThrow();
       });
 
-      it('should fail when displayOrder is missing', () => {
+      it('should succeed when displayOrder is missing (optional for creation)', () => {
         const section = {
           name: 'Test Section',
           placement: 'before_services' as const,
           type: 'text' as const
-          // displayOrder missing
+          // displayOrder missing - should be OK as it's optional
         };
 
-        expect(() => workflowSectionCreateSchema.parse(section)).toThrow();
+        expect(() => workflowSectionCreateSchema.parse(section)).not.toThrow();
       });
     });
 

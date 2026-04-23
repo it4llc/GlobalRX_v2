@@ -205,7 +205,7 @@ function WorkflowSectionsContent() {
             {t('common.back')}
           </Button>
           <h1 className="text-2xl font-bold">
-            {workflow?.name ? `${t('module.candidateWorkflow.sections')}: ${workflow.name}` : t('module.candidateWorkflow.workflowSections')}
+            {workflow?.name ? `${t('module.candidateWorkflow.workflowSections')}: ${workflow.name}` : t('module.candidateWorkflow.workflowSections')}
           </h1>
           <Button
             variant="outline"
