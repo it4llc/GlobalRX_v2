@@ -99,10 +99,15 @@ export async function GET(
       reminderFrequency: workflow.reminderFrequency,
       maxReminders: workflow.maxReminders,
       disabled: workflow.disabled,
+      // Include Phase 2 fields
+      emailSubject: workflow.emailSubject,
+      emailBody: workflow.emailBody,
+      gapToleranceDays: workflow.gapToleranceDays,
       createdAt: workflow.createdAt,
       updatedAt: workflow.updatedAt,
       createdById: workflow.createdById,
       updatedById: workflow.updatedById,
+      customerId: workflow.customerId,
       // Include related data
       packages: workflow.packages,
       packagesCount: workflow.packages.length,
@@ -124,7 +129,7 @@ export async function GET(
 /**
  * PUT /api/workflows/[id]
  *
- * Updates a workflow's configuration and metadata.
+ * Updates a workflow's configuration and metadata including Phase 2 email/gap fields.
  *
  * Required permissions: customer_config.edit or admin
  *
@@ -133,6 +138,7 @@ export async function GET(
  *
  * Request body:
  *   - All fields from workflowUpdateSchema (name, description, status, settings, etc.)
+ *   - Phase 2 fields: emailSubject (max 200), emailBody (max 5000), gapToleranceDays (1-365 or null)
  *
  * Returns: Updated workflow object with packages and sections
  *
@@ -141,6 +147,7 @@ export async function GET(
  *   - 401: Not authenticated
  *   - 403: Insufficient permissions
  *   - 404: Workflow not found
+ *   - 409: Workflow has active orders (draft/processing)
  *   - 500: Internal server error
  */
 export async function PUT(
@@ -191,8 +198,32 @@ export async function PUT(
       return NextResponse.json({ error: "Workflow not found" }, { status: 404 });
     }
 
+    // Business rule: Check if workflow has active orders (draft or processing status)
+    const activeOrdersCount = await prisma.order.count({
+      where: {
+        statusCode: { in: ['draft', 'processing'] },
+        customer: {
+          packages: {
+            some: {
+              workflowId: workflowId
+            }
+          }
+        }
+      }
+    });
+
+    if (activeOrdersCount > 0) {
+      return NextResponse.json(
+        {
+          error: "Cannot modify workflow with active orders",
+          message: "This workflow has orders in draft or processing status. Complete or cancel these orders before making changes."
+        },
+        { status: 409 }
+      );
+    }
+
     // Update data
-    let updateData: any = {
+    let updateData: Record<string, unknown> = {
       ...workflowData,
       updatedById: userId,
     };

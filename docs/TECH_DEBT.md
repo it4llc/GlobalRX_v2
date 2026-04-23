@@ -1269,6 +1269,66 @@ Impact: Low (functional, but confusing and doubles maintenance)
 Suggested fix: Merge into one component, update all imports
 Discovered during: Candidate Invite Phase 1 (2026-04-20)
 
+--- 
+
+### TD-049: Playwright e2e test infrastructure not functional
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Testing / E2E Infrastructure                |
+| Severity    | Medium                                      |
+| Identified  | April 22, 2026 - Candidate Invite Phase 2 Pass 1 |
+| Identified by | Test verification checkpoint              |
+
+**Description:**
+E2E test files exist in tests/e2e/ but cannot actually run. The test-writer Pass 1 for Candidate Invite Phase 2 created tests/e2e/workflow-configuration-phase2.spec.ts with 27 Playwright tests, but these tests cannot be executed. Likely a setup/configuration issue with Playwright.
+
+**Why deferred:**
+Unit and API route tests provide sufficient coverage for features. E2E tests would provide additional regression protection but are not blocking feature delivery.
+
+**When to fix:**
+During a dedicated testing infrastructure improvement pass, or before the next major feature that requires E2E coverage.
+
+**What needs to be done:**
+- Investigate Playwright config in playwright.config.ts
+- Verify browsers are installed (npx playwright install)
+- Confirm test runner works with a simple smoke test
+- Document setup requirements for running E2E tests
+- Consider adding E2E tests to CI pipeline once working
+
+**Impact:**
+Blocks all E2E test coverage across the project, not just this feature. Coverage gaps will grow over time as more features are added without E2E regression tests.
+
+---
+
+### TD-050 — Test Mock Objects Using `as any` in Phase 2 Workflow Tests
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Test Files / TypeScript                     |
+| Severity    | Warning (Code Quality)                      |
+| Identified  | April 23, 2026 - Candidate Invite Phase 2 Code Review |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+57 instances of `as any` across 5 test files introduced in the Phase 2 workflow configuration feature. These are used to cast partial mock objects (e.g., `{ id: '123' } as any`) when mocking Prisma responses in unit tests. Affected files:
+- `src/app/api/workflows/[id]/__tests__/phase2-route.test.ts` (9)
+- `src/app/api/workflows/[id]/sections/[sectionId]/__tests__/route.test.ts` (21)
+- `src/app/api/workflows/[id]/sections/[sectionId]/upload/__tests__/route.test.ts` (13)
+- `src/app/api/workflows/[id]/sections/__tests__/route.test.ts` (11)
+- `src/types/__tests__/workflow-section-schema.test.ts` (3)
+
+**Why deferred:**
+Test mock `as any` casts are low risk — they only affect test code, not production. Fixing properly requires creating typed mock factory helpers for each Prisma model, which is a significant effort for minimal safety benefit.
+
+**When to fix:**
+When creating a shared test utilities module or during a broader TypeScript strictness cleanup.
+
+**Recommendation:**
+Create typed mock factory functions (e.g., `createMockWorkflow(overrides)`) that return properly typed objects with sensible defaults. This eliminates `as any` and makes tests more maintainable.
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_

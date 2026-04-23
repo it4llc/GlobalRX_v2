@@ -11,12 +11,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WorkflowSectionList } from '@/components/modules/workflows/sections/workflow-section-list';
 import { WorkflowSectionDialog } from '@/components/modules/workflows/sections/workflow-section-dialog';
-import { PermissionDebug } from '@/components/modules/workflows/sections/permission-debug';
 import { ArrowLeft } from 'lucide-react';
 
 interface WorkflowSection {
   id: string;
   name: string;
+  placement: 'before_services' | 'after_services';
+  type: 'text' | 'document';
+  content?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
   displayOrder: number;
   isRequired: boolean;
   dependsOnSection?: string | null;
@@ -124,7 +128,7 @@ function WorkflowSectionsContent() {
   }, [workflowId, fetchWithAuth, refreshKey, customerId]);
   
   // Handle "add section" button click
-  const handleAddSection = () => {
+  const handleAddSection = (placement?: 'before_services' | 'after_services') => {
     setSelectedSection(undefined);
     setDialogOpen(true);
   };
@@ -135,9 +139,12 @@ function WorkflowSectionsContent() {
     setDialogOpen(true);
   };
   
-  // Handle dialog close with success
-  const handleDialogSuccess = () => {
-    setRefreshKey(prev => prev + 1);
+  // Handle dialog close
+  const handleDialogClose = (refreshData: boolean) => {
+    setDialogOpen(false);
+    if (refreshData) {
+      setRefreshKey(prev => prev + 1);
+    }
   };
   
   // Handle back button click - go back to customer workflows
@@ -197,25 +204,8 @@ function WorkflowSectionsContent() {
             {t('common.back')}
           </Button>
           <h1 className="text-2xl font-bold">
-            {workflow?.name ? `${t('module.candidateWorkflow.sections')}: ${workflow.name}` : t('module.candidateWorkflow.workflowSections')}
+            {workflow?.name ? `${t('module.candidateWorkflow.workflowSections')}: ${workflow.name}` : t('module.candidateWorkflow.workflowSections')}
           </h1>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              try {
-                const response = await fetchWithAuth('/api/debug-workflow-permissions');
-                const data = await response.json();
-                clientLogger.info('Debug permissions:', data);
-                alert('Permissions debug info logged to console');
-              } catch (err) {
-                clientLogger.error('Error fetching permissions debug:', err);
-                alert('Error checking permissions: ' + (err instanceof Error ? err.message : String(err)));
-              }
-            }}
-          >
-            Debug Permissions
-          </Button>
         </div>
         
         {workflow?.status === 'archived' && (
@@ -231,23 +221,21 @@ function WorkflowSectionsContent() {
       )}
       
       {/* Debug component */}
-      <PermissionDebug />
       
       {/* Section list component */}
       <WorkflowSectionList
         workflowId={workflowId}
         onAddSection={handleAddSection}
         onEditSection={handleEditSection}
+        refreshTrigger={refreshKey}
       />
       
       {/* Section dialog */}
       <WorkflowSectionDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
         workflowId={workflowId}
         section={selectedSection}
-        availableSections={sections}
-        onSuccess={handleDialogSuccess}
+        onClose={handleDialogClose}
       />
     </div>
   );

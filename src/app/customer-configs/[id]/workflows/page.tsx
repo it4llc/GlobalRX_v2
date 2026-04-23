@@ -20,15 +20,21 @@ interface Workflow {
   id: string;
   name: string;
   description: string;
-  status: 'draft' | 'active' | 'archived';
+  status: "draft" | "active" | "archived";
   defaultLanguage: string;
   expirationDays: number;
   autoCloseEnabled: boolean;
   extensionAllowed: boolean;
+  extensionDays?: number;
+  reminderEnabled?: boolean;
+  reminderFrequency?: number;
+  maxReminders?: number;
+  emailSubject?: string;
+  emailBody?: string;
+  gapToleranceDays?: number | null;
   createdAt: string;
   updatedAt: string;
   disabled: boolean;
-  customerId?: string;
 }
 
 export default function CustomerWorkflowsPage() {
@@ -135,6 +141,11 @@ export default function CustomerWorkflowsPage() {
     // For now, we can open the edit dialog in read-only mode
     // or navigate to a dedicated view page if needed
     handleEditWorkflow(workflowId);
+  };
+
+  // Handle managing workflow sections
+  const handleManageSections = (workflowId: string) => {
+    router.push(`/customer-configs/${customerId}/workflows/sections?workflowId=${workflowId}`);
   };
   
   // Handle deleting a workflow
@@ -260,6 +271,11 @@ export default function CustomerWorkflowsPage() {
                       {
                         label: t('common.edit'),
                         onClick: () => handleEditWorkflow(workflow.id),
+                        color: 'rgb(37, 99, 235)',
+                      },
+                      {
+                        label: 'Manage Sections',
+                        onClick: () => handleManageSections(workflow.id),
                         color: 'rgb(37, 99, 235)',
                       },
                       {
