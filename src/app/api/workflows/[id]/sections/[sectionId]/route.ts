@@ -4,9 +4,28 @@ import logger from '@/lib/logger';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
-import { workflowSectionUpdateSchema } from "@/types/workflow";
+import { workflowSectionUpdateSchema } from "@/types/workflow-section";
+import { hasPermission } from "@/lib/permission-utils";
 
-// GET: Fetch a single section by ID
+/**
+ * GET /api/workflows/[id]/sections/[sectionId]
+ *
+ * Retrieves a single workflow section by ID.
+ *
+ * Required permissions: customer_config.view or admin
+ *
+ * Path params:
+ *   - id: UUID of the workflow
+ *   - sectionId: UUID of the section
+ *
+ * Returns: Section object with Phase 2 fields
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Workflow or section not found
+ *   - 500: Internal server error
+ */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string; sectionId: string }> }
@@ -14,15 +33,15 @@ export async function GET(
   try {
     // Get params safely
     const params = await context.params;
-    
+
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check if user has permission to view workflows via customer_config permission
-    // BUG FIX: Changed from 'workflows' to 'customer_config' to match User Admin permission key
-    if (!session.user.permissions?.customer_config && !session.user.permissions?.admin) {
+    if (!hasPermission(session.user, "customer_config", "view") &&
+        !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -38,20 +57,10 @@ export async function GET(
     }
 
     // Get the section
-    const section = await prisma.workflowSection.findUnique({
-      where: { 
+    const section = await prisma.workflowSection.findFirst({
+      where: {
         id: sectionId,
         workflowId, // Ensure section belongs to the specified workflow
-      },
-      include: {
-        dependentOn: true,
-        translations: true,
-        dependentSections: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
       },
     });
 
@@ -69,7 +78,30 @@ export async function GET(
   }
 }
 
-// PUT: Update a section
+/**
+ * PUT /api/workflows/[id]/sections/[sectionId]
+ *
+ * Updates a workflow section with Phase 2 placement and content support.
+ *
+ * Required permissions: customer_config.edit or admin
+ *
+ * Path params:
+ *   - id: UUID of the workflow
+ *   - sectionId: UUID of the section
+ *
+ * Request body:
+ *   - Partial section update (name, placement, type, content, etc.)
+ *
+ * Returns: Updated section
+ *
+ * Errors:
+ *   - 400: Validation failed
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Workflow or section not found
+ *   - 409: Workflow has active orders or placement change would exceed limit
+ *   - 500: Internal server error
+ */
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string; sectionId: string }> }
@@ -77,15 +109,15 @@ export async function PUT(
   try {
     // Get params safely
     const params = await context.params;
-    
+
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check if user has permission to edit workflows via customer_config permission
-    // BUG FIX: Changed from 'workflows' to 'customer_config' to match User Admin permission key
-    if (!session.user.permissions?.customer_config && !session.user.permissions?.admin) {
+    if (!hasPermission(session.user, "customer_config", "edit") &&
+        !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -111,8 +143,8 @@ export async function PUT(
     }
 
     // Check if section exists and belongs to the workflow
-    const existingSection = await prisma.workflowSection.findUnique({
-      where: { 
+    const existingSection = await prisma.workflowSection.findFirst({
+      where: {
         id: sectionId,
         workflowId,
       },
@@ -122,43 +154,63 @@ export async function PUT(
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
-    // If dependsOnSection is provided, ensure it's not a circular dependency
-    if (validationResult.data.dependsOnSection) {
-      // Prevent self-dependency
-      if (validationResult.data.dependsOnSection === sectionId) {
-        return NextResponse.json(
-          { error: "A section cannot depend on itself" },
-          { status: 400 }
-        );
+    // Business rule: Check if workflow has active orders
+    const activeOrdersCount = await prisma.order.count({
+      where: {
+        statusCode: { in: ['draft', 'processing'] },
+        customer: {
+          packages: {
+            some: {
+              workflowId: workflowId
+            }
+          }
+        }
       }
+    });
 
-      // Check for circular dependencies
-      const targetSection = await prisma.workflowSection.findUnique({
-        where: { id: validationResult.data.dependsOnSection },
-        include: { dependentOn: true },
+    if (activeOrdersCount > 0) {
+      return NextResponse.json(
+        {
+          error: "Cannot modify workflow with active orders",
+          message: "This workflow has orders in draft or processing status. Complete or cancel these orders before making changes."
+        },
+        { status: 409 }
+      );
+    }
+
+    // If placement is changing, check if new placement would exceed limit
+    if (validationResult.data.placement &&
+        validationResult.data.placement !== existingSection.placement) {
+      const { MAX_SECTIONS_PER_PLACEMENT } = await import("@/types/workflow-section");
+      const sectionsInNewPlacement = await prisma.workflowSection.count({
+        where: {
+          workflowId,
+          placement: validationResult.data.placement,
+          id: { not: sectionId } // Don't count this section
+        }
       });
 
-      if (!targetSection) {
+      if (sectionsInNewPlacement >= MAX_SECTIONS_PER_PLACEMENT) {
         return NextResponse.json(
-          { error: "Dependent section not found" },
-          { status: 400 }
+          {
+            error: "Section limit reached in target placement",
+            message: `Cannot move section to ${validationResult.data.placement.replace('_', ' ')}. Maximum ${MAX_SECTIONS_PER_PLACEMENT} sections allowed per placement.`
+          },
+          { status: 409 }
         );
       }
 
-      // Check if target section directly or indirectly depends on this section
-      let currentSection = targetSection;
-      while (currentSection?.dependsOnSection) {
-        if (currentSection.dependsOnSection === sectionId) {
-          return NextResponse.json(
-            { error: "Circular dependency detected" },
-            { status: 400 }
-          );
-        }
-        
-        currentSection = await prisma.workflowSection.findUnique({
-          where: { id: currentSection.dependsOnSection },
-        });
-      }
+      // If placement changes, reset displayOrder to end of new placement
+      const maxOrder = await prisma.workflowSection.findFirst({
+        where: {
+          workflowId,
+          placement: validationResult.data.placement
+        },
+        orderBy: { displayOrder: 'desc' },
+        select: { displayOrder: true }
+      });
+
+      validationResult.data.displayOrder = (maxOrder?.displayOrder ?? -1) + 1;
     }
 
     // Update the section
@@ -167,22 +219,31 @@ export async function PUT(
       data: validationResult.data,
     });
 
-    // Get the complete updated section with relationships
-    const completeSection = await prisma.workflowSection.findUnique({
-      where: { id: sectionId },
-      include: {
-        dependentOn: true,
-        translations: true,
-        dependentSections: {
-          select: {
-            id: true,
-            name: true,
-          },
+    // If placement changed, compact displayOrder in the old placement
+    if (validationResult.data.placement &&
+        validationResult.data.placement !== existingSection.placement) {
+      const remainingSections = await prisma.workflowSection.findMany({
+        where: {
+          workflowId,
+          placement: existingSection.placement,
+          displayOrder: { gt: existingSection.displayOrder }
         },
-      },
-    });
+        orderBy: { displayOrder: 'asc' }
+      });
 
-    return NextResponse.json(completeSection);
+      if (remainingSections.length > 0) {
+        await prisma.$transaction(
+          remainingSections.map((section, index) =>
+            prisma.workflowSection.update({
+              where: { id: section.id },
+              data: { displayOrder: existingSection.displayOrder + index }
+            })
+          )
+        );
+      }
+    }
+
+    return NextResponse.json(updatedSection);
   } catch (error: unknown) {
     logger.error("Error updating workflow section:", error);
     return NextResponse.json(
@@ -192,7 +253,26 @@ export async function PUT(
   }
 }
 
-// DELETE: Delete a section
+/**
+ * DELETE /api/workflows/[id]/sections/[sectionId]
+ *
+ * Deletes a workflow section and compacts display order within placement.
+ *
+ * Required permissions: customer_config.edit or admin
+ *
+ * Path params:
+ *   - id: UUID of the workflow
+ *   - sectionId: UUID of the section
+ *
+ * Returns: { message: "Section deleted successfully" }
+ *
+ * Errors:
+ *   - 401: Not authenticated
+ *   - 403: Insufficient permissions
+ *   - 404: Workflow or section not found
+ *   - 409: Workflow has active orders
+ *   - 500: Internal server error
+ */
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string; sectionId: string }> }
@@ -200,15 +280,15 @@ export async function DELETE(
   try {
     // Get params safely
     const params = await context.params;
-    
+
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check if user has permission to edit workflows via customer_config permission
-    // BUG FIX: Changed from 'workflows' to 'customer_config' to match User Admin permission key
-    if (!session.user.permissions?.customer_config && !session.user.permissions?.admin) {
+    if (!hasPermission(session.user, "customer_config", "edit") &&
+        !hasPermission(session.user, "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -224,8 +304,8 @@ export async function DELETE(
     }
 
     // Check if section exists and belongs to the workflow
-    const existingSection = await prisma.workflowSection.findUnique({
-      where: { 
+    const existingSection = await prisma.workflowSection.findFirst({
+      where: {
         id: sectionId,
         workflowId,
       },
@@ -235,30 +315,40 @@ export async function DELETE(
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
-    // Check if this section is a dependency for other sections
-    const dependentSections = await prisma.workflowSection.findMany({
-      where: { dependsOnSection: sectionId },
+    // Business rule: Check if workflow has active orders
+    const activeOrdersCount = await prisma.order.count({
+      where: {
+        statusCode: { in: ['draft', 'processing'] },
+        customer: {
+          packages: {
+            some: {
+              workflowId: workflowId
+            }
+          }
+        }
+      }
     });
 
-    if (dependentSections.length > 0) {
+    if (activeOrdersCount > 0) {
       return NextResponse.json(
-        { 
-          error: "Cannot delete this section because other sections depend on it",
-          dependentSections: dependentSections.map((s: any) => ({ id: s.id, name: s.name })),
+        {
+          error: "Cannot modify workflow with active orders",
+          message: "This workflow has orders in draft or processing status. Complete or cancel these orders before making changes."
         },
-        { status: 400 }
+        { status: 409 }
       );
     }
 
-    // Delete the section
+    // Delete the section (cascade delete will remove any file references)
     await prisma.workflowSection.delete({
       where: { id: sectionId },
     });
 
-    // Reorder remaining sections to fill the gap
+    // Compact display order within the same placement
     const remainingSections = await prisma.workflowSection.findMany({
-      where: { 
+      where: {
         workflowId,
+        placement: existingSection.placement,
         displayOrder: { gt: existingSection.displayOrder },
       },
       orderBy: { displayOrder: 'asc' },
@@ -266,7 +356,7 @@ export async function DELETE(
 
     if (remainingSections.length > 0) {
       await prisma.$transaction(
-        remainingSections.map((section, index) => 
+        remainingSections.map((section, index) =>
           prisma.workflowSection.update({
             where: { id: section.id },
             data: { displayOrder: existingSection.displayOrder + index },

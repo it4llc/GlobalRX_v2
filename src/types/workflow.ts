@@ -21,7 +21,18 @@ export const workflowCreateSchema = workflowBaseSchema.extend({
   customerId: z.string().uuid('Invalid customer ID format')
 });
 
-export const workflowUpdateSchema = workflowBaseSchema.partial();
+export const workflowUpdateSchema = workflowBaseSchema.partial().extend({
+  // Phase 2 fields - email template and gap tolerance
+  emailSubject: z.string().max(200, 'Email subject must not exceed 200 characters').optional(),
+  emailBody: z.string().max(5000, 'Email body must not exceed 5000 characters').optional(),
+  gapToleranceDays: z.union([
+    z.number()
+      .int('Gap tolerance must be an integer')
+      .min(1, 'Gap tolerance must be at least 1 day')
+      .max(365, 'Gap tolerance must not exceed 365 days'),
+    z.null()
+  ]).optional()
+});
 
 // Section type enum
 export const SectionTypeEnum = z.enum([
