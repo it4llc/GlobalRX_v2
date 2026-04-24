@@ -4,6 +4,46 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth.server';
 import logger from '@/lib/logger';
+import { z } from 'zod';
+
+// Define validation schema for user creation
+const userCreateSchema = z.object({
+  email: z.string({ required_error: 'Email is required' }).email('Invalid email format'),
+  password: z.string({ required_error: 'Password is required' }).min(1, 'Password is required'),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  permissions: z.record(z.union([
+    z.boolean(),
+    z.string(),
+    z.array(z.string()),
+    z.object({
+      view: z.boolean().optional(),
+      create: z.boolean().optional(),
+      edit: z.boolean().optional(),
+      manage: z.boolean().optional(),
+      invite: z.boolean().optional(),
+    })
+  ])).optional(),
+  userType: z.enum(['internal', 'vendor', 'customer']).optional(),
+  vendorId: z.string().nullable().optional(),
+  customerId: z.string().nullable().optional()
+}).refine(data => {
+  // Validate that vendor users have vendorId
+  if (data.userType === 'vendor' && !data.vendorId) {
+    return false;
+  }
+  // Validate that customer users have customerId
+  if (data.userType === 'customer' && !data.customerId) {
+    return false;
+  }
+  // Validate that internal users don't have vendorId or customerId
+  if (data.userType === 'internal' && (data.vendorId || data.customerId)) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Invalid user type and organization ID combination'
+});
 
 export async function GET(request: NextRequest) {
   try {
@@ -123,20 +163,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     logger.info('Received user creation request', { hasEmail: !!body.email, hasPassword: !!body.password });
 
-    const { email, password, firstName, lastName, permissions, userType, vendorId, customerId } = body;
-
-    // Validate required fields
-    if (!email || !password) {
-      logger.warn('Missing required fields for user creation');
-      return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
+    // Validate input with Zod
+    const validation = userCreateSchema.safeParse(body);
+    if (!validation.success) {
+      logger.warn('User creation validation failed', { errors: validation.error.errors });
+      return NextResponse.json(
+        { message: validation.error.errors[0].message },
+        { status: 400 }
+      );
     }
 
-    // Validate userType enum
-    const validUserTypes = ['internal', 'vendor', 'customer'];
-    if (userType && !validUserTypes.includes(userType)) {
-      logger.warn('Invalid user type provided', { userType });
-      return NextResponse.json({ message: 'Invalid user type. Must be: internal, vendor, or customer' }, { status: 400 });
-    }
+    const { email, password, firstName, lastName, permissions, userType, vendorId, customerId } = validation.data;
 
     // Enforce vendor user permission restrictions
     if (userType === 'vendor' && permissions) {

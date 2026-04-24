@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,7 @@ interface FormValues {
     createOrders: boolean;
     editOrders: boolean;
     manageUsers: boolean;
+    inviteCandidates: boolean;
   };
 }
 
@@ -50,6 +51,7 @@ export function CustomerUserEditForm({ customerId, user, onSubmit, onCancel }: C
       createOrders: user.permissions?.orders?.create || false,
       editOrders: user.permissions?.orders?.edit || false,
       manageUsers: user.permissions?.users?.manage || false,
+      inviteCandidates: user.permissions?.candidates?.invite || false,
     },
   });
 
@@ -107,6 +109,9 @@ export function CustomerUserEditForm({ customerId, user, onSubmit, onCancel }: C
           },
           users: {
             manage: formValues.permissions.manageUsers,
+          },
+          candidates: {
+            invite: formValues.permissions.inviteCandidates,
           },
         },
       };
@@ -257,6 +262,20 @@ export function CustomerUserEditForm({ customerId, user, onSubmit, onCancel }: C
                   />
                   <Label htmlFor="manageUsers" className="cursor-pointer font-normal">
                     Manage Customer Users
+                  </Label>
+                </div>
+              </div>
+
+              <div className="text-sm font-medium mt-3 mb-2">Candidate Management</div>
+              <div className="space-y-2 ml-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="inviteCandidates"
+                    checked={formValues.permissions.inviteCandidates}
+                    onCheckedChange={() => handlePermissionChange('inviteCandidates')}
+                  />
+                  <Label htmlFor="inviteCandidates" className="cursor-pointer font-normal">
+                    Candidate Invitations
                   </Label>
                 </div>
               </div>

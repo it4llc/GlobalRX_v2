@@ -23,6 +23,9 @@ const customerUserUpdateSchema = z.object({
     users: z.object({
       manage: z.boolean().optional(),
     }).optional(),
+    candidates: z.object({
+      invite: z.boolean().optional(),
+    }).optional(),
   }).optional(),
 });
 

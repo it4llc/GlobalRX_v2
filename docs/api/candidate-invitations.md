@@ -10,8 +10,17 @@ All endpoints except the lookup endpoint require authentication. The lookup endp
 
 ## Permissions
 
+### Create Invitation (POST /api/candidate/invitations)
+- **All users:** Require `candidates.invite` permission (checked via `canInviteCandidates()`)
+- **Admin users:** Have automatic access regardless of specific permission
+- **Vendor users:** Are explicitly excluded from creating invitations
+- **Customer users:** Can only create invitations for their own customer
+- **Internal/admin users:** Can create invitations for any customer
+
+### Extend/Resend Invitations (POST /api/candidate/invitations/[id]/extend and /api/candidate/invitations/[id]/resend)
 - **Customer users:** Require `candidate_workflow` permission and can only manage invitations for their own customer
 - **Internal/admin users:** Require `customer_config` permission and can manage invitations for any customer
+- Uses `canManageCandidateInvitations()` function for permission checks
 
 ---
 
