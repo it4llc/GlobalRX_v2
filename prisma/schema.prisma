@@ -378,7 +378,8 @@ model CandidateInvitation {
   phoneCountryCode String?   @map("phone_country_code")
   phoneNumber      String?   @map("phone_number")
   passwordHash     String?   @map("password_hash")
-  status           String    @default("draft")
+  status           String    @default("sent")
+  previousStatus   String?   @map("previous_status")
   expiresAt        DateTime  @db.Timestamptz(6) @map("expires_at")
   createdAt        DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
   createdBy        String    @map("created_by")
@@ -403,11 +404,13 @@ model OrderStatusHistory {
   id          String   @id @default(uuid())
   orderId     String
   fromStatus  String?
-  toStatus    String
+  toStatus    String?
   changedBy   String
   reason      String?
   notes       String?
   isAutomatic Boolean  @default(false)
+  eventType   String   @default("status_change") @map("event_type")
+  message     String?
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [changedBy], references: [id])
   order       Order    @relation(fields: [orderId], references: [id])

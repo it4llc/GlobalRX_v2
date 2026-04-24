@@ -585,18 +585,29 @@ When `fieldType='document'`, the `fieldValue` contains a JSON object with:
 **Model:** `OrderStatusHistory`
 **Table:** `order_status_history`
 **Status:** ACTIVE
-**Description:** Tracks all status changes for orders, maintaining a complete audit trail.
+**Description:** Tracks all status changes for orders and other order events, maintaining a complete audit trail. Enhanced in Phase 3 to support non-status-change events like invitation activities.
 
 **Columns:**
 - `id` (String, required): UUID primary key
-- `orderId` (String, required): Order whose status changed
+- `orderId` (String, required): Order whose status changed or had an event
 - `fromStatus` (String, optional): Previous status
-- `toStatus` (String, required): New status
-- `changedBy` (String, required): User who changed the status
+- `toStatus` (String, optional): New status (nullable for non-status-change events)
+- `changedBy` (String, required): User who triggered the event
 - `reason` (String, optional): Reason for status change
 - `notes` (String, optional): Additional notes
 - `isAutomatic` (Boolean, required): Whether change was system-generated
-- `createdAt` (DateTime, required): When status changed
+- `eventType` (String, required): Type of event (status_change, invitation_created, invitation_resent, etc.)
+- `message` (String, optional): Event-specific message describing what happened
+- `createdAt` (DateTime, required): When status changed or event occurred
+
+**Event Types:**
+- `status_change`: Traditional status change events
+- `invitation_created`: New candidate invitation created
+- `invitation_resent`: Invitation email resent to candidate
+- `invitation_extended`: Invitation expiration date extended
+- `invitation_expired`: Invitation automatically expired
+- `invitation_opened`: Candidate opened the invitation
+- `comment`: General comment or note added
 
 **Relationships:**
 - Belongs to `Order` via `orderId`
@@ -680,6 +691,56 @@ When `fieldType='document'`, the `fieldValue` contains a JSON object with:
 - Belongs to `Order` via `orderId`
 - Belongs to `Customer` via `customerId`
 - Belongs to `Country` via `countryId`, `stateId`, `countyId`
+
+---
+
+## Candidate Invitation System
+
+### CandidateInvitation
+**Model:** `CandidateInvitation`
+**Table:** `candidate_invitations`
+**Status:** ACTIVE
+**Description:** Tracks invitations sent to candidates to complete background check orders. Each invitation has a unique token and creates an associated draft order when created.
+
+**Columns:**
+- `id` (String, required): UUID primary key
+- `orderId` (String, required): Associated draft order created with the invitation
+- `customerId` (String, required): Customer who owns this invitation
+- `token` (String, required): Unique, cryptographically secure token for candidate access
+- `firstName` (String, required): Candidate's first name
+- `lastName` (String, required): Candidate's last name
+- `email` (String, required): Candidate's email address (normalized to lowercase)
+- `phoneCountryCode` (String, optional): Phone country code (e.g., "+1")
+- `phoneNumber` (String, optional): Phone number without country code
+- `passwordHash` (String, optional): Hashed password if candidate creates account
+- `status` (String, required): Current invitation status (default: "sent")
+- `previousStatus` (String, optional): Previous status before current one (used for status restoration after expiration)
+- `expiresAt` (DateTime, required): When invitation expires
+- `createdAt` (DateTime, required): When invitation was created
+- `createdBy` (String, required): User who created the invitation
+- `updatedAt` (DateTime, required): Last modification timestamp
+- `completedAt` (DateTime, optional): When candidate completed the process
+- `lastAccessedAt` (DateTime, optional): When candidate last accessed the invitation
+
+**Status Values:**
+- `sent`: Invitation has been sent to candidate
+- `opened`: Candidate has opened the invitation link
+- `in_progress`: Candidate is actively filling out the requirements
+- `completed`: Candidate has completed all requirements
+- `expired`: Invitation has expired
+
+**Business Rules:**
+- Token is generated using cryptographically secure random bytes (32 bytes, base64url encoded)
+- Token generation includes collision detection with retry logic (max 3 attempts)
+- Email addresses are normalized to lowercase on creation and lookup
+- Default expiration is based on the package's workflow settings (default 14 days if not set)
+- Expired invitations can be extended, which restores the previous status
+- Completed invitations cannot be extended
+
+**Relationships:**
+- Belongs to `Order` via `orderId` (1:1 relationship)
+- Belongs to `Customer` via `customerId`
+- Belongs to `User` via `createdBy`
 
 ---
 

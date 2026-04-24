@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm vitest run src/app/fulfillment/orders/\\[id\\]/__tests__/order-view-tracking.test.tsx --reporter=verbose)"
+      "Bash(pnpm vitest run src/app/fulfillment/orders/\\[id\\]/__tests__/order-view-tracking.test.tsx --reporter=verbose)",
+      "Read(//private/tmp/**)",
+      "Bash(find /Users/andyhellman/Projects/GlobalRx_v2/src/app/api/candidate -name \"*.ts\" -exec wc -l {} ;)"
     ],
     "deny": [],
     "ask": []

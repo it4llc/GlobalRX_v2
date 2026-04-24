@@ -78,7 +78,9 @@ export function getUserType(user: User | null | undefined): UserType | null {
   if (!user) return null;
 
   // Check userType field (with fallback to legacy .type for test compatibility)
-  const userType = (user as any).type || user.userType;
+  // Using a type guard for the legacy 'type' property
+  const legacyUser = user as User & { type?: string };
+  const userType = legacyUser.type || user.userType;
 
   // If no userType is set, return null instead of defaulting to 'internal'
   if (!userType) return null;
@@ -195,4 +197,27 @@ export function canAccessDataRx(user: User | null | undefined): boolean {
   // ONLY check for global_config permission
   // Legacy 'dsx' permission is intentionally NOT supported to force migration
   return hasModulePermission(user, 'global_config');
+}
+
+/**
+ * Check if a user can manage candidate invitations
+ * Customer users with candidate_workflow permission can manage their own invitations
+ * Internal/admin users with customer_config permission can also manage invitations
+ */
+export function canManageCandidateInvitations(user: User | null | undefined): boolean {
+  if (!user) return false;
+
+  const userType = getUserType(user);
+
+  // Customer users can manage invitations with candidate_workflow permission
+  if (userType === 'customer') {
+    return hasModulePermission(user, 'candidate_workflow');
+  }
+
+  // Internal/admin users can manage invitations with customer_config permission
+  if (isInternalUser(user)) {
+    return hasModulePermission(user, 'customer_config');
+  }
+
+  return false;
 }
