@@ -29,6 +29,7 @@ type User = {
     vendors?: boolean;
     fulfillment?: boolean;
     comment_management?: boolean;
+    candidates_invite?: boolean;
   };
 };
 
@@ -48,6 +49,7 @@ type FormValues = {
     vendors: boolean;
     fulfillment: boolean;
     comment_management: boolean;
+    candidates_invite: boolean;
   };
 };
 
@@ -77,6 +79,7 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
       vendors: false,
       fulfillment: false,
       comment_management: false,
+      candidates_invite: false,
     },
   });
 
@@ -124,6 +127,7 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
           vendors: !!user.permissions?.vendors,
           fulfillment: !!user.permissions?.fulfillment,
           comment_management: !!user.permissions?.comment_management,
+          candidates_invite: !!user.permissions?.candidates?.invite,
         },
       };
       setFormValues(newFormValues);
@@ -196,6 +200,9 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
           if (key === 'comment_management' || key === 'user_admin' || key === 'global_config' ||
               key === 'fulfillment' || key === 'vendors') {
             permissionsObj[key] = true;
+          } else if (key === 'candidates_invite') {
+            // candidates.invite permission is stored as nested object
+            permissionsObj['candidates'] = { invite: true };
           } else {
             // Multi-action permissions (like customer_config) use array format for sub-permissions
             permissionsObj[key] = ['*'];
@@ -460,6 +467,16 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
                   disabled={formValues.userType === 'vendor'}
                 />
                 <Label htmlFor="comment_management" className="cursor-pointer">Comment Management</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="candidates_invite"
+                  checked={formValues.permissions.candidates_invite}
+                  onCheckedChange={() => handlePermissionChange('candidates_invite')}
+                  disabled={formValues.userType === 'vendor'}
+                />
+                <Label htmlFor="candidates_invite" className="cursor-pointer">Candidate Invitations</Label>
               </div>
             </div>
           </div>

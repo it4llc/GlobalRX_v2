@@ -56,6 +56,10 @@ type User = {
     candidate_workflow?: any;
     vendors?: any;
     fulfillment?: any;
+    comment_management?: any;
+    candidates?: {
+      invite?: boolean;
+    };
   };
 };
 
@@ -206,12 +210,13 @@ export function UserAdminContent() {
                   <TableHead>Vendors</TableHead>
                   <TableHead>Fulfillment</TableHead>
                   <TableHead>Comment Mgmt</TableHead>
+                  <TableHead>Candidate Invitations</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-4">
+                    <TableCell colSpan={12} className="text-center py-4">
                       No users found. Click "Add New User" to create one.
                     </TableCell>
                   </TableRow>
@@ -292,6 +297,13 @@ export function UserAdminContent() {
                           <CheckIcon className="h-5 w-5 mx-auto" style={{ color: '#10b981' }} />
                         ) : (
                           <XIcon className="h-5 w-5 mx-auto" style={{ color: '#ef4444' }} />
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {user.permissions?.candidates?.invite ? (
+                          <CheckIcon className="h-5 w-5 mx-auto text-emerald-500" />
+                        ) : (
+                          <XIcon className="h-5 w-5 mx-auto text-red-500" />
                         )}
                       </TableCell>
                     </TableRow>

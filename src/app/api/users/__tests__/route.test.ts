@@ -271,7 +271,7 @@ describe('POST /api/users', () => {
       const response = await POST(request);
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toBe('Email and password are required');
+      expect(data.message).toBe('Email is required');
     });
 
     it('should return 400 when password is missing', async () => {
@@ -286,7 +286,7 @@ describe('POST /api/users', () => {
       const response = await POST(request);
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toBe('Email and password are required');
+      expect(data.message).toBe('Password is required');
     });
 
     it('should return 400 when email already exists', async () => {

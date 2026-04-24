@@ -5,6 +5,7 @@
  */
 
 import type { User } from 'next-auth';
+import { hasPermission } from './permission-utils';
 
 /**
  * Module permissions in the new format:
@@ -220,4 +221,29 @@ export function canManageCandidateInvitations(user: User | null | undefined): bo
   }
 
   return false;
+}
+
+/**
+ * Check if a user can create/send candidate invitations
+ * This is a granular permission separate from managing invitations (extend/resend)
+ * Internal and customer users with candidates.invite permission or admin permission can invite
+ * Vendor users are explicitly excluded
+ * @param user - The user object from session
+ * @returns true if the user can create candidate invitations, false otherwise
+ */
+export function canInviteCandidates(user: User | null | undefined): boolean {
+  if (!user) return false;
+
+  const userType = getUserType(user);
+
+  // Vendor users can never invite candidates
+  if (userType === 'vendor') return false;
+
+  // Check for admin permission first - admins can always invite
+  if (hasPermission(user, 'admin')) {
+    return true;
+  }
+
+  // Check for the specific candidates.invite permission
+  return hasPermission(user, 'candidates', 'invite');
 }

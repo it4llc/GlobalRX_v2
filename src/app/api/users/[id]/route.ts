@@ -133,7 +133,18 @@ export async function PUT(
       password: z.string().optional(),
       firstName: z.string().optional(),
       lastName: z.string().optional(),
-      permissions: z.record(z.union([z.boolean(), z.string(), z.array(z.string())])).optional(),
+      permissions: z.record(z.union([
+        z.boolean(),
+        z.string(),
+        z.array(z.string()),
+        z.object({
+          view: z.boolean().optional(),
+          create: z.boolean().optional(),
+          edit: z.boolean().optional(),
+          manage: z.boolean().optional(),
+          invite: z.boolean().optional(),
+        })
+      ])).optional(),
       userType: z.enum(['internal', 'vendor', 'customer']).optional(),
       vendorId: z.string().nullable().optional(),
       customerId: z.string().nullable().optional()
