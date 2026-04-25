@@ -91,6 +91,13 @@ describe('OrderCoreService - includeViews parameter', () => {
             orderBy: { createdAt: 'desc' },
             take: 1,
           },
+          candidateInvitations: {
+            select: {
+              id: true,
+              status: true,
+            },
+            take: 1,
+          },
           orderViews: {
             where: { userId },
             select: { lastViewedAt: true },
@@ -152,6 +159,13 @@ describe('OrderCoreService - includeViews parameter', () => {
             orderBy: { createdAt: 'desc' },
             take: 1,
           },
+          candidateInvitations: {
+            select: {
+              id: true,
+              status: true,
+            },
+            take: 1,
+          },
           // NO orderViews property
         },
         orderBy: { createdAt: 'desc' },
@@ -207,6 +221,13 @@ describe('OrderCoreService - includeViews parameter', () => {
           },
           statusHistory: {
             orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+          candidateInvitations: {
+            select: {
+              id: true,
+              status: true,
+            },
             take: 1,
           },
           // NO orderViews property
@@ -265,6 +286,13 @@ describe('OrderCoreService - includeViews parameter', () => {
           },
           statusHistory: {
             orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+          candidateInvitations: {
+            select: {
+              id: true,
+              status: true,
+            },
             take: 1,
           },
           // NO orderViews property - userId required for WHERE clause

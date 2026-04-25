@@ -17,6 +17,7 @@ import { ServiceStatusList } from '@/components/orders/ServiceStatusList';
 import { getStatusColorClass } from '@/lib/schemas/serviceStatusSchemas';
 import { hasNewActivity } from '@/lib/utils/activity-comparison';
 import { NewActivityDot } from '@/components/ui/NewActivityDot';
+import InviteCandidateButton from '@/components/portal/InviteCandidateButton';
 
 interface DashboardStats {
   total: number;
@@ -58,6 +59,10 @@ interface Order {
   lastActivityAt?: string | null;
   orderViews?: Array<{ lastViewedAt: string }>;
   hasNewOrderActivity?: boolean;  // Computed field
+  candidateInvitations?: Array<{
+    id: string;
+    status: string;
+  }>;
 }
 
 export default function CustomerDashboard() {
@@ -298,7 +303,7 @@ export default function CustomerDashboard() {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Quick Actions
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             href="/portal/orders/new"
             className="inline-flex items-center justify-center rounded-md bg-brand-blue px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
@@ -318,6 +323,7 @@ export default function CustomerDashboard() {
             <DocumentTextIcon className="h-5 w-5 mr-2" />
             {showMyOrders ? 'View All' : 'My Orders'}
           </button>
+          <InviteCandidateButton />
           {/* Temporarily hidden until profile management functionality is complete
           <Link
             href="/portal/profile"
@@ -387,9 +393,16 @@ export default function CustomerDashboard() {
                           <div className="text-sm font-medium text-gray-900">
                             {order.orderNumber}
                           </div>
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColorClass(order.statusCode)}`}>
-                            {order.statusCode.charAt(0).toUpperCase() + order.statusCode.slice(1)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColorClass(order.statusCode)}`}>
+                              {order.statusCode.charAt(0).toUpperCase() + order.statusCode.slice(1)}
+                            </span>
+                            {order.candidateInvitations && order.candidateInvitations.length > 0 && (
+                              <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+                                Candidate Invite
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="text-sm font-semibold text-blue-600">
                           {(() => {
@@ -443,7 +456,8 @@ export default function CustomerDashboard() {
                       >
                         View
                       </button>
-                      {order.statusCode === 'draft' && (
+                      {/* Hide edit button for candidate invite orders - they are managed by candidates, not customers */}
+                      {order.statusCode === 'draft' && (!order.candidateInvitations || order.candidateInvitations.length === 0) && (
                         <Link
                           href={`/portal/orders/${order.id}/edit`}
                           className="text-gray-600 hover:text-gray-900"
