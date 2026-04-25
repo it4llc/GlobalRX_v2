@@ -3,7 +3,17 @@
     "allow": [
       "Bash(pnpm vitest run src/app/fulfillment/orders/\\[id\\]/__tests__/order-view-tracking.test.tsx --reporter=verbose)",
       "Read(//private/tmp/**)",
-      "Bash(find /Users/andyhellman/Projects/GlobalRx_v2/src/app/api/candidate -name \"*.ts\" -exec wc -l {} ;)"
+      "Bash(find /Users/andyhellman/Projects/GlobalRx_v2/src/app/api/candidate -name \"*.ts\" -exec wc -l {} ;)",
+      "Bash(pnpm tsc --noEmit)",
+      "Bash(pnpm vitest run \"src/app/api/candidate/invitations/__tests__/route.test.ts\")",
+      "Bash(pnpm vitest run)",
+      "Bash(pnpm vitest run src/components/customer-config/customer-user-form.test.tsx)",
+      "Bash(pnpm vitest run src/app/api/users/__tests__/route.test.ts)",
+      "Bash(pnpm vitest run src/components/modules/user-admin/user-admin-content.test.tsx)",
+      "Bash(pnpm vitest run src/components/modules/user-admin/user-admin-content.test.tsx src/components/modules/user-admin/user-form.test.tsx)",
+      "Bash(pnpm vitest run src/components/modules/user-admin/user-admin-content.test.tsx -t \"should render user table with all columns\" --reporter=verbose)",
+      "Bash(pnpm vitest run src/components/modules/user-admin/user-admin-content.test.tsx -t \"should display permission icons correctly\" --reporter=verbose)",
+      "Bash(grep -E \"src/.*\\.(ts|tsx)$\")"
     ],
     "deny": [],
     "ask": []
