@@ -5,7 +5,7 @@ import { NextRequest } from 'next/server';
 import { POST } from '../route';
 import { getServerSession } from 'next-auth';
 import { createInvitation } from '@/lib/services/candidate-invitation.service';
-import { canManageCandidateInvitations, isCustomerUser } from '@/lib/auth-utils';
+import { canInviteCandidates, isCustomerUser } from '@/lib/auth-utils';
 
 // Mock dependencies
 vi.mock('next-auth', () => ({
@@ -17,7 +17,7 @@ vi.mock('@/lib/auth', () => ({
 }));
 
 vi.mock('@/lib/auth-utils', () => ({
-  canManageCandidateInvitations: vi.fn(),
+  canInviteCandidates: vi.fn(),
   isCustomerUser: vi.fn()
 }));
 
@@ -60,7 +60,7 @@ describe('POST /api/candidate/invitations', () => {
       expect(data.error).toBe('Unauthorized');
     });
 
-    it('should return 403 when user lacks candidate invitation permissions', async () => {
+    it('should return 403 when user lacks candidates.invite permission', async () => {
       const mockSession = {
         user: {
           id: 'user-1',
@@ -70,7 +70,7 @@ describe('POST /api/candidate/invitations', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(false);
+      vi.mocked(canInviteCandidates).mockReturnValue(false);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations', {
         method: 'POST',
@@ -86,7 +86,37 @@ describe('POST /api/candidate/invitations', () => {
       expect(response.status).toBe(403);
 
       const data = await response.json();
-      expect(data.error).toBe('Forbidden - insufficient permissions');
+      expect(data.error).toBe("You don't have permission to create invitations");
+    });
+
+    it('should return 403 when vendor user tries to create invitation', async () => {
+      const mockSession = {
+        user: {
+          id: 'vendor-1',
+          userType: 'vendor',
+          vendorId: 'vendor-org-1',
+          permissions: {}
+        }
+      };
+
+      vi.mocked(getServerSession).mockResolvedValue(mockSession);
+      vi.mocked(canInviteCandidates).mockReturnValue(false);
+
+      const request = new NextRequest('http://localhost/api/candidate/invitations', {
+        method: 'POST',
+        body: JSON.stringify({
+          packageId: '123e4567-e89b-12d3-a456-426614174000',
+          firstName: 'John',
+          lastName: 'Doe',
+          email: 'john@example.com'
+        })
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(403);
+
+      const data = await response.json();
+      expect(data.error).toBe("You don't have permission to create invitations");
     });
   });
 
@@ -97,12 +127,12 @@ describe('POST /api/candidate/invitations', () => {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations', {
         method: 'POST',
@@ -122,12 +152,12 @@ describe('POST /api/candidate/invitations', () => {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(true);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations', {
@@ -152,12 +182,12 @@ describe('POST /api/candidate/invitations', () => {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(true);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations', {
@@ -183,12 +213,12 @@ describe('POST /api/candidate/invitations', () => {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(true);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations', {
@@ -214,12 +244,12 @@ describe('POST /api/candidate/invitations', () => {
         user: {
           id: 'admin-1',
           userType: 'internal',
-          permissions: { customer_config: true }
+          permissions: { admin: true }
         }
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(false);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations', {
@@ -248,12 +278,12 @@ describe('POST /api/candidate/invitations', () => {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(true);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations', {
@@ -273,6 +303,37 @@ describe('POST /api/candidate/invitations', () => {
       const data = await response.json();
       expect(data.error).toBe('Forbidden - cannot create invitation for another customer');
     });
+
+    it('should return 500 when customer user has no customerId', async () => {
+      const mockSession = {
+        user: {
+          id: 'user-1',
+          userType: 'customer',
+          customerId: null, // Missing customerId for customer user
+          permissions: { candidates: { invite: true } }
+        }
+      };
+
+      vi.mocked(getServerSession).mockResolvedValue(mockSession);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+
+      const request = new NextRequest('http://localhost/api/candidate/invitations', {
+        method: 'POST',
+        body: JSON.stringify({
+          packageId: '123e4567-e89b-12d3-a456-426614174000',
+          firstName: 'John',
+          lastName: 'Doe',
+          email: 'john@example.com'
+        })
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(500);
+
+      const data = await response.json();
+      expect(data.error).toBe('Internal server error');
+    });
   });
 
   describe('business logic errors', () => {
@@ -282,12 +343,12 @@ describe('POST /api/candidate/invitations', () => {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(true);
       vi.mocked(createInvitation).mockRejectedValue(new Error('Package not found'));
 
@@ -314,14 +375,14 @@ describe('POST /api/candidate/invitations', () => {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(true);
-      vi.mocked(createInvitation).mockRejectedValue(new Error('Package not found or does not belong to this customer'));
+      vi.mocked(createInvitation).mockRejectedValue(new Error('Package does not belong to this customer'));
 
       const request = new NextRequest('http://localhost/api/candidate/invitations', {
         method: 'POST',
@@ -334,10 +395,10 @@ describe('POST /api/candidate/invitations', () => {
       });
 
       const response = await POST(request);
-      expect(response.status).toBe(404); // Route checks "Package not found" first
+      expect(response.status).toBe(403);
 
       const data = await response.json();
-      expect(data.error).toBe('Package not found');
+      expect(data.error).toBe('Forbidden - package does not belong to this customer');
     });
 
     it('should return 422 when package has no active workflow', async () => {
@@ -346,12 +407,12 @@ describe('POST /api/candidate/invitations', () => {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(true);
       vi.mocked(createInvitation).mockRejectedValue(
         new Error('This package does not have a workflow assigned. A workflow with email template and expiration settings is required to create an invitation.')
@@ -380,14 +441,14 @@ describe('POST /api/candidate/invitations', () => {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(true);
-      vi.mocked(createInvitation).mockRejectedValue(new Error('Failed to generate unique invitation token. Please try again.'));
+      vi.mocked(createInvitation).mockRejectedValue(new Error('Failed to generate unique invitation token'));
 
       const request = new NextRequest('http://localhost/api/candidate/invitations', {
         method: 'POST',
@@ -408,13 +469,13 @@ describe('POST /api/candidate/invitations', () => {
   });
 
   describe('success', () => {
-    it('should create invitation and return 201 for customer user', async () => {
+    it('should create invitation and return 201 for customer user with candidates.invite permission', async () => {
       const mockSession = {
         user: {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
@@ -428,6 +489,7 @@ describe('POST /api/candidate/invitations', () => {
         email: 'john@example.com',
         phoneCountryCode: null,
         phoneNumber: null,
+        passwordHash: 'secret-hash', // This should be stripped
         status: 'sent',
         expiresAt: new Date(),
         createdAt: new Date(),
@@ -436,7 +498,7 @@ describe('POST /api/candidate/invitations', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(true);
       vi.mocked(createInvitation).mockResolvedValue(mockInvitation);
 
@@ -460,6 +522,7 @@ describe('POST /api/candidate/invitations', () => {
       expect(data.lastName).toBe('Doe');
       expect(data.email).toBe('john@example.com');
       expect(data.status).toBe('sent');
+      expect(data.passwordHash).toBeUndefined(); // Should be stripped
     });
 
     it('should create invitation with phone details when provided', async () => {
@@ -468,7 +531,7 @@ describe('POST /api/candidate/invitations', () => {
           id: 'user-1',
           userType: 'customer',
           customerId: 'customer-1',
-          permissions: { candidate_workflow: true }
+          permissions: { candidates: { invite: true } }
         }
       };
 
@@ -482,6 +545,7 @@ describe('POST /api/candidate/invitations', () => {
         email: 'john@example.com',
         phoneCountryCode: '+1',
         phoneNumber: '555-1234',
+        passwordHash: null,
         status: 'sent',
         expiresAt: new Date(),
         createdAt: new Date(),
@@ -490,7 +554,7 @@ describe('POST /api/candidate/invitations', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(true);
       vi.mocked(createInvitation).mockResolvedValue(mockInvitation);
 
@@ -519,7 +583,7 @@ describe('POST /api/candidate/invitations', () => {
         user: {
           id: 'admin-1',
           userType: 'internal',
-          permissions: { customer_config: true }
+          permissions: { admin: true }
         }
       };
 
@@ -533,6 +597,7 @@ describe('POST /api/candidate/invitations', () => {
         email: 'jane@example.com',
         phoneCountryCode: null,
         phoneNumber: null,
+        passwordHash: null,
         status: 'sent',
         expiresAt: new Date(),
         createdAt: new Date(),
@@ -541,7 +606,7 @@ describe('POST /api/candidate/invitations', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValue(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
       vi.mocked(isCustomerUser).mockReturnValue(false);
       vi.mocked(createInvitation).mockResolvedValue(mockInvitation);
 
@@ -562,6 +627,57 @@ describe('POST /api/candidate/invitations', () => {
       const data = await response.json();
       expect(data.customerId).toBe('223e4567-e89b-12d3-a456-426614174002');
       expect(data.firstName).toBe('Jane');
+    });
+
+    it('should create invitation for internal user with candidates.invite permission', async () => {
+      const mockSession = {
+        user: {
+          id: 'internal-1',
+          userType: 'internal',
+          permissions: { candidates: { invite: true } }
+        }
+      };
+
+      const mockInvitation = {
+        id: 'invitation-1',
+        orderId: 'order-1',
+        customerId: '223e4567-e89b-12d3-a456-426614174002',
+        token: 'secure-token-123',
+        firstName: 'Test',
+        lastName: 'User',
+        email: 'test@example.com',
+        phoneCountryCode: null,
+        phoneNumber: null,
+        passwordHash: null,
+        status: 'sent',
+        expiresAt: new Date(),
+        createdAt: new Date(),
+        createdBy: 'internal-1',
+        updatedAt: new Date()
+      };
+
+      vi.mocked(getServerSession).mockResolvedValue(mockSession);
+      vi.mocked(canInviteCandidates).mockReturnValue(true);
+      vi.mocked(isCustomerUser).mockReturnValue(false);
+      vi.mocked(createInvitation).mockResolvedValue(mockInvitation);
+
+      const request = new NextRequest('http://localhost/api/candidate/invitations', {
+        method: 'POST',
+        body: JSON.stringify({
+          packageId: '123e4567-e89b-12d3-a456-426614174000',
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test@example.com',
+          customerId: '223e4567-e89b-12d3-a456-426614174002'
+        })
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(201);
+
+      const data = await response.json();
+      expect(data.id).toBe('invitation-1');
+      expect(data.createdBy).toBe('internal-1');
     });
   });
 });

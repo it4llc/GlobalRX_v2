@@ -320,7 +320,7 @@ describe('Comment Management Permission Tests', () => {
       });
     });
 
-    it('should have correct colspan for empty state with comment_management column', async () => {
+    it('should have correct colspan for empty state with comment_management and candidates_invite columns', async () => {
       // Setup the mock to return empty array
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -338,9 +338,9 @@ describe('Comment Management Permission Tests', () => {
         const emptyMessage = screen.getByText(/No users found/);
         expect(emptyMessage).toBeDefined();
 
-        // The cell should have colspan of 11 (including the new column)
+        // The cell should have colspan of 12 (including the new Candidate Invitations column)
         const cell = emptyMessage.closest('td');
-        expect(cell?.getAttribute('colspan')).toBe('11');
+        expect(cell?.getAttribute('colspan')).toBe('12');
       });
     });
   });

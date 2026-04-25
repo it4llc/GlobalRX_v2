@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createInvitationSchema } from '@/lib/validations/candidateInvitation';
 import { createInvitation } from '@/lib/services/candidate-invitation.service';
-import { canManageCandidateInvitations, isCustomerUser } from '@/lib/auth-utils';
+import { canInviteCandidates, isCustomerUser } from '@/lib/auth-utils';
 import logger from '@/lib/logger';
 
 /**
@@ -14,8 +14,8 @@ import logger from '@/lib/logger';
  * Creates a new candidate invitation with an associated draft order.
  *
  * Required permissions:
- * - Customer users: candidate_workflow permission
- * - Internal/admin users: customer_config permission
+ * - candidates.invite (via canInviteCandidates())
+ * - Vendor users are explicitly excluded
  *
  * Request body:
  *   - packageId: string (UUID) - required
@@ -44,9 +44,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Step 2: Permission check
-  if (!canManageCandidateInvitations(session.user)) {
+  if (!canInviteCandidates(session.user)) {
     return NextResponse.json(
-      { error: 'Forbidden - insufficient permissions' },
+      { error: "You don't have permission to create invitations" },
       { status: 403 }
     );
   }
