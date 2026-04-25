@@ -808,6 +808,14 @@ export class OrderCoreService {
         orderBy: { createdAt: 'desc' },
         take: 1,
       },
+      // Include candidateInvitations to identify candidate-driven orders
+      candidateInvitations: {
+        select: {
+          id: true,
+          status: true,
+        },
+        take: 1,
+      },
     };
 
     // Add orderViews if includeViews is true AND we have a userId
