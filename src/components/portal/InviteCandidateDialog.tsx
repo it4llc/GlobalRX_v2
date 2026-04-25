@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ModalDialog, DialogRef } from '@/components/ui/modal-dialog';
 import { PackageSelectionStep } from './PackageSelectionStep';
 import { CandidateInfoStep } from './CandidateInfoStep';
@@ -106,7 +106,7 @@ export default function InviteCandidateDialog({ open, onOpenChange, onClose }: I
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const response = await fetch('/api/invitations', {
+      const response = await fetch('/api/candidate/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
