@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, Prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 
 /**
@@ -17,6 +17,24 @@ import logger from '@/lib/logger';
  *   - hasWorkflow?: boolean - if true, only returns packages with active workflows
  *
  * Returns: Array of package objects with id, name, description, and hasWorkflow flag
+ *
+ * Example Response:
+ * ```json
+ * [
+ *   {
+ *     "id": "pkg_123",
+ *     "name": "Standard Background Check",
+ *     "description": "Basic employment screening package",
+ *     "hasWorkflow": true,
+ *     "workflow": {
+ *       "name": "Standard Workflow",
+ *       "description": "Default screening workflow",
+ *       "expirationDays": 30,
+ *       "reminderEnabled": true
+ *     }
+ *   }
+ * ]
+ * ```
  *
  * Errors:
  *   - 401: Not authenticated
@@ -44,7 +62,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Step 4: Query packages for the customer
-    const whereClause: any = {
+    const whereClause: Prisma.PackageWhereInput = {
       customerId: session.user.customerId
     };
 

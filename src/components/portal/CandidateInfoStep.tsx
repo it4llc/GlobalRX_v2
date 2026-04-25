@@ -56,6 +56,22 @@ export function CandidateInfoStep({
         return newErrors;
       });
     }
+
+    // Special validation for phone fields
+    if (field === 'phoneNumber' && value && !formData.phoneCountryCode) {
+      // If user enters phone number but no country code is selected, show error
+      setErrors(prev => ({
+        ...prev,
+        phoneCountryCode: 'Phone country code is required when phone number is provided'
+      }));
+    } else if (field === 'phoneCountryCode' && value && errors.phoneCountryCode) {
+      // Clear phoneCountryCode error when user selects a country code
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.phoneCountryCode;
+        return newErrors;
+      });
+    }
   };
 
   const handleSubmit = () => {
@@ -87,6 +103,17 @@ export function CandidateInfoStep({
       setErrors(prev => ({
         ...prev,
         email: t('portal.inviteCandidate.emailValidation')
+      }));
+    }
+  };
+
+  // Validate phone on blur
+  const handlePhoneBlur = () => {
+    const phoneNumber = formData.phoneNumber || '';
+    if (phoneNumber && !formData.phoneCountryCode) {
+      setErrors(prev => ({
+        ...prev,
+        phoneCountryCode: 'Phone country code is required when phone number is provided'
       }));
     }
   };
@@ -197,6 +224,7 @@ export function CandidateInfoStep({
             data-testid="phoneNumber"
             value={formData.phoneNumber || ''}
             onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+            onBlur={handlePhoneBlur}
             disabled={isSubmitting}
             maxLength={20}
           />
