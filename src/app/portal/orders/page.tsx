@@ -35,6 +35,10 @@ interface Order {
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
+  candidateInvitations?: Array<{
+    id: string;
+    status: string;
+  }>;
 }
 
 interface OrdersResponse {
@@ -278,9 +282,16 @@ export default function OrdersPage() {
                         <ServiceStatusList items={order.items} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getOrderStatusColorClasses(order.statusCode)}`}>
-                          {t(`services.status.${order.statusCode}`)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getOrderStatusColorClasses(order.statusCode)}`}>
+                            {t(`services.status.${order.statusCode}`)}
+                          </span>
+                          {order.candidateInvitations && order.candidateInvitations.length > 0 && (
+                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+                              {t('portal.orders.candidateInviteBadge')}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(order.createdAt).toLocaleDateString()}
@@ -292,7 +303,8 @@ export default function OrdersPage() {
                         >
                           {t('common.view')}
                         </button>
-                        {order.statusCode === 'draft' && (
+                        {/* Hide edit button for candidate invite orders - they are managed by candidates, not customers */}
+                        {order.statusCode === 'draft' && (!order.candidateInvitations || order.candidateInvitations.length === 0) && (
                           <Link
                             href={`/portal/orders/${order.id}/edit`}
                             className="text-gray-600 hover:text-gray-900"
