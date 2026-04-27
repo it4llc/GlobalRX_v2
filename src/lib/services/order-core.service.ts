@@ -917,6 +917,22 @@ export class OrderCoreService {
           },
           orderBy: { createdAt: 'desc' },
         },
+        candidateInvitations: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phoneCountryCode: true,
+            phoneNumber: true,
+            status: true,
+            previousStatus: true,
+            expiresAt: true,
+            lastAccessedAt: true,
+            createdAt: true
+          },
+          take: 1
+        }
       },
     });
 
