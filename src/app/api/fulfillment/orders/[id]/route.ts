@@ -250,6 +250,21 @@ export async function GET(
         },
         orderBy: { createdAt: 'desc' },
       },
+      /**
+       * Include candidate invitation details for invitation management panel
+       *
+       * Selected fields:
+       * - id: Unique identifier for API operations (extend/resend)
+       * - firstName, lastName, email: Candidate contact information display
+       * - phoneCountryCode, phoneNumber: Optional phone contact
+       * - status: Current invitation state (sent/opened/in_progress/completed/expired)
+       * - previousStatus: Used for tracking status history
+       * - expiresAt: Expiration timestamp for countdown/warning display
+       * - lastAccessedAt: Shows candidate engagement with the invitation
+       * - createdAt: Original invitation send time
+       *
+       * Take 1: Orders have at most one invitation (1:1 relationship)
+       */
       candidateInvitations: {
         select: {
           id: true,

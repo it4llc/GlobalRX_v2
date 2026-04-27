@@ -5,7 +5,6 @@ import {
   InvitationStatusSectionProps,
   InvitationAction
 } from '@/types/invitation-management';
-import { InvitationActionButton } from './InvitationActionButton';
 import { InvitationConfirmDialog } from './InvitationConfirmDialog';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { format } from 'date-fns';
