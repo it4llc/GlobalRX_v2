@@ -5,7 +5,7 @@ import { NextRequest } from 'next/server';
 import { POST } from '../route';
 import { getServerSession } from 'next-auth';
 import { extendInvitation } from '@/lib/services/candidate-invitation.service';
-import { canManageCandidateInvitations, isCustomerUser } from '@/lib/auth-utils';
+import { canInviteCandidates, isCustomerUser, isInternalUser } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 
 // Mock dependencies
@@ -17,10 +17,15 @@ vi.mock('@/lib/auth', () => ({
   authOptions: {}
 }));
 
-vi.mock('@/lib/auth-utils', () => ({
-  canManageCandidateInvitations: vi.fn(),
-  isCustomerUser: vi.fn()
-}));
+vi.mock(import('@/lib/auth-utils'), async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    canInviteCandidates: vi.fn(),
+    isCustomerUser: vi.fn(),
+    isInternalUser: vi.fn()
+  };
+});
 
 vi.mock('@/lib/services/candidate-invitation.service', () => ({
   extendInvitation: vi.fn()
@@ -75,7 +80,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(false);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(false);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations/inv-123/extend', {
         method: 'POST',
@@ -102,7 +109,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations//extend', {
         method: 'POST',
@@ -127,8 +136,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
 
       const mockInvitation = {
         id: 'inv-123',
@@ -161,8 +171,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
 
       const mockInvitation = {
         id: 'inv-123',
@@ -206,8 +217,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(mockInvitation);
       vi.mocked(extendInvitation).mockResolvedValueOnce(mockUpdatedInvitation);
 
@@ -236,8 +248,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(null); // Not found for this customer
 
       const request = new NextRequest('http://localhost/api/candidate/invitations/inv-123/extend', {
@@ -274,8 +287,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(false);
+      vi.mocked(isInternalUser).mockReturnValueOnce(true);
+      vi.mocked(isCustomerUser).mockReturnValue(false);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation);
       vi.mocked(extendInvitation).mockResolvedValueOnce(mockUpdatedInvitation);
 
@@ -303,8 +317,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(false);
+      vi.mocked(isInternalUser).mockReturnValueOnce(true);
+      vi.mocked(isCustomerUser).mockReturnValue(false);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(null);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations/inv-notfound/extend', {
@@ -336,8 +351,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(mockInvitation);
       vi.mocked(extendInvitation).mockRejectedValueOnce(new Error('Cannot extend a completed invitation'));
 
@@ -381,8 +397,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(mockInvitation);
       vi.mocked(extendInvitation).mockResolvedValueOnce(mockUpdatedInvitation);
 
@@ -428,8 +445,9 @@ describe('POST /api/candidate/invitations/[id]/extend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(mockInvitation);
       vi.mocked(extendInvitation).mockResolvedValueOnce(mockUpdatedInvitation);
 

@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/useToast';
 import { useTranslation } from '@/contexts/TranslationContext';
 import clientLogger from '@/lib/client-logger';
+import { InvitationStatusDisplay } from '@/types/invitation-management';
 
 // Order interface
 interface Order {
@@ -41,6 +42,12 @@ interface Order {
   customer?: {
     id: string;
     name: string;
+    code?: string;
+  };
+  user?: {
+    firstName?: string;
+    lastName?: string;
+    email: string;
   };
   items?: Array<{
     id: string;
@@ -52,6 +59,21 @@ interface Order {
     id: string;
     name: string;
   };
+  statusHistory?: Array<{
+    id: string;
+    fromStatus?: string;
+    toStatus?: string;
+    eventType?: string;
+    message?: string;
+    createdAt: Date | string;
+    user?: {
+      firstName?: string;
+      lastName?: string;
+      email: string;
+    };
+    notes?: string | null;
+  }>;
+  candidateInvitations?: InvitationStatusDisplay[];
 }
 
 /**
@@ -288,6 +310,7 @@ export default function OrderDetailsPage() {
             <OrderDetailsSidebar
               order={order}
               onStatusChange={handleStatusChange}
+              onRefresh={fetchOrderDetails}
             />
           </div>
 

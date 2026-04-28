@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { resendInvitation } from '@/lib/services/candidate-invitation.service';
-import { canManageCandidateInvitations, isCustomerUser } from '@/lib/auth-utils';
+import { canInviteCandidates, isCustomerUser, isInternalUser } from '@/lib/auth-utils';
 import logger from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 
@@ -15,8 +15,8 @@ import { prisma } from '@/lib/prisma';
  * The same token is used - only the email is sent again.
  *
  * Required permissions:
- * - Customer users: candidate_workflow permission (own customer's invitations only)
- * - Internal/admin users: customer_config permission
+ * - Customer users: candidates.invite permission (own customer's invitations only)
+ * - Internal/admin users: admin permission or candidates.invite permission
  *
  * Path params:
  *   - id: The invitation ID (UUID)
@@ -43,10 +43,22 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Step 2: Permission check
-  if (!canManageCandidateInvitations(session.user)) {
+  // Step 2: Permission check - internal users bypass, customer users need candidates.invite
+  if (isInternalUser(session.user)) {
+    // Internal and admin users can always resend invitations
+    // They bypass the permission check
+  } else if (isCustomerUser(session.user)) {
+    // Customer users need the candidates.invite permission
+    if (!canInviteCandidates(session.user)) {
+      return NextResponse.json(
+        { error: 'Forbidden - insufficient permissions' },
+        { status: 403 }
+      );
+    }
+  } else {
+    // Unknown user type or vendor users cannot resend invitations
     return NextResponse.json(
-      { error: 'Forbidden - insufficient permissions' },
+      { error: 'Forbidden - user type cannot resend invitations' },
       { status: 403 }
     );
   }
