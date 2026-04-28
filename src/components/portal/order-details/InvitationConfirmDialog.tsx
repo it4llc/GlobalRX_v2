@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef } from 'react';
 import { ModalDialog, DialogFooter, DialogRef } from '@/components/ui/modal-dialog';
-import { Button } from '@/components/ui/button';
 import { InvitationAction } from '@/types/invitation-management';
 import { useTranslation } from '@/contexts/TranslationContext';
 
@@ -57,25 +56,20 @@ export function InvitationConfirmDialog({
       title={content.title}
       onClose={onClose}
       data-testid="confirm-dialog"
+      footer={
+        <DialogFooter
+          onCancel={onClose}
+          onConfirm={onConfirm}
+          cancelText={t('common.cancel')}
+          confirmText={content.confirmText}
+          disabled={isLoading}
+          loading={isLoading}
+        />
+      }
     >
       <p className="text-sm text-muted-foreground mb-4">
         {content.description}
       </p>
-      <DialogFooter>
-        <Button
-          variant="outline"
-          onClick={onClose}
-          disabled={isLoading}
-        >
-          {t('common.cancel')}
-        </Button>
-        <Button
-          onClick={onConfirm}
-          disabled={isLoading}
-        >
-          {content.confirmText}
-        </Button>
-      </DialogFooter>
     </ModalDialog>
   );
 }
