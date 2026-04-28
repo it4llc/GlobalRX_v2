@@ -32,3 +32,9 @@ export interface InvitationResponse {
   lastAccessedAt: Date | string | null;
   // Explicitly exclude: token (on lookup responses), passwordHash, previousStatus
 }
+
+// Extended response type for invitation lookup that includes customer info
+export interface InvitationLookupResponse extends InvitationResponse {
+  customerName: string;
+  hasPassword: boolean;
+}

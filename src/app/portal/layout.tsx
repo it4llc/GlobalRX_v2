@@ -22,13 +22,19 @@ export default function PortalLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  // Redirect if not a customer user
+  // Redirect if not a customer user (but skip for candidate pages)
   useEffect(() => {
     if (status === 'loading') return;
+
+    // Don't redirect on candidate pages - they use token auth, not session auth
+    if (pathname.startsWith('/portal/candidate/')) {
+      return;
+    }
+
     if (!session || session.user.userType !== 'customer') {
       router.push('/login');
     }
-  }, [session, status, router]);
+  }, [session, status, router, pathname]);
 
   const navigation = [
     { name: 'Dashboard', href: '/portal/dashboard', icon: HomeIcon },
@@ -42,6 +48,11 @@ export default function PortalLayout({
   const handleSignOut = () => {
     signOut({ callbackUrl: '/login' });
   };
+
+  // For candidate pages, just render children without any portal chrome
+  if (pathname.startsWith('/portal/candidate/')) {
+    return <>{children}</>;
+  }
 
   if (status === 'loading') {
     return (
