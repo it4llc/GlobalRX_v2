@@ -18,8 +18,14 @@ export default function CandidateError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to console in development
-    console.error('Candidate page error:', error);
+    // Exception to no-console rule: Client-side error boundaries cannot use Winston
+    // because it requires Node.js modules (fs) that aren't available in the browser.
+    // This is the only way to log errors in client-side error boundaries.
+    console.error('Candidate page error:', {
+      message: error.message,
+      digest: error.digest,
+      stack: error.stack
+    });
   }, [error]);
 
   return (

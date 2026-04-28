@@ -203,10 +203,10 @@ export async function createInvitation(
  */
 /**
  * Checks if an invitation has a password set
- * Returns true if passwordHash is not null
+ * Returns true if passwordHash exists and is not empty
  */
 export function hasPassword(invitation: Pick<CandidateInvitation, 'passwordHash'>): boolean {
-  return invitation.passwordHash !== null;
+  return invitation.passwordHash !== null && invitation.passwordHash !== '';
 }
 
 
@@ -474,8 +474,8 @@ export async function resendInvitation(
     throw new Error('Invitation not found or does not belong to this customer');
   }
 
-  // Step 2: Verify status is sent or opened
-  if (invitation.status !== INVITATION_STATUSES.SENT && invitation.status !== INVITATION_STATUSES.OPENED) {
+  // Step 2: Verify status is sent or accessed
+  if (invitation.status !== INVITATION_STATUSES.SENT && invitation.status !== INVITATION_STATUSES.ACCESSED) {
     if (invitation.status === INVITATION_STATUSES.EXPIRED) {
       throw new Error('Cannot resend an expired invitation. Please extend it first.');
     }

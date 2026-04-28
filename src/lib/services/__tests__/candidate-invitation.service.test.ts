@@ -632,11 +632,11 @@ describe('candidate-invitation.service', () => {
         .rejects.toThrow('Cannot resend an expired invitation. Please extend it first.');
     });
 
-    it('should throw error when resending in_progress invitation', async () => {
+    it('should throw error when resending draft invitation', async () => {
       const mockInvitation = {
         id: 'inv-123',
         orderId: 'order-123',
-        status: INVITATION_STATUSES.IN_PROGRESS,
+        status: INVITATION_STATUSES.DRAFT,
         email: 'john@example.com'
       };
 
@@ -685,11 +685,11 @@ describe('candidate-invitation.service', () => {
       });
     });
 
-    it('should successfully resend invitation with status opened', async () => {
+    it('should successfully resend invitation with status accessed', async () => {
       const mockInvitation = {
         id: 'inv-123',
         orderId: 'order-123',
-        status: INVITATION_STATUSES.OPENED,
+        status: INVITATION_STATUSES.ACCESSED,
         email: 'jane@example.com'
       };
 

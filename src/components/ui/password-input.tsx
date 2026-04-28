@@ -2,7 +2,7 @@
 
 'use client';
 
-import { forwardRef, useState } from 'react';
+import * as React from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,9 @@ export interface PasswordInputProps
  * Password input with optional show/hide toggle
  * Touch target for toggle button is 44px minimum for mobile
  */
-const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
+const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
   ({ className, showToggle = true, ...props }, ref) => {
-    const [showPassword, setShowPassword] = useState(false);
+    const [showPassword, setShowPassword] = React.useState(false);
 
     return (
       <div className="relative">

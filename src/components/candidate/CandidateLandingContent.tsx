@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import * as React from 'react';
 import { Card } from '@/components/ui/card';
 import { PasswordCreationForm } from './PasswordCreationForm';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -25,11 +25,11 @@ type ContentState =
 
 export function CandidateLandingContent({ token }: CandidateLandingContentProps) {
   const { t } = useTranslation();
-  const [state, setState] = useState<ContentState>('loading');
-  const [invitation, setInvitation] = useState<InvitationLookupResponse | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [state, setState] = React.useState<ContentState>('loading');
+  const [invitation, setInvitation] = React.useState<InvitationLookupResponse | null>(null);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetchInvitation();
   }, [token]);
 

@@ -80,7 +80,7 @@ A simple form with:
 
 **After successful password creation:**
 - Show a confirmation message: "Your password has been created! You can return to this link at any time to continue your application."
-- Update the invitation status from "pending" to "in_progress"
+- Update the invitation status from "sent" to "accessed"
 - Record the current time as the "last accessed" timestamp on the invitation
 
 ### 3. Error State Pages
@@ -122,12 +122,12 @@ Each error state gets its own clean, clear display (not a popup — a full page 
 **What it does on success:**
 1. Hash the password securely (using bcrypt, same library the existing user system uses)
 2. Save the hashed password to the invitation's `passwordHash` field
-3. Update the invitation status from `pending` to `in_progress`
+3. Update the invitation status from `sent` to `accessed`
 4. Update the `lastAccessedAt` timestamp to the current time
 5. Return a success response (200) with the invitation ID and new status
 
 **What it returns:**
-- Success: `{ success: true, status: "in_progress" }`
+- Success: `{ success: true, status: "accessed" }`
 - Error: `{ error: "description of what went wrong" }` with appropriate status code
 
 **Important security note:** This endpoint does NOT require a logged-in session (no NextAuth session check). The candidate is not a user in the system — the token itself is the proof that this person was invited. However, the token must be validated against the database.
@@ -177,7 +177,7 @@ To keep scope manageable, these items are explicitly deferred to later stages:
 
 **None.** All the fields we need already exist on the `CandidateInvitation` table from Phase 3:
 - `passwordHash` — currently null, will be populated when the candidate creates their password
-- `status` — will change from "pending" to "in_progress"
+- `status` — will change from "sent" to "accessed"
 - `lastAccessedAt` — will be updated with the current timestamp
 
 ---
@@ -225,7 +225,7 @@ To keep scope manageable, these items are explicitly deferred to later stages:
 7. Password show/hide toggle works on both password fields
 8. Validation errors appear below the relevant field as the candidate types
 9. Successful password creation saves a hashed password to the invitation record
-10. Invitation status changes from "pending" to "in_progress" after password creation
+10. Invitation status changes from "sent" to "accessed" after password creation
 11. The `lastAccessedAt` timestamp is updated after password creation
 12. Success confirmation message is displayed after password creation
 13. All pages and forms work correctly on mobile at 320px width

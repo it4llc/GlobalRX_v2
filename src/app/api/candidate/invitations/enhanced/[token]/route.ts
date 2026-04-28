@@ -5,7 +5,7 @@ import { lookupByTokenWithCustomer } from '@/lib/services/candidate-invitation.s
 import logger from '@/lib/logger';
 
 /**
- * GET /api/candidate/invitations/enhanced/[token]
+ * @route GET /api/candidate/invitations/enhanced/[token]
  *
  * Enhanced invitation lookup that includes customer company name and password status.
  * Used by the candidate landing page to provide a complete view of the invitation.

@@ -8,7 +8,7 @@ import logger from '@/lib/logger';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
 
 /**
- * POST /api/candidate/auth/create-password
+ * @route POST /api/candidate/auth/create-password
  *
  * Creates a password for a candidate using their invitation token.
  * This is the first step for a candidate accessing their application.
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     // Check if password already exists
     if (invitation.passwordHash) {
       return NextResponse.json(
-        { error: 'Password has already been created for this invitation' },
+        { error: 'Unable to process request' },
         { status: 400 }
       );
     }
