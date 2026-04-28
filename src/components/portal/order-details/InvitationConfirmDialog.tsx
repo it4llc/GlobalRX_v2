@@ -1,14 +1,7 @@
 'use client';
 
-import React from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import React, { useEffect, useRef } from 'react';
+import { ModalDialog, DialogFooter, DialogRef } from '@/components/ui/modal-dialog';
 import { Button } from '@/components/ui/button';
 import { InvitationAction } from '@/types/invitation-management';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -29,6 +22,16 @@ export function InvitationConfirmDialog({
   isLoading = false
 }: InvitationConfirmDialogProps) {
   const { t } = useTranslation();
+  const dialogRef = useRef<DialogRef>(null);
+
+  // Open/close modal based on isOpen prop
+  useEffect(() => {
+    if (isOpen && dialogRef.current) {
+      dialogRef.current.showModal();
+    } else if (!isOpen && dialogRef.current) {
+      dialogRef.current.close();
+    }
+  }, [isOpen]);
 
   const getDialogContent = () => {
     if (action === InvitationAction.EXTEND) {
@@ -49,28 +52,30 @@ export function InvitationConfirmDialog({
   const content = getDialogContent();
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent data-testid="confirm-dialog">
-        <DialogHeader>
-          <DialogTitle>{content.title}</DialogTitle>
-          <DialogDescription>{content.description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={onConfirm}
-            disabled={isLoading}
-          >
-            {content.confirmText}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ModalDialog
+      ref={dialogRef}
+      title={content.title}
+      onClose={onClose}
+      data-testid="confirm-dialog"
+    >
+      <p className="text-sm text-muted-foreground mb-4">
+        {content.description}
+      </p>
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={onClose}
+          disabled={isLoading}
+        >
+          {t('common.cancel')}
+        </Button>
+        <Button
+          onClick={onConfirm}
+          disabled={isLoading}
+        >
+          {content.confirmText}
+        </Button>
+      </DialogFooter>
+    </ModalDialog>
   );
 }

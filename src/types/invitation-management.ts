@@ -1,3 +1,5 @@
+// /GlobalRX_v2/src/types/invitation-management.ts
+
 export interface InvitationStatusDisplay {
   id: string;
   firstName: string;
