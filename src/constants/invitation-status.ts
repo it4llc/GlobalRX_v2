@@ -6,9 +6,9 @@
  */
 
 export const INVITATION_STATUSES = {
+  DRAFT: 'draft',
   SENT: 'sent',
-  OPENED: 'opened',
-  IN_PROGRESS: 'in_progress',
+  ACCESSED: 'accessed',  // Database uses 'accessed' not 'in_progress'
   COMPLETED: 'completed',
   EXPIRED: 'expired'
 } as const;

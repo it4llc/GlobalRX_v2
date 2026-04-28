@@ -276,7 +276,7 @@ export async function lookupByTokenWithCustomer(token: string): Promise<Invitati
     createdBy: invitation.createdBy,
     completedAt: invitation.completedAt,
     lastAccessedAt: invitation.lastAccessedAt,
-    customerName: invitation.customer.companyName,
+    customerName: invitation.customer.name,
     hasPassword: hasPassword(invitation)
   };
 

@@ -23,7 +23,7 @@ import { INVITATION_STATUSES } from '@/constants/invitation-status';
  *
  * Returns: {
  *   success: true,
- *   status: string - The new invitation status ("in_progress")
+ *   status: string - The new invitation status ("accessed")
  * }
  *
  * Errors:
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         where: { id: invitation.id },
         data: {
           passwordHash,
-          status: INVITATION_STATUSES.IN_PROGRESS,
+          status: INVITATION_STATUSES.ACCESSED,
           lastAccessedAt: now,
           updatedAt: now
         }
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
         data: {
           order: { connect: { id: invitation.orderId } },
           fromStatus: invitation.status,
-          toStatus: INVITATION_STATUSES.IN_PROGRESS,
+          toStatus: INVITATION_STATUSES.ACCESSED,
           user: { connect: { id: invitation.createdBy } }, // Use invitation creator as the actor
           eventType: 'CANDIDATE_PASSWORD_CREATED',
           message: `Candidate ${invitation.firstName} ${invitation.lastName} created a password`,
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        status: INVITATION_STATUSES.IN_PROGRESS
+        status: INVITATION_STATUSES.ACCESSED
       },
       { status: 200 }
     );
