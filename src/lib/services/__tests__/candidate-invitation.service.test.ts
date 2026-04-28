@@ -680,7 +680,7 @@ describe('candidate-invitation.service', () => {
       expect(prisma.orderStatusHistory.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           eventType: ORDER_EVENT_TYPES.INVITATION_RESENT,
-          message: 'Invitation resent to john@example.com'
+          message: 'Invitation resent'
         })
       });
     });
@@ -702,7 +702,7 @@ describe('candidate-invitation.service', () => {
 
       expect(prisma.orderStatusHistory.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          message: 'Invitation resent to jane@example.com'
+          message: 'Invitation resent'
         })
       });
     });

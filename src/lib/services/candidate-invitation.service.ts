@@ -191,8 +191,7 @@ export async function createInvitation(
   logger.info('Candidate invitation created', {
     invitationId: result.id,
     orderId: result.orderId,
-    customerId,
-    email: result.email
+    customerId
   });
 
   return result;
@@ -490,15 +489,14 @@ export async function resendInvitation(
       toStatus: null,
       user: { connect: { id: userId } },
       eventType: ORDER_EVENT_TYPES.INVITATION_RESENT,
-      message: `Invitation resent to ${invitation.email}`,
+      message: 'Invitation resent',
       isAutomatic: false,
       createdAt: new Date()
     }
   });
 
   logger.info('Invitation resent', {
-    invitationId,
-    email: invitation.email
+    invitationId
   });
 
   // Note: Actual email sending will be implemented in a future phase
