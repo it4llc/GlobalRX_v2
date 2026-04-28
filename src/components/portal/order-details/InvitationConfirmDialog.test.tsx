@@ -117,7 +117,7 @@ describe('InvitationConfirmDialog', () => {
         />
       );
 
-      expect(screen.getByText('Confirm')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Extend' })).toBeInTheDocument();
     });
 
     it('should call onClose when dialog is dismissed via X button', () => {
@@ -132,6 +132,38 @@ describe('InvitationConfirmDialog', () => {
 
       const closeButton = screen.getByLabelText('Close dialog');
       fireEvent.click(closeButton);
+
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it('should call onConfirm when confirm button is clicked', () => {
+      const onConfirm = vi.fn();
+
+      render(
+        <InvitationConfirmDialog
+          {...defaultProps}
+          onConfirm={onConfirm}
+        />
+      );
+
+      const confirmButton = screen.getByRole('button', { name: 'Extend' });
+      fireEvent.click(confirmButton);
+
+      expect(onConfirm).toHaveBeenCalledOnce();
+    });
+
+    it('should call onClose when cancel button is clicked', () => {
+      const onClose = vi.fn();
+
+      render(
+        <InvitationConfirmDialog
+          {...defaultProps}
+          onClose={onClose}
+        />
+      );
+
+      const cancelButton = screen.getByText('Cancel');
+      fireEvent.click(cancelButton);
 
       expect(onClose).toHaveBeenCalledOnce();
     });
@@ -179,23 +211,25 @@ describe('InvitationConfirmDialog', () => {
       render(
         <InvitationConfirmDialog
           {...defaultProps}
+          action={InvitationAction.EXTEND}
           isLoading={true}
         />
       );
 
-      expect(screen.getByText('Confirm')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Loading...' })).toBeInTheDocument();
     });
 
     it('should show buttons when isLoading is false', () => {
       render(
         <InvitationConfirmDialog
           {...defaultProps}
+          action={InvitationAction.EXTEND}
           isLoading={false}
         />
       );
 
       expect(screen.getByText('Cancel')).toBeInTheDocument();
-      expect(screen.getByText('Confirm')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Extend' })).toBeInTheDocument();
     });
   });
 
@@ -232,7 +266,7 @@ describe('InvitationConfirmDialog', () => {
     it('should have Confirm button', () => {
       render(<InvitationConfirmDialog {...defaultProps} />);
 
-      expect(screen.getByText('Confirm')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Extend' })).toBeInTheDocument();
     });
   });
 
@@ -269,7 +303,7 @@ describe('InvitationConfirmDialog', () => {
         />
       );
 
-      expect(screen.getByText('Confirm')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Extend' })).toBeInTheDocument();
       expect(screen.getByText('Cancel')).toBeInTheDocument();
 
       rerender(
@@ -280,7 +314,7 @@ describe('InvitationConfirmDialog', () => {
         />
       );
 
-      expect(screen.getByText('Confirm')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Resend' })).toBeInTheDocument();
       expect(screen.getByText('Cancel')).toBeInTheDocument();
     });
   });
