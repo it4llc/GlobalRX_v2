@@ -5,7 +5,7 @@ import { NextRequest } from 'next/server';
 import { POST } from '../route';
 import { getServerSession } from 'next-auth';
 import { resendInvitation } from '@/lib/services/candidate-invitation.service';
-import { canManageCandidateInvitations, isCustomerUser } from '@/lib/auth-utils';
+import { canInviteCandidates, isCustomerUser, isInternalUser } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 
 // Mock dependencies
@@ -17,10 +17,15 @@ vi.mock('@/lib/auth', () => ({
   authOptions: {}
 }));
 
-vi.mock('@/lib/auth-utils', () => ({
-  canManageCandidateInvitations: vi.fn(),
-  isCustomerUser: vi.fn()
-}));
+vi.mock(import('@/lib/auth-utils'), async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    canInviteCandidates: vi.fn(),
+    isCustomerUser: vi.fn(),
+    isInternalUser: vi.fn()
+  };
+});
 
 vi.mock('@/lib/services/candidate-invitation.service', () => ({
   resendInvitation: vi.fn()
@@ -74,7 +79,9 @@ describe('POST /api/candidate/invitations/[id]/resend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(false);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(false);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations/inv-123/resend', {
         method: 'POST'
@@ -100,7 +107,9 @@ describe('POST /api/candidate/invitations/[id]/resend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations//resend', {
         method: 'POST'
@@ -126,8 +135,9 @@ describe('POST /api/candidate/invitations/[id]/resend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(null); // Not found for this customer
 
       const request = new NextRequest('http://localhost/api/candidate/invitations/inv-123/resend', {
@@ -157,8 +167,9 @@ describe('POST /api/candidate/invitations/[id]/resend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(false);
+      vi.mocked(isInternalUser).mockReturnValueOnce(true);
+      vi.mocked(isCustomerUser).mockReturnValue(false);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation);
       vi.mocked(resendInvitation).mockResolvedValueOnce({
         success: true,
@@ -187,8 +198,9 @@ describe('POST /api/candidate/invitations/[id]/resend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(false);
+      vi.mocked(isInternalUser).mockReturnValueOnce(true);
+      vi.mocked(isCustomerUser).mockReturnValue(false);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(null);
 
       const request = new NextRequest('http://localhost/api/candidate/invitations/inv-notfound/resend', {
@@ -219,8 +231,9 @@ describe('POST /api/candidate/invitations/[id]/resend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(mockInvitation);
       vi.mocked(resendInvitation).mockRejectedValueOnce(
         new Error('Cannot resend an expired invitation. Please extend it first.')
@@ -254,8 +267,9 @@ describe('POST /api/candidate/invitations/[id]/resend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(mockInvitation);
       vi.mocked(resendInvitation).mockRejectedValueOnce(
         new Error('Invitation cannot be resent in its current status')
@@ -289,8 +303,9 @@ describe('POST /api/candidate/invitations/[id]/resend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(mockInvitation);
       vi.mocked(resendInvitation).mockRejectedValueOnce(
         new Error('Invitation cannot be resent in its current status')
@@ -327,8 +342,9 @@ describe('POST /api/candidate/invitations/[id]/resend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(mockInvitation);
       vi.mocked(resendInvitation).mockResolvedValueOnce({
         success: true,
@@ -367,8 +383,9 @@ describe('POST /api/candidate/invitations/[id]/resend', () => {
       };
 
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession);
-      vi.mocked(canManageCandidateInvitations).mockReturnValueOnce(true);
-      vi.mocked(isCustomerUser).mockReturnValueOnce(true);
+      vi.mocked(isInternalUser).mockReturnValueOnce(false);
+      vi.mocked(isCustomerUser).mockReturnValue(true);
+      vi.mocked(canInviteCandidates).mockReturnValueOnce(true);
       vi.mocked(prisma.candidateInvitation.findFirst).mockResolvedValueOnce(mockInvitation);
       vi.mocked(resendInvitation).mockResolvedValueOnce({
         success: true,

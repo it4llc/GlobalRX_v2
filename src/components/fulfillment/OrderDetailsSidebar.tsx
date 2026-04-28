@@ -27,6 +27,8 @@ import { useToast } from '@/hooks/useToast';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getOrderStatusColorClasses } from '@/lib/status-colors';
+import { InvitationStatusSection } from '@/components/portal/order-details/InvitationStatusSection';
+import { InvitationStatusDisplay } from '@/types/invitation-management';
 
 interface OrderDetailsSidebarProps {
   order?: {
@@ -47,8 +49,10 @@ interface OrderDetailsSidebarProps {
     };
     statusHistory?: Array<{
       id: string;
-      fromStatus: string;
-      toStatus: string;
+      fromStatus?: string;
+      toStatus?: string;
+      eventType?: string;
+      message?: string;
       createdAt: Date | string;
       user?: {
         firstName?: string;
@@ -57,9 +61,11 @@ interface OrderDetailsSidebarProps {
       };
       notes?: string | null;
     }>;
+    candidateInvitations?: InvitationStatusDisplay[];
   } | null;
   onStatusChange?: (newStatus: string) => void;
   onStatusUpdate?: (newStatus: string) => void; // Alias for compatibility
+  onRefresh?: () => void;
   isLoading?: boolean;
 }
 
@@ -128,11 +134,12 @@ export function OrderDetailsSidebar({
   order,
   onStatusChange,
   onStatusUpdate,
+  onRefresh,
   isLoading = false
 }: OrderDetailsSidebarProps) {
   const { toastError } = useToast();
   const { t } = useTranslation();
-  const { user, canManageCustomers } = useAuth();
+  const { user, canManageCustomers, checkPermission } = useAuth();
 
   // Check if current user is a customer - customers get read-only view
   const isCustomer = user?.userType === 'customer';
@@ -306,20 +313,42 @@ export function OrderDetailsSidebar({
           </section>
         )}
 
+        {/* Invitation Status Section */}
+        {order.candidateInvitations && order.candidateInvitations.length > 0 && (
+          <InvitationStatusSection
+            invitation={order.candidateInvitations[0]}
+            canManageInvitations={!isCustomer || checkPermission('candidates', 'invite')}
+            onActionSuccess={() => {
+              // Refresh order data after successful action
+              onRefresh?.();
+            }}
+          />
+        )}
+
         {/* Status History */}
         <section className="status-history-section">
           <h3 className="text-sm font-medium text-gray-500 mb-2">Status History</h3>
           {order.statusHistory && order.statusHistory.length > 0 ? (
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {order.statusHistory.map((entry) => (
+            <div className="relative">
+              <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                {order.statusHistory.map((entry) => (
                 <div key={entry.id} className="text-sm border-l-2 border-gray-200 pl-3">
                   <div className="flex items-center space-x-1">
-                    <span className="font-medium">{formatStatus(entry.fromStatus)}</span>
-                    <span className="text-gray-400">→</span>
-                    <span className="font-medium">{formatStatus(entry.toStatus)}</span>
+                    {entry.eventType ? (
+                      <>
+                        <span className="font-medium">{t(`invitation.event.${entry.eventType.replace('invitation_', '')}`)}</span>
+                        {entry.message && <span className="text-gray-600 ml-1">- {entry.message}</span>}
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium">{formatStatus(entry.fromStatus || '')}</span>
+                        <span className="text-gray-400">→</span>
+                        <span className="font-medium">{formatStatus(entry.toStatus || '')}</span>
+                      </>
+                    )}
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    {!isCustomer && <span>Changed by {formatUserName(entry.user, 'Unknown')}</span>}
+                    {(!isCustomer || entry.eventType?.startsWith('invitation_')) && <span>{entry.eventType ? 'By' : 'Changed by'} {formatUserName(entry.user, 'Unknown')}</span>}
                     <div>{formatTimestamp(entry.createdAt)}</div>
                   </div>
                   {entry.notes && (
@@ -327,6 +356,9 @@ export function OrderDetailsSidebar({
                   )}
                 </div>
               ))}
+              </div>
+              {/* Visual indicator for scrollable content */}
+              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
             </div>
           ) : (
             <div className="text-sm text-gray-500">--</div>
