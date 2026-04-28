@@ -335,6 +335,19 @@ export function createMockPrisma(): any {
       count: vi.fn(),
     },
 
+    // Candidate invitation models
+    candidateInvitation: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+      count: vi.fn(),
+    },
+
     // Supporting models
     country: {
       findUnique: vi.fn(),

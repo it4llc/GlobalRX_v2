@@ -349,7 +349,7 @@ export async function extendInvitation(
     // Log the extension event
     await tx.orderStatusHistory.create({
       data: {
-        order: { connect: { id: invitation.orderId } },
+        order: { connect: { id: invitation.order.id } },
         fromStatus: null,
         toStatus: null,
         user: { connect: { id: userId } },

@@ -195,11 +195,18 @@ export const filterDataForCustomer = (data: OrderData): OrderData => {
   if (filtered.statusHistory && Array.isArray(filtered.statusHistory)) {
     filtered.statusHistory = filtered.statusHistory.map((history: StatusHistory) => {
       const filteredHistory = { ...history };
-      delete filteredHistory.changedBy;
-      delete filteredHistory.changedByName;
-      delete filteredHistory.changedByEmail;
-      // Also remove user object if present
-      delete filteredHistory.user;
+
+      // For invitation events, keep user info intact
+      // For regular status changes, anonymize user info
+      const eventType = filteredHistory.eventType as string | undefined;
+      if (!eventType || !eventType.startsWith('invitation_')) {
+        delete filteredHistory.changedBy;
+        delete filteredHistory.changedByName;
+        delete filteredHistory.changedByEmail;
+        // Also remove user object if present
+        delete filteredHistory.user;
+      }
+
       return filteredHistory;
     });
   }

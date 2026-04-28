@@ -11,6 +11,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { getOrderStatusColorClasses } from '@/lib/status-colors';
+import { InvitationStatusSection } from '@/components/portal/order-details/InvitationStatusSection';
+import { InvitationStatusDisplay } from '@/types/invitation-management';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/contexts/TranslationContext';
+import { format } from 'date-fns';
 
 interface OrderItem {
   id: string;
@@ -33,6 +38,21 @@ interface OrderDetails {
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
+  candidateInvitations?: InvitationStatusDisplay[];
+  statusHistory?: Array<{
+    id: string;
+    fromStatus?: string;
+    toStatus?: string;
+    eventType?: string;
+    message?: string;
+    createdAt: Date | string;
+    user?: {
+      firstName?: string;
+      lastName?: string;
+      email: string;
+    };
+    notes?: string | null;
+  }>;
 }
 
 interface OrderDetailsDialogProps {
@@ -44,7 +64,31 @@ interface OrderDetailsDialogProps {
 
 
 const formatStatus = (statusCode: string): string => {
-  return statusCode.charAt(0).toUpperCase() + statusCode.slice(1);
+  return statusCode
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+// Format timestamp
+const formatTimestamp = (date: Date | string): string => {
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return format(dateObj, 'MM/dd/yyyy hh:mm a');
+  } catch (error) {
+    return '--';
+  }
+};
+
+// Format user name
+const formatUserName = (user?: { firstName?: string; lastName?: string; email: string }, unknownText?: string): string => {
+  if (!user) return unknownText || 'Unknown';
+  if (user.firstName && user.lastName) {
+    return `${user.firstName} ${user.lastName}`;
+  }
+  if (user.firstName) return user.firstName;
+  if (user.lastName) return user.lastName;
+  return user.email;
 };
 
 const formatSubjectName = (subject: SubjectInfo | null): string => {
@@ -84,6 +128,8 @@ export default function OrderDetailsDialog({ orderId, open, onClose, isInternalU
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { checkPermission, user } = useAuth();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (open && orderId) {
@@ -171,6 +217,56 @@ export default function OrderDetailsDialog({ orderId, open, onClose, isInternalU
                   <p><strong>Updated:</strong> {new Date(order.updatedAt).toLocaleString()}</p>
                 </div>
               </div>
+
+              {/* Invitation Status Section */}
+              {order.candidateInvitations && order.candidateInvitations.length > 0 && (
+                <InvitationStatusSection
+                  invitation={order.candidateInvitations[0]}
+                  canManageInvitations={isInternalUser || checkPermission('candidates', 'invite')}
+                  onActionSuccess={() => {
+                    // Refetch order data
+                    fetchOrderDetails();
+                  }}
+                />
+              )}
+
+              {/* Status History */}
+              {order.statusHistory && order.statusHistory.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-3">Status History</h4>
+                  <div className="relative">
+                    <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                      {order.statusHistory.map((entry) => (
+                      <div key={entry.id} className="text-sm border-l-2 border-gray-200 pl-3">
+                        <div className="flex items-center space-x-1">
+                          {entry.eventType ? (
+                            <>
+                              <span className="font-medium">{t(`invitation.event.${entry.eventType.replace('invitation_', '')}`)}</span>
+                              {entry.message && <span className="text-gray-600 ml-1">- {entry.message}</span>}
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-medium">{formatStatus(entry.fromStatus || '')}</span>
+                              <span className="text-gray-400">→</span>
+                              <span className="font-medium">{formatStatus(entry.toStatus || '')}</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {entry.user && <span>Changed by {formatUserName(entry.user, 'Unknown')}</span>}
+                          <div>{formatTimestamp(entry.createdAt)}</div>
+                        </div>
+                        {entry.notes && (
+                          <div className="text-xs text-gray-600 mt-1 italic">{entry.notes}</div>
+                        )}
+                      </div>
+                    ))}
+                    </div>
+                    {/* Visual indicator for scrollable content */}
+                    <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                  </div>
+                </div>
+              )}
 
               {/* Subject Details */}
               {order.subject && Object.keys(order.subject).length > 0 && (
