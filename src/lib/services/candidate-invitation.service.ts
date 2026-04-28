@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
 import { ORDER_EVENT_TYPES } from '@/constants/order-event-type';
-import type { CreateInvitationInput, InvitationResponse } from '@/types/candidateInvitation';
+import type { CreateInvitationInput, InvitationResponse, InvitationLookupResponse } from '@/types/candidateInvitation';
 import type { CandidateInvitation, Workflow } from '@prisma/client';
 
 /**
@@ -201,6 +201,88 @@ export async function createInvitation(
 /**
  * Looks up an invitation by token, checks expiration, and updates status if expired
  */
+/**
+ * Checks if an invitation has a password set
+ * Returns true if passwordHash is not null
+ */
+export function hasPassword(invitation: Pick<CandidateInvitation, 'passwordHash'>): boolean {
+  return invitation.passwordHash !== null;
+}
+
+
+/**
+ * Enhanced version of lookupByToken that includes customer data
+ * Used by the candidate landing page
+ */
+export async function lookupByTokenWithCustomer(token: string): Promise<InvitationLookupResponse | null> {
+  // Find the invitation by token with customer info
+  const invitation = await prisma.candidateInvitation.findUnique({
+    where: { token },
+    include: {
+      customer: true // Include customer for company name
+    }
+  });
+
+  if (!invitation) {
+    return null;
+  }
+
+  // Check if the invitation has expired
+  const now = new Date();
+  if (invitation.expiresAt < now && invitation.status !== INVITATION_STATUSES.EXPIRED) {
+    // Update status to expired, saving the previous status
+    await prisma.$transaction(async (tx) => {
+      await tx.candidateInvitation.update({
+        where: { id: invitation.id },
+        data: {
+          previousStatus: invitation.status,
+          status: INVITATION_STATUSES.EXPIRED,
+          updatedAt: new Date()
+        }
+      });
+
+      // Log the expiration event
+      await tx.orderStatusHistory.create({
+        data: {
+          order: { connect: { id: invitation.orderId } },
+          fromStatus: null,
+          toStatus: null,
+          user: { connect: { id: invitation.createdBy } }, // System action, use creator as the actor
+          eventType: ORDER_EVENT_TYPES.INVITATION_EXPIRED,
+          message: 'Invitation has expired',
+          isAutomatic: true,
+          createdAt: new Date()
+        }
+      });
+    });
+
+    // Update the invitation object to reflect the change
+    invitation.status = INVITATION_STATUSES.EXPIRED;
+  }
+
+  // Return enhanced invitation data with customer info and password status
+  const response: InvitationLookupResponse = {
+    id: invitation.id,
+    orderId: invitation.orderId,
+    customerId: invitation.customerId,
+    firstName: invitation.firstName,
+    lastName: invitation.lastName,
+    email: invitation.email,
+    phoneCountryCode: invitation.phoneCountryCode,
+    phoneNumber: invitation.phoneNumber,
+    status: invitation.status,
+    expiresAt: invitation.expiresAt,
+    createdAt: invitation.createdAt,
+    createdBy: invitation.createdBy,
+    completedAt: invitation.completedAt,
+    lastAccessedAt: invitation.lastAccessedAt,
+    customerName: invitation.customer.companyName,
+    hasPassword: hasPassword(invitation)
+  };
+
+  return response;
+}
+
 export async function lookupByToken(token: string): Promise<InvitationResponse | null> {
   // Find the invitation by token
   const invitation = await prisma.candidateInvitation.findUnique({
