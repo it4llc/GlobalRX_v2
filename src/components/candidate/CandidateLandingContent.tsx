@@ -5,6 +5,7 @@
 import * as React from 'react';
 import { Card } from '@/components/ui/card';
 import { PasswordCreationForm } from './PasswordCreationForm';
+import { LoginForm } from './LoginForm';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { Button } from '@/components/ui/button';
 import type { InvitationLookupResponse } from '@/types/candidateInvitation';
@@ -89,7 +90,7 @@ export function CandidateLandingContent({ token }: CandidateLandingContentProps)
 
       case 'invalid':
         return (
-          <div className="text-center py-8">
+          <div className="text-center py-8" data-testid="invitation-error">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               {t('candidate.landing.invalidLink')}
             </h2>
@@ -101,7 +102,7 @@ export function CandidateLandingContent({ token }: CandidateLandingContentProps)
 
       case 'expired':
         return (
-          <div className="text-center py-8">
+          <div className="text-center py-8" data-testid="invitation-expired">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               {t('candidate.landing.expiredLink')}
             </h2>
@@ -115,7 +116,7 @@ export function CandidateLandingContent({ token }: CandidateLandingContentProps)
 
       case 'completed':
         return (
-          <div className="text-center py-8">
+          <div className="text-center py-8" data-testid="invitation-completed">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               {t('candidate.landing.alreadyCompleted')}
             </h2>
@@ -126,16 +127,13 @@ export function CandidateLandingContent({ token }: CandidateLandingContentProps)
         );
 
       case 'password-exists':
-        return (
-          <div className="text-center py-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              {t('candidate.landing.returningUser')}
-            </h2>
-            <p className="text-gray-600">
-              {t('candidate.landing.returningUserMessage')}
-            </p>
-          </div>
-        );
+        return invitation ? (
+          <LoginForm
+            token={token}
+            firstName={invitation.firstName}
+            companyName={invitation.customerName}
+          />
+        ) : null;
 
       case 'password-form':
         return invitation ? (
