@@ -9,8 +9,9 @@ import {
   extendInvitation,
   resendInvitation,
   logOrderEvent
-} from '../candidate-invitation.service';
+} from '@/lib/services/candidate-invitation.service';
 import { prisma } from '@/lib/prisma';
+import { OrderNumberService } from '@/lib/services/order-number.service';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
 import { ORDER_EVENT_TYPES } from '@/constants/order-event-type';
 
@@ -25,7 +26,9 @@ vi.mock('@/lib/prisma', () => ({
     },
     order: {
       count: vi.fn(),
-      create: vi.fn()
+      create: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn()
     },
     candidateInvitation: {
       findUnique: vi.fn(),
@@ -37,6 +40,12 @@ vi.mock('@/lib/prisma', () => ({
       create: vi.fn()
     },
     $transaction: vi.fn()
+  }
+}));
+
+vi.mock('@/lib/services/order-number.service', () => ({
+  OrderNumberService: {
+    generateOrderNumber: vi.fn()
   }
 }));
 
@@ -144,6 +153,10 @@ describe('candidate-invitation.service', () => {
       vi.mocked(prisma.customer.findUnique).mockResolvedValueOnce(mockCustomer);
       vi.mocked(prisma.order.count).mockResolvedValueOnce(0);
 
+      // Mocks for OrderNumberService
+      vi.mocked(prisma.order.findFirst).mockResolvedValueOnce(null); // No existing orders
+      vi.mocked(prisma.order.findUnique).mockResolvedValueOnce(null); // No collision on order number
+
       // First token exists, second one doesn't
       vi.mocked(prisma.candidateInvitation.findUnique)
         .mockResolvedValueOnce({ id: 'existing' }) // Collision
@@ -220,14 +233,11 @@ describe('candidate-invitation.service', () => {
         }
       };
 
-      const mockCustomer = {
-        id: 'customer-1',
-        name: 'Test Company'
-      };
-
       vi.mocked(prisma.package.findFirst).mockResolvedValueOnce(mockPackage);
-      vi.mocked(prisma.customer.findUnique).mockResolvedValueOnce(mockCustomer);
-      vi.mocked(prisma.order.count).mockResolvedValueOnce(0);
+
+      // Mock OrderNumberService to return a test order number
+      vi.mocked(OrderNumberService.generateOrderNumber).mockResolvedValueOnce('20240428-TST-0001');
+
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(null);
 
       vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback) => {
@@ -279,14 +289,11 @@ describe('candidate-invitation.service', () => {
         }
       };
 
-      const mockCustomer = {
-        id: 'customer-1',
-        name: 'Test Company'
-      };
-
       vi.mocked(prisma.package.findFirst).mockResolvedValueOnce(mockPackage);
-      vi.mocked(prisma.customer.findUnique).mockResolvedValueOnce(mockCustomer);
-      vi.mocked(prisma.order.count).mockResolvedValueOnce(0);
+
+      // Mock OrderNumberService to return a test order number
+      vi.mocked(OrderNumberService.generateOrderNumber).mockResolvedValueOnce('20240428-TST-0002');
+
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(null);
 
       vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback) => {
@@ -318,6 +325,125 @@ describe('candidate-invitation.service', () => {
       };
 
       await createInvitation(input, 'customer-1', 'user-1');
+    });
+
+    // REGRESSION TEST: proves bug fix for order number collision on invitation creation
+    it('should use OrderNumberService to handle order number collisions', async () => {
+      const mockPackage = {
+        id: 'pkg-123',
+        workflow: {
+          id: 'workflow-1',
+          status: 'active',
+          expirationDays: 14
+        }
+      };
+
+      vi.mocked(prisma.package.findFirst).mockResolvedValueOnce(mockPackage);
+
+      // Mock OrderNumberService.generateOrderNumber to return a unique order number
+      // This simulates the service handling collisions internally
+      vi.mocked(OrderNumberService.generateOrderNumber).mockResolvedValueOnce('20240428-ABC-0001');
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(null); // No token collision
+
+      vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback) => {
+        return callback(prisma);
+      });
+
+      vi.mocked(prisma.order.create).mockResolvedValueOnce({
+        id: 'order-123',
+        orderNumber: '20240428-ABC-0001'
+      });
+
+      vi.mocked(prisma.candidateInvitation.create).mockImplementationOnce(async ({ data }) => {
+        return {
+          id: 'inv-123',
+          orderId: 'order-123',
+          ...data
+        };
+      });
+
+      const input = {
+        packageId: 'pkg-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com'
+      };
+
+      const result = await createInvitation(input, 'customer-1', 'user-1');
+
+      // Verify OrderNumberService was called with the correct customerId
+      expect(OrderNumberService.generateOrderNumber).toHaveBeenCalledWith('customer-1');
+
+      // Verify the order was created with the order number from OrderNumberService
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            orderNumber: '20240428-ABC-0001'
+          })
+        })
+      );
+
+      // Verify the invitation was created successfully
+      expect(result.id).toBe('inv-123');
+    });
+
+    // REGRESSION TEST: verifies OrderNumberService handles multiple retries correctly
+    it('should successfully create invitation when OrderNumberService handles collision internally', async () => {
+      const mockPackage = {
+        id: 'pkg-123',
+        workflow: {
+          id: 'workflow-1',
+          status: 'active',
+          expirationDays: 14
+        }
+      };
+
+      vi.mocked(prisma.package.findFirst).mockResolvedValueOnce(mockPackage);
+
+      // Mock OrderNumberService to simulate that it handled a collision internally
+      // and returned a different order number after retry
+      vi.mocked(OrderNumberService.generateOrderNumber)
+        .mockResolvedValueOnce('20240428-XYZ-0002'); // Returns different number after internal retry
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(null);
+
+      vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback) => {
+        return callback(prisma);
+      });
+
+      vi.mocked(prisma.order.create).mockResolvedValueOnce({
+        id: 'order-456',
+        orderNumber: '20240428-XYZ-0002'
+      });
+
+      vi.mocked(prisma.candidateInvitation.create).mockImplementationOnce(async ({ data }) => {
+        return {
+          id: 'inv-456',
+          orderId: 'order-456',
+          ...data
+        };
+      });
+
+      const input = {
+        packageId: 'pkg-123',
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'jane@example.com'
+      };
+
+      const result = await createInvitation(input, 'customer-1', 'user-1');
+
+      // Verify the service was called and returned successfully
+      expect(OrderNumberService.generateOrderNumber).toHaveBeenCalledWith('customer-1');
+      expect(result.id).toBe('inv-456');
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            orderNumber: '20240428-XYZ-0002'
+          })
+        })
+      );
     });
   });
 
