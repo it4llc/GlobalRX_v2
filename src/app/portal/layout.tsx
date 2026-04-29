@@ -26,10 +26,8 @@ export default function PortalLayout({
   useEffect(() => {
     if (status === 'loading') return;
 
-    // Don't redirect on candidate pages - they use token auth, not session auth
-    if (pathname.startsWith('/portal/candidate/')) {
-      return;
-    }
+    // Candidate pages were moved out of /portal/ - this check is no longer needed
+    // but kept for clarity about the auth flow
 
     if (!session || session.user.userType !== 'customer') {
       router.push('/login');
@@ -49,10 +47,7 @@ export default function PortalLayout({
     signOut({ callbackUrl: '/login' });
   };
 
-  // For candidate pages, just render children without any portal chrome
-  if (pathname.startsWith('/portal/candidate/')) {
-    return <>{children}</>;
-  }
+  // Candidate pages are now at /candidate/[token] and don't use this layout
 
   if (status === 'loading') {
     return (

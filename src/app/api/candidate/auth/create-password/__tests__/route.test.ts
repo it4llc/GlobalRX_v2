@@ -495,7 +495,7 @@ describe('POST /api/candidate/auth/create-password', () => {
         fromStatus: INVITATION_STATUSES.SENT,
         toStatus: INVITATION_STATUSES.ACCESSED,
         eventType: 'CANDIDATE_PASSWORD_CREATED',
-        message: 'Candidate Jane Smith created a password',
+        message: 'Candidate created a password',
         isAutomatic: false
       });
       expect(capturedHistoryData.order.connect).toEqual({ id: 'order-1' });

@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
           toStatus: INVITATION_STATUSES.ACCESSED,
           user: { connect: { id: invitation.createdBy } }, // Use invitation creator as the actor
           eventType: 'CANDIDATE_PASSWORD_CREATED',
-          message: `Candidate ${invitation.firstName} ${invitation.lastName} created a password`,
+          message: 'Candidate created a password',
           isAutomatic: false,
           createdAt: now
         }
@@ -119,8 +119,7 @@ export async function POST(request: NextRequest) {
     });
 
     logger.info('Candidate password created', {
-      invitationId: invitation.id,
-      email: invitation.email
+      invitationId: invitation.id
     });
 
     return NextResponse.json(

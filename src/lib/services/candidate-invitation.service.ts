@@ -155,7 +155,7 @@ export async function createInvitation(
         toStatus: 'draft', // Order was created in draft status
         user: { connect: { id: userId } },
         eventType: ORDER_EVENT_TYPES.INVITATION_CREATED,
-        message: `Candidate invitation created for ${input.firstName} ${input.lastName} (${input.email.toLowerCase()})`,
+        message: 'Candidate invitation created',
         isAutomatic: false,
         createdAt: new Date()
       }

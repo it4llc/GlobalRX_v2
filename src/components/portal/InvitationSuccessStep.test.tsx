@@ -101,7 +101,7 @@ describe('InvitationSuccessStep', () => {
       render(<InvitationSuccessStep invitation={mockInvitation} onClose={mockOnClose} />);
 
       const linkInput = screen.getByTestId('invitation-link');
-      expect(linkInput).toHaveValue('https://app.example.com/invite/test-token-123');
+      expect(linkInput).toHaveValue('https://app.example.com/candidate/test-token-123');
     });
 
     it('should render Copy Link button', () => {
@@ -138,7 +138,7 @@ describe('InvitationSuccessStep', () => {
       fireEvent.click(copyButton);
 
       await waitFor(() => {
-        expect(writeTextMock).toHaveBeenCalledWith('https://app.example.com/invite/test-token-123');
+        expect(writeTextMock).toHaveBeenCalledWith('https://app.example.com/candidate/test-token-123');
         expect(mockToastSuccess).toHaveBeenCalledWith('Link copied to clipboard');
       });
     });
@@ -194,7 +194,7 @@ describe('InvitationSuccessStep', () => {
       render(<InvitationSuccessStep invitation={mockInvitation} onClose={mockOnClose} />);
 
       const linkInput = screen.getByTestId('invitation-link');
-      expect(linkInput).toHaveValue('http://localhost:3000/invite/test-token-123');
+      expect(linkInput).toHaveValue('http://localhost:3000/candidate/test-token-123');
     });
 
     it('should handle empty base URL gracefully', () => {
@@ -207,7 +207,7 @@ describe('InvitationSuccessStep', () => {
       render(<InvitationSuccessStep invitation={mockInvitation} onClose={mockOnClose} />);
 
       const linkInput = screen.getByTestId('invitation-link');
-      expect(linkInput).toHaveValue('/invite/test-token-123');
+      expect(linkInput).toHaveValue('/candidate/test-token-123');
     });
   });
 
