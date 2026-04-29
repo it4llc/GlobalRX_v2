@@ -372,7 +372,31 @@ if (availableTemplateIds.length > 0) {
 
 **Real bug this prevents:** the comment templates API filtered templates by service type and status. When no template availabilities matched the criteria, the filter was skipped entirely, causing ALL active templates to be returned instead of the expected empty array. Customers saw templates they shouldn't have had access to.
 
-### 7.3 Always Include `orderBy` on Multi-Record Queries
+### 7.3 Distinguish Data Presence From Data Usability
+
+When filtering by related entities, ensure the filter represents the business intent, not just data structure. A filter for "usable workflows" should check both existence AND usability status.
+
+```typescript
+// ❌ WRONG — returns packages with any workflow (including draft, disabled)
+if (hasWorkflowFilter) {
+  whereClause.workflowId = { not: null };
+}
+
+// ✅ CORRECT — use application-level filtering for business logic
+const packages = await prisma.package.findMany({ where: baseWhere, include: { workflow: true }});
+const filteredPackages = hasWorkflowFilter
+  ? packages.filter(pkg => {
+      if (!pkg.workflow) return false;
+      return pkg.workflow.status === 'active' && pkg.workflow.disabled === false;
+    })
+  : packages;
+```
+
+**Rule:** When a filter parameter implies business usability (e.g., `hasWorkflow`, `isActive`, `isAvailable`), verify that the filter checks all conditions that make the entity usable, not just that it exists.
+
+**Real bug this prevents:** The packages API returned packages with draft, archived, and disabled workflows when `hasWorkflow=true` was requested. Customers saw packages they couldn't actually use to create orders, causing confusion in the UI.
+
+### 7.4 Always Include `orderBy` on Multi-Record Queries
 
 Prisma queries without an explicit `orderBy` return records in undefined order. The order is consistent enough to fool you in development and inconsistent enough to break the UI in production.
 
@@ -650,6 +674,7 @@ Both endpoints use the shared `document-download.service.ts` utility which provi
 - [ ] Status, email, and code values normalized at the API boundary before DB operations
 - [ ] Negative filters (`{ not: null }`) reviewed for false-exclusion bugs
 - [ ] Empty-match case handled explicitly (`{ in: [] }`) where filtering by a computed ID list
+- [ ] Business logic filters check usability, not just data presence (e.g., `hasWorkflow` filters for active, enabled workflows)
 - [ ] Explicit `orderBy` on every multi-record query
 - [ ] API responses consumed defensively (handles both array and `{ data: [...] }` shapes)
 

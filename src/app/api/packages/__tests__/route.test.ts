@@ -187,6 +187,8 @@ describe('GET /api/packages', () => {
               id: true,
               name: true,
               description: true,
+              status: true,
+              disabled: true,
               expirationDays: true,
               reminderEnabled: true
             }
@@ -260,6 +262,8 @@ describe('GET /api/packages', () => {
               id: true,
               name: true,
               description: true,
+              status: true,
+              disabled: true,
               expirationDays: true,
               reminderEnabled: true
             }
