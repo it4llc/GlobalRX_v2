@@ -570,5 +570,29 @@
   "candidate.landing.error": "Something went wrong",
   "candidate.landing.errorMessage": "Please try again in a few minutes. If the problem continues, contact the company that sent you the invitation.",
   "candidate.landing.tryAgain": "Try Again",
-  "candidate.landing.loading": "Loading..."
+  "candidate.landing.loading": "Loading...",
+
+  "candidate.login.welcomeBack": "Welcome back, {{name}}!",
+  "candidate.login.passwordLabel": "Password",
+  "candidate.login.passwordPlaceholder": "Enter your password",
+  "candidate.login.signIn": "Sign In",
+  "candidate.login.signingIn": "Signing In...",
+  "candidate.login.forgotPassword": "Forgot your password?",
+  "candidate.login.forgotPasswordTitle": "Password Help",
+  "candidate.login.forgotPasswordMessage": "Please contact the company that sent you this invitation to request a new link.",
+  "candidate.login.backToLogin": "Back to Login",
+  "candidate.login.incorrectPassword": "The password you entered is incorrect. Please try again.",
+  "candidate.login.tooManyAttempts": "Too many attempts. Please wait 15 minutes and try again.",
+  "candidate.login.lockoutRemaining": "Please wait {{minutes}} more minutes.",
+  "candidate.login.invitationExpired": "This invitation has expired.",
+  "candidate.login.invitationCompleted": "This invitation has already been completed.",
+  "candidate.login.serverError": "A server error occurred. Please try again.",
+  "candidate.login.genericError": "An error occurred. Please try again.",
+  "candidate.login.requestTimeout": "The request timed out. Please try again.",
+
+  "candidate.portal.loading": "Loading...",
+  "candidate.portal.loggedInTitle": "You're logged in!",
+  "candidate.portal.welcomeMessage": "Welcome, {{name}}!",
+  "candidate.portal.comingSoon": "Your application portal is coming soon.",
+  "candidate.portal.signOut": "Sign Out"
 }

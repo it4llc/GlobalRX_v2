@@ -8,7 +8,7 @@ import { useSession, signIn } from 'next-auth/react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 // Define the paths that don't require authentication
-const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password'];
+const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password', '/candidate'];
 
 // Auth Context type
 interface AuthContextType {
