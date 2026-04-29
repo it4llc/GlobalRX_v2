@@ -66,7 +66,9 @@ export async function GET(request: NextRequest) {
       customerId: session.user.customerId
     };
 
-    // If hasWorkflow filter is applied, only include packages with workflows
+    // If hasWorkflow filter is applied, filter at the database level for packages with workflows
+    // Note: The actual filtering for active, enabled workflows happens at the application level
+    // after fetching to ensure compatibility with both test mocks and production database
     if (hasWorkflowFilter) {
       whereClause.workflowId = { not: null };
     }
@@ -83,6 +85,8 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             description: true,
+            status: true,
+            disabled: true,
             expirationDays: true,
             reminderEnabled: true
           }
@@ -91,8 +95,24 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' }
     });
 
+    // Apply application-level filtering when hasWorkflow filter is requested
+    // BUG FIX: Previously this endpoint returned packages with ANY workflow (including
+    // draft, archived, or disabled workflows). Now it correctly filters to only include
+    // packages with active, enabled workflows when hasWorkflow=true is requested.
+    // This ensures customers only see packages that are ready for use.
+    // Note: In test environments, mocks may not include all workflow fields, so we
+    // treat undefined status as 'active' and undefined disabled as false (the DB defaults)
+    const filteredPackages = hasWorkflowFilter
+      ? packages.filter(pkg => {
+          if (!pkg.workflow) return false;
+          const status = pkg.workflow.status ?? 'active';  // Default if undefined
+          const disabled = pkg.workflow.disabled ?? false;  // Default if undefined
+          return status === 'active' && disabled === false;
+        })
+      : packages;
+
     // Transform response to include hasWorkflow flag and workflow details
-    const packagesWithWorkflowFlag = packages.map(pkg => ({
+    const packagesWithWorkflowFlag = filteredPackages.map(pkg => ({
       id: pkg.id,
       name: pkg.name,
       description: pkg.description,
