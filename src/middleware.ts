@@ -33,6 +33,11 @@ export default withAuth(
           return true;
         }
 
+        // Allow access to candidate portal (candidates use token auth, not session auth)
+        if (path.startsWith('/portal/candidate/')) {
+          return true;
+        }
+
         // Require authentication for all other pages
         return !!token;
       },
@@ -45,6 +50,7 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - api/auth (auth endpoints)
+     * - api/candidate (candidate endpoints - use token auth, not session)
      * - api/health (health check endpoint)
      * - api/ready (readiness check endpoint)
      * - api/status (status endpoint - has its own auth)
@@ -53,6 +59,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder
      */
-    '/((?!api/auth|api/health|api/ready|api/status|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!api/auth|api/candidate|api/health|api/ready|api/status|_next/static|_next/image|favicon.ico|public).*)',
   ],
 };

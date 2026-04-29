@@ -11,12 +11,32 @@
 - **MFA Support:** Database fields exist but not implemented
 
 ### Authentication Flow
+
+#### User Authentication
 ```
 1. User submits credentials to /api/auth/signin
 2. NextAuth validates against database
 3. JWT session created with user permissions
 4. Session validated on each request via getServerSession()
 ```
+
+#### Candidate Authentication (Phase 5 Stage 1)
+```
+1. Candidate receives invitation email with secure token
+2. Candidate visits /portal/candidate/[token] landing page
+3. Token is validated against CandidateInvitation table
+4. Candidate creates password via /api/candidate/auth/create-password
+5. Password is hashed using bcryptjs (same as user passwords)
+6. Invitation status updated to "accessed", lastAccessedAt timestamp set
+```
+
+**Security Properties of Candidate Authentication:**
+- Token-based access: No session required for initial access
+- Token validation: Checks expiration and invitation status
+- Password requirements: Minimum 8 characters, 1 letter, 1 number
+- One-time password creation: Cannot overwrite existing password
+- Automatic expiration handling: Invalid tokens rejected
+- Event logging: All password creation events are logged
 
 ## Authorization Model
 
@@ -61,11 +81,17 @@ The system supports three permission formats:
    - `/api/dsx/route.ts` GET endpoint - No auth check
    - `/api/debug-session/route.ts` - Debug endpoint exposed
 
-2. **Development Mode Bypasses:**
+2. **Intentionally Unauthenticated Endpoints (by design):**
+   - `/api/candidate/invitations/enhanced/[token]` - Token-based access for candidates
+   - `/api/candidate/auth/create-password` - Token-based password creation
+
+   *Note: These endpoints are secure because they use token validation instead of session authentication*
+
+3. **Development Mode Bypasses:**
    - Multiple routes skip auth when NODE_ENV=development
    - Risk if environment misconfigured in production
 
-3. **No Rate Limiting:**
+4. **No Rate Limiting:**
    - No rate limiting on any endpoints
    - Vulnerable to brute force attacks
    - No DDoS protection

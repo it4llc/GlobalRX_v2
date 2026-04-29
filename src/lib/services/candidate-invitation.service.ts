@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
 import { ORDER_EVENT_TYPES } from '@/constants/order-event-type';
-import type { CreateInvitationInput, InvitationResponse } from '@/types/candidateInvitation';
+import type { CreateInvitationInput, InvitationResponse, InvitationLookupResponse } from '@/types/candidateInvitation';
 import type { CandidateInvitation, Workflow } from '@prisma/client';
 
 /**
@@ -191,8 +191,7 @@ export async function createInvitation(
   logger.info('Candidate invitation created', {
     invitationId: result.id,
     orderId: result.orderId,
-    customerId,
-    email: result.email
+    customerId
   });
 
   return result;
@@ -201,6 +200,88 @@ export async function createInvitation(
 /**
  * Looks up an invitation by token, checks expiration, and updates status if expired
  */
+/**
+ * Checks if an invitation has a password set
+ * Returns true if passwordHash exists and is not empty
+ */
+export function hasPassword(invitation: Pick<CandidateInvitation, 'passwordHash'>): boolean {
+  return invitation.passwordHash !== null && invitation.passwordHash !== '';
+}
+
+
+/**
+ * Enhanced version of lookupByToken that includes customer data
+ * Used by the candidate landing page
+ */
+export async function lookupByTokenWithCustomer(token: string): Promise<InvitationLookupResponse | null> {
+  // Find the invitation by token with customer info
+  const invitation = await prisma.candidateInvitation.findUnique({
+    where: { token },
+    include: {
+      customer: true // Include customer for company name
+    }
+  });
+
+  if (!invitation) {
+    return null;
+  }
+
+  // Check if the invitation has expired
+  const now = new Date();
+  if (invitation.expiresAt < now && invitation.status !== INVITATION_STATUSES.EXPIRED) {
+    // Update status to expired, saving the previous status
+    await prisma.$transaction(async (tx) => {
+      await tx.candidateInvitation.update({
+        where: { id: invitation.id },
+        data: {
+          previousStatus: invitation.status,
+          status: INVITATION_STATUSES.EXPIRED,
+          updatedAt: new Date()
+        }
+      });
+
+      // Log the expiration event
+      await tx.orderStatusHistory.create({
+        data: {
+          order: { connect: { id: invitation.orderId } },
+          fromStatus: null,
+          toStatus: null,
+          user: { connect: { id: invitation.createdBy } }, // System action, use creator as the actor
+          eventType: ORDER_EVENT_TYPES.INVITATION_EXPIRED,
+          message: 'Invitation has expired',
+          isAutomatic: true,
+          createdAt: new Date()
+        }
+      });
+    });
+
+    // Update the invitation object to reflect the change
+    invitation.status = INVITATION_STATUSES.EXPIRED;
+  }
+
+  // Return enhanced invitation data with customer info and password status
+  const response: InvitationLookupResponse = {
+    id: invitation.id,
+    orderId: invitation.orderId,
+    customerId: invitation.customerId,
+    firstName: invitation.firstName,
+    lastName: invitation.lastName,
+    email: invitation.email,
+    phoneCountryCode: invitation.phoneCountryCode,
+    phoneNumber: invitation.phoneNumber,
+    status: invitation.status,
+    expiresAt: invitation.expiresAt,
+    createdAt: invitation.createdAt,
+    createdBy: invitation.createdBy,
+    completedAt: invitation.completedAt,
+    lastAccessedAt: invitation.lastAccessedAt,
+    customerName: invitation.customer.name,
+    hasPassword: hasPassword(invitation)
+  };
+
+  return response;
+}
+
 export async function lookupByToken(token: string): Promise<InvitationResponse | null> {
   // Find the invitation by token
   const invitation = await prisma.candidateInvitation.findUnique({
@@ -392,8 +473,8 @@ export async function resendInvitation(
     throw new Error('Invitation not found or does not belong to this customer');
   }
 
-  // Step 2: Verify status is sent or opened
-  if (invitation.status !== INVITATION_STATUSES.SENT && invitation.status !== INVITATION_STATUSES.OPENED) {
+  // Step 2: Verify status is sent or accessed
+  if (invitation.status !== INVITATION_STATUSES.SENT && invitation.status !== INVITATION_STATUSES.ACCESSED) {
     if (invitation.status === INVITATION_STATUSES.EXPIRED) {
       throw new Error('Cannot resend an expired invitation. Please extend it first.');
     }
@@ -408,15 +489,14 @@ export async function resendInvitation(
       toStatus: null,
       user: { connect: { id: userId } },
       eventType: ORDER_EVENT_TYPES.INVITATION_RESENT,
-      message: `Invitation resent to ${invitation.email}`,
+      message: 'Invitation resent',
       isAutomatic: false,
       createdAt: new Date()
     }
   });
 
   logger.info('Invitation resent', {
-    invitationId,
-    email: invitation.email
+    invitationId
   });
 
   // Note: Actual email sending will be implemented in a future phase
