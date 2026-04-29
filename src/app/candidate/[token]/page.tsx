@@ -1,4 +1,4 @@
-// /GlobalRX_v2/src/app/portal/candidate/[token]/page.tsx
+// /GlobalRX_v2/src/app/candidate/[token]/page.tsx
 
 import { CandidateLandingContent } from '@/components/candidate/CandidateLandingContent';
 
@@ -9,7 +9,7 @@ import { CandidateLandingContent } from '@/components/candidate/CandidateLanding
  * It handles token validation, shows appropriate content based on invitation status,
  * and allows first-time password creation. Uses a standalone layout without admin portal chrome.
  *
- * URL pattern: /portal/candidate/[token]
+ * URL pattern: /candidate/[token]
  * Authentication: None required (token-based access)
  * Mobile-first design: Optimized for mobile devices per specification
  */

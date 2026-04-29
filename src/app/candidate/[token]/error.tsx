@@ -1,4 +1,4 @@
-// /GlobalRX_v2/src/app/portal/candidate/[token]/error.tsx
+// /GlobalRX_v2/src/app/candidate/[token]/error.tsx
 
 'use client';
 
