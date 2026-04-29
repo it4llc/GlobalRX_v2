@@ -13,7 +13,7 @@ type TranslationRecord = Record<string, string>;
 interface TranslationContextType {
   locale: string;
   translations: TranslationRecord;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
   setLocale: (locale: string) => void;
 }
 
@@ -89,9 +89,19 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     }
   };
   
-  // Translation function
-  const t = (key: string): string => {
-    return translations[key] || key;
+  // Translation function with placeholder support
+  const t = (key: string, params?: Record<string, string | number>): string => {
+    let text = translations[key] || key;
+
+    // Replace placeholders like {{paramName}} with actual values
+    if (params) {
+      Object.entries(params).forEach(([paramKey, paramValue]) => {
+        const placeholder = `{{${paramKey}}}`;
+        text = text.replace(new RegExp(placeholder, 'g'), String(paramValue));
+      });
+    }
+
+    return text;
   };
   
   // During server-side rendering or initial mount, just render children

@@ -84,6 +84,55 @@ Creates a new candidate invitation with an associated draft order.
 
 ---
 
+### Enhanced Invitation Lookup
+
+**GET** `/api/candidate/invitations/enhanced/[token]`
+
+Enhanced invitation lookup that includes customer company name and password status. Used by the candidate landing page to provide a complete view of the invitation.
+
+#### Path Parameters
+
+- `token` (string): The unique invitation token from the email link
+
+#### Response
+
+**200 OK**
+```json
+{
+  "id": "uuid",
+  "orderId": "uuid",
+  "customerId": "uuid",
+  "firstName": "string",
+  "lastName": "string",
+  "email": "string",
+  "phoneCountryCode": "string",
+  "phoneNumber": "string",
+  "status": "sent",
+  "expiresAt": "2026-04-23T12:00:00Z",
+  "createdAt": "2026-04-23T12:00:00Z",
+  "createdBy": "uuid",
+  "completedAt": null,
+  "lastAccessedAt": null,
+  "customerName": "Company Name",
+  "hasPassword": false
+}
+```
+
+#### Automatic Expiration Handling
+
+If the invitation has expired but the status hasn't been updated yet, this endpoint will automatically:
+- Update the status to `expired`
+- Save the previous status in `previousStatus`
+- Log an expiration event to the order history
+
+#### Error Responses
+
+- **400**: Token parameter is missing
+- **404**: No invitation found for this token
+- **500**: Database error
+
+---
+
 ### Lookup Invitation
 
 **GET** `/api/candidate/invitations/lookup/[token]`
@@ -225,6 +274,64 @@ Empty body `{}`
 
 ---
 
+### Create Candidate Password
+
+**POST** `/api/candidate/auth/create-password`
+
+Creates a password for a candidate using their invitation token. This is the first step for a candidate accessing their application portal.
+
+#### Authentication
+
+This endpoint intentionally does NOT require authentication. The token itself serves as authentication for this one-time operation.
+
+#### Request Body
+
+```json
+{
+  "token": "secure-invitation-token",  // Required: The invitation token from the URL
+  "password": "string"                 // Required: The password to set
+}
+```
+
+#### Password Requirements
+
+- Minimum 8 characters
+- Must contain at least one letter
+- Must contain at least one number
+
+#### Business Rules
+
+- Token must exist and be valid
+- Invitation must not have expired
+- Password must not already exist for this invitation
+- Invitation must not already be completed
+
+#### Response
+
+**200 OK**
+```json
+{
+  "success": true,
+  "status": "accessed"
+}
+```
+
+#### Security Actions Performed
+
+On successful password creation:
+1. Password is hashed using bcrypt with the same security settings as user passwords
+2. Invitation status is updated from "sent" to "accessed"
+3. `lastAccessedAt` timestamp is updated to current time
+4. Event is logged to order history with type "CANDIDATE_PASSWORD_CREATED"
+
+#### Error Responses
+
+- **400**: Invalid input (validation failed), invitation expired, password already created, or weak password
+- **404**: Token not found
+- **500**: Database or hashing error
+
+---
+
 ## Event Logging
 
 All invitation operations are logged to the `OrderStatusHistory` table with appropriate event types:
@@ -233,5 +340,6 @@ All invitation operations are logged to the `OrderStatusHistory` table with appr
 - `invitation_resent`: Invitation resent to candidate
 - `invitation_extended`: Invitation expiration extended
 - `invitation_expired`: Invitation automatically expired
+- `CANDIDATE_PASSWORD_CREATED`: Candidate created their password (Phase 5 Stage 1)
 
 These events include descriptive messages and are visible in order activity logs.
