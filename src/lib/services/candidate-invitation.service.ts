@@ -3,6 +3,7 @@
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
+import { OrderNumberService } from '@/lib/services/order-number.service';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
 import { ORDER_EVENT_TYPES } from '@/constants/order-event-type';
 import type { CreateInvitationInput, InvitationResponse, InvitationLookupResponse } from '@/types/candidateInvitation';
@@ -102,36 +103,11 @@ export async function createInvitation(
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + expirationDays);
 
-  // Step 6: Generate order number in format YYYYMMDD-CODE-NNNN
-  // First, get the customer code for the order number
-  const customer = await prisma.customer.findUnique({
-    where: { id: customerId },
-    select: { name: true }
-  });
-
-  const customerCode = customer?.name
-    .split(' ')
-    .map(word => word[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 3) || 'XXX';
-
-  const today = new Date();
-  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-
-  // Get the count of orders for this customer today for the sequence number
-  const ordersToday = await prisma.order.count({
-    where: {
-      customerId,
-      createdAt: {
-        gte: new Date(today.setHours(0, 0, 0, 0)),
-        lt: new Date(today.setHours(23, 59, 59, 999))
-      }
-    }
-  });
-
-  const sequence = (ordersToday + 1).toString().padStart(4, '0');
-  const orderNumber = `${dateStr}-${customerCode}-${sequence}`;
+  // Step 6: Generate order number using the OrderNumberService with collision handling
+  // Fixed bug: Previously this manually counted existing orders which created race conditions
+  // in concurrent scenarios. OrderNumberService implements the retry pattern to handle
+  // unique constraint violations properly.
+  const orderNumber = await OrderNumberService.generateOrderNumber(customerId);
 
   // Step 7: Create everything in a transaction
   const result = await prisma.$transaction(async (tx) => {
