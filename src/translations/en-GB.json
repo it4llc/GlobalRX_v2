@@ -406,7 +406,7 @@
   "invitation.event.extended": "Expiration extended",
   "invitation.event.resent": "Invitation resent",
   "invitation.event.expired": "Invitation expired",
-  "invitation.event.opened": "Invitation opened by candidate",
+  "invitation.event.accessed": "Invitation accessed by candidate",
   "candidate.landing.welcome": "Welcome, {{firstName}}!",
   "candidate.landing.invitation": "{{companyName}} has invited you to complete a background check application.",
   "candidate.landing.getStarted": "To get started, please create a password that you'll use to access your application.",

@@ -34,7 +34,7 @@ export default withAuth(
         }
 
         // Allow access to candidate portal (candidates use token auth, not session auth)
-        if (path.startsWith('/portal/candidate/')) {
+        if (path.startsWith('/candidate/')) {
           return true;
         }
 
