@@ -21,7 +21,7 @@ export function InvitationSuccessStep({ invitation, onClose }: InvitationSuccess
 
   // Build the invitation link
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-  const invitationLink = `${baseUrl}/invite/${invitation.token}`;
+  const invitationLink = `${baseUrl}/candidate/${invitation.token}`;
 
   // Format expiration date
   const expirationDate = new Date(invitation.expiresAt).toLocaleDateString('en-US', {

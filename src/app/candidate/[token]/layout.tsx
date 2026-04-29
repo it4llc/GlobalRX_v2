@@ -1,4 +1,4 @@
-// /GlobalRX_v2/src/app/portal/candidate/[token]/layout.tsx
+// /GlobalRX_v2/src/app/candidate/[token]/layout.tsx
 
 import { ReactNode } from 'react';
 
