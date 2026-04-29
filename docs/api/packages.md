@@ -17,7 +17,7 @@ Retrieves packages for the current customer, optionally filtered by workflow pre
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `hasWorkflow` | boolean | No | When `true`, returns only packages with active workflows |
+| `hasWorkflow` | boolean | No | When `true`, returns only packages with active, enabled workflows (status='active' AND disabled=false) |
 
 ### Request Example
 
@@ -96,6 +96,7 @@ Authorization: Cookie (session)
 - Only packages belonging to the authenticated customer are returned
 - Empty array is returned if customer has no packages or no packages match filter
 - The `hasWorkflow` filter is exact: only `hasWorkflow=true` applies filtering, all other values are ignored
+- **Active workflows only:** The `hasWorkflow=true` filter excludes packages with draft, archived, or disabled workflows. Only packages with workflows in 'active' status and not disabled are returned.
 
 ### Implementation Details
 
