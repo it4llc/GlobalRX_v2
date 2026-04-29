@@ -187,8 +187,10 @@ describe('CandidateLandingContent', () => {
       render(<CandidateLandingContent token={mockToken} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Welcome Back')).toBeInTheDocument();
-        expect(screen.getByText(/come back later/)).toBeInTheDocument();
+        // When password exists, it should render the LoginForm component
+        expect(screen.getByTestId('candidate-login-form')).toBeInTheDocument();
+        // Check for company name that's displayed in the LoginForm
+        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
       });
     });
   });
