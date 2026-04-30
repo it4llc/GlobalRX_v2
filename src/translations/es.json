@@ -435,6 +435,7 @@
   "candidate.landing.passwordNoNumber": "Password must include at least one number",
   "candidate.landing.success": "Your password has been created!",
   "candidate.landing.successMessage": "You can return to this link at any time to continue your application.",
+  "candidate.landing.redirectingToPortal": "Redirecting to your application...",
   "candidate.landing.invalidLink": "This link is not valid",
   "candidate.landing.invalidLinkMessage": "Please check your email for the correct link, or contact the company that sent you the invitation.",
   "candidate.landing.expiredLink": "This invitation link has expired",

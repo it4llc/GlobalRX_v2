@@ -1,7 +1,6 @@
 // /GlobalRX_v2/src/app/api/candidate/application/[token]/structure/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import type { CandidatePortalStructureResponse, CandidatePortalSection } from '@/types/candidate-portal';
@@ -32,23 +31,12 @@ export async function GET(
     // Next.js 15: params is a Promise that must be awaited before destructuring
     const { token } = await params;
 
-    // Step 1: Check for candidate session
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('candidate_session');
+    // Step 1: Check for candidate session using the service
+    const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+    const sessionData = await CandidateSessionService.getSession();
 
-    if (!sessionCookie) {
+    if (!sessionData) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Parse session data
-    let sessionData;
-    try {
-      sessionData = JSON.parse(sessionCookie.value);
-    } catch (error) {
-      logger.error('Failed to parse candidate session', {
-        event: 'candidate_session_parse_error'
-      });
-      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
     // Step 2: Verify token matches
@@ -56,14 +44,23 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Step 3: Load invitation with all related data
+    // Step 3: Load invitation with all related data including package
     const invitation = await prisma.candidateInvitation.findUnique({
       where: { token },
       include: {
         order: {
           include: {
-            customer: true,
-            orderItems: {
+            customer: true
+          }
+        },
+        package: {
+          include: {
+            workflow: {
+              include: {
+                sections: true
+              }
+            },
+            packageServices: {
               include: {
                 service: true
               }
@@ -77,38 +74,15 @@ export async function GET(
       return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
     }
 
-    // Step 4: Derive package from order services
-    // Get unique service IDs from the order items
-    const serviceIds = Array.from(new Set(
-      invitation.order.orderItems.map(item => item.serviceId).filter(Boolean)
-    ));
+    // Step 4: Get the package directly from the invitation
+    const orderedPackage = invitation.package;
 
-    // Find packages that contain exactly these services
-    const packages = await prisma.package.findMany({
-      where: {
-        customerId: invitation.order.customerId,
-        disabled: false
-      },
-      include: {
-        workflow: {
-          include: {
-            sections: true
-          }
-        },
-        packageServices: {
-          include: {
-            service: true
-          }
-        }
-      }
-    });
+    if (!orderedPackage) {
+      console.error('No package found on invitation:', invitation.id);
+      return NextResponse.json({ error: 'No package associated with invitation' }, { status: 500 });
+    }
 
-    // Find the package that best matches the ordered services
-    const orderedPackage = packages.find(pkg => {
-      const pkgServiceIds = pkg.packageServices.map(ps => ps.serviceId);
-      return pkgServiceIds.length === serviceIds.length &&
-        serviceIds.every(id => pkgServiceIds.includes(id));
-    });
+    console.log('Using package from invitation:', orderedPackage.name);
 
     // Step 5: Build section list
     const sections: CandidatePortalSection[] = [];
@@ -117,7 +91,7 @@ export async function GET(
     // Add before_services workflow sections
     if (orderedPackage?.workflow?.sections) {
       const beforeSections = orderedPackage.workflow.sections
-        .filter(s => s.placement === 'before_services' && !s.disabled)
+        .filter(s => s.placement === 'before_services')
         .sort((a, b) => a.order - b.order);
 
       for (const section of beforeSections) {
@@ -133,16 +107,16 @@ export async function GET(
       }
     }
 
-    // Add service sections (deduplicated by functionality type)
-    const servicesByType = new Map<string, typeof invitation.order.orderItems[0][]>();
+    // Add service sections from package services (deduplicated by functionality type)
+    const servicesByType = new Map<string, typeof orderedPackage.packageServices[0][]>();
 
-    for (const item of invitation.order.orderItems) {
-      if (item.service?.functionalityType) {
-        const type = item.service.functionalityType;
+    for (const packageService of orderedPackage.packageServices) {
+      if (packageService.service?.functionalityType) {
+        const type = packageService.service.functionalityType;
         if (!servicesByType.has(type)) {
           servicesByType.set(type, []);
         }
-        servicesByType.get(type)!.push(item);
+        servicesByType.get(type)!.push(packageService);
       }
     }
 
@@ -172,7 +146,7 @@ export async function GET(
     // Add after_services workflow sections
     if (orderedPackage?.workflow?.sections) {
       const afterSections = orderedPackage.workflow.sections
-        .filter(s => s.placement === 'after_services' && !s.disabled)
+        .filter(s => s.placement === 'after_services')
         .sort((a, b) => a.order - b.order);
 
       for (const section of afterSections) {
