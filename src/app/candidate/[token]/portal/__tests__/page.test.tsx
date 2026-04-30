@@ -307,7 +307,7 @@ describe('CandidatePortalPage', () => {
         expect(screen.getByText('candidate.portal.errorLoading')).toBeInTheDocument();
       });
 
-      // Mock logout endpoint
+      // Mock signout endpoint
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true
       } as Response);
@@ -316,7 +316,7 @@ describe('CandidatePortalPage', () => {
       await user.click(screen.getByText('candidate.portal.signOut'));
 
       await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith('/api/candidate/auth/logout', {
+        expect(fetch).toHaveBeenCalledWith('/api/candidate/auth/signout', {
           method: 'POST'
         });
       });
@@ -351,7 +351,7 @@ describe('CandidatePortalPage', () => {
         expect(screen.getByTestId('portal-expired')).toBeInTheDocument();
       });
 
-      // Mock logout endpoint
+      // Mock signout endpoint
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true
       } as Response);
@@ -360,7 +360,7 @@ describe('CandidatePortalPage', () => {
       await user.click(screen.getByText('candidate.portal.signOut'));
 
       await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith('/api/candidate/auth/logout', {
+        expect(fetch).toHaveBeenCalledWith('/api/candidate/auth/signout', {
           method: 'POST'
         });
       });
@@ -395,7 +395,7 @@ describe('CandidatePortalPage', () => {
         expect(screen.getByTestId('portal-completed')).toBeInTheDocument();
       });
 
-      // Mock logout endpoint
+      // Mock signout endpoint
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true
       } as Response);
@@ -404,7 +404,7 @@ describe('CandidatePortalPage', () => {
       await user.click(screen.getByText('candidate.portal.signOut'));
 
       await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith('/api/candidate/auth/logout', {
+        expect(fetch).toHaveBeenCalledWith('/api/candidate/auth/signout', {
           method: 'POST'
         });
       });
@@ -437,20 +437,6 @@ describe('CandidatePortalPage', () => {
       });
 
       expect(screen.getByTestId('section-count')).toHaveTextContent('0');
-    });
-
-    it.skip('should handle network error during session check', async () => {
-      // Skip this test as it has timing issues with how React handles
-      // immediate rejections in useEffect
-      vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
-
-      render(<CandidatePortalPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('candidate.portal.errorLoading')).toBeInTheDocument();
-      }, { timeout: 5000 });
-
-      expect(screen.getByText('Network error')).toBeInTheDocument();
     });
 
     it('should handle network error during structure fetch', async () => {

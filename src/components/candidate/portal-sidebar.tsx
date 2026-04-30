@@ -67,11 +67,12 @@ export default function PortalSidebar({
                 onSectionClick(section.id);
                 if (onClose) onClose();
               }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors ${
+              className={`w-full flex items-center justify-between px-3 py-2 min-h-[44px] rounded-md text-left transition-colors ${
                 activeSection === section.id
                   ? 'bg-blue-50 text-blue-700'
                   : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
               }`}
+              // min-h-[44px] ensures mobile touch targets meet accessibility standards
             >
               <span className="flex-1 mr-3">{section.title}</span>
               <div className="flex items-center space-x-2">
@@ -110,7 +111,7 @@ export default function PortalSidebar({
               </h2>
               <button
                 onClick={onClose}
-                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                className="p-2 min-h-[44px] min-w-[44px] rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 flex items-center justify-center"
                 aria-label="Close menu"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

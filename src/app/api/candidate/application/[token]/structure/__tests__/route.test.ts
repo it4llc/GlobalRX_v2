@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { GET } from '../route';
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 
 // Mock logger
 vi.mock('@/lib/logger', () => ({
@@ -162,7 +163,19 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         invitationId: 'inv-123'
       });
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        mockInvitation as Prisma.CandidateInvitationGetPayload<{
+          include: {
+            order: { include: { customer: true } },
+            package: {
+              include: {
+                workflow: { include: { sections: true } },
+                packageServices: { include: { service: true } }
+              }
+            }
+          }
+        }>
+      );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
@@ -287,7 +300,19 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       };
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(invitationWithDuplicates as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        invitationWithDuplicates as Prisma.CandidateInvitationGetPayload<{
+          include: {
+            order: { include: { customer: true } },
+            package: {
+              include: {
+                workflow: { include: { sections: true } },
+                packageServices: { include: { service: true } }
+              }
+            }
+          }
+        }>
+      );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
@@ -321,7 +346,19 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       };
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(invitationNoWorkflow as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        invitationNoWorkflow as Prisma.CandidateInvitationGetPayload<{
+          include: {
+            order: { include: { customer: true } },
+            package: {
+              include: {
+                workflow: { include: { sections: true } },
+                packageServices: { include: { service: true } }
+              }
+            }
+          }
+        }>
+      );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
@@ -348,7 +385,19 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       };
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(invitationNoServices as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        invitationNoServices as Prisma.CandidateInvitationGetPayload<{
+          include: {
+            order: { include: { customer: true } },
+            package: {
+              include: {
+                workflow: { include: { sections: true } },
+                packageServices: { include: { service: true } }
+              }
+            }
+          }
+        }>
+      );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
@@ -410,7 +459,19 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       };
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(invitationMixedOrder as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        invitationMixedOrder as Prisma.CandidateInvitationGetPayload<{
+          include: {
+            order: { include: { customer: true } },
+            package: {
+              include: {
+                workflow: { include: { sections: true } },
+                packageServices: { include: { service: true } }
+              }
+            }
+          }
+        }>
+      );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
@@ -457,7 +518,19 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         package: null
       };
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(invitationNoPackage as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        invitationNoPackage as Prisma.CandidateInvitationGetPayload<{
+          include: {
+            order: { include: { customer: true } },
+            package: {
+              include: {
+                workflow: { include: { sections: true } },
+                packageServices: { include: { service: true } }
+              }
+            }
+          }
+        }>
+      );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
@@ -518,7 +591,19 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       };
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(emptyInvitation as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        emptyInvitation as Prisma.CandidateInvitationGetPayload<{
+          include: {
+            order: { include: { customer: true } },
+            package: {
+              include: {
+                workflow: { include: { sections: true } },
+                packageServices: { include: { service: true } }
+              }
+            }
+          }
+        }>
+      );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
@@ -543,7 +628,19 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       };
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(invitationNoCustomerName as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        invitationNoCustomerName as Prisma.CandidateInvitationGetPayload<{
+          include: {
+            order: { include: { customer: true } },
+            package: {
+              include: {
+                workflow: { include: { sections: true } },
+                packageServices: { include: { service: true } }
+              }
+            }
+          }
+        }>
+      );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
@@ -586,7 +683,19 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       };
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(invitationNullFunctionality as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        invitationNullFunctionality as Prisma.CandidateInvitationGetPayload<{
+          include: {
+            order: { include: { customer: true } },
+            package: {
+              include: {
+                workflow: { include: { sections: true } },
+                packageServices: { include: { service: true } }
+              }
+            }
+          }
+        }>
+      );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });

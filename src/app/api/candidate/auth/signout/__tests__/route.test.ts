@@ -1,4 +1,4 @@
-// /GlobalRX_v2/src/app/api/candidate/auth/logout/__tests__/route.test.ts
+// /GlobalRX_v2/src/app/api/candidate/auth/signout/__tests__/route.test.ts
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
@@ -12,16 +12,16 @@ vi.mock('@/lib/services/candidateSession.service', () => ({
   }
 }));
 
-describe('POST /api/candidate/auth/logout', () => {
+describe('POST /api/candidate/auth/signout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Ensure the mock returns successfully by default
     vi.mocked(CandidateSessionService.clearSession).mockResolvedValue(undefined);
   });
 
-  describe('logout functionality', () => {
+  describe('signout functionality', () => {
     it('should clear the candidate session', async () => {
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST'
       });
 
@@ -31,7 +31,7 @@ describe('POST /api/candidate/auth/logout', () => {
     });
 
     it('should return success response', async () => {
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST'
       });
 
@@ -46,7 +46,7 @@ describe('POST /api/candidate/auth/logout', () => {
     });
 
     it('should not require any request body', async () => {
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST'
         // No body
       });
@@ -59,7 +59,7 @@ describe('POST /api/candidate/auth/logout', () => {
     });
 
     it('should ignore request body if provided', async () => {
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST',
         body: JSON.stringify({
           someField: 'someValue',
@@ -82,17 +82,17 @@ describe('POST /api/candidate/auth/logout', () => {
     it('should still return success even if clearSession throws an error', async () => {
       vi.mocked(CandidateSessionService.clearSession).mockRejectedValue(new Error('Clear session failed'));
 
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST'
       });
 
       // The route doesn't have explicit error handling, so this would throw
-      // But in a real implementation, logout endpoints often succeed even if cleanup fails
+      // But in a real implementation, signout endpoints often succeed even if cleanup fails
       await expect(POST(request)).rejects.toThrow();
     });
 
     it('should work with malformed request body', async () => {
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST',
         body: 'invalid-json-data'
       });
@@ -107,10 +107,10 @@ describe('POST /api/candidate/auth/logout', () => {
   });
 
   describe('authentication independence', () => {
-    it('should not require any authentication to logout', async () => {
+    it('should not require any authentication to signout', async () => {
       // This endpoint should work even without a valid session
       // It's safe to clear a session that doesn't exist
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST'
       });
 
@@ -123,7 +123,7 @@ describe('POST /api/candidate/auth/logout', () => {
 
     it('should not use NextAuth or system authentication', async () => {
       // This test documents that the endpoint is independent of the main auth system
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST',
         headers: {
           // Even with system auth headers, should still work
@@ -145,7 +145,7 @@ describe('POST /api/candidate/auth/logout', () => {
 
   describe('response format', () => {
     it('should return JSON content type', async () => {
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST'
       });
 
@@ -155,7 +155,7 @@ describe('POST /api/candidate/auth/logout', () => {
     });
 
     it('should return consistent response structure', async () => {
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST'
       });
 
@@ -174,7 +174,7 @@ describe('POST /api/candidate/auth/logout', () => {
 
   describe('session service integration', () => {
     it('should call clearSession exactly once per request', async () => {
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST'
       });
 
@@ -185,7 +185,7 @@ describe('POST /api/candidate/auth/logout', () => {
     });
 
     it('should call clearSession with no arguments', async () => {
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST'
       });
 
@@ -201,7 +201,7 @@ describe('POST /api/candidate/auth/logout', () => {
     it('should only accept POST requests', async () => {
       // The route file only exports POST, so GET requests would result in 405
       // This is handled by Next.js framework, not our code
-      const request = new NextRequest('http://localhost/api/candidate/auth/logout', {
+      const request = new NextRequest('http://localhost/api/candidate/auth/signout', {
         method: 'POST'
       });
 

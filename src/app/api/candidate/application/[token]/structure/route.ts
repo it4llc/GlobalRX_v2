@@ -14,14 +14,33 @@ import type { CandidatePortalStructureResponse, CandidatePortalSection } from '@
  * Required authentication: Valid candidate_session cookie with matching token
  *
  * Path params:
- *   - token: The invitation token
+ *   - token: The invitation token (string, required)
  *
- * Returns: { invitation: CandidateInvitationInfo, sections: CandidatePortalSection[] }
+ * Response shape:
+ * {
+ *   invitation: {
+ *     firstName: string         // Candidate's first name
+ *     lastName: string          // Candidate's last name
+ *     status: string            // One of: pending, in_progress, completed, expired
+ *     expiresAt: string         // ISO date when invitation expires
+ *     companyName: string       // Name of the customer who sent the invitation
+ *   },
+ *   sections: [{
+ *     id: string                // Unique identifier for this section
+ *     title: string             // Display name shown to the candidate
+ *     type: string              // One of: workflow_section, service_section
+ *     placement: string         // One of: before_services, services, after_services
+ *     status: string            // One of: not_started, in_progress, complete
+ *     order: number             // Sort position within its placement group
+ *     functionalityType?: string // For service sections: idv, record, verification-edu, verification-emp
+ *   }]
+ * }
  *
  * Errors:
  *   - 401: No session or invalid session
  *   - 403: Session token doesn't match URL token
  *   - 404: Invitation not found
+ *   - 500: No package associated with invitation
  */
 export async function GET(
   request: NextRequest,
@@ -39,12 +58,17 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Step 2: Verify token matches
+    // Step 2: Input validation - validate token format
+    if (!token || typeof token !== 'string' || token.length === 0) {
+      return NextResponse.json({ error: 'Invalid token parameter' }, { status: 400 });
+    }
+
+    // Step 3: Verify token matches session
     if (sessionData.token !== token) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Step 3: Load invitation with all related data including package
+    // Step 4: Load invitation with all related data including package
     const invitation = await prisma.candidateInvitation.findUnique({
       where: { token },
       include: {
@@ -75,14 +99,16 @@ export async function GET(
     }
 
     // Step 4: Get the package directly from the invitation
+    // Phase 5 Stage 3 added packageId to CandidateInvitation for direct access
+    // Previously we had to traverse through order -> order items -> package
     const orderedPackage = invitation.package;
 
     if (!orderedPackage) {
-      console.error('No package found on invitation:', invitation.id);
+      logger.error('No package found on invitation', { invitationId: invitation.id });
       return NextResponse.json({ error: 'No package associated with invitation' }, { status: 500 });
     }
 
-    console.log('Using package from invitation:', orderedPackage.name);
+    logger.debug('Using package from invitation', { packageName: orderedPackage.name, packageId: orderedPackage.id });
 
     // Step 5: Build section list
     const sections: CandidatePortalSection[] = [];

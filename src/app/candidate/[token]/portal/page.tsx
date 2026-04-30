@@ -75,7 +75,7 @@ export default function CandidatePortalPage() {
 
   const handleSignOut = async () => {
     try {
-      await fetch('/api/candidate/auth/logout', {
+      await fetch('/api/candidate/auth/signout', {
         method: 'POST'
       });
     } finally {

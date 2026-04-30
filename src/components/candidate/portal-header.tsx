@@ -26,7 +26,8 @@ export default function PortalHeader({
 
   const handleSignOut = async () => {
     try {
-      await fetch('/api/candidate/auth/logout', {
+      // Phase 5 Stage 3 renamed logout to signout for semantic clarity
+      await fetch('/api/candidate/auth/signout', {
         method: 'POST'
       });
     } finally {

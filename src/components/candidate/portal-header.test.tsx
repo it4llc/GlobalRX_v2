@@ -132,7 +132,7 @@ describe('PortalHeader', () => {
     it('should handle sign out when sign out button is clicked', async () => {
       const user = userEvent.setup();
 
-      // Mock successful logout response
+      // Mock successful signout response
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true
       } as Response);
@@ -147,8 +147,8 @@ describe('PortalHeader', () => {
       const signOutButton = screen.getByText('candidate.portal.signOut');
       await user.click(signOutButton);
 
-      // Should call logout endpoint
-      expect(fetch).toHaveBeenCalledWith('/api/candidate/auth/logout', {
+      // Should call signout endpoint
+      expect(fetch).toHaveBeenCalledWith('/api/candidate/auth/signout', {
         method: 'POST'
       });
 
@@ -156,10 +156,10 @@ describe('PortalHeader', () => {
       expect(mockPush).toHaveBeenCalledWith(`/candidate/${mockToken}`);
     });
 
-    it('should redirect even if logout API fails', async () => {
+    it('should redirect even if signout API fails', async () => {
       const user = userEvent.setup();
 
-      // Mock failed logout response (500 error) instead of network rejection
+      // Mock failed signout response (500 error) instead of network rejection
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: false,
         status: 500
@@ -184,7 +184,7 @@ describe('PortalHeader', () => {
     it('should handle multiple rapid clicks on sign out', async () => {
       const user = userEvent.setup();
 
-      // Mock successful logout responses
+      // Mock successful signout responses
       vi.mocked(fetch).mockResolvedValue({
         ok: true
       } as Response);
