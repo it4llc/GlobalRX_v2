@@ -415,6 +415,20 @@ The candidate does NOT see metadata like retention handling or requires verifica
 
 ---
 
+## Forward-Looking Note: Three-State Field Visibility
+
+Currently, a field in DSX is either required or optional. A planned future enhancement will expand this to three states per location: **required** (must be filled in), **optional but displayed** (shown to the candidate but not mandatory), and **not displayed** (hidden entirely for that location).
+
+The current spec already supports this future change well. The fields API already fetches fields on a per-service, per-country basis, so location-specific visibility is just an additional filter at that level. When the three-state model is implemented:
+
+- Fields marked "not displayed" for the selected country would simply not be returned by the fields API
+- Fields marked "optional but displayed" would be returned with `isRequired: false`
+- Fields marked "required" would be returned with `isRequired: true`
+
+No architectural changes are needed — this is a minor enhancement to the API filtering logic and the DSX data model. The implementer does NOT need to build anything for this now. This note is here so that the design choices made in this stage (particularly the per-country field lookup) are understood to be intentionally compatible with this future direction.
+
+---
+
 ## Data Storage
 
 ### Where candidate data is saved
@@ -470,17 +484,19 @@ The locked/pre-filled fields (first name, last name, email, phone) come from the
 
 9. **collectionTab drives section placement** — Fields are placed in the Personal Information section or a service section based on their `collectionTab` value in DSX. If a field's `collectionTab` indicates personal info, it appears in the Personal Information section and is filtered OUT of any service section.
 
-10. **Personal info fields are deduplicated** — If the same personal info field is required by multiple services in the package, it appears only once in the Personal Information section.
+10. **Personal Info must only contain location-independent fields** — The Personal Information section is displayed before the candidate has selected a country on any service section. This means there is no way to know the candidate's location at the time Personal Info is collected. Therefore, the DSX configuration team must only assign fields to the Personal Info `collectionTab` if those fields are the same across all locations — things like names, date of birth, phone numbers, and email. Any field that varies by location (different ID number types, location-specific options, fields that only apply in certain countries) must stay on its service-specific tab, where the candidate selects a country first. **This is a DSX configuration rule, not a code rule** — the system does not enforce it automatically. It should be documented in whatever training or reference materials the DSX configuration team uses.
 
-11. **Pre-filled fields are locked** — Fields that match invitation data (firstName, lastName, email, phone) are displayed but cannot be edited. Editing locked fields is a future enhancement that will require change tracking and flagging.
+11. **Personal info fields are deduplicated** — If the same personal info field is required by multiple services in the package, it appears only once in the Personal Information section.
 
-12. **IDV is single-entry** — Unlike education or employment (Stage 2), the IDV section has exactly one set of fields. There is no "add another" button.
+12. **Pre-filled fields are locked** — Fields that match invitation data (firstName, lastName, email, phone) are displayed but cannot be edited. Editing locked fields is a future enhancement that will require change tracking and flagging.
 
-13. **Personal Information is single-entry** — Like IDV, there is exactly one set of personal info fields. No "add another" button.
+13. **IDV is single-entry** — Unlike education or employment (Stage 2), the IDV section has exactly one set of fields. There is no "add another" button.
 
-14. **No validation enforcement yet** — Fields may be marked as required in the field definition, and the required indicator is shown, but the form does NOT prevent the candidate from moving to another section with empty required fields. Validation enforcement is Phase 7.
+14. **Personal Information is single-entry** — Like IDV, there is exactly one set of personal info fields. No "add another" button.
 
-15. **All field metadata is preserved** — The fields API returns the complete `fieldData` and `documentData` from DSX. Nothing is stripped. Properties like `retentionHandling`, `requiresVerification`, and `collectionTab` all flow through intact.
+15. **No validation enforcement yet** — Fields may be marked as required in the field definition, and the required indicator is shown, but the form does NOT prevent the candidate from moving to another section with empty required fields. Validation enforcement is Phase 7.
+
+16. **All field metadata is preserved** — The fields API returns the complete `fieldData` and `documentData` from DSX. Nothing is stripped. Properties like `retentionHandling`, `requiresVerification`, and `collectionTab` all flow through intact.
 
 ---
 
