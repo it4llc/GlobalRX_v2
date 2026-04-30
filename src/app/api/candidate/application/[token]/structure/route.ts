@@ -92,12 +92,12 @@ export async function GET(
     if (orderedPackage?.workflow?.sections) {
       const beforeSections = orderedPackage.workflow.sections
         .filter(s => s.placement === 'before_services')
-        .sort((a, b) => a.order - b.order);
+        .sort((a, b) => a.displayOrder - b.displayOrder); // WorkflowSection uses 'displayOrder'
 
       for (const section of beforeSections) {
         sections.push({
           id: section.id,
-          title: section.title,
+          title: section.name, // WorkflowSection uses 'name' not 'title'
           type: 'workflow_section',
           placement: 'before_services',
           status: 'not_started',
@@ -147,12 +147,12 @@ export async function GET(
     if (orderedPackage?.workflow?.sections) {
       const afterSections = orderedPackage.workflow.sections
         .filter(s => s.placement === 'after_services')
-        .sort((a, b) => a.order - b.order);
+        .sort((a, b) => a.displayOrder - b.displayOrder); // WorkflowSection uses 'displayOrder'
 
       for (const section of afterSections) {
         sections.push({
           id: section.id,
-          title: section.title,
+          title: section.name, // WorkflowSection uses 'name' not 'title'
           type: 'workflow_section',
           placement: 'after_services',
           status: 'not_started',
