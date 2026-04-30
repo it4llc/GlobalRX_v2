@@ -34,6 +34,16 @@ export function CandidateLandingContent({ token }: CandidateLandingContentProps)
     fetchInvitation();
   }, [token]);
 
+  // Auto-redirect after password creation success
+  React.useEffect(() => {
+    if (state === 'password-success') {
+      const timer = setTimeout(() => {
+        window.location.href = `/candidate/${token}/portal`;
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [state, token]);
+
   const fetchInvitation = async () => {
     setState('loading');
     setErrorMessage(null);
@@ -174,8 +184,11 @@ export function CandidateLandingContent({ token }: CandidateLandingContentProps)
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               {t('candidate.landing.success')}
             </h2>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-2">
               {t('candidate.landing.successMessage')}
+            </p>
+            <p className="text-gray-600">
+              {t('candidate.landing.redirectingToPortal')}
             </p>
           </div>
         );

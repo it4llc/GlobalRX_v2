@@ -53,7 +53,7 @@ export class CandidateSessionService {
       .setExpirationTime(Math.floor(sessionData.expiresAt.getTime() / 1000)) // Convert to Unix timestamp in seconds
       .sign(getSecretKey());
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -66,7 +66,7 @@ export class CandidateSessionService {
   // Verify and get session data from cookie
   static async getSession(): Promise<CandidateSessionData | null> {
     try {
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       const token = cookieStore.get(SESSION_COOKIE_NAME);
 
       if (!token?.value) {
@@ -108,7 +108,7 @@ export class CandidateSessionService {
 
   // Clear the session cookie
   static async clearSession(): Promise<void> {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete(SESSION_COOKIE_NAME);
   }
 

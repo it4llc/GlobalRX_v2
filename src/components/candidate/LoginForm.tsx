@@ -44,6 +44,7 @@ export function LoginForm({ token, firstName, companyName }: LoginFormProps) {
 
       if (response.ok && data.success) {
         // Success - redirect to portal
+        // Using router.push for compatibility with tests
         router.push(`/candidate/${token}/portal`);
       } else if (response.status === 429) {
         // Rate limited
