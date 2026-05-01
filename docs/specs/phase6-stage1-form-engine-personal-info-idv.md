@@ -299,13 +299,13 @@ The API matches invitation fields to DSX fields by `fieldKey`:
 
 The existing `GET /api/candidate/application/[token]/structure` endpoint currently returns sections based on the workflow and package services. It needs to be updated to:
 
-1. **Add a "Personal Information" section** as the very first section in the list, before any workflow "before" sections. This section has a fixed type of `personal_info` and always appears when there are personal info fields in the DSX configuration for any service in the package.
+1. **Add a "Personal Information" section** as the first of the service/data-collection sections — after any "before" workflow sections but before any service-specific sections like IDV or Education. This section has a fixed type of `personal_info` and always appears when there are personal info fields in the DSX configuration for any service in the package.
 
 2. **Include service IDs** in service-type sections (if not already present), so the form knows which services to load fields for.
 
 The section order after this change:
-1. Personal Information (new — always first)
-2. Before-service workflow sections
+1. Before-service workflow sections (disclosures, notices, etc.)
+2. Personal Information (new — first of the data collection sections)
 3. Service sections (IDV, Records, Education, Employment — in their fixed order)
 4. After-service workflow sections
 
@@ -505,9 +505,10 @@ The locked/pre-filled fields (first name, last name, email, phone) come from the
 ### First visit — Personal Information section
 
 1. Candidate logs in and sees the portal with sections in the sidebar
-2. "Personal Information" is the first section and is selected by default
-3. The section loads and shows the candidate's personal info fields
-4. First name, last name, email, and phone are already filled in (from the invitation) and visually locked — the candidate can see them but not edit them
+2. Any "before" workflow sections (disclosures, notices) appear first, followed by "Personal Information" as the first data-collection section
+3. Candidate clicks "Personal Information" in the sidebar
+4. The section loads and shows the candidate's personal info fields
+5. First name, last name, email, and phone are already filled in (from the invitation) and visually locked — the candidate can see them but not edit them
 5. Other fields like date of birth, middle name, etc. are empty and editable
 6. Candidate fills in their date of birth and tabs to the next field
 7. "Saving..." appears briefly, then "Saved" — their date of birth is now stored
@@ -593,7 +594,7 @@ Everything must be designed for mobile first and then work well on larger screen
 
 ## Definition of Done
 
-1. The Personal Information section appears first in the sidebar
+1. The Personal Information section appears as the first data-collection section in the sidebar — after any "before" workflow sections but before service sections like IDV
 2. Personal Information loads fields from DSX based on `collectionTab`
 3. Fields from the invitation (first name, last name, email, phone) are pre-filled and locked
 4. Locked fields are visually distinct and cannot be edited

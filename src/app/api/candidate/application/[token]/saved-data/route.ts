@@ -3,6 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
+import { INVITATION_STATUSES } from '@/constants/invitation-status';
+
+import type { CandidateFormData, FormSectionData } from '@/types/candidate-portal';
 
 /**
  * GET /api/candidate/application/[token]/saved-data
@@ -18,13 +21,13 @@ import logger from '@/lib/logger';
  *     "personal_info": {
  *       fields: [{
  *         requirementId: string
- *         value: any
+ *         value: string | number | boolean | null | string[]
  *       }]
  *     },
  *     "idv": {
  *       fields: [{
  *         requirementId: string
- *         value: any
+ *         value: string | number | boolean | null | string[]
  *       }]
  *     },
  *     ...
@@ -73,20 +76,20 @@ export async function GET(
     }
 
     // Check if invitation is already completed
-    if (invitation.status === 'completed') {
+    if (invitation.status === INVITATION_STATUSES.COMPLETED) {
       return NextResponse.json({ error: 'Invitation already completed' }, { status: 410 });
     }
 
     // Step 4: Extract saved data from formData
-    const formData = (invitation.formData as any) || { sections: {} };
+    const formData: CandidateFormData = (invitation.formData as unknown as CandidateFormData) || { sections: {} };
     const sections = formData.sections || {};
 
     // Step 5: Format response
     // Transform saved data into the expected format
-    const formattedSections: Record<string, any> = {};
+    const formattedSections: Record<string, unknown> = {};
 
     for (const [sectionId, sectionData] of Object.entries(sections)) {
-      const data = sectionData as any;
+      const data: FormSectionData = sectionData as FormSectionData;
 
       // Group by section type for cleaner response
       const sectionType = data.type || sectionId;

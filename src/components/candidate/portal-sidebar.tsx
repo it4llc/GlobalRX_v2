@@ -76,7 +76,7 @@ export default function PortalSidebar({
               data-active={activeSection === section.id}
               // min-h-[44px] ensures mobile touch targets meet accessibility standards
             >
-              <span className="flex-1 mr-3">{section.title}</span>
+              <span className="flex-1 mr-3">{t(section.title)}</span>
               <div className="flex items-center space-x-2">
                 {getStatusIcon(section.status)}
                 <span className="sr-only">{getStatusLabel(section.status)}</span>
@@ -97,6 +97,7 @@ export default function PortalSidebar({
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
             onClick={onClose}
+            data-testid="mobile-overlay"
           />
         )}
 
@@ -105,6 +106,7 @@ export default function PortalSidebar({
           className={`fixed top-0 left-0 h-full w-80 bg-white shadow-xl z-50 transform transition-transform duration-300 md:hidden ${
             isOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
+          data-testid="mobile-sidebar"
         >
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">

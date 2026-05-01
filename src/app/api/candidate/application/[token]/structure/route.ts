@@ -114,21 +114,6 @@ export async function GET(
     const sections: CandidatePortalSection[] = [];
     let sectionOrder = 0;
 
-    // Add Personal Information section as the very first section
-    // Check if there are any personal info fields configured for this package
-    const hasPersonalInfoFields = true; // For now, always show it. Later we can check DSX config
-    if (hasPersonalInfoFields) {
-      sections.push({
-        id: 'personal_info',
-        title: 'Personal Information',
-        type: 'personal_info',
-        placement: 'before_services',
-        status: 'not_started',
-        order: sectionOrder++,
-        functionalityType: null
-      });
-    }
-
     // Add before_services workflow sections
     if (orderedPackage?.workflow?.sections) {
       const beforeSections = orderedPackage.workflow.sections
@@ -148,6 +133,22 @@ export async function GET(
       }
     }
 
+    // Add Personal Information section - first of the data collection sections
+    // (after workflow "before" sections, before service-specific sections)
+    // Check if there are any personal info fields configured for this package
+    const hasPersonalInfoFields = true; // For now, always show it. Later we can check DSX config
+    if (hasPersonalInfoFields) {
+      sections.push({
+        id: 'personal_info',
+        title: 'candidate.portal.sections.personalInformation',
+        type: 'personal_info',
+        placement: 'services',
+        status: 'not_started',
+        order: sectionOrder++,
+        functionalityType: null
+      });
+    }
+
     // Add service sections from package services (deduplicated by functionality type)
     const servicesByType = new Map<string, typeof orderedPackage.packageServices[0][]>();
 
@@ -164,10 +165,10 @@ export async function GET(
     // Add service sections in fixed order
     const serviceTypeOrder = ['idv', 'record', 'verification-edu', 'verification-emp'];
     const serviceTitleMap: Record<string, string> = {
-      'idv': 'Identity Verification',
-      'record': 'Address History',
-      'verification-edu': 'Education History',
-      'verification-emp': 'Employment History'
+      'idv': 'candidate.portal.sections.identityVerification',
+      'record': 'candidate.portal.sections.addressHistory',
+      'verification-edu': 'candidate.portal.sections.educationHistory',
+      'verification-emp': 'candidate.portal.sections.employmentHistory'
     };
 
     for (const funcType of serviceTypeOrder) {

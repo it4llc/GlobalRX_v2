@@ -3,6 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
+import { INVITATION_STATUSES } from '@/constants/invitation-status';
+
+import type { FieldMetadata } from '@/types/candidate-portal';
 
 /**
  * GET /api/candidate/application/[token]/fields
@@ -87,7 +90,7 @@ export async function GET(
     }
 
     // Check if invitation is already completed
-    if (invitation.status === 'completed') {
+    if (invitation.status === INVITATION_STATUSES.COMPLETED) {
       return NextResponse.json({ error: 'Invitation already completed' }, { status: 410 });
     }
 
@@ -153,7 +156,7 @@ export async function GET(
     const fields = Array.from(allRequirements.values())
       .map(({ requirement, isRequired, displayOrder }) => {
         // Parse fieldData to get dataType and other metadata
-        const fieldData = requirement.fieldData as any || {};
+        const fieldData: FieldMetadata = (requirement.fieldData as unknown as FieldMetadata) || {};
 
         return {
           requirementId: requirement.id,

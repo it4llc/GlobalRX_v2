@@ -6,6 +6,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useTranslation } from '@/contexts/TranslationContext';
+import { clientLogger as logger } from '@/lib/client-logger';
+import type { FieldMetadata, DocumentMetadata, FieldValue } from '@/types/candidate-portal';
 import {
   Select,
   SelectContent,
@@ -22,8 +25,8 @@ interface IdvField {
   dataType: string;
   isRequired: boolean;
   instructions?: string | null;
-  fieldData?: any;
-  documentData?: any;
+  fieldData?: FieldMetadata | null;
+  documentData?: DocumentMetadata | null;
   displayOrder: number;
 }
 
@@ -37,8 +40,14 @@ interface IdvSectionProps {
  *
  * A self-contained component that replaces the IDV placeholder.
  * Includes country selector and dynamic field loading based on country.
+ *
+ * This component is intentionally self-contained to allow future replacement
+ * with third-party IDV provider integrations (embedded widgets, external redirects, etc.)
+ * without affecting the rest of the application. The parent only needs to know
+ * whether IDV is started/complete, not the internal field details.
  */
 export function IdvSection({ token, serviceIds }: IdvSectionProps) {
+  const { t } = useTranslation();
   const [countries, setCountries] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [fields, setFields] = useState<IdvField[]>([]);
@@ -68,7 +77,10 @@ export function IdvSection({ token, serviceIds }: IdvSectionProps) {
       ];
       setCountries(countryList);
     } catch (error) {
-      console.error('Failed to load countries:', error);
+      logger.error('Failed to load countries', {
+        event: 'countries_load_error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   };
 
@@ -97,7 +109,11 @@ export function IdvSection({ token, serviceIds }: IdvSectionProps) {
         setFormData(dataMap);
       }
     } catch (error) {
-      console.error('Failed to load saved IDV data:', error);
+      logger.error('Failed to load saved IDV data', {
+        event: 'idv_saved_data_load_error',
+        token,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   };
 
@@ -161,7 +177,13 @@ export function IdvSection({ token, serviceIds }: IdvSectionProps) {
       }
 
     } catch (error) {
-      console.error('Failed to load IDV fields:', error);
+      logger.error('Failed to load IDV fields', {
+        event: 'idv_fields_load_error',
+        token,
+        countryCode: selectedCountry,
+        serviceIds: serviceIds.join(','),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       setFields([]);
     } finally {
       setLoading(false);
@@ -192,7 +214,7 @@ export function IdvSection({ token, serviceIds }: IdvSectionProps) {
   }, [selectedCountry, fields, formData]);
 
   // Handle field value change
-  const handleFieldChange = useCallback((requirementId: string, value: any) => {
+  const handleFieldChange = useCallback((requirementId: string, value: FieldValue) => {
     setFormData(prev => ({
       ...prev,
       [requirementId]: value
@@ -255,7 +277,12 @@ export function IdvSection({ token, serviceIds }: IdvSectionProps) {
         }, 3000);
 
       } catch (error) {
-        console.error('Failed to save IDV data:', error);
+        logger.error('Failed to save IDV data', {
+          event: 'idv_save_error',
+          token,
+          sectionId: 'idv',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
         setSaveStatus('error');
 
         // Retry after 2 seconds
@@ -272,14 +299,14 @@ export function IdvSection({ token, serviceIds }: IdvSectionProps) {
     <div className="space-y-6">
       {/* Section header with save indicator */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold">Identity Verification</h2>
+        <h2 className="text-2xl font-semibold">{t('candidate.portal.sections.identityVerification')}</h2>
         <AutoSaveIndicator status={saveStatus} />
       </div>
 
       {/* Country selector */}
       <div className="space-y-2">
         <label htmlFor="country" className="block text-sm font-medium">
-          Select your country
+          {t('candidate.portal.idv.selectCountry')}
         </label>
         <Select
           value={selectedCountry}
@@ -291,7 +318,7 @@ export function IdvSection({ token, serviceIds }: IdvSectionProps) {
             className="min-h-[44px] text-base"
             data-testid="country-selector"
           >
-            <SelectValue placeholder="Choose a country" />
+            <SelectValue placeholder={t('candidate.portal.idv.chooseCountry')} />
           </SelectTrigger>
           <SelectContent>
             {countries.map(country => (
@@ -308,11 +335,11 @@ export function IdvSection({ token, serviceIds }: IdvSectionProps) {
         <div data-testid="idv-fields-container">
           {loading ? (
             <div className="flex items-center justify-center p-8">
-              <div className="text-gray-600">Loading fields...</div>
+              <div className="text-gray-600">{t('candidate.portal.loadingFields')}</div>
             </div>
           ) : fields.length === 0 ? (
             <div className="p-8 text-center text-gray-600">
-              No information is required for this section based on your selected country.
+              {t('candidate.portal.idv.noFieldsRequired')}
             </div>
           ) : (
             <div className="space-y-4">

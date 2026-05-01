@@ -2,7 +2,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
+import { INVITATION_STATUSES } from '@/constants/invitation-status';
+
+import type { FieldMetadata } from '@/types/candidate-portal';
 
 /**
  * GET /api/candidate/application/[token]/personal-info-fields
@@ -82,7 +86,7 @@ export async function GET(
     }
 
     // Check if invitation is already completed
-    if (invitation.status === 'completed') {
+    if (invitation.status === INVITATION_STATUSES.COMPLETED) {
       return NextResponse.json({ error: 'Invitation already completed' }, { status: 410 });
     }
 
@@ -114,10 +118,16 @@ export async function GET(
     });
 
     // Step 6: Filter for personal info fields and deduplicate
-    const personalInfoFields = new Map<string, any>();
+    type ServiceRequirementWithDSX = Prisma.ServiceRequirementGetPayload<{
+      include: { requirement: true }
+    }>;
+    const personalInfoFields = new Map<string, {
+      requirement: ServiceRequirementWithDSX['requirement'],
+      displayOrder: number
+    }>();
 
     for (const serviceReq of serviceRequirements) {
-      const fieldData = serviceReq.requirement.fieldData as any || {};
+      const fieldData: FieldMetadata = (serviceReq.requirement.fieldData as unknown as FieldMetadata) || {};
 
       // Check if this field belongs to personal info tab
       // The actual collectionTab value needs to be checked from live data
@@ -143,7 +153,7 @@ export async function GET(
     // Step 7: Build response with pre-fill and lock information
     const fields = Array.from(personalInfoFields.values())
       .map(({ requirement, displayOrder }) => {
-        const fieldData = requirement.fieldData as any || {};
+        const fieldData: FieldMetadata = (requirement.fieldData as unknown as FieldMetadata) || {};
         const fieldKey = requirement.fieldKey;
 
         // Determine if this field is pre-filled from invitation

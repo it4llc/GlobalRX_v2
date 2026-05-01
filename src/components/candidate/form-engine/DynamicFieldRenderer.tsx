@@ -15,6 +15,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Radio } from '@/components/ui/radio';
+import type { FieldMetadata, FieldValue } from '@/types/candidate-portal';
 
 export interface DynamicFieldProps {
   requirementId: string;
@@ -23,9 +24,9 @@ export interface DynamicFieldProps {
   dataType: string;
   isRequired: boolean;
   instructions?: string | null;
-  fieldData?: any;
-  value: any;
-  onChange: (value: any) => void;
+  fieldData?: FieldMetadata;
+  value: FieldValue;
+  onChange: (value: FieldValue) => void;
   onBlur?: () => void;
   locked?: boolean;
   error?: string;
@@ -109,7 +110,7 @@ export function DynamicFieldRenderer({
             <SelectValue placeholder={`Select ${name}`} />
           </SelectTrigger>
           <SelectContent>
-            {options.map((option: any) => (
+            {options.map((option) => (
               <SelectItem
                 key={option.value || option}
                 value={option.value || option}
@@ -131,7 +132,7 @@ export function DynamicFieldRenderer({
         const checkedValues = value || [];
         return (
           <div className="space-y-2">
-            {options.map((option: any) => (
+            {options.map((option) => (
               <div key={option.value || option} className="flex items-center space-x-2">
                 <Checkbox
                   id={`${fieldKey}-${option.value || option}`}
@@ -194,7 +195,7 @@ export function DynamicFieldRenderer({
           }}
           disabled={locked}
         >
-          {options.map((option: any) => (
+          {options.map((option) => (
             <div key={option.value || option} className="flex items-center space-x-2">
               <Radio
                 value={option.value || option}

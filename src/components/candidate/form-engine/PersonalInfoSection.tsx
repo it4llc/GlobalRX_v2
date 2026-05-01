@@ -6,6 +6,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useTranslation } from '@/contexts/TranslationContext';
+import { clientLogger as logger } from '@/lib/client-logger';
+import type { FieldMetadata, FieldValue } from '@/types/candidate-portal';
 
 interface PersonalInfoField {
   requirementId: string;
@@ -14,7 +17,7 @@ interface PersonalInfoField {
   dataType: string;
   isRequired: boolean;
   instructions?: string | null;
-  fieldData?: any;
+  fieldData?: FieldMetadata | null;
   displayOrder: number;
   locked: boolean;
   prefilledValue?: string | null;
@@ -31,6 +34,7 @@ interface PersonalInfoSectionProps {
  * It collects basic information about the candidate that isn't tied to any specific service.
  */
 export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
+  const { t } = useTranslation();
   const [fields, setFields] = useState<PersonalInfoField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
@@ -90,14 +94,18 @@ export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
 
       setFormData(initialData);
     } catch (error) {
-      console.error('Failed to load personal info fields:', error);
+      logger.error('Failed to load personal info fields', {
+        event: 'personal_info_fields_load_error',
+        token,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     } finally {
       setLoading(false);
     }
   };
 
   // Handle field value change
-  const handleFieldChange = useCallback((requirementId: string, value: any) => {
+  const handleFieldChange = useCallback((requirementId: string, value: FieldValue) => {
     setFormData(prev => ({
       ...prev,
       [requirementId]: value
@@ -157,7 +165,12 @@ export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
         }, 3000);
 
       } catch (error) {
-        console.error('Failed to save personal info:', error);
+        logger.error('Failed to save personal info', {
+          event: 'personal_info_save_error',
+          token,
+          sectionType: 'personal_info',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
         setSaveStatus('error');
 
         // Retry after 2 seconds
@@ -173,7 +186,7 @@ export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-gray-600">Loading personal information fields...</div>
+        <div className="text-gray-600">{t('candidate.portal.personalInfo.loading')}</div>
       </div>
     );
   }
@@ -181,7 +194,7 @@ export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
   if (fields.length === 0) {
     return (
       <div className="p-8 text-center text-gray-600">
-        No personal information fields are required for this application.
+        {t('candidate.portal.personalInfo.noFieldsRequired')}
       </div>
     );
   }
@@ -190,14 +203,13 @@ export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
     <div className="space-y-6">
       {/* Section header with save indicator */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold">Personal Information</h2>
+        <h2 className="text-2xl font-semibold">{t('candidate.portal.sections.personalInformation')}</h2>
         <AutoSaveIndicator status={saveStatus} />
       </div>
 
       {/* Instructions */}
       <div className="text-sm text-gray-600">
-        Please fill in your personal information below. Fields marked with a red asterisk (*) are required.
-        Information from your invitation is already filled in and cannot be changed.
+        {t('candidate.portal.personalInfo.instructions')}
       </div>
 
       {/* Fields */}

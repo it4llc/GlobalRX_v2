@@ -4,6 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { z } from 'zod';
+import { INVITATION_STATUSES } from '@/constants/invitation-status';
+
+import type { CandidateFormData, SavedFieldData } from '@/types/candidate-portal';
 
 // Schema for save request body
 const saveRequestSchema = z.object({
@@ -11,7 +14,13 @@ const saveRequestSchema = z.object({
   sectionId: z.string(),
   fields: z.array(z.object({
     requirementId: z.string(),
-    value: z.any()
+    value: z.union([
+      z.string(),
+      z.number(),
+      z.boolean(),
+      z.null(),
+      z.array(z.string())
+    ])
   }))
 });
 
@@ -29,7 +38,7 @@ const saveRequestSchema = z.object({
  *   sectionId: string        // Section identifier
  *   fields: [{
  *     requirementId: string  // DSX requirement UUID
- *     value: any             // Field value
+ *     value: string | number | boolean | null | string[]  // Field value
  *   }]
  * }
  *
@@ -95,11 +104,80 @@ export async function POST(
     }
 
     // Check if invitation is already completed
-    if (invitation.status === 'completed') {
+    if (invitation.status === INVITATION_STATUSES.COMPLETED) {
       return NextResponse.json({ error: 'Invitation already completed' }, { status: 410 });
     }
 
-    // Step 5: Update formData on the invitation
+    // Step 5: Filter out locked fields that shouldn't be saved
+    // Per Business Rule #13: Pre-filled fields from the invitation (firstName, lastName, email, phone)
+    // are locked and should NOT be saved through this endpoint. They come directly from the invitation
+    // record and don't need separate storage. This prevents candidates from accidentally or maliciously
+    // modifying their basic identity information that was provided by the customer.
+
+    let fieldsToSave = fields;
+
+    // Only check for locked fields if we're saving personal_info section and have fields to check
+    if (sectionType === 'personal_info' && fields.length > 0) {
+      // Define the fieldKeys that are locked/pre-filled from the invitation
+      const lockedFieldKeys = ['firstName', 'lastName', 'email', 'phone', 'phoneNumber'];
+
+      // Look up DSX requirements for the fields being saved to get their fieldKeys
+      const requirementIds = fields.map(f => f.requirementId);
+      const requirements = await prisma.dSXRequirement.findMany({
+        where: {
+          id: { in: requirementIds }
+        },
+        select: {
+          id: true,
+          fieldKey: true
+        }
+      });
+
+      // Create a map of requirementId to fieldKey for quick lookup
+      const requirementFieldKeyMap = new Map(
+        requirements.map(req => [req.id, req.fieldKey])
+      );
+
+      // Pre-filled invitation data (firstName, lastName, email, phone) cannot be
+      // overwritten by candidates - this is a data integrity requirement to ensure
+      // the candidate being screened matches the person the customer invited
+      fieldsToSave = fields.filter(field => {
+        const fieldKey = requirementFieldKeyMap.get(field.requirementId);
+        const isLocked = fieldKey && lockedFieldKeys.includes(fieldKey);
+
+        if (isLocked) {
+          logger.debug('Skipping save of locked field', {
+            event: 'locked_field_filtered',
+            requirementId: field.requirementId,
+            fieldKey,
+            sectionType,
+            sectionId
+          });
+        }
+
+        return !isLocked;
+      });
+
+      // If all fields were locked (nothing to save), return success without database update
+      if (fieldsToSave.length === 0) {
+        logger.info('No unlocked fields to save', {
+          event: 'candidate_form_save_skip',
+          invitationId: invitation.id,
+          sectionType,
+          sectionId,
+          originalFieldsCount: fields.length,
+          lockedFieldsCount: fields.length
+        });
+
+        return NextResponse.json({
+          success: true,
+          savedAt: new Date().toISOString(),
+          message: 'No editable fields to save'
+        });
+      }
+    }
+
+    // Step 6: Update formData on the invitation
     // The formData JSON structure:
     // {
     //   sections: {
@@ -109,7 +187,7 @@ export async function POST(
     //   }
     // }
 
-    const currentFormData = (invitation.formData as any) || { sections: {} };
+    const currentFormData: CandidateFormData = (invitation.formData as unknown as CandidateFormData) || { sections: {} };
 
     // Ensure sections object exists
     if (!currentFormData.sections) {
@@ -124,13 +202,13 @@ export async function POST(
       };
     }
 
-    // Update or add field values
+    // Update or add field values (only for unlocked fields)
     const sectionData = currentFormData.sections[sectionId];
 
-    for (const field of fields) {
+    for (const field of fieldsToSave) {
       // Find existing field or add new one
       const existingFieldIndex = sectionData.fields.findIndex(
-        (f: any) => f.requirementId === field.requirementId
+        (f: SavedFieldData) => f.requirementId === field.requirementId
       );
 
       const fieldData = {
@@ -156,10 +234,10 @@ export async function POST(
     });
 
     // Step 7: Update invitation status if needed
-    if (invitation.status === 'sent') {
+    if (invitation.status === INVITATION_STATUSES.SENT) {
       await prisma.candidateInvitation.update({
         where: { id: invitation.id },
-        data: { status: 'in_progress' }
+        data: { status: INVITATION_STATUSES.ACCESSED }
       });
     }
 
@@ -170,7 +248,9 @@ export async function POST(
       invitationId: invitation.id,
       sectionType,
       sectionId,
-      fieldsCount: fields.length
+      originalFieldsCount: fields.length,
+      savedFieldsCount: fieldsToSave.length,
+      lockedFieldsFiltered: fields.length - fieldsToSave.length
     });
 
     return NextResponse.json({

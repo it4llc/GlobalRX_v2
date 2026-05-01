@@ -473,5 +473,13 @@
   "candidate.portal.sections.educationHistory": "Education History",
   "candidate.portal.sections.employmentHistory": "Employment History",
   "candidate.portal.errorLoading": "Error loading application",
-  "candidate.portal.tryAgain": "Try Again"
+  "candidate.portal.tryAgain": "Try Again",
+  "candidate.portal.loadingFields": "Cargando campos...",
+  "candidate.portal.idv.selectCountry": "Seleccione su país",
+  "candidate.portal.idv.chooseCountry": "Elegir un país",
+  "candidate.portal.idv.noFieldsRequired": "No se requiere información para esta sección según el país seleccionado.",
+  "candidate.portal.personalInfo.loading": "Cargando campos de información personal...",
+  "candidate.portal.personalInfo.noFieldsRequired": "No se requieren campos de información personal para esta solicitud.",
+  "candidate.portal.sections.personalInformation": "Información Personal",
+  "candidate.portal.personalInfo.instructions": "Por favor complete su información personal a continuación. Los campos marcados con un asterisco rojo (*) son obligatorios. La información de su invitación ya está completada y no se puede cambiar."
 }
