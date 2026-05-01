@@ -114,6 +114,21 @@ export async function GET(
     const sections: CandidatePortalSection[] = [];
     let sectionOrder = 0;
 
+    // Add Personal Information section as the very first section
+    // Check if there are any personal info fields configured for this package
+    const hasPersonalInfoFields = true; // For now, always show it. Later we can check DSX config
+    if (hasPersonalInfoFields) {
+      sections.push({
+        id: 'personal_info',
+        title: 'Personal Information',
+        type: 'personal_info',
+        placement: 'before_services',
+        status: 'not_started',
+        order: sectionOrder++,
+        functionalityType: null
+      });
+    }
+
     // Add before_services workflow sections
     if (orderedPackage?.workflow?.sections) {
       const beforeSections = orderedPackage.workflow.sections
@@ -157,6 +172,10 @@ export async function GET(
 
     for (const funcType of serviceTypeOrder) {
       if (servicesByType.has(funcType)) {
+        // Get all service IDs for this functionality type
+        const servicesForType = servicesByType.get(funcType)!;
+        const serviceIds = servicesForType.map(ps => ps.service.id);
+
         sections.push({
           id: `service_${funcType}`,
           title: serviceTitleMap[funcType] || funcType,
@@ -164,7 +183,8 @@ export async function GET(
           placement: 'services',
           status: 'not_started',
           order: sectionOrder++,
-          functionalityType: funcType
+          functionalityType: funcType,
+          serviceIds // Include service IDs for the form to use
         });
       }
     }

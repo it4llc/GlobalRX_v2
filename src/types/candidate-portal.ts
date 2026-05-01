@@ -15,11 +15,12 @@ export interface CandidateInvitationInfo {
 export interface CandidatePortalSection {
   id: string;
   title: string;
-  type: 'workflow_section' | 'service_section';
+  type: 'workflow_section' | 'service_section' | 'personal_info';
   placement: 'before_services' | 'services' | 'after_services';
   status: 'not_started' | 'in_progress' | 'complete';
   order: number;
   functionalityType: string | null;
+  serviceIds?: string[]; // For service sections, the IDs of services in this section
 }
 
 export interface CandidatePortalStructureResponse {
