@@ -438,5 +438,13 @@
   "candidate.portal.sections.educationHistory": "Education History",
   "candidate.portal.sections.employmentHistory": "Employment History",
   "candidate.portal.errorLoading": "Error loading application",
-  "candidate.portal.tryAgain": "Try Again"
+  "candidate.portal.tryAgain": "Try Again",
+  "candidate.portal.loadingFields": "フィールドを読み込んでいます...",
+  "candidate.portal.idv.selectCountry": "国を選択してください",
+  "candidate.portal.idv.chooseCountry": "国を選択",
+  "candidate.portal.idv.noFieldsRequired": "選択された国に基づいて、このセクションに必要な情報はありません。",
+  "candidate.portal.personalInfo.loading": "個人情報フィールドを読み込んでいます...",
+  "candidate.portal.personalInfo.noFieldsRequired": "この申請には個人情報フィールドは必要ありません。",
+  "candidate.portal.sections.personalInformation": "個人情報",
+  "candidate.portal.personalInfo.instructions": "以下に個人情報をご記入ください。赤いアスタリスク（*）でマークされたフィールドは必須です。招待状からの情報は既に入力されており、変更することはできません。"
 }
