@@ -615,5 +615,13 @@
   "candidate.portal.sections.educationHistory": "Education History",
   "candidate.portal.sections.employmentHistory": "Employment History",
   "candidate.portal.errorLoading": "Error loading application",
-  "candidate.portal.tryAgain": "Try Again"
+  "candidate.portal.tryAgain": "Try Again",
+  "candidate.portal.loadingFields": "Loading fields...",
+  "candidate.portal.idv.selectCountry": "Select your country",
+  "candidate.portal.idv.chooseCountry": "Choose a country",
+  "candidate.portal.idv.noFieldsRequired": "No information is required for this section based on your selected country.",
+  "candidate.portal.personalInfo.loading": "Loading personal information fields...",
+  "candidate.portal.personalInfo.noFieldsRequired": "No personal information fields are required for this application.",
+  "candidate.portal.sections.personalInformation": "Personal Information",
+  "candidate.portal.personalInfo.instructions": "Please fill in your personal information below. Fields marked with a red asterisk (*) are required. Information from your invitation is already filled in and cannot be changed."
 }

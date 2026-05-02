@@ -133,6 +133,22 @@ export async function GET(
       }
     }
 
+    // Add Personal Information section - first of the data collection sections
+    // (after workflow "before" sections, before service-specific sections)
+    // Check if there are any personal info fields configured for this package
+    const hasPersonalInfoFields = true; // For now, always show it. Later we can check DSX config
+    if (hasPersonalInfoFields) {
+      sections.push({
+        id: 'personal_info',
+        title: 'candidate.portal.sections.personalInformation',
+        type: 'personal_info',
+        placement: 'services',
+        status: 'not_started',
+        order: sectionOrder++,
+        functionalityType: null
+      });
+    }
+
     // Add service sections from package services (deduplicated by functionality type)
     const servicesByType = new Map<string, typeof orderedPackage.packageServices[0][]>();
 
@@ -149,14 +165,18 @@ export async function GET(
     // Add service sections in fixed order
     const serviceTypeOrder = ['idv', 'record', 'verification-edu', 'verification-emp'];
     const serviceTitleMap: Record<string, string> = {
-      'idv': 'Identity Verification',
-      'record': 'Address History',
-      'verification-edu': 'Education History',
-      'verification-emp': 'Employment History'
+      'idv': 'candidate.portal.sections.identityVerification',
+      'record': 'candidate.portal.sections.addressHistory',
+      'verification-edu': 'candidate.portal.sections.educationHistory',
+      'verification-emp': 'candidate.portal.sections.employmentHistory'
     };
 
     for (const funcType of serviceTypeOrder) {
       if (servicesByType.has(funcType)) {
+        // Get all service IDs for this functionality type
+        const servicesForType = servicesByType.get(funcType)!;
+        const serviceIds = servicesForType.map(ps => ps.service.id);
+
         sections.push({
           id: `service_${funcType}`,
           title: serviceTitleMap[funcType] || funcType,
@@ -164,7 +184,8 @@ export async function GET(
           placement: 'services',
           status: 'not_started',
           order: sectionOrder++,
-          functionalityType: funcType
+          functionalityType: funcType,
+          serviceIds // Include service IDs for the form to use
         });
       }
     }

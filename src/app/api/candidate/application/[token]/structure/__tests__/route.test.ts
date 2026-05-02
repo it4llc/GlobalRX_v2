@@ -192,10 +192,10 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         companyName: 'Acme Corp'
       });
 
-      // Check sections array
-      expect(data.sections).toHaveLength(6); // 1 before + 3 services (edu deduplicated) + 2 after
+      // Check sections array - now includes Personal Information as first item
+      expect(data.sections).toHaveLength(7); // 1 personal + 1 before + 3 services (edu deduplicated) + 2 after
 
-      // Check before_services section
+      // Check before_services section comes first
       expect(data.sections[0]).toEqual({
         id: 'section-1',
         title: 'Notice of Processing',
@@ -206,55 +206,69 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         functionalityType: null
       });
 
-      // Check service sections are in correct order
+      // Check Personal Information section comes after before_services
       expect(data.sections[1]).toEqual({
-        id: 'service_idv',
-        title: 'Identity Verification',
-        type: 'service_section',
+        id: 'personal_info',
+        title: 'candidate.portal.sections.personalInformation',
+        type: 'personal_info',
         placement: 'services',
         status: 'not_started',
         order: 1,
-        functionalityType: 'idv'
+        functionalityType: null
       });
 
+      // Check service sections are in correct order
       expect(data.sections[2]).toEqual({
-        id: 'service_record',
-        title: 'Address History',
+        id: 'service_idv',
+        title: 'candidate.portal.sections.identityVerification',
         type: 'service_section',
         placement: 'services',
         status: 'not_started',
         order: 2,
-        functionalityType: 'record'
+        functionalityType: 'idv',
+        serviceIds: ['service-1']
       });
 
       expect(data.sections[3]).toEqual({
-        id: 'service_verification-edu',
-        title: 'Education History',
+        id: 'service_record',
+        title: 'candidate.portal.sections.addressHistory',
         type: 'service_section',
         placement: 'services',
         status: 'not_started',
         order: 3,
-        functionalityType: 'verification-edu'
+        functionalityType: 'record',
+        serviceIds: ['service-2']
+      });
+
+      expect(data.sections[4]).toEqual({
+        id: 'service_verification-edu',
+        title: 'candidate.portal.sections.educationHistory',
+        type: 'service_section',
+        placement: 'services',
+        status: 'not_started',
+        order: 4,
+        functionalityType: 'verification-edu',
+        serviceIds: ['service-3', 'service-4']
       });
 
       // Check after_services sections
-      expect(data.sections[4]).toEqual({
+      expect(data.sections[5]).toEqual({
         id: 'section-2',
         title: 'Consent Form',
         type: 'workflow_section',
         placement: 'after_services',
         status: 'not_started',
-        order: 4,
+        order: 5,
         functionalityType: null
       });
 
-      expect(data.sections[5]).toEqual({
+      expect(data.sections[6]).toEqual({
         id: 'section-3',
         title: 'Authorization',
         type: 'workflow_section',
         placement: 'after_services',
         status: 'not_started',
-        order: 5,
+        order: 6,
         functionalityType: null
       });
     });
@@ -266,7 +280,6 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         invitationId: 'inv-123'
       });
 
-      // Invitation with multiple edu services
       const invitationWithDuplicates = {
         ...mockInvitation,
         package: {
@@ -276,24 +289,24 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               id: 'ps-1',
               service: {
                 id: 'service-1',
-                name: 'Education Check 1',
-                functionalityType: 'verification-edu'
+                name: 'Identity Verification Service 1',
+                functionalityType: 'idv'
               }
             },
             {
               id: 'ps-2',
               service: {
                 id: 'service-2',
-                name: 'Education Check 2',
-                functionalityType: 'verification-edu'
+                name: 'Identity Verification Service 2',
+                functionalityType: 'idv'
               }
             },
             {
               id: 'ps-3',
               service: {
                 id: 'service-3',
-                name: 'Education Check 3',
-                functionalityType: 'verification-edu'
+                name: 'Criminal Background',
+                functionalityType: 'record'
               }
             }
           ]
@@ -301,17 +314,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationWithDuplicates as Prisma.CandidateInvitationGetPayload<{
-          include: {
-            order: { include: { customer: true } },
-            package: {
-              include: {
-                workflow: { include: { sections: true } },
-                packageServices: { include: { service: true } }
-              }
-            }
-          }
-        }>
+        invitationWithDuplicates as any
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -320,12 +323,12 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Should only have one education section
-      const eduSections = data.sections.filter((s: any) =>
-        s.functionalityType === 'verification-edu'
+      // Should have deduplicated IDV services
+      const idvSections = data.sections.filter((s: any) =>
+        s.functionalityType === 'idv' && s.type === 'service_section'
       );
-      expect(eduSections).toHaveLength(1);
-      expect(eduSections[0].title).toBe('Education History');
+      expect(idvSections).toHaveLength(1);
+      expect(idvSections[0].serviceIds).toEqual(['service-1', 'service-2']);
     });
 
     it('should handle package with no workflow sections', async () => {
@@ -339,25 +342,12 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         ...mockInvitation,
         package: {
           ...mockInvitation.package,
-          workflow: {
-            id: 'workflow-123',
-            sections: []
-          }
+          workflow: null
         }
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoWorkflow as Prisma.CandidateInvitationGetPayload<{
-          include: {
-            order: { include: { customer: true } },
-            package: {
-              include: {
-                workflow: { include: { sections: true } },
-                packageServices: { include: { service: true } }
-              }
-            }
-          }
-        }>
+        invitationNoWorkflow as any
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -366,8 +356,9 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Should only have service sections
-      expect(data.sections.every((s: any) => s.type === 'service_section')).toBe(true);
+      // Should have personal info and service sections only (no workflow sections)
+      expect(data.sections[0].type).toBe('personal_info');
+      expect(data.sections.slice(1).every((s: any) => s.type === 'service_section')).toBe(true);
     });
 
     it('should handle package with no services', async () => {
@@ -386,17 +377,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoServices as Prisma.CandidateInvitationGetPayload<{
-          include: {
-            order: { include: { customer: true } },
-            package: {
-              include: {
-                workflow: { include: { sections: true } },
-                packageServices: { include: { service: true } }
-              }
-            }
-          }
-        }>
+        invitationNoServices as any
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -405,8 +386,13 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Should only have workflow sections
-      expect(data.sections.every((s: any) => s.type === 'workflow_section')).toBe(true);
+      // Should have workflow sections first, then personal info
+      // With no services, should have: 1 before_services + 1 personal_info + 2 after_services = 4 sections
+      expect(data.sections).toHaveLength(4);
+      expect(data.sections[0].type).toBe('workflow_section'); // before_services
+      expect(data.sections[1].type).toBe('personal_info');
+      expect(data.sections[2].type).toBe('workflow_section'); // after_services
+      expect(data.sections[3].type).toBe('workflow_section'); // after_services
     });
 
     it('should maintain correct order for service sections', async () => {
@@ -416,18 +402,17 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         invitationId: 'inv-123'
       });
 
-      // Services in wrong order in package
-      const invitationMixedOrder = {
+      const invitationWithServices = {
         ...mockInvitation,
         package: {
           ...mockInvitation.package,
-          workflow: { id: 'workflow-123', sections: [] },
+          workflow: null,
           packageServices: [
             {
               id: 'ps-1',
               service: {
                 id: 'service-1',
-                name: 'Employment Check',
+                name: 'Employment Verification',
                 functionalityType: 'verification-emp'
               }
             },
@@ -435,16 +420,16 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               id: 'ps-2',
               service: {
                 id: 'service-2',
-                name: 'Record Check',
-                functionalityType: 'record'
+                name: 'Identity Check',
+                functionalityType: 'idv'
               }
             },
             {
               id: 'ps-3',
               service: {
                 id: 'service-3',
-                name: 'ID Check',
-                functionalityType: 'idv'
+                name: 'Criminal Records',
+                functionalityType: 'record'
               }
             },
             {
@@ -460,17 +445,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationMixedOrder as Prisma.CandidateInvitationGetPayload<{
-          include: {
-            order: { include: { customer: true } },
-            package: {
-              include: {
-                workflow: { include: { sections: true } },
-                packageServices: { include: { service: true } }
-              }
-            }
-          }
-        }>
+        invitationWithServices as any
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -479,12 +454,12 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Check that services are in the fixed order
-      const serviceSections = data.sections.filter((s: any) => s.type === 'service_section');
-      expect(serviceSections[0].functionalityType).toBe('idv');
-      expect(serviceSections[1].functionalityType).toBe('record');
-      expect(serviceSections[2].functionalityType).toBe('verification-edu');
-      expect(serviceSections[3].functionalityType).toBe('verification-emp');
+      // Check the fixed order (personal info first, then services in order): IDV, Records, Education, Employment
+      expect(data.sections[0].type).toBe('personal_info');
+      expect(data.sections[1].functionalityType).toBe('idv');
+      expect(data.sections[2].functionalityType).toBe('record');
+      expect(data.sections[3].functionalityType).toBe('verification-edu');
+      expect(data.sections[4].functionalityType).toBe('verification-emp');
     });
   });
 
@@ -519,17 +494,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoPackage as Prisma.CandidateInvitationGetPayload<{
-          include: {
-            order: { include: { customer: true } },
-            package: {
-              include: {
-                workflow: { include: { sections: true } },
-                packageServices: { include: { service: true } }
-              }
-            }
-          }
-        }>
+        invitationNoPackage as any
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -582,27 +547,17 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         invitationId: 'inv-123'
       });
 
-      const emptyInvitation = {
+      const invitationEmpty = {
         ...mockInvitation,
         package: {
           ...mockInvitation.package,
-          workflow: { id: 'workflow-123', sections: [] },
+          workflow: null,
           packageServices: []
         }
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        emptyInvitation as Prisma.CandidateInvitationGetPayload<{
-          include: {
-            order: { include: { customer: true } },
-            package: {
-              include: {
-                workflow: { include: { sections: true } },
-                packageServices: { include: { service: true } }
-              }
-            }
-          }
-        }>
+        invitationEmpty as any
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -610,7 +565,17 @@ describe('GET /api/candidate/application/[token]/structure', () => {
 
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.sections).toEqual([]);
+      // Should still have the Personal Information section
+      expect(data.sections).toHaveLength(1);
+      expect(data.sections[0]).toEqual({
+        id: 'personal_info',
+        title: 'candidate.portal.sections.personalInformation',
+        type: 'personal_info',
+        placement: 'services',
+        status: 'not_started',
+        order: 0,
+        functionalityType: null
+      });
     });
 
     it('should handle missing customer name gracefully', async () => {
@@ -620,26 +585,16 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         invitationId: 'inv-123'
       });
 
-      const invitationNoCustomerName = {
+      const invitationNoCustomer = {
         ...mockInvitation,
         order: {
-          id: 'order-123',
+          ...mockInvitation.order,
           customer: null
         }
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoCustomerName as Prisma.CandidateInvitationGetPayload<{
-          include: {
-            order: { include: { customer: true } },
-            package: {
-              include: {
-                workflow: { include: { sections: true } },
-                packageServices: { include: { service: true } }
-              }
-            }
-          }
-        }>
+        invitationNoCustomer as any
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -657,17 +612,17 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         invitationId: 'inv-123'
       });
 
-      const invitationNullFunctionality = {
+      const invitationWithNullType = {
         ...mockInvitation,
         package: {
           ...mockInvitation.package,
-          workflow: { id: 'workflow-123', sections: [] },
+          workflow: null,
           packageServices: [
             {
               id: 'ps-1',
               service: {
                 id: 'service-1',
-                name: 'Some Service',
+                name: 'Custom Service',
                 functionalityType: null
               }
             },
@@ -675,7 +630,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               id: 'ps-2',
               service: {
                 id: 'service-2',
-                name: 'Valid Service',
+                name: 'ID Check',
                 functionalityType: 'idv'
               }
             }
@@ -684,17 +639,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNullFunctionality as Prisma.CandidateInvitationGetPayload<{
-          include: {
-            order: { include: { customer: true } },
-            package: {
-              include: {
-                workflow: { include: { sections: true } },
-                packageServices: { include: { service: true } }
-              }
-            }
-          }
-        }>
+        invitationWithNullType as any
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -703,10 +648,12 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Should only include service with valid functionality type
-      const serviceSections = data.sections.filter((s: any) => s.type === 'service_section');
-      expect(serviceSections).toHaveLength(1);
-      expect(serviceSections[0].functionalityType).toBe('idv');
+      // Services with null functionality type are NOT included
+      const sections = data.sections;
+      expect(sections[0].type).toBe('personal_info');
+      expect(sections[1].functionalityType).toBe('idv');
+      // Service with null functionality type should NOT be included
+      expect(sections.length).toBe(2); // Only personal_info and idv
     });
   });
 });

@@ -13,7 +13,7 @@ export default function SectionPlaceholder({ title }: SectionPlaceholderProps) {
   return (
     <div className="p-8">
       <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-        {title}
+        {t(title)}
       </h2>
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
         <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

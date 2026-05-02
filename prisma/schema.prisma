@@ -388,6 +388,7 @@ model CandidateInvitation {
   completedAt      DateTime? @db.Timestamptz(6) @map("completed_at")
   lastAccessedAt   DateTime? @db.Timestamptz(6) @map("last_accessed_at")
   updatedAt        DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+  formData         Json      @default("{}") @map("form_data")
 
   order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   customer         Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
