@@ -147,14 +147,15 @@ model Customer {
 }
 
 model Package {
-  id              String           @id @default(uuid())
-  customerId      String
-  name            String
-  description     String?
-  workflowId      String?
-  packageServices PackageService[]
-  customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  workflow        Workflow?        @relation(fields: [workflowId], references: [id], onDelete: Restrict)
+  id                   String                @id @default(uuid())
+  customerId           String
+  name                 String
+  description          String?
+  workflowId           String?
+  packageServices      PackageService[]
+  candidateInvitations CandidateInvitation[]
+  customer             Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workflow             Workflow?             @relation(fields: [workflowId], references: [id], onDelete: Restrict)
 
   @@map("packages")
 }
@@ -371,6 +372,7 @@ model CandidateInvitation {
   id               String    @id @default(uuid())
   orderId          String    @map("order_id")
   customerId       String    @map("customer_id")
+  packageId        String    @map("package_id")
   token            String    @unique
   firstName        String    @map("first_name")
   lastName         String    @map("last_name")
@@ -389,6 +391,7 @@ model CandidateInvitation {
 
   order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   customer         Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  package          Package   @relation(fields: [packageId], references: [id])
   creator          User      @relation("creator", fields: [createdBy], references: [id])
 
   @@index([token])

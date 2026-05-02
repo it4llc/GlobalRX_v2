@@ -133,6 +133,7 @@ export async function createInvitation(
       data: {
         orderId: order.id,
         customerId,
+        packageId: input.packageId, // Store the package ID with the invitation
         token,
         firstName: input.firstName,
         lastName: input.lastName,
