@@ -91,31 +91,56 @@ export async function GET(
     for (const [sectionId, sectionData] of Object.entries(sections)) {
       const data: FormSectionData = sectionData as FormSectionData;
 
-      // Group by section type for cleaner response
+      // Determine the section type
       const sectionType = data.type || sectionId;
 
-      if (!formattedSections[sectionType]) {
+      // Check if this is a repeatable section (education/employment) with entries
+      if ((sectionType === 'education' || sectionType === 'employment') && data.entries) {
+        // Return entries array format for repeatable sections
         formattedSections[sectionType] = {
-          fields: []
+          entries: data.entries.map((entry: any) => ({
+            entryId: entry.entryId,
+            countryId: entry.countryId,
+            entryOrder: entry.entryOrder,
+            fields: entry.fields.map((field: any) => ({
+              requirementId: field.requirementId,
+              value: field.value
+            }))
+          }))
         };
-      }
+      } else {
+        // Handle flat fields format for non-repeatable sections
+        if (!formattedSections[sectionType]) {
+          formattedSections[sectionType] = {
+            fields: []
+          };
+        }
 
-      // Add fields from this section
-      if (data.fields && Array.isArray(data.fields)) {
-        for (const field of data.fields) {
-          // Only include the requirementId and value, not internal metadata
-          formattedSections[sectionType].fields.push({
-            requirementId: field.requirementId,
-            value: field.value
-          });
+        // Special handling for IDV sections - preserve countryId if present
+        if (sectionType === 'idv' && 'countryId' in data) {
+          (formattedSections[sectionType] as any).countryId = data.countryId;
+        }
+
+        // Add fields from this section
+        if (data.fields && Array.isArray(data.fields)) {
+          const sectionFormatted = formattedSections[sectionType] as { fields: any[] };
+          for (const field of data.fields) {
+            // Only include the requirementId and value, not internal metadata
+            sectionFormatted.fields.push({
+              requirementId: field.requirementId,
+              value: field.value
+            });
+          }
         }
       }
     }
 
-    // Ensure standard sections exist even if empty
+    // Always include personal_info and idv sections with empty fields if they don't exist
+    // These are the core sections that the UI expects to always be present
     if (!formattedSections.personal_info) {
       formattedSections.personal_info = { fields: [] };
     }
+
     if (!formattedSections.idv) {
       formattedSections.idv = { fields: [] };
     }

@@ -9,6 +9,8 @@ import PortalWelcome from './portal-welcome';
 import SectionPlaceholder from './section-placeholder';
 import { PersonalInfoSection } from './form-engine/PersonalInfoSection';
 import { IdvSection } from './form-engine/IdvSection';
+import { EducationSection } from './form-engine/EducationSection';
+import { EmploymentSection } from './form-engine/EmploymentSection';
 import { useTranslation } from '@/contexts/TranslationContext';
 import type { CandidateInvitationInfo, CandidatePortalSection } from '@/types/candidate-portal';
 
@@ -82,6 +84,22 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
       return (
         <div className="p-6" data-testid="main-content">
           <IdvSection token={token} serviceIds={section.serviceIds || []} />
+        </div>
+      );
+    }
+
+    if (section.type === 'service_section' && section.functionalityType === 'verification-edu') {
+      return (
+        <div className="p-6" data-testid="main-content">
+          <EducationSection token={token} serviceIds={section.serviceIds || []} />
+        </div>
+      );
+    }
+
+    if (section.type === 'service_section' && section.functionalityType === 'verification-emp') {
+      return (
+        <div className="p-6" data-testid="main-content">
+          <EmploymentSection token={token} serviceIds={section.serviceIds || []} />
         </div>
       );
     }

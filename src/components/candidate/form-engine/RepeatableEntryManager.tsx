@@ -1,0 +1,168 @@
+// /GlobalRX_v2/src/components/candidate/form-engine/RepeatableEntryManager.tsx
+
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
+import type { EntryManagerProps } from '@/types/candidate-repeatable-form';
+
+/**
+ * Repeatable Entry Manager Component
+ *
+ * Manages list of entries with add/remove functionality.
+ * Mobile: accordion behavior (one expanded at a time)
+ * Desktop: all entries expanded by default
+ */
+export function RepeatableEntryManager({
+  entries,
+  onAddEntry,
+  onRemoveEntry,
+  onEntryChange,
+  renderEntry,
+  entryLabelKey
+}: EntryManagerProps) {
+  const { t } = useTranslation();
+  const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showRemoveMessage, setShowRemoveMessage] = useState(false);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+  const lastClickTime = useRef<number>(0);
+
+  useEffect(() => {
+    // Check if mobile on mount
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+
+      // On mobile, expand first entry by default
+      if (mobile && entries.length > 0 && !expandedEntry) {
+        setExpandedEntry(entries[0].entryId);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [entries, expandedEntry]);
+
+  // Show remove message temporarily
+  useEffect(() => {
+    if (showRemoveMessage) {
+      const timer = setTimeout(() => setShowRemoveMessage(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showRemoveMessage]);
+
+  const handleAddEntry = () => {
+    // Debounce to prevent multiple rapid clicks
+    const now = Date.now();
+    if (now - lastClickTime.current < 500) {
+      return;
+    }
+    lastClickTime.current = now;
+
+    onAddEntry();
+
+    // On mobile, expand the new entry
+    if (isMobile && entries.length > 0) {
+      // The new entry will be added at the end
+      setTimeout(() => {
+        const newEntries = entries;
+        if (newEntries.length > 0) {
+          setExpandedEntry(newEntries[newEntries.length - 1].entryId);
+        }
+      }, 100);
+    }
+  };
+
+  const handleRemoveEntry = (entryId: string) => {
+    onRemoveEntry(entryId);
+    setShowRemoveMessage(true);
+
+    // If removing the expanded entry on mobile, expand another
+    if (isMobile && expandedEntry === entryId) {
+      const remainingEntries = entries.filter(e => e.entryId !== entryId);
+      if (remainingEntries.length > 0) {
+        setExpandedEntry(remainingEntries[0].entryId);
+      }
+    }
+  };
+
+  const toggleEntry = (entryId: string) => {
+    if (!isMobile) return; // Desktop always shows all expanded
+
+    setExpandedEntry(current => current === entryId ? null : entryId);
+  };
+
+  const isEntryExpanded = (entryId: string) => {
+    // Desktop: always expanded
+    // Mobile: check against expandedEntry
+    return !isMobile || expandedEntry === entryId;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Remove message */}
+      {showRemoveMessage && (
+        <div className="p-2 bg-green-50 text-green-800 text-sm rounded-md">
+          {t('candidate.portal.entryRemoved')}
+        </div>
+      )}
+
+      {/* Entry list */}
+      {entries.map((entry, index) => (
+        <div
+          key={entry.entryId}
+          className="border border-gray-200 rounded-lg overflow-hidden"
+        >
+          {/* Entry header */}
+          <div
+            className="flex items-center justify-between p-4 bg-gray-50 cursor-pointer"
+            onClick={() => toggleEntry(entry.entryId)}
+          >
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium">
+                {t(entryLabelKey).replace('{number}', String(index + 1))}
+              </h3>
+              {isMobile && (
+                isEntryExpanded(entry.entryId) ?
+                  <ChevronUp className="h-4 w-4" /> :
+                  <ChevronDown className="h-4 w-4" />
+              )}
+            </div>
+
+            {/* Remove button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Don't trigger expand/collapse
+                handleRemoveEntry(entry.entryId);
+              }}
+              className="p-1 text-red-600 hover:bg-red-50 rounded"
+              aria-label={t('candidate.portal.removeEntry')}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Entry content */}
+          {isEntryExpanded(entry.entryId) && (
+            <div className="p-4 border-t border-gray-200">
+              {renderEntry(entry, index)}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Add entry button */}
+      <button
+        ref={addButtonRef}
+        onClick={handleAddEntry}
+        className="w-full min-h-[44px] px-4 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+      >
+        <Plus className="h-5 w-5" />
+        {t('candidate.portal.addEntry')}
+      </button>
+    </div>
+  );
+}
