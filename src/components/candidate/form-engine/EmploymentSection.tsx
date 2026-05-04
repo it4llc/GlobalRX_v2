@@ -113,7 +113,6 @@ export function EmploymentSection({ token, serviceIds }: EmploymentSectionProps)
       } else {
         logger.error('Failed to load countries', {
           event: 'employment_countries_load_error',
-          token,
           status: countriesResponse.status
         });
         setCountries([]);
@@ -148,7 +147,6 @@ export function EmploymentSection({ token, serviceIds }: EmploymentSectionProps)
     } catch (error) {
       logger.error('Failed to load employment section data', {
         event: 'employment_section_load_error',
-        token,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
       // Start with one empty entry even on error
@@ -426,7 +424,7 @@ export function EmploymentSection({ token, serviceIds }: EmploymentSectionProps)
     return (
       <div>
         <h2 className="text-2xl font-bold mb-4">{t('candidate.portal.sections.employmentHistory')}</h2>
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-gray-600">{t('candidate.portal.loading')}</div>
       </div>
     );
   }

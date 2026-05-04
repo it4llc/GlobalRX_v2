@@ -106,7 +106,7 @@ describe('EducationSection', () => {
     render(<EducationSection token={mockToken} serviceIds={mockServiceIds} />);
 
     // Should show loading initially
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByText('candidate.portal.loading')).toBeInTheDocument();
 
     // Wait for data to load
     await waitFor(() => {

@@ -232,7 +232,8 @@ export async function POST(
             select: {
               id: true,
               fieldKey: true
-            }
+            },
+            orderBy: { fieldKey: 'asc' }
           });
         }
       } catch (error) {

@@ -446,5 +446,18 @@
   "candidate.portal.personalInfo.loading": "個人情報フィールドを読み込んでいます...",
   "candidate.portal.personalInfo.noFieldsRequired": "この申請には個人情報フィールドは必要ありません。",
   "candidate.portal.sections.personalInformation": "個人情報",
-  "candidate.portal.personalInfo.instructions": "以下に個人情報をご記入ください。赤いアスタリスク（*）でマークされたフィールドは必須です。招待状からの情報は既に入力されており、変更することはできません。"
+  "candidate.portal.personalInfo.instructions": "以下に個人情報をご記入ください。赤いアスタリスク（*）でマークされたフィールドは必須です。招待状からの情報は既に入力されており、変更することはできません。",
+  "candidate.portal.addEntry": "Add Entry",
+  "candidate.portal.removeEntry": "Remove",
+  "candidate.portal.entryRemoved": "Entry removed",
+  "candidate.portal.educationEntryLabel": "Education {number}",
+  "candidate.portal.employmentEntryLabel": "Employment {number}",
+  "candidate.portal.selectCountryForEntry": "Select country",
+  "candidate.portal.countriesLoadError": "Unable to load the country list. Please refresh the page or try again later.",
+  "candidate.portal.noFieldsForCountry": "No information is required for this country",
+  "candidate.portal.noAdditionalInfo": "No additional information is required for this entry",
+  "candidate.portal.scopeCountExact": "Please provide your most recent {type} entry",
+  "candidate.portal.scopeCountSpecific": "Please provide your most recent {count} {type} entries",
+  "candidate.portal.scopeTimeBased": "Please provide all {type} for the past {years} years",
+  "candidate.portal.scopeAll": "Please provide your complete {type} history"
 }

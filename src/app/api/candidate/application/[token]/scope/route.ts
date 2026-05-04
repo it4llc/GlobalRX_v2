@@ -97,7 +97,8 @@ export async function GET(
       },
       include: {
         service: true
-      }
+      },
+      orderBy: { service: { name: 'asc' } }
     });
 
     // Find the service that matches the requested functionality type

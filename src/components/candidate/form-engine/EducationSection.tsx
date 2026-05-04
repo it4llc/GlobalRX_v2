@@ -113,7 +113,6 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
       } else {
         logger.error('Failed to load countries', {
           event: 'education_countries_load_error',
-          token,
           status: countriesResponse.status
         });
         setCountries([]);
@@ -148,7 +147,6 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
     } catch (error) {
       logger.error('Failed to load education section data', {
         event: 'education_section_load_error',
-        token,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
       // Start with one empty entry even on error
@@ -376,7 +374,7 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
     return (
       <div>
         <h2 className="text-2xl font-bold mb-4">{t('candidate.portal.sections.educationHistory')}</h2>
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-gray-600">{t('candidate.portal.loading')}</div>
       </div>
     );
   }
