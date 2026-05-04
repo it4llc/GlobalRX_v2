@@ -51,12 +51,13 @@ This is the final stage of Phase 6. It delivers three things to the candidate ap
 14. Section progress for each section has exactly three states: `not_started` (no data entered), `incomplete` (started but missing required fields/documents/acknowledgments), or `complete` (all required items satisfied).
 15. Section progress recalculates on every auto-save event (existing on-blur trigger from Stage 1). No additional API call is required; the calculation runs client-side from the form state and the section's known requirements.
 16. For repeatable sections (Address History, Education, Employment), Stage 4 progress checks only that all required fields and required documents are satisfied **within the entries the candidate has already created**. Stage 4 does NOT perform scope coverage checks (e.g., "do the entries cover 7 years?") and does NOT perform gap detection. Both are Phase 7.
-17. The cross-section requirement registry tracks DSX requirements whose `collectionTab` differs from the section that loaded them. For Stage 4, the only supported target is `personal_info` (Personal Information). The registry pattern is structured to allow other targets later, but Stage 4 does not implement them.
+17. The cross-section requirement registry tracks DSX requirements whose `collectionTab` differs from the section that loaded them. The valid `collectionTab` values in the database are `subject` and `search`: fields with `collectionTab = 'subject'` belong to Personal Information; fields with `collectionTab = 'search'` belong to service sections. For Stage 4, the only supported cross-section target is `subject` (Personal Information). The registry pattern is structured to allow other targets later, but Stage 4 does not implement them.
 18. When a section's progress includes cross-section requirements registered against it, those requirements are evaluated alongside the section's own local fields. If any cross-section required field is empty, the target section shows incomplete (red).
 19. When a repeatable entry is deleted (e.g., the candidate removes an address), all cross-section requirements that were triggered by that entry must be cleared from the registry. The registry stays in sync with the candidate's current state.
 20. A cross-section requirement banner appears at the top of the target section listing the externally-triggered required fields (e.g., "Based on addresses you entered, the following fields are now required: Middle Name"). The banner is informational (info color), not an error.
 21. Document uploads happen immediately on file selection — they are NOT deferred until form submission. This follows the existing internal order flow pattern (per `COMPONENT_STANDARDS` Section 4).
 22. All section status values use lowercase strings: `not_started`, `incomplete`, `complete`. Title Case and ALL CAPS are prohibited (per the project-wide status casing rule).
+23. When a document requirement has a `null` or missing `documentData.scope` value, treat it as `per_search` (the most common scope value in the existing data). This default ensures the upload component always knows where to write the metadata, and applies to both the upload component's storage routing and the section progress calculation's required-document detection.
 
 ---
 
@@ -90,8 +91,8 @@ This is the final stage of Phase 6. It delivers three things to the candidate ap
 
 1. Personal Information shows green; the candidate has filled all locally-required fields.
 2. Candidate goes to Address History and enters an address in Country X.
-3. DSX requirements for Country X include "Middle Name" with `collectionTab = 'personal_info'`.
-4. The cross-section registry adds an entry under `personal_info` for the Middle Name requirement, marked as triggered by Address History.
+3. DSX requirements for Country X include "Middle Name" with `collectionTab = 'subject'`.
+4. The cross-section registry adds an entry under `subject` for the Middle Name requirement, marked as triggered by Address History.
 5. Personal Information's progress recalculates. Middle Name is empty, so Personal Information turns red.
 6. A banner appears at the top of Personal Information: "Based on addresses you entered, the following fields are now required: Middle Name".
 7. Candidate navigates to Personal Information and fills in Middle Name.
@@ -223,6 +224,7 @@ This section is the single source of truth for all field names, types, and shape
 - `per_entry` → inside the entry's `fields` array in `formData`, keyed by requirement UUID.
 - `per_search` → in the section's aggregated bucket, keyed by `{requirementId, serviceId, jurisdictionId}`.
 - `per_order` → in the section's aggregated bucket, keyed by requirement UUID, single slot.
+- `null` or missing → treat as `per_search` (Business Rule 23).
 
 ---
 
@@ -283,7 +285,7 @@ Visual indicators in the section navigation showing the status of each section.
 
 | Section Type | Complete When |
 |---|---|
-| Personal Information | All locally-required fields have values, AND all cross-section requirements registered against `personal_info` have values. |
+| Personal Information | All locally-required fields have values, AND all cross-section requirements registered against `subject` have values. |
 | IDV | All required DSX fields for the selected country have values. |
 | Address History | All required fields and documents within entries the candidate has created are satisfied (Stage 4 does NOT check scope coverage — Business Rule 16). |
 | Education History | Same as Address History. |
@@ -296,14 +298,14 @@ Visual indicators in the section navigation showing the status of each section.
 
 ### Deliverable 4: Cross-Section Requirement Awareness (TD-052)
 
-**Problem:** When a service section (e.g., Address History) loads DSX requirements, some of those requirements may target a different tab via `collectionTab` (e.g., `personal_info`). Without cross-section tracking, the target tab's progress indicator would be unaware that a new field has become required.
+**Problem:** When a service section (e.g., Address History) loads DSX requirements, some of those requirements may target a different tab via `collectionTab` (e.g., `subject`). Without cross-section tracking, the target tab's progress indicator would be unaware that a new field has become required.
 
-**Scope (Business Rule 17):** Stage 4 supports only `personal_info` as a cross-section target. The registry pattern allows additional targets later but they are not built in this stage.
+**Scope (Business Rule 17):** Stage 4 supports only `subject` as a cross-section target. The registry pattern allows additional targets later but they are not built in this stage.
 
 **How it works:**
 1. When any section loads DSX requirements, it inspects each requirement's `collectionTab`.
 2. Requirements whose `collectionTab` matches the current section render normally.
-3. Requirements whose `collectionTab` is different (only `personal_info` for Stage 4) are written to a central registry under that target section's key.
+3. Requirements whose `collectionTab` is different (only `subject` for Stage 4) are written to a central registry under that target section's key.
 4. Each section's progress check evaluates both its local fields and the registry entries written against it (Business Rule 18).
 5. Cross-section banner displays the externally-triggered required fields on the target section (Business Rule 20).
 6. When a repeatable entry is removed, registry entries with a matching `triggeredByEntryIndex` are cleared (Business Rule 19).
@@ -478,7 +480,7 @@ The endpoint already loads from `workflows` and `workflow_sections` via the pack
 1. On each auto-save, progress recalculates for all sections.
 2. For service sections: collect required fields and required documents within the entries that exist; check each has a value (Business Rule 16).
 3. For workflow sections: check the acknowledgment per Business Rule 6.
-4. For Personal Information: include cross-section registry entries under `personal_info` (Business Rule 18).
+4. For Personal Information: include cross-section registry entries under `subject` (Business Rule 18).
 5. Updated states are pushed to indicators via React state (no extra API call).
 
 ---
@@ -491,7 +493,7 @@ A React context or state object at the application shell level. Sections post re
 ### Shape
 ```
 crossSectionRequirements: {
-  personal_info: [
+  subject: [
     {
       fieldId: "uuid-of-middle-name-requirement",
       fieldKey: "middleName",
@@ -502,14 +504,14 @@ crossSectionRequirements: {
       triggeredByEntryIndex: 0
     }
   ]
-  // Stage 4 supports personal_info only (Business Rule 17). Other keys may be added later.
+  // Stage 4 supports subject only (Business Rule 17). Other keys may be added later.
 }
 ```
 
 ### How it gets populated
 When a section loads DSX requirements, it inspects `collectionTab`:
 - Matches current section → render locally.
-- Different (Stage 4: only `personal_info`) → push to registry under that section's key.
+- Different (Stage 4: only `subject`) → push to registry under that section's key.
 
 ### How it gets read
 Each section's progress check evaluates:
@@ -542,7 +544,7 @@ On removal of a repeatable entry, registry entries with a matching `triggeredByE
 `CandidateDocumentUpload` shows a loading indicator during upload.
 
 ### TD-052 — Cross-Section Requirement Awareness
-The cross-section requirement registry (Deliverable 4) directly addresses this item. Stage 4 implements the `personal_info` target; the registry pattern leaves room for additional targets later (Business Rule 17).
+The cross-section requirement registry (Deliverable 4) directly addresses this item. Stage 4 implements the `subject` target; the registry pattern leaves room for additional targets later (Business Rule 17).
 
 ---
 
@@ -579,13 +581,13 @@ The cross-section requirement registry (Deliverable 4) directly addresses this i
 5. `CandidateDocumentUpload` is implemented at `src/components/candidate/CandidateDocumentUpload.tsx` with empty/uploading/uploaded/error states and replaces Stage 3's informational document line items.
 6. Document upload endpoint POST `/api/candidate/application/[token]/upload` is implemented with token validation, size validation (max 10 MB), MIME validation (PDF/JPEG/PNG), and storage at `uploads/draft-documents/{orderId}/{timestamp}-{originalName}` (Business Rules 9, 10, 12).
 7. Document delete endpoint DELETE `/api/candidate/application/[token]/upload/[documentId]` is implemented with token validation, ownership verification, and disk removal (Business Rules 12, 13).
-8. Document metadata persists in `order_data` according to scope: `per_entry` inside the entry's `fields` array keyed by requirement UUID; `per_search` and `per_order` in the section's aggregated bucket (Business Rule 11).
+8. Document metadata persists in `order_data` according to scope: `per_entry` inside the entry's `fields` array keyed by requirement UUID; `per_search` and `per_order` in the section's aggregated bucket (Business Rule 11). When `documentData.scope` is `null` or missing, the upload component and progress calculation both treat it as `per_search` (Business Rule 23).
 9. Document uploads happen immediately on file selection, not at form submission (Business Rule 21).
 10. `SectionProgressIndicator` is implemented at `src/components/candidate/SectionProgressIndicator.tsx` and supports the three lowercase status values `not_started`, `incomplete`, `complete` (Business Rules 14, 22).
 11. Section progress recalculates on every auto-save event (Business Rule 15).
 12. Repeatable section progress checks only the entries the candidate has already created — Stage 4 explicitly does NOT perform scope coverage checks or gap detection (Business Rule 16). Both are deferred to Phase 7.
-13. Cross-section requirement registry is implemented and populated when DSX requirements with `collectionTab !== 'currentSection'` are loaded. Stage 4 implements only the `personal_info` target (Business Rule 17).
-14. Personal Information's progress check evaluates both local fields and registry entries under `personal_info` (Business Rule 18).
+13. Cross-section requirement registry is implemented and populated when DSX requirements with `collectionTab !== 'currentSection'` are loaded. Stage 4 implements only the `subject` target (Business Rule 17).
+14. Personal Information's progress check evaluates both local fields and registry entries under `subject` (Business Rule 18).
 15. `CrossSectionRequirementBanner` is implemented at `src/components/candidate/CrossSectionRequirementBanner.tsx` and renders the list of externally-triggered required fields on the target section (Business Rule 20).
 16. When a repeatable entry is deleted, registry entries with a matching `triggeredByEntryIndex` are cleared (Business Rule 19).
 17. The structure endpoint GET `/api/candidate/application/[token]` returns workflow section content (`id`, `name`, `type`, `content`, `fileUrl`, `fileName`, `placement`, `displayOrder`, `isRequired`) and a `status` value for each section.
@@ -610,7 +612,7 @@ The cross-section requirement registry (Deliverable 4) directly addresses this i
 - **File cleanup for orphaned documents** — TD-010, not addressed here.
 - **Rich-text admin editor for workflow content** — future enhancement.
 - **Custom per-workflow-section acknowledgment text** — deferred (Business Rule 5).
-- **Cross-section requirement targets other than `personal_info`** — registry pattern allows them later but not built in Stage 4 (Business Rule 17).
+- **Cross-section requirement targets other than `subject`** — registry pattern allows them later but not built in Stage 4 (Business Rule 17).
 
 ---
 
@@ -680,7 +682,7 @@ Verified present in `prisma/schema.prisma` (`workflow_sections.content` at line 
 **High.** Three distinct deliverables that interact: uploads feed into progress; cross-section requirements affect progress; workflow sections have their own progress rules. The cross-section registry is a new architectural pattern. The upload component must work cleanly across iOS Safari, Chrome for Android, and desktop. Progress calculation must be fast and pure.
 
 **Key risks:**
-- Cross-section tracking complexity if many sections trigger requirements simultaneously (mitigated by limiting Stage 4 to `personal_info`).
+- Cross-section tracking complexity if many sections trigger requirements simultaneously (mitigated by limiting Stage 4 to `subject`).
 - Mobile file upload differences across browsers.
 - Progress calculation performance on large applications (mitigated by keeping the calculation pure and incremental).
 - Workflow content HTML safety (mitigated by sanitization).
@@ -705,7 +707,7 @@ None. All clarifying questions answered prior to confirmation:
 2. Acknowledgment shape in formData — per-section bucket `formData.sections[<workflowSectionId>] = { type: 'workflow_section', acknowledged: true }`.
 3. Document metadata storage location — `per_entry` inside the entry's `fields` array; `per_search` and `per_order` in the section's aggregated bucket.
 4. Section progress for repeatable sections — only required fields/documents inside existing entries; no scope or gap checks.
-5. Cross-section target scope — only `personal_info` for Stage 4.
+5. Cross-section target scope — only `subject` for Stage 4.
 6. Acknowledgment text — hardcoded "I have read and agree to the above" via translation system.
 7. Workflow section `type` handling — `text` renders sanitized HTML; `document` with `fileUrl` renders a download link labelled with `fileName` (fallback to section `name`); no embedded PDF viewer.
 8. Spec confirmation — confirmed; status flipped to Confirmed.
