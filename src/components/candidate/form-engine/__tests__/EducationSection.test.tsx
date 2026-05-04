@@ -145,12 +145,10 @@ describe('EducationSection', () => {
 
     render(<EducationSection token={mockToken} serviceIds={mockServiceIds} />);
 
+    // Wait for data to fully load
     await waitFor(() => {
-      expect(screen.getByText('Education History')).toBeInTheDocument();
+      expect(screen.getByText('Education 1')).toBeInTheDocument();
     });
-
-    // Initially should have one entry
-    expect(screen.getByText('Education 1')).toBeInTheDocument();
 
     // Click Add Entry
     const addButton = screen.getByRole('button', { name: /Add Entry/i });
@@ -212,12 +210,10 @@ describe('EducationSection', () => {
 
     render(<EducationSection token={mockToken} serviceIds={mockServiceIds} />);
 
+    // Wait for saved entry to load
     await waitFor(() => {
-      expect(screen.getByText('Education History')).toBeInTheDocument();
+      expect(screen.getByText('Education 1')).toBeInTheDocument();
     });
-
-    // Should show the saved entry
-    expect(screen.getByText('Education 1')).toBeInTheDocument();
 
     // Should have loaded with US selected
     await waitFor(() => {
