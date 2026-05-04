@@ -247,10 +247,17 @@ export async function GET(
               isAvailableHere = false;
             }
           }
-        } catch {
+        } catch (availabilityError) {
           // If the availability table query fails (e.g., not mocked), default
           // to available. This is safe because the spec explicitly says missing
-          // data should not block requirement loading.
+          // data should not block requirement loading. Logged at debug so it
+          // surfaces in development but does not pollute production logs.
+          logger.debug('dsx_availability lookup failed; treating service as available', {
+            event: 'candidate_fields_dsx_availability_fallback',
+            serviceId,
+            levelId,
+            error: availabilityError instanceof Error ? availabilityError.message : 'Unknown error'
+          });
         }
 
         if (!isAvailableHere) {

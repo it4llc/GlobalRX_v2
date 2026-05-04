@@ -1484,6 +1484,65 @@ If/when production logs show this warning is firing frequently. Mitigations coul
 
 ---
 
+### TD-057 — Scope endpoint returns hardcoded English `scopeDescription` strings
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Scope API           |
+| Severity    | Warning (i18n)                              |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Standards Check |
+| Identified by | Standards Checker                         |
+
+**Description:**
+`src/app/api/candidate/application/[token]/scope/route.ts` builds `scopeDescription` as a hardcoded English template string for every scope variant (lines 167, 171, 177, 182, 187–189, 195–197, 202–204, 209, 214, 219, 224–226). The string is rendered directly to the candidate by `ScopeDisplay.tsx` line 22 with no `t()` call. This violates COMPONENT S6.1 (all user-facing text must use the translation system).
+
+The pattern is pre-existing for education and employment scope branches; Phase 6 Stage 3 extended it to record-functionality branches (current-address, last-x-addresses, null-record-default). Fixing only the new branches would create inconsistency with the rest of the file.
+
+**Why deferred:**
+Proper fix is architectural: the scope endpoint should return a structured response (`scopeKey: 'scope.record.currentAddress'`, `scopeParams: { years: 7 }`) and the client should call `t(scopeKey, scopeParams)`. This requires changing the response shape, the `ScopeInfo` type, all `ScopeDisplay` consumers, and adding new translation keys for every scope variant across all 5 language files. Out of scope for Stage 3.
+
+**When to fix:**
+When the candidate portal needs full localization. Likely Phase 7 or a dedicated i18n pass.
+
+**Files affected:**
+- `src/app/api/candidate/application/[token]/scope/route.ts`
+- `src/components/candidate/form-engine/ScopeDisplay.tsx`
+- `src/types/candidate-repeatable-form.ts` (`ScopeInfo` shape)
+- All 5 translation files
+
+---
+
+### TD-058 — New Phase 6 Stage 3 translation keys missing from non-en-US locales
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Translations / i18n |
+| Severity    | Warning (i18n)                              |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Standards Check |
+| Identified by | Standards Checker                         |
+
+**Description:**
+The 14 new translation keys added in Phase 6 Stage 3 (`candidate.addressHistory.*`, `candidate.addressBlock.*`, `candidate.aggregatedRequirements.*`) exist only in `src/translations/en-US.json`. They are absent from `en-GB.json`, `es-ES.json`, `es.json`, and `ja-JP.json`. This violates COMPONENT S6.3 (new translation keys must be added to every language file).
+
+**Why deferred:**
+The Stage 3 technical plan explicitly noted this decision: "The other translation files currently lack many of the existing Stage 1 / Stage 2 candidate keys ... This plan does NOT add the new keys to those files because that would expand the scope beyond what Stage 3 requires; the existing translation context falls back gracefully to the en-US value when a key is missing in the active locale." The pattern matches Stages 1 and 2.
+
+**When to fix:**
+When the candidate portal is being prepared for non-English locales. Should be done as one batch covering Stages 1, 2, and 3 keys — translating each set in isolation creates rework when terminology changes.
+
+**Affected keys (Stage 3 set):**
+- `candidate.addressHistory.title`, `.addAnother`, `.entryLabel`, `.currentAddress`, `.fromDate`, `.toDate`, `.removeConfirm`
+- `candidate.addressBlock.street1`, `.street2`, `.city`, `.state`, `.county`, `.postalCode`
+- `candidate.aggregatedRequirements.heading`, `.additionalInformation`, `.requiredDocuments`, `.documentUploadPending`
+
+**Files affected:**
+- `src/translations/en-GB.json`
+- `src/translations/es-ES.json`
+- `src/translations/es.json`
+- `src/translations/ja-JP.json`
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
