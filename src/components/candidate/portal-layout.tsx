@@ -7,6 +7,10 @@ import PortalHeader from './portal-header';
 import PortalSidebar from './portal-sidebar';
 import PortalWelcome from './portal-welcome';
 import SectionPlaceholder from './section-placeholder';
+import { PersonalInfoSection } from './form-engine/PersonalInfoSection';
+import { IdvSection } from './form-engine/IdvSection';
+import { EducationSection } from './form-engine/EducationSection';
+import { EmploymentSection } from './form-engine/EmploymentSection';
 import { useTranslation } from '@/contexts/TranslationContext';
 import type { CandidateInvitationInfo, CandidatePortalSection } from '@/types/candidate-portal';
 
@@ -18,7 +22,9 @@ interface PortalLayoutProps {
 
 export default function PortalLayout({ invitation, sections, token }: PortalLayoutProps) {
   const { t } = useTranslation();
-  const [activeSection, setActiveSection] = useState<string | null>(null);
+  // Default to first section (Personal Information) if it exists
+  const defaultSection = sections.length > 0 ? sections[0].id : null;
+  const [activeSection, setActiveSection] = useState<string | null>(defaultSection);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Handle responsive behavior
@@ -65,6 +71,40 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
       );
     }
 
+    // Render actual form sections for Personal Information and IDV
+    if (section.type === 'personal_info') {
+      return (
+        <div className="p-6" data-testid="main-content">
+          <PersonalInfoSection token={token} />
+        </div>
+      );
+    }
+
+    if (section.type === 'service_section' && section.functionalityType === 'idv') {
+      return (
+        <div className="p-6" data-testid="main-content">
+          <IdvSection token={token} serviceIds={section.serviceIds || []} />
+        </div>
+      );
+    }
+
+    if (section.type === 'service_section' && section.functionalityType === 'verification-edu') {
+      return (
+        <div className="p-6" data-testid="main-content">
+          <EducationSection token={token} serviceIds={section.serviceIds || []} />
+        </div>
+      );
+    }
+
+    if (section.type === 'service_section' && section.functionalityType === 'verification-emp') {
+      return (
+        <div className="p-6" data-testid="main-content">
+          <EmploymentSection token={token} serviceIds={section.serviceIds || []} />
+        </div>
+      );
+    }
+
+    // For other sections, show placeholder
     return <SectionPlaceholder title={section.title} />;
   };
 

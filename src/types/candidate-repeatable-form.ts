@@ -1,0 +1,43 @@
+// /GlobalRX_v2/src/types/candidate-repeatable-form.ts
+// Types for repeatable entry sections (Education & Employment)
+
+// Field value union mirrors what the repeatableSaveRequestSchema accepts in
+// /api/candidate/application/[token]/save: a string, number, boolean, null,
+// or string[] (multi-select). Keep these in sync.
+export type RepeatableFieldValue =
+  | string
+  | number
+  | boolean
+  | null
+  | string[];
+
+export interface EntryData {
+  entryId: string;
+  countryId: string | null;
+  entryOrder: number;
+  fields: Array<{
+    requirementId: string;
+    value: RepeatableFieldValue;
+  }>;
+}
+
+export interface RepeatableSection {
+  entries: EntryData[];
+}
+
+export interface ScopeInfo {
+  functionalityType: string;
+  serviceId: string;
+  scopeType: 'count_exact' | 'count_specific' | 'time_based' | 'all' | 'highest_degree' | 'highest_degree_inc_hs' | 'all_degrees';
+  scopeValue: number | null;
+  scopeDescription: string;
+}
+
+export interface EntryManagerProps {
+  entries: EntryData[];
+  onAddEntry: () => void;
+  onRemoveEntry: (entryId: string) => void;
+  onEntryChange: (entryId: string, data: Partial<EntryData>) => void;
+  renderEntry: (entry: EntryData, index: number) => React.ReactNode;
+  entryLabelKey: string; // Translation key for entry labels
+}

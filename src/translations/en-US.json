@@ -615,5 +615,27 @@
   "candidate.portal.sections.educationHistory": "Education History",
   "candidate.portal.sections.employmentHistory": "Employment History",
   "candidate.portal.errorLoading": "Error loading application",
-  "candidate.portal.tryAgain": "Try Again"
+  "candidate.portal.tryAgain": "Try Again",
+  "candidate.portal.loadingFields": "Loading fields...",
+  "candidate.portal.idv.selectCountry": "Select your country",
+  "candidate.portal.idv.chooseCountry": "Choose a country",
+  "candidate.portal.idv.noFieldsRequired": "No information is required for this section based on your selected country.",
+  "candidate.portal.personalInfo.loading": "Loading personal information fields...",
+  "candidate.portal.personalInfo.noFieldsRequired": "No personal information fields are required for this application.",
+  "candidate.portal.sections.personalInformation": "Personal Information",
+  "candidate.portal.personalInfo.instructions": "Please fill in your personal information below. Fields marked with a red asterisk (*) are required. Information from your invitation is already filled in and cannot be changed.",
+
+  "candidate.portal.addEntry": "Add Entry",
+  "candidate.portal.removeEntry": "Remove",
+  "candidate.portal.entryRemoved": "Entry removed",
+  "candidate.portal.educationEntryLabel": "Education {number}",
+  "candidate.portal.employmentEntryLabel": "Employment {number}",
+  "candidate.portal.selectCountryForEntry": "Select country",
+  "candidate.portal.countriesLoadError": "Unable to load the country list. Please refresh the page or try again later.",
+  "candidate.portal.noFieldsForCountry": "No information is required for this country",
+  "candidate.portal.noAdditionalInfo": "No additional information is required for this entry",
+  "candidate.portal.scopeCountExact": "Please provide your most recent {type} entry",
+  "candidate.portal.scopeCountSpecific": "Please provide your most recent {count} {type} entries",
+  "candidate.portal.scopeTimeBased": "Please provide all {type} for the past {years} years",
+  "candidate.portal.scopeAll": "Please provide your complete {type} history"
 }
