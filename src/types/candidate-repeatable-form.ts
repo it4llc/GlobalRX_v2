@@ -1,13 +1,23 @@
 // /GlobalRX_v2/src/types/candidate-repeatable-form.ts
 // Types for repeatable entry sections (Education & Employment)
 
+// Field value union mirrors what the repeatableSaveRequestSchema accepts in
+// /api/candidate/application/[token]/save: a string, number, boolean, null,
+// or string[] (multi-select). Keep these in sync.
+export type RepeatableFieldValue =
+  | string
+  | number
+  | boolean
+  | null
+  | string[];
+
 export interface EntryData {
   entryId: string;
   countryId: string | null;
   entryOrder: number;
   fields: Array<{
     requirementId: string;
-    value: any;
+    value: RepeatableFieldValue;
   }>;
 }
 

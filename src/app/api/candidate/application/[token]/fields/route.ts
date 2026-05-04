@@ -127,16 +127,34 @@ export async function GET(
       }
     });
 
+    // Build a lookup of displayOrder by requirementId from service_requirements.
+    // Location-specific mappings (dsx_mappings) do not carry their own
+    // displayOrder, but the same (serviceId, requirementId) pair typically
+    // exists in service_requirements with the authoritative displayOrder.
+    // Falling back to a hardcoded 999 (the previous behavior) caused
+    // country-mapped fields to render in alphabetical order instead of the
+    // configured DSX order — so we resolve the real displayOrder here.
+    const displayOrderByRequirementId = new Map<string, number>();
+    for (const serviceReq of serviceRequirements) {
+      displayOrderByRequirementId.set(serviceReq.requirementId, serviceReq.displayOrder);
+    }
+
     // Combine and deduplicate requirements
     const allRequirements = new Map<string, any>();
 
     // Add location-specific requirements first (they take precedence)
     for (const mapping of locationMappings) {
       if (!mapping.requirement.disabled) {
+        // Resolve displayOrder from service_requirements when available;
+        // fall back to 999 only when this requirement genuinely has no
+        // entry in service_requirements for this service.
+        const resolvedDisplayOrder =
+          displayOrderByRequirementId.get(mapping.requirement.id) ?? 999;
+
         allRequirements.set(mapping.requirement.id, {
           requirement: mapping.requirement,
           isRequired: mapping.isRequired,
-          displayOrder: 999 // Location-specific requirements don't have displayOrder in mapping
+          displayOrder: resolvedDisplayOrder
         });
       }
     }

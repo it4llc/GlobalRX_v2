@@ -45,6 +45,14 @@ const repeatableSaveRequestSchema = z.object({
   }))
 });
 
+// Inferred types for the two request shapes. These give us a typed payload after
+// validation succeeds so we don't need `as any` casts when reading fields/entries.
+type FlatSaveRequest = z.infer<typeof saveRequestSchema>;
+type RepeatableSaveRequest = z.infer<typeof repeatableSaveRequestSchema>;
+type FlatField = FlatSaveRequest['fields'][number];
+type RepeatableEntry = RepeatableSaveRequest['entries'][number];
+type RepeatableEntryField = RepeatableEntry['fields'][number];
+
 /**
  * POST /api/candidate/application/[token]/save
  *
@@ -121,24 +129,42 @@ export async function POST(
     // Determine which schema to use
     const isRepeatableSection = requiresEntriesFormat && 'entries' in body;
 
-    // Validate based on format
-    const validation = isRepeatableSection
-      ? repeatableSaveRequestSchema.safeParse(body)
-      : saveRequestSchema.safeParse(body);
+    // Validate based on format. After narrowing on isRepeatableSection we get a
+    // properly typed payload (FlatSaveRequest or RepeatableSaveRequest), so we
+    // can read fields/entries without unsafe casts.
+    let sectionType: FlatSaveRequest['sectionType'] | RepeatableSaveRequest['sectionType'];
+    let sectionId: string;
+    let fields: FlatField[];
+    let entries: RepeatableEntry[] | null;
 
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid request body', details: validation.error.errors },
-        { status: 400 }
-      );
+    if (isRepeatableSection) {
+      const validation = repeatableSaveRequestSchema.safeParse(body);
+      if (!validation.success) {
+        return NextResponse.json(
+          { error: 'Invalid request body', details: validation.error.errors },
+          { status: 400 }
+        );
+      }
+      sectionType = validation.data.sectionType;
+      sectionId = validation.data.sectionId;
+      fields = [];
+      entries = validation.data.entries;
+    } else {
+      const validation = saveRequestSchema.safeParse(body);
+      if (!validation.success) {
+        return NextResponse.json(
+          { error: 'Invalid request body', details: validation.error.errors },
+          { status: 400 }
+        );
+      }
+      sectionType = validation.data.sectionType;
+      sectionId = validation.data.sectionId;
+      fields = validation.data.fields;
+      entries = null;
     }
 
-    const { sectionType, sectionId } = validation.data;
-    const fields = isRepeatableSection ? [] : (validation.data as any).fields;
-    const entries = isRepeatableSection ? (validation.data as any).entries : null;
-
     // Initialize fieldsToSave for later use
-    let fieldsToSave = fields;
+    let fieldsToSave: FlatField[] = fields;
 
     // Step 4: Load invitation to verify it's still valid
     const invitation = await prisma.candidateInvitation.findUnique({
@@ -261,11 +287,11 @@ export async function POST(
       // For education/employment, replace entire section with the provided entries
       currentFormData.sections[sectionId] = {
         type: sectionType,
-        entries: entries.map((entry: any) => ({
+        entries: entries.map((entry: RepeatableEntry) => ({
           entryId: entry.entryId,
           countryId: entry.countryId,
           entryOrder: entry.entryOrder,
-          fields: entry.fields.map((field: any) => ({
+          fields: entry.fields.map((field: RepeatableEntryField) => ({
             requirementId: field.requirementId,
             value: field.value,
             savedAt: new Date().toISOString()

@@ -5,7 +5,48 @@ import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
 
-import type { CandidateFormData, FormSectionData } from '@/types/candidate-portal';
+import type {
+  CandidateFormData,
+  FormSectionData,
+  SavedFieldData,
+} from '@/types/candidate-portal';
+
+// Shape of a single field in the formatted response: only the fields the
+// frontend needs (requirementId + value), not internal save metadata.
+interface FormattedField {
+  requirementId: string;
+  value: SavedFieldData['value'];
+}
+
+// Shape of a single entry in the formatted response for repeatable sections
+// (education, employment).
+interface FormattedEntry {
+  entryId: string;
+  countryId: string | null;
+  entryOrder: number;
+  fields: FormattedField[];
+}
+
+// Shape of a flat (non-repeatable) section in the formatted response.
+// IDV may additionally carry a countryId at the section level, which is
+// preserved when present on the saved data.
+interface FormattedFlatSection {
+  fields: FormattedField[];
+  countryId?: string | null;
+}
+
+// Shape of a repeatable section (education, employment) in the formatted
+// response.
+interface FormattedRepeatableSection {
+  entries: FormattedEntry[];
+}
+
+type FormattedSection = FormattedFlatSection | FormattedRepeatableSection;
+
+// Shape of an entry as stored in CandidateInvitation.formData. We narrow the
+// union member of FormSectionData['entries'] to a non-undefined element so we
+// can type the .map callbacks without `any`.
+type StoredEntry = NonNullable<FormSectionData['entries']>[number];
 
 /**
  * GET /api/candidate/application/[token]/saved-data
@@ -86,7 +127,7 @@ export async function GET(
 
     // Step 5: Format response
     // Transform saved data into the expected format
-    const formattedSections: Record<string, unknown> = {};
+    const formattedSections: Record<string, FormattedSection> = {};
 
     for (const [sectionId, sectionData] of Object.entries(sections)) {
       const data: FormSectionData = sectionData as FormSectionData;
@@ -97,36 +138,49 @@ export async function GET(
       // Check if this is a repeatable section (education/employment) with entries
       if ((sectionType === 'education' || sectionType === 'employment') && data.entries) {
         // Return entries array format for repeatable sections
-        formattedSections[sectionType] = {
-          entries: data.entries.map((entry: any) => ({
+        const repeatableSection: FormattedRepeatableSection = {
+          entries: data.entries.map((entry: StoredEntry) => ({
             entryId: entry.entryId,
             countryId: entry.countryId,
             entryOrder: entry.entryOrder,
-            fields: entry.fields.map((field: any) => ({
+            fields: entry.fields.map((field: SavedFieldData) => ({
               requirementId: field.requirementId,
               value: field.value
             }))
           }))
         };
+        formattedSections[sectionType] = repeatableSection;
       } else {
-        // Handle flat fields format for non-repeatable sections
-        if (!formattedSections[sectionType]) {
-          formattedSections[sectionType] = {
-            fields: []
-          };
+        // Handle flat fields format for non-repeatable sections.
+        // We accumulate into a typed FormattedFlatSection so callers don't
+        // need unsafe casts to read `countryId` or push fields.
+        let flatSection = formattedSections[sectionType] as
+          | FormattedFlatSection
+          | undefined;
+        if (!flatSection) {
+          flatSection = { fields: [] };
+          formattedSections[sectionType] = flatSection;
         }
 
-        // Special handling for IDV sections - preserve countryId if present
+        // Special handling for IDV sections - preserve countryId if present.
+        // FormSectionData uses an index signature for unknown extras, so we
+        // read countryId as a typed value here and only assign when it's a
+        // string or null (matching FormattedFlatSection.countryId).
         if (sectionType === 'idv' && 'countryId' in data) {
-          (formattedSections[sectionType] as any).countryId = data.countryId;
+          const rawCountryId = data.countryId;
+          if (
+            typeof rawCountryId === 'string' ||
+            rawCountryId === null
+          ) {
+            flatSection.countryId = rawCountryId;
+          }
         }
 
         // Add fields from this section
         if (data.fields && Array.isArray(data.fields)) {
-          const sectionFormatted = formattedSections[sectionType] as { fields: any[] };
-          for (const field of data.fields) {
+          for (const field of data.fields as SavedFieldData[]) {
             // Only include the requirementId and value, not internal metadata
-            sectionFormatted.fields.push({
+            flatSection.fields.push({
               requirementId: field.requirementId,
               value: field.value
             });

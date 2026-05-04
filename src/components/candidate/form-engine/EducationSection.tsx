@@ -11,7 +11,11 @@ import { RepeatableEntryManager } from './RepeatableEntryManager';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
-import type { EntryData, ScopeInfo } from '@/types/candidate-repeatable-form';
+import type {
+  EntryData,
+  RepeatableFieldValue,
+  ScopeInfo,
+} from '@/types/candidate-repeatable-form';
 import type { FieldMetadata, DocumentMetadata, FieldValue } from '@/types/candidate-portal';
 
 interface DsxField {
@@ -25,6 +29,15 @@ interface DsxField {
   fieldData?: FieldMetadata | null;
   documentData?: DocumentMetadata | null;
   displayOrder: number;
+}
+
+// Shape of an entry returned by /api/candidate/application/[token]/countries.
+// The API returns id (UUID), name, and code2; we only need id and name here,
+// but allow code2 to be present so this matches the API contract.
+interface CountryApiResponse {
+  id: string;
+  name: string;
+  code2?: string;
 }
 
 interface EducationSectionProps {
@@ -43,6 +56,7 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
   const [scope, setScope] = useState<ScopeInfo | null>(null);
   const [entries, setEntries] = useState<EntryData[]>([]);
   const [countries, setCountries] = useState<Array<{ id: string; name: string }>>([]);
+  const [countriesError, setCountriesError] = useState(false);
   const [fieldsByCountry, setFieldsByCountry] = useState<Record<string, DsxField[]>>({});
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -77,31 +91,30 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
         }
       }
 
-      // Load countries from candidate-specific API
+      // Load countries from candidate-specific API.
+      // We do NOT fall back to a hardcoded list here: the database stores Country.id
+      // as a UUID, so any non-UUID stand-in (e.g. "US") would be rejected by the
+      // save endpoint's Zod schema and prevent the candidate from saving any entry.
+      // If the API call fails we surface a clear error to the candidate instead.
       const countriesResponse = await fetch(
         `/api/candidate/application/${token}/countries`
       );
       if (countriesResponse.ok) {
-        const countriesData = await countriesResponse.json();
-        const countryList = countriesData.map((country: any) => ({
+        const countriesData: CountryApiResponse[] = await countriesResponse.json();
+        const countryList = countriesData.map((country) => ({
           id: country.id,
           name: country.name
         }));
         setCountries(countryList);
+        setCountriesError(false);
       } else {
         logger.error('Failed to load countries', {
           event: 'education_countries_load_error',
           token,
           status: countriesResponse.status
         });
-        // Fallback to a static list if API fails
-        const countryList = [
-          { id: 'US', name: 'United States' },
-          { id: 'CA', name: 'Canada' },
-          { id: 'UK', name: 'United Kingdom' },
-          { id: 'AU', name: 'Australia' }
-        ];
-        setCountries(countryList);
+        setCountries([]);
+        setCountriesError(true);
       }
 
       // Load saved data
@@ -172,12 +185,16 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
 
         const data = await response.json();
 
-        // Filter out personal info fields
+        // Filter out personal info fields. The collectionTab value used by
+        // the database to mark a field as belonging to the Personal Information
+        // section is "subject" (not "personal"), so we exclude fields whose
+        // collectionTab matches "subject" case-insensitively. Fields without a
+        // collectionTab (empty string) are kept and shown in this section.
         for (const field of data.fields || []) {
           const fieldData = field.fieldData || {};
           const collectionTab = fieldData.collectionTab || fieldData.collection_tab || '';
 
-          if (!collectionTab.toLowerCase().includes('personal')) {
+          if (!collectionTab.toLowerCase().includes('subject')) {
             // Use fieldKey as deduplication key
             if (!fieldMap.has(field.fieldKey)) {
               fieldMap.set(field.fieldKey, field);
@@ -234,6 +251,14 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
   };
 
   const handleFieldChange = (entryId: string, requirementId: string, value: FieldValue) => {
+    // DynamicFieldRenderer types its onChange callback as FieldValue, which
+    // includes Date for historical reasons. The repeatable-entry save schema
+    // does not accept Date values, so we coerce a Date to its ISO string
+    // before storing it on the entry. This keeps the saved data shape aligned
+    // with the Zod schema in /save and avoids needing `as any` casts.
+    const normalizedValue: RepeatableFieldValue =
+      value instanceof Date ? value.toISOString() : value;
+
     setEntries(prev => prev.map(entry => {
       if (entry.entryId === entryId) {
         const existingFieldIndex = entry.fields.findIndex(
@@ -242,9 +267,9 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
 
         const newFields = [...entry.fields];
         if (existingFieldIndex >= 0) {
-          newFields[existingFieldIndex] = { requirementId, value };
+          newFields[existingFieldIndex] = { requirementId, value: normalizedValue };
         } else {
-          newFields.push({ requirementId, value });
+          newFields.push({ requirementId, value: normalizedValue });
         }
 
         return { ...entry, fields: newFields };
@@ -316,9 +341,12 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
         {fields.length > 0 && (
           <div className="space-y-4">
             {fields.map(field => {
-              const fieldValue = entry.fields.find(
+              const stored = entry.fields.find(
                 f => f.requirementId === field.requirementId
-              )?.value;
+              );
+              // DynamicFieldRenderer types value as FieldValue (no undefined),
+              // so coalesce a missing entry to null which renders as empty.
+              const fieldValue: FieldValue = stored ? stored.value : null;
 
               return (
                 <DynamicFieldRenderer
@@ -359,6 +387,15 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
       </div>
 
       {scope && <ScopeDisplay scope={scope} sectionType="education" />}
+
+      {countriesError && (
+        <div
+          role="alert"
+          className="mb-4 p-3 border border-red-300 bg-red-50 text-red-800 rounded-md text-sm"
+        >
+          {t('candidate.portal.countriesLoadError')}
+        </div>
+      )}
 
       <RepeatableEntryManager
         entries={entries}

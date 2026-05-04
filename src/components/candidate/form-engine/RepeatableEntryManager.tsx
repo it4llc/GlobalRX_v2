@@ -26,6 +26,13 @@ export function RepeatableEntryManager({
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [showRemoveMessage, setShowRemoveMessage] = useState(false);
+  // Tracks whether the user just clicked "Add". When entries.length grows
+  // while this flag is set, the watch-effect below expands the new last entry
+  // on mobile. This avoids the stale-closure bug from the previous setTimeout
+  // approach, which captured `entries` at click time before the parent had
+  // appended the new entry, and could expand the wrong row.
+  const pendingExpandOnAdd = useRef(false);
+  const previousEntriesLength = useRef(entries.length);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const lastClickTime = useRef<number>(0);
 
@@ -46,6 +53,23 @@ export function RepeatableEntryManager({
     return () => window.removeEventListener('resize', checkMobile);
   }, [entries, expandedEntry]);
 
+  // When the entry list grows after the user clicks "Add", expand the newly
+  // appended entry on mobile. Watching entries.length here (rather than using
+  // a setTimeout in the click handler) reads the post-update value directly
+  // from props, so we always expand the entry the parent actually appended.
+  useEffect(() => {
+    if (
+      isMobile &&
+      pendingExpandOnAdd.current &&
+      entries.length > previousEntriesLength.current &&
+      entries.length > 0
+    ) {
+      setExpandedEntry(entries[entries.length - 1].entryId);
+      pendingExpandOnAdd.current = false;
+    }
+    previousEntriesLength.current = entries.length;
+  }, [entries, isMobile]);
+
   // Show remove message temporarily
   useEffect(() => {
     if (showRemoveMessage) {
@@ -62,18 +86,14 @@ export function RepeatableEntryManager({
     }
     lastClickTime.current = now;
 
-    onAddEntry();
-
-    // On mobile, expand the new entry
-    if (isMobile && entries.length > 0) {
-      // The new entry will be added at the end
-      setTimeout(() => {
-        const newEntries = entries;
-        if (newEntries.length > 0) {
-          setExpandedEntry(newEntries[newEntries.length - 1].entryId);
-        }
-      }, 100);
+    // Mark that we want to expand the newly added entry on mobile when the
+    // parent's state update flows back in via the entries prop (handled by
+    // the watch-effect above).
+    if (isMobile) {
+      pendingExpandOnAdd.current = true;
     }
+
+    onAddEntry();
   };
 
   const handleRemoveEntry = (entryId: string) => {
