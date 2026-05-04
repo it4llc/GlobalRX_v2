@@ -529,4 +529,413 @@ describe('GET /api/candidate/application/[token]/fields', () => {
       expect(data.error).toBe('Internal server error');
     });
   });
+
+  describe('Phase 6 Stage 3 — record service service-level baseline filtering', () => {
+    // Per spec: for record-type services, service-level (non-location-specific)
+    // requirements are SKIPPED unless they are address_block. Education and
+    // Employment continue to use the service-level baseline as before.
+    it('skips service-level non-address_block requirements for record services', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      // service.functionalityType === 'record' triggers the filter.
+      vi.mocked(prisma.service.findUnique).mockResolvedValueOnce({ functionalityType: 'record' } as any);
+
+      // Service-level requirements: a non-address_block (text) and an address_block.
+      const recordServiceRequirements = [
+        {
+          ...mockServiceRequirements[0],
+          requirement: {
+            id: 'sr-text',
+            name: 'Some Generic Text Field',
+            fieldKey: 'someText',
+            type: 'field',
+            disabled: false,
+            fieldData: { dataType: 'text' },
+            documentData: null
+          },
+          displayOrder: 1
+        },
+        {
+          ...mockServiceRequirements[0],
+          requirement: {
+            id: 'sr-address',
+            name: 'Residence Address',
+            fieldKey: 'residenceAddress',
+            type: 'field',
+            disabled: false,
+            fieldData: { dataType: 'address_block', addressConfig: null },
+            documentData: null
+          },
+          displayOrder: 2
+        }
+      ];
+
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(recordServiceRequirements as any);
+      // No location mappings.
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([]);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/fields?serviceId=service-1&countryId=US`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+
+      // The text field is filtered out — only the address_block survives.
+      expect(data.fields).toHaveLength(1);
+      expect(data.fields[0].requirementId).toBe('sr-address');
+      expect(data.fields[0].dataType).toBe('address_block');
+    });
+
+    it('keeps service-level non-address_block requirements for non-record (verification-edu) services', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      // Non-record service — baseline behavior preserved.
+      vi.mocked(prisma.service.findUnique).mockResolvedValueOnce({ functionalityType: 'verification-edu' } as any);
+
+      const eduServiceRequirements = [
+        {
+          ...mockServiceRequirements[0],
+          requirement: {
+            id: 'sr-school',
+            name: 'School Name',
+            fieldKey: 'schoolName',
+            type: 'field',
+            disabled: false,
+            fieldData: { dataType: 'text' },
+            documentData: null
+          },
+          displayOrder: 1
+        }
+      ];
+
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(eduServiceRequirements as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([]);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/fields?serviceId=service-1&countryId=US`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.fields).toHaveLength(1);
+      expect(data.fields[0].requirementId).toBe('sr-school');
+      expect(data.fields[0].dataType).toBe('text');
+    });
+  });
+
+  describe('Phase 6 Stage 3 — subregionId support and DSX availability', () => {
+    it('returns 400 when subregionId is provided but is not a UUID', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/fields?serviceId=service-1&countryId=US&subregionId=not-a-uuid`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toBe('Invalid subregionId parameter');
+    });
+
+    it('walks the ancestor chain when subregionId is provided and merges mappings across levels', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const countryId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+      const stateId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+      const countyId = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+
+      // Ancestor walk: county → state → country (returns null for parentId at country root)
+      vi.mocked(prisma.country.findUnique)
+        .mockResolvedValueOnce({ id: countyId, parentId: stateId } as any)
+        .mockResolvedValueOnce({ id: stateId, parentId: countryId } as any)
+        .mockResolvedValueOnce({ id: countryId, parentId: null } as any);
+
+      vi.mocked(prisma.service.findUnique).mockResolvedValueOnce({ functionalityType: 'record' } as any);
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce([]);
+
+      // Country-level mapping: requires "ID Type" (not required).
+      // State-level mapping: same requirement, marked required (OR-merge wins).
+      // County-level: a different additional requirement.
+      vi.mocked(prisma.dSXMapping.findMany)
+        .mockResolvedValueOnce([
+          {
+            id: 'm-country',
+            serviceId: 'service-1',
+            locationId: countryId,
+            isRequired: false,
+            requirement: {
+              id: 'req-id-type',
+              name: 'ID Type',
+              fieldKey: 'idType',
+              type: 'field',
+              disabled: false,
+              fieldData: { dataType: 'text' },
+              documentData: null
+            }
+          }
+        ] as any)
+        .mockResolvedValueOnce([
+          {
+            id: 'm-state',
+            serviceId: 'service-1',
+            locationId: stateId,
+            isRequired: true,
+            requirement: {
+              id: 'req-id-type',
+              name: 'ID Type',
+              fieldKey: 'idType',
+              type: 'field',
+              disabled: false,
+              fieldData: { dataType: 'text' },
+              documentData: null
+            }
+          }
+        ] as any)
+        .mockResolvedValueOnce([
+          {
+            id: 'm-county',
+            serviceId: 'service-1',
+            locationId: countyId,
+            isRequired: false,
+            requirement: {
+              id: 'req-county-form',
+              name: 'County Form',
+              fieldKey: 'countyForm',
+              type: 'document',
+              disabled: false,
+              fieldData: { dataType: 'document' },
+              documentData: { instructions: 'Fill out the county form' }
+            }
+          }
+        ] as any);
+
+      // No availability rows → defaults to available.
+      vi.mocked(prisma.dSXAvailability.findFirst).mockResolvedValue(null);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/fields?serviceId=service-1&countryId=${countryId}&subregionId=${countyId}`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+
+      // Two unique requirements: req-id-type (OR-merged to required) and req-county-form.
+      const ids = data.fields.map((f: { requirementId: string }) => f.requirementId);
+      expect(ids).toContain('req-id-type');
+      expect(ids).toContain('req-county-form');
+
+      const idType = data.fields.find((f: { requirementId: string }) => f.requirementId === 'req-id-type');
+      // OR-merged across country (false) + state (true) → true.
+      expect(idType.isRequired).toBe(true);
+    });
+
+    it('skips additional requirements at a level where the service is unavailable', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const countryId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+      const stateId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+
+      vi.mocked(prisma.country.findUnique)
+        .mockResolvedValueOnce({ id: stateId, parentId: countryId } as any)
+        .mockResolvedValueOnce({ id: countryId, parentId: null } as any);
+
+      vi.mocked(prisma.service.findUnique).mockResolvedValueOnce({ functionalityType: 'record' } as any);
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce([]);
+
+      // Country-level mapping returns the address block.
+      // State-level mapping would return state-specific requirements but
+      // the service is unavailable at the state level → those must be skipped.
+      vi.mocked(prisma.dSXMapping.findMany)
+        .mockResolvedValueOnce([
+          {
+            id: 'm-country',
+            serviceId: 'service-1',
+            locationId: countryId,
+            isRequired: true,
+            requirement: {
+              id: 'req-AB',
+              name: 'Residence Address',
+              fieldKey: 'residenceAddress',
+              type: 'field',
+              disabled: false,
+              fieldData: { dataType: 'address_block', addressConfig: null },
+              documentData: null
+            }
+          }
+        ] as any)
+        // State-level mappings are NOT consulted because the availability
+        // check returns isAvailable: false and the loop continues.
+        .mockResolvedValueOnce([]);
+
+      // Inline implementation per Mocking Rule M3: read the locationId from
+      // the args and return false only for the state, true for everything else.
+      // Note: Stage-3 spec says missing rows default to available, so when we
+      // do return a row we must explicitly set isAvailable=false to trigger
+      // the skip logic.
+      vi.mocked(prisma.dSXAvailability.findFirst).mockImplementation(async (args: { where?: { serviceId?: string; locationId?: string } } | undefined) => {
+        const where = args?.where;
+        if (where && where.locationId === stateId) {
+          return { id: 'av-state', serviceId: where.serviceId ?? '', locationId: stateId, isAvailable: false } as never;
+        }
+        return null as never;
+      });
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/fields?serviceId=service-1&countryId=${countryId}&subregionId=${stateId}`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+
+      // Address block from country level survives — it's always returned.
+      const ids = data.fields.map((f: { requirementId: string }) => f.requirementId);
+      expect(ids).toContain('req-AB');
+    });
+
+    it('treats missing dsx_availability rows as available (default behavior per spec)', async () => {
+      // Reset mocks whose implementations or Once-queues may leak from prior
+      // tests in this file. vi.clearAllMocks (called in beforeEach) does not
+      // reset implementations or unconsumed Once-queues — only resetAllMocks
+      // does, and this file uses clear. The previous "skips additional
+      // requirements" test queues a [] response for dSXMapping.findMany that
+      // the route never consumes (because the state-level call is skipped),
+      // so the leftover queue value would be returned to this test instead of
+      // our intended [m-state] value.
+      vi.mocked(prisma.dSXAvailability.findFirst).mockReset();
+      vi.mocked(prisma.dSXMapping.findMany).mockReset();
+      vi.mocked(prisma.country.findUnique).mockReset();
+
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const countryId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+      const stateId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.country.findUnique)
+        .mockResolvedValueOnce({ id: stateId, parentId: countryId } as any)
+        .mockResolvedValueOnce({ id: countryId, parentId: null } as any);
+      vi.mocked(prisma.service.findUnique).mockResolvedValueOnce({ functionalityType: 'record' } as any);
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce([]);
+
+      vi.mocked(prisma.dSXMapping.findMany)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            id: 'm-state',
+            serviceId: 'service-1',
+            locationId: stateId,
+            isRequired: false,
+            requirement: {
+              id: 'req-state-doc',
+              name: 'State-Specific Document',
+              fieldKey: 'stateDoc',
+              type: 'document',
+              disabled: false,
+              fieldData: { dataType: 'document' },
+              documentData: null
+            }
+          }
+        ] as any);
+
+      // No availability rows ANYWHERE → all levels treated as available.
+      vi.mocked(prisma.dSXAvailability.findFirst).mockResolvedValue(null);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/fields?serviceId=service-1&countryId=${countryId}&subregionId=${stateId}`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+
+      const ids = data.fields.map((f: { requirementId: string }) => f.requirementId);
+      // State-level requirement is included because the level was not marked unavailable.
+      expect(ids).toContain('req-state-doc');
+    });
+
+    it('does NOT call dsx_availability when subregionId is omitted (legacy single-level call)', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.service.findUnique).mockResolvedValueOnce({ functionalityType: 'verification-edu' } as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([]);
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce([]);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/fields?serviceId=service-1&countryId=US`
+      );
+
+      await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      // dsx_availability must not be consulted in the legacy single-level path.
+      expect(prisma.dSXAvailability.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
 });
