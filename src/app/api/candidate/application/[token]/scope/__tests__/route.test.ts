@@ -497,4 +497,287 @@ describe('GET /api/candidate/application/[token]/scope', () => {
       expect(data.error).toBe('Internal server error');
     });
   });
+
+  describe('record functionality (Phase 6 Stage 3)', () => {
+    const mockRecordPackageService = {
+      id: 'ps-record',
+      packageId: 'pkg-123',
+      serviceId: 'srv-record',
+      scope: { type: 'past-x-years', years: 7 },
+      service: {
+        id: 'srv-record',
+        functionalityType: 'record',
+        name: 'Criminal Record Search'
+      }
+    };
+
+    it('accepts "record" as a valid functionalityType', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.packageService.findMany).mockResolvedValueOnce([mockRecordPackageService] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/scope?functionalityType=record`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.functionalityType).toBe('record');
+    });
+
+    it('returns count_exact + value 1 + "Please provide your current address" for current-address scope', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const currentAddressService = {
+        ...mockRecordPackageService,
+        scope: { type: 'current-address' }
+      };
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.packageService.findMany).mockResolvedValueOnce([currentAddressService] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/scope?functionalityType=record`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.scopeType).toBe('count_exact');
+      expect(data.scopeValue).toBe(1);
+      expect(data.scopeDescription).toBe('Please provide your current address');
+    });
+
+    it('returns count_specific + value=quantity + "Please provide your last X addresses" for last-x-addresses scope', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const lastXAddressesService = {
+        ...mockRecordPackageService,
+        scope: { type: 'last-x-addresses', quantity: 3 }
+      };
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.packageService.findMany).mockResolvedValueOnce([lastXAddressesService] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/scope?functionalityType=record`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.scopeType).toBe('count_specific');
+      expect(data.scopeValue).toBe(3);
+      expect(data.scopeDescription).toBe('Please provide your last 3 addresses');
+    });
+
+    it('uses singular "address" wording when quantity is 1 for last-x-addresses', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const lastOneAddressService = {
+        ...mockRecordPackageService,
+        scope: { type: 'last-x-addresses', quantity: 1 }
+      };
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.packageService.findMany).mockResolvedValueOnce([lastOneAddressService] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/scope?functionalityType=record`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.scopeDescription).toBe('Please provide your last 1 address');
+    });
+
+    it('defaults to "Please provide your current address" when scope is null on a record service', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const nullScopeRecordService = {
+        ...mockRecordPackageService,
+        scope: null
+      };
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.packageService.findMany).mockResolvedValueOnce([nullScopeRecordService] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/scope?functionalityType=record`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.scopeType).toBe('count_exact');
+      expect(data.scopeValue).toBe(1);
+      expect(data.scopeDescription).toBe('Please provide your current address');
+    });
+
+    it('falls through to current-address default when a degree-style scope (highest-degree) is mistakenly configured on a record service', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const degreeScopeOnRecord = {
+        ...mockRecordPackageService,
+        scope: { type: 'highest-degree' }
+      };
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.packageService.findMany).mockResolvedValueOnce([degreeScopeOnRecord] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/scope?functionalityType=record`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      // Spec: degree-style scopes on record fall through to the record default
+      // (current-address), NOT to "complete address history".
+      expect(data.scopeType).toBe('count_exact');
+      expect(data.scopeValue).toBe(1);
+      expect(data.scopeDescription).toBe('Please provide your current address');
+      expect(data.scopeDescription).not.toContain('complete address history');
+    });
+
+    it('falls through to current-address default for highest-degree-inc-highschool on record', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const degreeIncHsService = {
+        ...mockRecordPackageService,
+        scope: { type: 'highest-degree-inc-highschool' }
+      };
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.packageService.findMany).mockResolvedValueOnce([degreeIncHsService] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/scope?functionalityType=record`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.scopeType).toBe('count_exact');
+      expect(data.scopeValue).toBe(1);
+      expect(data.scopeDescription).toBe('Please provide your current address');
+    });
+
+    it('falls through to current-address default for all-degrees on record', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const allDegreesService = {
+        ...mockRecordPackageService,
+        scope: { type: 'all-degrees' }
+      };
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.packageService.findMany).mockResolvedValueOnce([allDegreesService] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/scope?functionalityType=record`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.scopeType).toBe('count_exact');
+      expect(data.scopeValue).toBe(1);
+      expect(data.scopeDescription).toBe('Please provide your current address');
+    });
+
+    it('uses past-x-years wording with "addresses" noun for past-x-years scope on record', async () => {
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.packageService.findMany).mockResolvedValueOnce([mockRecordPackageService] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/scope?functionalityType=record`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.scopeType).toBe('time_based');
+      expect(data.scopeValue).toBe(7);
+      expect(data.scopeDescription).toBe('Please provide all addresses where you have lived in the past 7 years');
+    });
+  });
+
 });
