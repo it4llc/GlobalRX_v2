@@ -174,7 +174,6 @@ export function EmploymentSection({ token, serviceIds }: EmploymentSectionProps)
     }
 
     try {
-      const allFields: DsxField[] = [];
       const fieldMap = new Map<string, DsxField>();
 
       for (const serviceId of serviceIds) {
@@ -410,7 +409,7 @@ export function EmploymentSection({ token, serviceIds }: EmploymentSectionProps)
                   dataType={field.dataType}
                   isRequired={field.isRequired}
                   instructions={field.instructions}
-                  fieldData={field.fieldData}
+                  fieldData={field.fieldData ?? undefined}
                   value={fieldValue}
                   onChange={(value) => handleFieldChange(entry.entryId, field.requirementId, value)}
                   onBlur={handleFieldBlur}

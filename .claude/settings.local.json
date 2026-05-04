@@ -31,7 +31,12 @@
       "Bash(pnpm vitest run \"src/components/ui/password-input.test.tsx\" \"src/components/candidate/PasswordCreationForm.test.tsx\" \"src/components/candidate/CandidateLandingContent.test.tsx\" \"src/lib/services/candidate-invitation.service.test.ts\" \"src/lib/services/__tests__/candidate-invitation.service.test.ts\" \"src/app/api/candidate/auth/create-password/__tests__/route.test.ts\" \"/Users/andyhellman/Projects/GlobalRx_v2/src/app/api/candidate/invitations/enhanced/[token]/__tests__/route.test.ts\")",
       "Bash(grep -E \"\\.(ts|tsx)$\")",
       "Bash(pnpm vitest run src/lib/services/__tests__/candidate-invitation.service.test.ts src/lib/services/candidate-invitation.service.test.ts src/components/candidate/CandidateLandingContent.test.tsx src/components/candidate/PasswordCreationForm.test.tsx src/components/ui/password-input.test.tsx)",
-      "Bash(find *)"
+      "Bash(find *)",
+      "Bash(git diff *)",
+      "Read(//tmp/**)",
+      "Bash(awk '/^diff --git/{file=$3; sub\\(/^a\\\\//, \"\", file\\)} /^\\\\+.*as any/{print NR\":\"file\":\"$0}' /tmp/stage2-full.diff)",
+      "Bash(pnpm vitest *)",
+      "Bash(pnpm typecheck *)"
     ],
     "deny": [],
     "ask": []

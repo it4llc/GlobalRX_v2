@@ -1,6 +1,7 @@
 // /GlobalRX_v2/src/app/api/candidate/application/[token]/save/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { z } from 'zod';
@@ -219,7 +220,8 @@ export async function POST(
 
       // Look up DSX requirements for the fields being saved to get their fieldKeys
       const requirementIds = fields.map(f => f.requirementId);
-      let requirements = [];
+      // Mirrors the `select` shape below so callers get id+fieldKey only.
+      let requirements: { id: string; fieldKey: string }[] = [];
       try {
         // Check if dSXRequirement exists and has findMany method (it might not be mocked in tests)
         if (prisma.dSXRequirement && typeof prisma.dSXRequirement.findMany === 'function') {
@@ -330,11 +332,18 @@ export async function POST(
       }
 
       // Update or add field values (only for unlocked fields)
+      // FormSectionData.fields is optional in the shared type because repeatable
+      // sections store `entries` instead. For non-repeatable sections we always
+      // need a fields array, so initialize it if a previous save left it undefined.
       const sectionData = currentFormData.sections[sectionId];
+      if (!sectionData.fields) {
+        sectionData.fields = [];
+      }
+      const sectionFields: SavedFieldData[] = sectionData.fields;
 
       for (const field of fieldsToSave) {
         // Find existing field or add new one
-        const existingFieldIndex = sectionData.fields.findIndex(
+        const existingFieldIndex = sectionFields.findIndex(
           (f: SavedFieldData) => f.requirementId === field.requirementId
         );
 
@@ -345,18 +354,22 @@ export async function POST(
         };
 
         if (existingFieldIndex >= 0) {
-          sectionData.fields[existingFieldIndex] = fieldData;
+          sectionFields[existingFieldIndex] = fieldData;
         } else {
-          sectionData.fields.push(fieldData);
+          sectionFields.push(fieldData);
         }
       }
     }
 
     // Step 6: Save updated formData
+    // Prisma's update typing for Json columns is `InputJsonValue`, which doesn't
+    // structurally accept our custom CandidateFormData interface (it allows an
+    // index signature of `unknown`). The runtime value is JSON-serializable,
+    // so cast through unknown to InputJsonValue.
     await prisma.candidateInvitation.update({
       where: { id: invitation.id },
       data: {
-        formData: currentFormData,
+        formData: currentFormData as unknown as Prisma.InputJsonValue,
         lastAccessedAt: new Date()
       }
     });

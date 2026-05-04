@@ -90,7 +90,8 @@ export async function GET(
 
     logger.info('Countries retrieved for candidate', {
       event: 'candidate_countries_retrieved',
-      candidateId: invitation.candidateId,
+      // CandidateInvitation has no candidateId field; use invitation.id as the stable identifier.
+      invitationId: invitation.id,
       token,
       countriesCount: countries.length
     });

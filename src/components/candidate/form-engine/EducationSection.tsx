@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import { ScopeDisplay } from './ScopeDisplay';
@@ -174,7 +174,6 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
     }
 
     try {
-      const allFields: DsxField[] = [];
       const fieldMap = new Map<string, DsxField>();
 
       for (const serviceId of serviceIds) {
@@ -360,7 +359,7 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
                   dataType={field.dataType}
                   isRequired={field.isRequired}
                   instructions={field.instructions}
-                  fieldData={field.fieldData}
+                  fieldData={field.fieldData ?? undefined}
                   value={fieldValue}
                   onChange={(value) => handleFieldChange(entry.entryId, field.requirementId, value)}
                   onBlur={handleFieldBlur}

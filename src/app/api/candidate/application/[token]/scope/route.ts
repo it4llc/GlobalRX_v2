@@ -111,7 +111,13 @@ export async function GET(
 
     // Step 6: Extract and format scope information
     // Handle actual database scope format: {"type": "most-recent"} or {"type": "most-recent-x", "quantity": 2} or {"type": "past-x-years", "years": 7}
-    const rawScope = matchingPackageService.scope as any;
+    // The scope column is Prisma JSON, so we narrow it to the shape we expect at runtime.
+    interface PackageServiceScope {
+      type?: string;
+      quantity?: number;
+      years?: number;
+    }
+    const rawScope = matchingPackageService.scope as PackageServiceScope | null;
     let scopeType: string;
     let scopeValue: number | null = null;
     let scopeDescription: string;
