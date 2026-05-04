@@ -110,7 +110,17 @@ export function AggregatedRequirements({
             {t('candidate.aggregatedRequirements.requiredDocuments')}
           </h4>
           <ul className="space-y-3">
-            {documents.map((doc) => (
+            {documents.map((doc) => {
+              // Per Stage 3 spec Data Requirements (line 716, "Document
+              // Requirement Display"): document instructions live on
+              // `documentData.instructions`. We fall back to the legacy
+              // top-level `instructions` for callers that haven't been
+              // updated yet, then to null. This is a read-only fix — the
+              // upstream item-builder in AddressHistorySection still copies
+              // both fields onto the item.
+              const documentInstructions =
+                doc.documentData?.instructions ?? doc.instructions ?? null;
+              return (
               <li
                 key={doc.requirementId}
                 className="border border-gray-200 rounded-md p-3 bg-gray-50"
@@ -122,14 +132,15 @@ export function AggregatedRequirements({
                     <span className="text-red-500 ml-1 required-indicator">*</span>
                   )}
                 </div>
-                {doc.instructions && (
-                  <p className="text-sm text-gray-600 mt-1">{doc.instructions}</p>
+                {documentInstructions && (
+                  <p className="text-sm text-gray-600 mt-1">{documentInstructions}</p>
                 )}
                 <p className="text-xs text-gray-500 mt-2 italic">
                   {t('candidate.aggregatedRequirements.documentUploadPending')}
                 </p>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}

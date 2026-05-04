@@ -85,6 +85,15 @@ export interface AddressBlockInputProps {
    * during transient unauthenticated states.
    */
   token?: string;
+  /**
+   * Phase 6 Stage 3 Critical #1 — fired when the candidate has made their
+   * most-specific geographic selection (per spec Business Rule #10 and
+   * DoD #24). The callback receives the deepest UUID-shaped subregion
+   * (county UUID > state UUID > null). Free-text values, which appear when
+   * a country has no subdivisions for the level, are passed as null so the
+   * downstream fields loader falls back to country-level requirements only.
+   */
+  onAddressComplete?: (mostSpecificSubregionId: string | null) => void;
 }
 
 /**
@@ -124,6 +133,7 @@ export function AddressBlockInput({
   isRequired = false,
   fetchSubdivisions,
   token,
+  onAddressComplete,
 }: AddressBlockInputProps) {
   const { t } = useTranslation();
 
@@ -236,6 +246,65 @@ export function AddressBlockInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.state, config.county?.enabled, token]);
 
+  // Address-completion detection (Phase 6 Stage 3 Critical #1, spec Business
+  // Rule #10 + DoD #24). The block is "complete" when each enabled subdivision
+  // level either has a value or has no further subdivisions to choose from.
+  // The most-specific subregion id is the deepest UUID-shaped value (county >
+  // state > null). We dedupe firings against `lastAddressCompleteFire` so we
+  // don't re-fire on every re-render once the candidate has reached completion.
+  const lastAddressCompleteFire = useRef<string | null>(null);
+  useEffect(() => {
+    if (!onAddressComplete || !countryId) return;
+    const stateValue = value.state;
+    const countyValue = value.county;
+    // Wait until the state-subdivisions list has loaded — null means we
+    // haven't heard back from the server yet, so we don't know whether the
+    // country has subdivisions.
+    if (stateSubdivisions === null) return;
+    const stateHasSubdivisions = stateSubdivisions.length > 0;
+    // State piece readiness: either subdivisions don't exist (free-text mode,
+    // any value or none counts as resolved at the country level), or a value
+    // has been chosen.
+    const stateReady = !stateHasSubdivisions || (typeof stateValue === 'string' && stateValue.length > 0);
+    if (!stateReady) return;
+
+    const countyConfig = config.county;
+    let countyReady = true;
+    let mostSpecific: string | null = null;
+    if (stateHasSubdivisions && isUuid(stateValue)) {
+      mostSpecific = stateValue;
+    }
+    if (countyConfig?.enabled && isUuid(stateValue)) {
+      // County is meaningful only when state is a UUID (the county lookup
+      // hangs off the state row). When state is free-text we treat county as
+      // not applicable.
+      if (countySubdivisions === null) {
+        // County subdivisions still loading — wait.
+        return;
+      }
+      const countyHasSubdivisions = countySubdivisions.length > 0;
+      countyReady = !countyHasSubdivisions || (typeof countyValue === 'string' && countyValue.length > 0);
+      if (countyReady && countyHasSubdivisions && isUuid(countyValue)) {
+        mostSpecific = countyValue;
+      }
+    }
+    if (!countyReady) return;
+
+    // Dedupe: only fire when the most-specific value has changed since last fire.
+    const fireKey = mostSpecific ?? '<null>';
+    if (lastAddressCompleteFire.current === fireKey) return;
+    lastAddressCompleteFire.current = fireKey;
+    onAddressComplete(mostSpecific);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    countryId,
+    value.state,
+    value.county,
+    stateSubdivisions,
+    countySubdivisions,
+    config.county?.enabled,
+  ]);
+
   const setPiece = (piece: keyof AddressBlockValue, next: AddressBlockValue[keyof AddressBlockValue]) => {
     onChange({ ...value, [piece]: next });
   };
@@ -248,13 +317,15 @@ export function AddressBlockInput({
     return piece;
   };
 
-  // Render an asterisk only when BOTH the parent field is required AND the
-  // sub-piece is required (per COMPONENT_STANDARDS.md Section 3.3). For
-  // Stage 3 we treat the parent as required if isRequired is set OR the
-  // piece-level required flag is set on its own — until the parent isRequired
-  // is wired in DSX uniformly, this is the safer default.
+  // Asterisk shown only when BOTH the parent address_block field is required
+  // (`isRequired`) AND the sub-piece is required (`addressConfig[piece].required`),
+  // per COMPONENT_STANDARDS.md Section 3.3. Phase 6 Stage 3 rework Critical #2:
+  // the prior expression `pieceRequired && (isRequired || true)` was a tautology
+  // (the right-hand side always evaluates to true). Phase 6 Stage 2 (commit
+  // be894bf) wired the `isRequired` flag through DSX uniformly, so the original
+  // intent — respect the parent flag — is now safe to restore.
   const renderAsterisk = (pieceRequired: boolean) =>
-    pieceRequired && (isRequired || true) ? (
+    pieceRequired && isRequired ? (
       <span className="text-red-500 ml-1 required-indicator">*</span>
     ) : null;
 

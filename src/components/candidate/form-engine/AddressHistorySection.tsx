@@ -10,6 +10,7 @@ import { EntryCountrySelector } from './EntryCountrySelector';
 import { RepeatableEntryManager } from './RepeatableEntryManager';
 import { AddressBlockInput } from './AddressBlockInput';
 import { AggregatedRequirements } from './AggregatedRequirements';
+import { useEntryFieldsLoader, type EntryDsxField as DsxField } from './useEntryFieldsLoader';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
@@ -19,8 +20,6 @@ import type {
   ScopeInfo,
 } from '@/types/candidate-repeatable-form';
 import type {
-  FieldMetadata,
-  DocumentMetadata,
   FieldValue,
 } from '@/types/candidate-portal';
 import type {
@@ -28,19 +27,6 @@ import type {
   AddressConfig,
   AggregatedRequirementItem,
 } from '@/types/candidate-address';
-
-interface DsxField {
-  requirementId: string;
-  name: string;
-  fieldKey: string;
-  type: string;
-  dataType: string;
-  isRequired: boolean;
-  instructions?: string | null;
-  fieldData?: FieldMetadata | null;
-  documentData?: DocumentMetadata | null;
-  displayOrder: number;
-}
 
 interface CountryApiResponse {
   id: string;
@@ -94,10 +80,16 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
   // record service, the candidate sees them on the Personal Info tab and they
   // should not also appear here.
   const [personalInfoRequirementIds, setPersonalInfoRequirementIds] = useState<Set<string>>(new Set());
-  // Per-entry, per-service field map. Keyed by `${entryId}::${serviceId}`.
-  // Each value is the array of DSX fields the API returned for that entry's
-  // most-specific geographic selection.
-  const [fieldsByEntryService, setFieldsByEntryService] = useState<Record<string, DsxField[]>>({});
+  // Per-entry field-loading state, request-token-based stale invalidation,
+  // and the fetch logic itself live in useEntryFieldsLoader (Phase 6 Stage 3
+  // Critical #1 rework). The hook owns `fieldsByEntryService` and exposes
+  // load / invalidate / clear operations.
+  const {
+    fieldsByEntryService,
+    loadFieldsForEntry,
+    invalidateEntry,
+    clearEntry,
+  } = useEntryFieldsLoader(token, serviceIds);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [pendingSave, setPendingSave] = useState(false);
@@ -209,47 +201,6 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
     fields: []
   });
 
-  // Load fields for an entry. When subregionId is provided, the API walks
-  // the ancestor chain server-side and returns merged requirements.
-  const loadFieldsForEntry = async (
-    entryId: string,
-    countryId: string,
-    subregionId: string | null
-  ) => {
-    try {
-      for (const serviceId of serviceIds) {
-        const url = subregionId
-          ? `/api/candidate/application/${token}/fields?serviceId=${serviceId}&countryId=${countryId}&subregionId=${subregionId}`
-          : `/api/candidate/application/${token}/fields?serviceId=${serviceId}&countryId=${countryId}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Fields request failed (${response.status})`);
-        }
-        const data = await response.json();
-        const fields: DsxField[] = (data.fields || []).map((f: DsxField) => ({
-          ...f,
-          // Tag with serviceId via fieldData for sort. The DSX response
-          // doesn't include serviceId today, so we look it up by the loop
-          // variable. The aggregated dedup uses requirementId, so this is
-          // only for sort ordering.
-          fieldData: { ...(f.fieldData ?? {}), _serviceId: serviceId } as FieldMetadata
-        }));
-        setFieldsByEntryService((prev) => ({
-          ...prev,
-          [`${entryId}::${serviceId}`]: fields
-        }));
-      }
-    } catch (error) {
-      logger.error('Failed to load fields for address history entry', {
-        event: 'address_history_fields_load_error',
-        entryId,
-        countryId,
-        subregionId,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  };
-
   const handleAddEntry = () => {
     setEntries((prev) => [...prev, createEmptyEntry(prev.length)]);
     setPendingSave(true);
@@ -263,16 +214,8 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
       if (prev.length <= 1) return prev;
       return prev.filter((e) => e.entryId !== entryId);
     });
-    // Clear loaded fields for the removed entry to free memory.
-    setFieldsByEntryService((prev) => {
-      const next: Record<string, DsxField[]> = {};
-      for (const [key, value] of Object.entries(prev)) {
-        if (!key.startsWith(`${entryId}::`)) {
-          next[key] = value;
-        }
-      }
-      return next;
-    });
+    // Clear loaded fields and any in-flight loads for the removed entry.
+    clearEntry(entryId);
     setPendingSave(true);
   };
 
@@ -287,10 +230,28 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
     setEntries((prev) =>
       prev.map((entry) => (entry.entryId === entryId ? { ...entry, countryId, fields: [] } : entry))
     );
+    // Invalidate any in-flight subregion-driven load (DoD #23).
+    invalidateEntry(entryId);
     if (countryId) {
+      // Initial country-level load so the address_block field renders as soon
+      // as the candidate picks a country. The subregion-aware reload runs
+      // later via onAddressComplete from AddressBlockInput (DoD #24).
       await loadFieldsForEntry(entryId, countryId, null);
     }
     setPendingSave(true);
+  };
+
+  // Called by AddressBlockInput once the candidate has made their most-
+  // specific geographic selection (Phase 6 Stage 3 Critical #1, spec
+  // Business Rule #10 + DoD #24). Triggers the subregion-aware fields
+  // reload. Stale-response invalidation is handled inside the hook.
+  const handleAddressComplete = (entryId: string, countryId: string | null, subregionId: string | null) => {
+    if (!countryId) return;
+    // Bump the per-entry counter so any earlier load (country-level or
+    // a previous subregion selection) is discarded when its response
+    // arrives. Then fire the new load.
+    invalidateEntry(entryId);
+    void loadFieldsForEntry(entryId, countryId, subregionId);
   };
 
   const handleAddressBlockChange = (
@@ -470,6 +431,9 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
             isRequired={addressBlockField.isRequired}
             showDates={true}
             token={token}
+            onAddressComplete={(subregionId) =>
+              handleAddressComplete(entry.entryId, entry.countryId, subregionId)
+            }
           />
         )}
 
