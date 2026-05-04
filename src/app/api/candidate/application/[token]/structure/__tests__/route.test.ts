@@ -229,10 +229,16 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         serviceIds: ['service-1']
       });
 
+      // Phase 6 Stage 3: record-functionality services now emit a dedicated
+      // `address_history` section (id: 'address_history', type: 'address_history')
+      // instead of a generic service_section. Position remains index 2 of the
+      // service section ordering (after IDV, before Education) per the spec
+      // "Section Position in the Candidate Application" and Definition of Done
+      // items #10 and #11.
       expect(data.sections[3]).toEqual({
-        id: 'service_record',
+        id: 'address_history',
         title: 'candidate.portal.sections.addressHistory',
-        type: 'service_section',
+        type: 'address_history',
         placement: 'services',
         status: 'not_started',
         order: 3,
@@ -356,9 +362,15 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Should have personal info and service sections only (no workflow sections)
+      // Should have personal info and service sections only (no workflow sections).
+      // Phase 6 Stage 3: record-functionality services emit a dedicated
+      // `address_history` section type, so the set of valid types after
+      // personal_info now includes 'service_section' AND 'address_history'.
       expect(data.sections[0].type).toBe('personal_info');
-      expect(data.sections.slice(1).every((s: any) => s.type === 'service_section')).toBe(true);
+      const validServiceSectionTypes = ['service_section', 'address_history'];
+      expect(
+        data.sections.slice(1).every((s: any) => validServiceSectionTypes.includes(s.type))
+      ).toBe(true);
     });
 
     it('should handle package with no services', async () => {

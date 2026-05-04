@@ -25,7 +25,11 @@ const saveRequestSchema = z.object({
   }))
 });
 
-// Schema for repeatable entries save request
+// Schema for repeatable entries save request.
+// Phase 6 Stage 3 widened the per-field `value` union to also accept JSON
+// objects (one level deep, primitive values only) so address_block fields in
+// Education and Employment entries can store their value as a structured
+// object (street/city/state/postalCode) rather than a primitive string.
 const repeatableSaveRequestSchema = z.object({
   sectionType: z.enum(['education', 'employment']),
   sectionId: z.string(),
@@ -40,19 +44,68 @@ const repeatableSaveRequestSchema = z.object({
         z.number(),
         z.boolean(),
         z.null(),
-        z.array(z.string())
+        z.array(z.string()),
+        // Address-block JSON object form. Keys are address piece names
+        // (street1/street2/city/state/county/postalCode) plus optional
+        // nested dates for Address History (fromDate/toDate/isCurrent).
+        // Values are restricted to JSON primitives — one level deep —
+        // matching the widened RepeatableFieldValue type.
+        z.record(z.union([z.string(), z.number(), z.boolean(), z.null()]))
       ])
     }))
   }))
 });
 
-// Inferred types for the two request shapes. These give us a typed payload after
-// validation succeeds so we don't need `as any` casts when reading fields/entries.
+// Schema for the new Phase 6 Stage 3 address_history save shape. Address
+// history uses the same per-entry layout as Education / Employment (entries
+// array with entryId, countryId, entryOrder, fields), plus a top-level
+// `aggregatedFields` map keyed by dsx_requirements.id that stores values for
+// the deduplicated additional fields rendered in the AggregatedRequirements
+// area below the entries.
+//
+// Document requirements have NO entries in `aggregatedFields` for Stage 3 —
+// they are tracked only as "which are required" until Stage 4 delivers the
+// upload UI. Application-layer logic must not push document records into
+// this map.
+const addressHistorySaveRequestSchema = z.object({
+  sectionType: z.literal('address_history'),
+  sectionId: z.string(),
+  entries: z.array(z.object({
+    entryId: z.string().uuid(),
+    countryId: z.string().uuid().nullable(),
+    entryOrder: z.number().int().min(0),
+    fields: z.array(z.object({
+      requirementId: z.string().uuid(),
+      value: z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+        z.null(),
+        z.array(z.string()),
+        z.record(z.union([z.string(), z.number(), z.boolean(), z.null()]))
+      ])
+    }))
+  })),
+  aggregatedFields: z.record(z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(z.string())
+  ]))
+});
+
+// Inferred types for the three request shapes. These give us a typed payload
+// after validation succeeds so we don't need `as any` casts when reading
+// fields/entries/aggregatedFields.
 type FlatSaveRequest = z.infer<typeof saveRequestSchema>;
 type RepeatableSaveRequest = z.infer<typeof repeatableSaveRequestSchema>;
+type AddressHistorySaveRequest = z.infer<typeof addressHistorySaveRequestSchema>;
 type FlatField = FlatSaveRequest['fields'][number];
 type RepeatableEntry = RepeatableSaveRequest['entries'][number];
 type RepeatableEntryField = RepeatableEntry['fields'][number];
+type AddressHistoryEntry = AddressHistorySaveRequest['entries'][number];
+type AddressHistoryEntryField = AddressHistoryEntry['fields'][number];
 
 /**
  * POST /api/candidate/application/[token]/save
@@ -85,12 +138,32 @@ type RepeatableEntryField = RepeatableEntry['fields'][number];
  *     entryOrder: number     // Display order, 0-indexed
  *     fields: [{
  *       requirementId: string  // DSX requirement UUID
- *       value: string | number | boolean | null | string[]
+ *       value: string | number | boolean | null | string[] | object
+ *       // The object form was added in Phase 6 Stage 3 for address_block
+ *       // fields whose value is a JSON object (street/city/state/etc.).
  *     }]
  *   }]
  * }
  *
- * For repeatable sections the entire entries array replaces the saved
+ * Address-history format (sectionType: "address_history" — Phase 6 Stage 3):
+ * {
+ *   sectionType: "address_history"
+ *   sectionId: string
+ *   entries: [...same shape as education/employment, with address_block
+ *             values stored as JSON objects per the spec's Auto-Save Data
+ *             Shape section...]
+ *   aggregatedFields: {
+ *     // Keyed by dsx_requirements.id. Stores values for non-document
+ *     // additional fields rendered in the AggregatedRequirements area
+ *     // below the entries. Document requirements have NO entries here in
+ *     // Stage 3 — they are tracked only as "which are required" until
+ *     // Stage 4 delivers the upload UI.
+ *     [requirementId: string]: string | number | boolean | null | string[]
+ *   }
+ * }
+ *
+ * For repeatable and address-history sections the entire entries array (and,
+ * for address_history, the entire aggregatedFields object) replaces the saved
  * section. Sending an empty entries array clears the section's saved data.
  *
  * Response:
@@ -130,9 +203,13 @@ export async function POST(
     // Step 3: Parse and validate request body
     const body = await request.json();
 
-    // Education and employment sections MUST use entries array format
-    // Personal info, IDV, and other sections use flat fields format
-    const requiresEntriesFormat = body.sectionType === 'education' || body.sectionType === 'employment';
+    // Address history (Phase 6 Stage 3) uses entries + aggregatedFields.
+    // Education/employment use entries only. Personal info/IDV/etc. use flat
+    // fields. Each shape has its own Zod schema; the right one is chosen by
+    // sectionType so we can return precise validation errors.
+    const isAddressHistory = body.sectionType === 'address_history';
+    const requiresEntriesFormat =
+      body.sectionType === 'education' || body.sectionType === 'employment';
 
     // If it's education/employment but doesn't have entries field, that's an error
     if (requiresEntriesFormat && !('entries' in body)) {
@@ -148,18 +225,66 @@ export async function POST(
       );
     }
 
-    // Determine which schema to use
+    // Address history must carry both entries and aggregatedFields. Surfacing
+    // the exact missing key in the same shape as the entries-format error
+    // above keeps error responses consistent for the candidate UI.
+    if (isAddressHistory && !('entries' in body)) {
+      return NextResponse.json(
+        {
+          error: 'Invalid request body',
+          details: [{
+            message: `Section type 'address_history' requires entries array`,
+            path: ['entries']
+          }]
+        },
+        { status: 400 }
+      );
+    }
+    if (isAddressHistory && !('aggregatedFields' in body)) {
+      return NextResponse.json(
+        {
+          error: 'Invalid request body',
+          details: [{
+            message: `Section type 'address_history' requires aggregatedFields object`,
+            path: ['aggregatedFields']
+          }]
+        },
+        { status: 400 }
+      );
+    }
+
+    // Determine which schema to use. The branches are mutually exclusive —
+    // address_history is its own shape, repeatable covers education/employment,
+    // and the flat schema covers everything else.
     const isRepeatableSection = requiresEntriesFormat && 'entries' in body;
 
-    // Validate based on format. After narrowing on isRepeatableSection we get a
-    // properly typed payload (FlatSaveRequest or RepeatableSaveRequest), so we
-    // can read fields/entries without unsafe casts.
-    let sectionType: FlatSaveRequest['sectionType'] | RepeatableSaveRequest['sectionType'];
+    // Validate based on format. After narrowing we get a properly typed
+    // payload (FlatSaveRequest, RepeatableSaveRequest, or
+    // AddressHistorySaveRequest), so we can read fields/entries/aggregatedFields
+    // without unsafe casts.
+    let sectionType:
+      | FlatSaveRequest['sectionType']
+      | RepeatableSaveRequest['sectionType']
+      | AddressHistorySaveRequest['sectionType'];
     let sectionId: string;
     let fields: FlatField[];
-    let entries: RepeatableEntry[] | null;
+    let entries: RepeatableEntry[] | AddressHistoryEntry[] | null;
+    let aggregatedFields: AddressHistorySaveRequest['aggregatedFields'] | null = null;
 
-    if (isRepeatableSection) {
+    if (isAddressHistory) {
+      const validation = addressHistorySaveRequestSchema.safeParse(body);
+      if (!validation.success) {
+        return NextResponse.json(
+          { error: 'Invalid request body', details: validation.error.errors },
+          { status: 400 }
+        );
+      }
+      sectionType = validation.data.sectionType;
+      sectionId = validation.data.sectionId;
+      fields = [];
+      entries = validation.data.entries;
+      aggregatedFields = validation.data.aggregatedFields;
+    } else if (isRepeatableSection) {
       const validation = repeatableSaveRequestSchema.safeParse(body);
       if (!validation.success) {
         return NextResponse.json(
@@ -306,12 +431,34 @@ export async function POST(
       currentFormData.sections = {};
     }
 
-    // Handle repeatable sections differently (whole-section replacement)
-    if (isRepeatableSection && entries !== null) {
+    // Handle the address_history section (Phase 6 Stage 3) — same per-entry
+    // shape as Education/Employment, plus a top-level aggregatedFields object.
+    // Whole-section replacement: the entire entries array AND the entire
+    // aggregatedFields object replace any previous values.
+    if (isAddressHistory && entries !== null) {
+      const savedAtTimestamp = new Date().toISOString();
+      currentFormData.sections[sectionId] = {
+        type: sectionType,
+        entries: (entries as AddressHistoryEntry[]).map((entry) => ({
+          entryId: entry.entryId,
+          countryId: entry.countryId,
+          entryOrder: entry.entryOrder,
+          fields: entry.fields.map((field: AddressHistoryEntryField) => ({
+            requirementId: field.requirementId,
+            value: field.value,
+            savedAt: savedAtTimestamp
+          }))
+        })),
+        // The shared CandidateFormData/FormSectionData types use an index
+        // signature for unknown extras, so we attach aggregatedFields
+        // directly. The saved-data endpoint reads it the same way.
+        aggregatedFields: aggregatedFields ?? {}
+      };
+    } else if (isRepeatableSection && entries !== null) {
       // For education/employment, replace entire section with the provided entries
       currentFormData.sections[sectionId] = {
         type: sectionType,
-        entries: entries.map((entry: RepeatableEntry) => ({
+        entries: (entries as RepeatableEntry[]).map((entry) => ({
           entryId: entry.entryId,
           countryId: entry.countryId,
           entryOrder: entry.entryOrder,
@@ -385,18 +532,22 @@ export async function POST(
 
     const savedAt = new Date().toISOString();
 
+    // For logging purposes, treat both repeatable (education/employment) and
+    // address_history as "entries-shaped" sections — neither has locked
+    // field filtering, both report counts based on entries length.
+    const isEntriesShaped = isRepeatableSection || isAddressHistory;
     logger.info('Candidate form data saved', {
       event: 'candidate_form_save',
       invitationId: invitation.id,
       sectionType,
       sectionId,
-      originalFieldsCount: isRepeatableSection ?
+      originalFieldsCount: isEntriesShaped ?
         (entries ? entries.length : 0) :
         fields.length,
-      savedFieldsCount: isRepeatableSection ?
+      savedFieldsCount: isEntriesShaped ?
         (entries ? entries.length : 0) :
         fieldsToSave.length,
-      lockedFieldsFiltered: isRepeatableSection ?
+      lockedFieldsFiltered: isEntriesShaped ?
         0 :
         fields.length - fieldsToSave.length
     });

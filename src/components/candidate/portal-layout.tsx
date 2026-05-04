@@ -11,6 +11,7 @@ import { PersonalInfoSection } from './form-engine/PersonalInfoSection';
 import { IdvSection } from './form-engine/IdvSection';
 import { EducationSection } from './form-engine/EducationSection';
 import { EmploymentSection } from './form-engine/EmploymentSection';
+import { AddressHistorySection } from './form-engine/AddressHistorySection';
 import { useTranslation } from '@/contexts/TranslationContext';
 import type { CandidateInvitationInfo, CandidatePortalSection } from '@/types/candidate-portal';
 
@@ -84,6 +85,18 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
       return (
         <div className="p-6" data-testid="main-content">
           <IdvSection token={token} serviceIds={section.serviceIds || []} />
+        </div>
+      );
+    }
+
+    // Phase 6 Stage 3: dispatch the new Address History section type emitted
+    // by the structure endpoint when the package contains record-type
+    // services. Position-2 ordering is enforced upstream by the structure
+    // endpoint's fixed serviceTypeOrder.
+    if (section.type === 'address_history') {
+      return (
+        <div className="p-6" data-testid="main-content">
+          <AddressHistorySection token={token} serviceIds={section.serviceIds || []} />
         </div>
       );
     }

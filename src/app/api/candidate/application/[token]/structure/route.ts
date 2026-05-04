@@ -177,16 +177,36 @@ export async function GET(
         const servicesForType = servicesByType.get(funcType)!;
         const serviceIds = servicesForType.map(ps => ps.service.id);
 
-        sections.push({
-          id: `service_${funcType}`,
-          title: serviceTitleMap[funcType] || funcType,
-          type: 'service_section',
-          placement: 'services',
-          status: 'not_started',
-          order: sectionOrder++,
-          functionalityType: funcType,
-          serviceIds // Include service IDs for the form to use
-        });
+        // Phase 6 Stage 3: emit a dedicated `address_history` section type
+        // for record-functionality services, instead of falling through to
+        // a generic `service_section`. The portal layout dispatches on
+        // section.type === 'address_history' to render AddressHistorySection.
+        // Position ordering is unchanged — record is still index 1 in the
+        // fixed serviceTypeOrder, which puts Address History right after
+        // IDV and before Education.
+        if (funcType === 'record') {
+          sections.push({
+            id: 'address_history',
+            title: serviceTitleMap[funcType] || funcType,
+            type: 'address_history',
+            placement: 'services',
+            status: 'not_started',
+            order: sectionOrder++,
+            functionalityType: funcType,
+            serviceIds
+          });
+        } else {
+          sections.push({
+            id: `service_${funcType}`,
+            title: serviceTitleMap[funcType] || funcType,
+            type: 'service_section',
+            placement: 'services',
+            status: 'not_started',
+            order: sectionOrder++,
+            functionalityType: funcType,
+            serviceIds // Include service IDs for the form to use
+          });
+        }
       }
     }
 

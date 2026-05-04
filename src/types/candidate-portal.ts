@@ -15,7 +15,7 @@ export interface CandidateInvitationInfo {
 export interface CandidatePortalSection {
   id: string;
   title: string;
-  type: 'workflow_section' | 'service_section' | 'personal_info';
+  type: 'workflow_section' | 'service_section' | 'personal_info' | 'address_history';
   placement: 'before_services' | 'services' | 'after_services';
   status: 'not_started' | 'in_progress' | 'complete';
   order: number;
@@ -85,5 +85,17 @@ export interface DocumentMetadata {
   [key: string]: unknown;
 }
 
-// Type for field values in forms
-export type FieldValue = string | number | boolean | Date | string[] | null;
+// Type for field values in forms.
+// The object case was added in Phase 6 Stage 3 to support address_block fields,
+// whose value is a JSON object (street/city/state/postalCode plus optional
+// dates) rather than a primitive. The object's values are restricted to JSON
+// primitives — one level deep, matching the widened RepeatableFieldValue and
+// the Zod schemas in /save/route.ts.
+export type FieldValue =
+  | string
+  | number
+  | boolean
+  | Date
+  | string[]
+  | null
+  | { [k: string]: string | number | boolean | null | undefined };

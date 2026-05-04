@@ -1329,6 +1329,34 @@ Create typed mock factory functions (e.g., `createMockWorkflow(overrides)`) that
 
 ---
 
+### TD-051 — Candidate save/route.ts exceeds 500-line soft trigger
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application API                   |
+| Severity    | Warning (Maintainability)                   |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Implementation |
+| Identified by | Implementer (Stage 4)                     |
+
+**Description:**
+`src/app/api/candidate/application/[token]/save/route.ts` grew from 415 lines to 566 lines during Phase 6 Stage 3, crossing the 500-line soft trigger defined in CODING_STANDARDS.md Section 9. The growth came from additions called out in the Stage 3 technical plan (the new `addressHistorySaveRequestSchema`, the widened repeatable schema, and the `address_history` dispatch branch with JSDoc).
+
+**Why deferred:**
+The file was under 500 lines when Stage 3 began, so the additions were permitted under Rule 10. The file remains functional and well-organized — each section type has its own dispatch branch following an established pattern. Splitting now would conflict with the Stage 3 implementer's narrow scope.
+
+**When to fix:**
+Before adding any further section types (Stage 4 will add upload-related branches; this file should be split first). The natural split is one schema file plus per-section-type handler modules.
+
+**Suggested fix:**
+- Extract each `*SaveRequestSchema` into `src/schemas/candidate-save-schemas.ts`
+- Extract each per-section dispatch branch into a service module (e.g., `src/lib/services/candidate-save/{personal-info,idv,education,employment,address-history,repeatable}.ts`)
+- The route handler becomes a thin dispatcher that authenticates, validates, and routes to the appropriate service module
+
+**Files affected:**
+- `src/app/api/candidate/application/[token]/save/route.ts`
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
