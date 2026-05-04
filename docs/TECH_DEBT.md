@@ -1329,6 +1329,220 @@ Create typed mock factory functions (e.g., `createMockWorkflow(overrides)`) that
 
 ---
 
+### TD-051 — Candidate save/route.ts exceeds 500-line soft trigger
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application API                   |
+| Severity    | Warning (Maintainability)                   |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Implementation |
+| Identified by | Implementer (Stage 4)                     |
+
+**Description:**
+`src/app/api/candidate/application/[token]/save/route.ts` grew from 415 lines to 566 lines during Phase 6 Stage 3, crossing the 500-line soft trigger defined in CODING_STANDARDS.md Section 9. The growth came from additions called out in the Stage 3 technical plan (the new `addressHistorySaveRequestSchema`, the widened repeatable schema, and the `address_history` dispatch branch with JSDoc).
+
+**Why deferred:**
+The file was under 500 lines when Stage 3 began, so the additions were permitted under Rule 10. The file remains functional and well-organized — each section type has its own dispatch branch following an established pattern. Splitting now would conflict with the Stage 3 implementer's narrow scope.
+
+**When to fix:**
+Before adding any further section types (Stage 4 will add upload-related branches; this file should be split first). The natural split is one schema file plus per-section-type handler modules.
+
+**Suggested fix:**
+- Extract each `*SaveRequestSchema` into `src/schemas/candidate-save-schemas.ts`
+- Extract each per-section dispatch branch into a service module (e.g., `src/lib/services/candidate-save/{personal-info,idv,education,employment,address-history,repeatable}.ts`)
+- The route handler becomes a thin dispatcher that authenticates, validates, and routes to the appropriate service module
+
+**Files affected:**
+- `src/app/api/candidate/application/[token]/save/route.ts`
+
+---
+
+### TD-052 — Cross-section requirement awareness for Personal Info
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Personal Info & Address History |
+| Severity    | Warning (Data Integrity)                    |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Smoke Testing |
+| Identified by | Andy (smoke test)                         |
+
+**Description:**
+When Address History's DSX mappings make a field required that is collected on the Personal Information tab (e.g., Middle Name becomes required for criminal searches in a specific country), the Personal Information section currently has no awareness of this. The field is correctly excluded from the Address History aggregated area — `AddressHistorySection.computeAggregatedItems` skips any requirement whose UUID appears in `/personal-info-fields` — so the candidate isn't asked twice. But the Personal Info section still shows the field as optional based on its own `isRequired` resolution, which doesn't account for downstream sections' requirements.
+
+The candidate can skip the field on the Personal Info tab and no warning appears until submission validation in Phase 7.
+
+**Why deferred:**
+The fix requires the Personal Info section to consult Address History's DSX mappings (and Education's, and Employment's) when computing per-field `isRequired`. That cross-section coordination is more naturally placed alongside section progress indicators, which Phase 6 Stage 4 will build.
+
+**When to fix:**
+Address in Phase 6 Stage 4 when building section progress indicators. The progress computation should factor in cross-section requirements so Personal Info can show as incomplete if a field it collects is required by another section's DSX mappings. If Stage 4 scope is too tight, defer to Phase 7 validation as a backstop.
+
+**Preferred fix:**
+Update `personal-info-fields` (or a new shared resolver) to OR-merge `isRequired` across:
+1. The field's own `service_requirements` / `dsx_mappings`
+2. Any `dsx_mappings` for the same `requirementId` reachable from Address History entry countries
+3. Any `dsx_mappings` for the same `requirementId` reachable from Education / Employment entry countries
+
+This way a field becomes required on the Personal Info tab if ANY downstream section needs it.
+
+**Files affected:**
+- `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
+- `src/components/candidate/form-engine/PersonalInfoSection.tsx` (if progress UI changes)
+
+---
+
+### TD-053 — Aggregated radio/checkbox fields don't auto-save until next blur
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Address History     |
+| Severity    | Warning (UX)                                |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Code Review   |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+`AggregatedRequirements` calls `onAggregatedFieldChange` on `onChange` and `onAggregatedFieldBlur` on `onBlur`. Auto-save is triggered by the blur callback. For input/text fields this works correctly because they emit a separate blur event. But radio buttons and checkboxes typically only fire `onChange` on toggle, with no follow-up blur. A candidate who clicks a radio in the aggregated area and then leaves the page (or simply does not touch any other field) will lose that selection until the next save cycle.
+
+**Why deferred:**
+The bug is observable but does not cause data loss in the common case where the candidate continues filling out the form (touching any other field triggers the deferred save). Fix requires either changing the auto-save trigger to fire on every change (not just blur) for non-text dataTypes, or wrapping the radio/checkbox fields with an explicit blur emission. Either approach has cross-section implications and is better tackled alongside Stage 4 form polish.
+
+**When to fix:**
+Phase 6 Stage 4 form polish, OR when the auto-save mechanism is reviewed broadly.
+
+**Files affected:**
+- `src/components/candidate/form-engine/AggregatedRequirements.tsx`
+- `src/components/candidate/form-engine/DynamicFieldRenderer.tsx` (radio/checkbox branches)
+
+---
+
+### TD-054 — AddressHistorySection silent failure when fields API errors
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Address History     |
+| Severity    | Warning (UX)                                |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Code Review   |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+`AddressHistorySection.loadFieldsForEntry` (lines 214-251) catches errors when calling `/fields` but only logs them via `clientLogger.error`. The candidate sees no UI surface — the aggregated requirements area silently shows nothing instead of indicating that requirements failed to load. The Stage 3 spec edge case ("Fields API returns an error during requirement loading → the aggregated requirements area shows a recoverable error state") is not implemented.
+
+**Why deferred:**
+Address history will still render with the address block intact even when the fields call fails — the candidate can complete the address itself. The aggregated additional information / required documents would just be missing. A retry button or banner is the right fix but it's a UX polish task, not blocking data integrity.
+
+**When to fix:**
+Phase 6 Stage 4 form polish, OR when general candidate form error handling is reviewed.
+
+**Files affected:**
+- `src/components/candidate/form-engine/AddressHistorySection.tsx`
+
+---
+
+### TD-055 — computeAggregatedItems uses constant serviceTypeOrder
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Address History     |
+| Severity    | Low (Code Quality)                          |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Code Review   |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+`AddressHistorySection.computeAggregatedItems` calls `resolveServiceTypeOrder(serviceId, fields)` for every field, but the helper always returns `SERVICE_TYPE_ORDER_INDEX.record` (= 1) regardless of which service the field came from. Today this is correct because all services routed to Address History are `record`-functionality, so the sort within the aggregated area collapses to `displayOrder` — which is the intended behavior. But the abstraction is misleading: a future change that routes a non-record service into Address History (or that adds a new record-functionality sort key) would silently mis-sort.
+
+**Why deferred:**
+Behaves correctly today. Inline computation of the real per-service rank requires tagging fields with their actual `functionalityType` at fetch time, which is more invasive than the current Stage 3 scope warrants.
+
+**When to fix:**
+When a non-record service is added to Address History, or when sort ordering across record sub-types becomes meaningful. Either inline a comment explaining the intentional collapse, or compute a real per-service rank.
+
+**Files affected:**
+- `src/components/candidate/form-engine/AddressHistorySection.tsx` (`computeAggregatedItems`, `resolveServiceTypeOrder`)
+
+---
+
+### TD-056 — Stale-UUID hydration warnings could become noisy
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Order Display / Hydration                   |
+| Severity    | Low (Operational)                           |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Code Review   |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+`order-data-resolvers.ts` lines 196-199 emit `logger.warn` for every saved address whose state/county UUID no longer resolves through the `countries` table (deleted or renamed subdivision). Each disabled row in `countries` will warn on every hydration of every order that references it. In production this could become a steady background of warnings if any subdivisions are ever renamed/disabled.
+
+**Why deferred:**
+The warning is correct behavior — data integrity issues should be visible. But the noise level may not match the actual urgency of any individual case.
+
+**When to fix:**
+If/when production logs show this warning is firing frequently. Mitigations could include: dedupe-by-UUID cache so each missing subdivision warns only once per process, downgrade to debug, or move to a periodic data-quality audit job.
+
+**Files affected:**
+- `src/lib/services/order-data-resolvers.ts`
+
+---
+
+### TD-057 — Scope endpoint returns hardcoded English `scopeDescription` strings
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Scope API           |
+| Severity    | Warning (i18n)                              |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Standards Check |
+| Identified by | Standards Checker                         |
+
+**Description:**
+`src/app/api/candidate/application/[token]/scope/route.ts` builds `scopeDescription` as a hardcoded English template string for every scope variant (lines 167, 171, 177, 182, 187–189, 195–197, 202–204, 209, 214, 219, 224–226). The string is rendered directly to the candidate by `ScopeDisplay.tsx` line 22 with no `t()` call. This violates COMPONENT S6.1 (all user-facing text must use the translation system).
+
+The pattern is pre-existing for education and employment scope branches; Phase 6 Stage 3 extended it to record-functionality branches (current-address, last-x-addresses, null-record-default). Fixing only the new branches would create inconsistency with the rest of the file.
+
+**Why deferred:**
+Proper fix is architectural: the scope endpoint should return a structured response (`scopeKey: 'scope.record.currentAddress'`, `scopeParams: { years: 7 }`) and the client should call `t(scopeKey, scopeParams)`. This requires changing the response shape, the `ScopeInfo` type, all `ScopeDisplay` consumers, and adding new translation keys for every scope variant across all 5 language files. Out of scope for Stage 3.
+
+**When to fix:**
+When the candidate portal needs full localization. Likely Phase 7 or a dedicated i18n pass.
+
+**Files affected:**
+- `src/app/api/candidate/application/[token]/scope/route.ts`
+- `src/components/candidate/form-engine/ScopeDisplay.tsx`
+- `src/types/candidate-repeatable-form.ts` (`ScopeInfo` shape)
+- All 5 translation files
+
+---
+
+### TD-058 — New Phase 6 Stage 3 translation keys missing from non-en-US locales
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Translations / i18n |
+| Severity    | Warning (i18n)                              |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Standards Check |
+| Identified by | Standards Checker                         |
+
+**Description:**
+The 14 new translation keys added in Phase 6 Stage 3 (`candidate.addressHistory.*`, `candidate.addressBlock.*`, `candidate.aggregatedRequirements.*`) exist only in `src/translations/en-US.json`. They are absent from `en-GB.json`, `es-ES.json`, `es.json`, and `ja-JP.json`. This violates COMPONENT S6.3 (new translation keys must be added to every language file).
+
+**Why deferred:**
+The Stage 3 technical plan explicitly noted this decision: "The other translation files currently lack many of the existing Stage 1 / Stage 2 candidate keys ... This plan does NOT add the new keys to those files because that would expand the scope beyond what Stage 3 requires; the existing translation context falls back gracefully to the en-US value when a key is missing in the active locale." The pattern matches Stages 1 and 2.
+
+**When to fix:**
+When the candidate portal is being prepared for non-English locales. Should be done as one batch covering Stages 1, 2, and 3 keys — translating each set in isolation creates rework when terminology changes.
+
+**Affected keys (Stage 3 set):**
+- `candidate.addressHistory.title`, `.addAnother`, `.entryLabel`, `.currentAddress`, `.fromDate`, `.toDate`, `.removeConfirm`
+- `candidate.addressBlock.street1`, `.street2`, `.city`, `.state`, `.county`, `.postalCode`
+- `candidate.aggregatedRequirements.heading`, `.additionalInformation`, `.requiredDocuments`, `.documentUploadPending`
+
+**Files affected:**
+- `src/translations/en-GB.json`
+- `src/translations/es-ES.json`
+- `src/translations/es.json`
+- `src/translations/ja-JP.json`
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_

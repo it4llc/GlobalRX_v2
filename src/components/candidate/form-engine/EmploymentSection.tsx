@@ -411,6 +411,12 @@ export function EmploymentSection({ token, serviceIds }: EmploymentSectionProps)
                   value={fieldValue}
                   onChange={(value) => handleFieldChange(entry.entryId, field.requirementId, value)}
                   onBlur={handleFieldBlur}
+                  // Phase 6 Stage 3: pass the entry's country and token so
+                  // the embedded AddressBlockInput (rendered by the
+                  // DynamicFieldRenderer for address_block fields) can
+                  // populate its state/province dropdown.
+                  countryId={entry.countryId ?? null}
+                  token={token}
                 />
               );
             })}

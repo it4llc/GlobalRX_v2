@@ -230,6 +230,14 @@ export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
               onChange={(value) => handleFieldChange(field.requirementId, value)}
               onBlur={() => handleFieldBlur(field.requirementId)}
               locked={field.locked}
+              // Phase 6 Stage 3: Personal Information is location-independent
+              // (Stage 1 spec Business Rule #10) and should never receive an
+              // address_block field. Passing null is defensive — if a
+              // misconfigured DSX field ever did appear here, the address
+              // block would fall back to free-text inputs (no country
+              // context, no subdivisions to load).
+              countryId={null}
+              token={token}
             />
           ))}
       </div>

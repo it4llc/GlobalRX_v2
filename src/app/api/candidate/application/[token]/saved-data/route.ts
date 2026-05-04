@@ -41,7 +41,19 @@ interface FormattedRepeatableSection {
   entries: FormattedEntry[];
 }
 
-type FormattedSection = FormattedFlatSection | FormattedRepeatableSection;
+// Shape of the address_history section in the formatted response (Phase 6
+// Stage 3). Same per-entry layout as the repeatable sections, plus a
+// top-level aggregatedFields object keyed by dsx_requirements.id with values
+// for the deduplicated additional fields rendered below the entries.
+interface FormattedAddressHistorySection {
+  entries: FormattedEntry[];
+  aggregatedFields: Record<string, SavedFieldData['value']>;
+}
+
+type FormattedSection =
+  | FormattedFlatSection
+  | FormattedRepeatableSection
+  | FormattedAddressHistorySection;
 
 // Shape of an entry as stored in CandidateInvitation.formData. We narrow the
 // union member of FormSectionData['entries'] to a non-undefined element so we
@@ -87,7 +99,9 @@ type StoredEntry = NonNullable<FormSectionData['entries']>[number];
  *         entryOrder: number
  *         fields: [{
  *           requirementId: string
- *           value: string | number | boolean | null | string[]
+ *           value: string | number | boolean | null | string[] | object
+ *           // Object value form (Phase 6 Stage 3) covers address_block fields
+ *           // whose value is a JSON object (street/city/state/etc.).
  *         }]
  *       }]
  *     },
@@ -96,6 +110,23 @@ type StoredEntry = NonNullable<FormSectionData['entries']>[number];
  *     }
  *   }
  * }
+ *
+ * Address-history section (Phase 6 Stage 3) returns the same per-entry shape
+ * as the repeatable sections, PLUS a top-level aggregatedFields object
+ * keyed by dsx_requirements.id with the values entered in the deduplicated
+ * AggregatedRequirements area:
+ * {
+ *   sections: {
+ *     "address_history": {
+ *       entries: [ ...same per-entry shape as education/employment... ],
+ *       aggregatedFields: { [requirementId: string]: <value> }
+ *     }
+ *   }
+ * }
+ *
+ * The address_history section is NOT auto-created on first load — unlike
+ * personal_info / idv, it is conditional on the package containing
+ * record-type services. The structure endpoint controls whether it appears.
  *
  * Errors:
  *   - 401: No session or invalid session
@@ -157,8 +188,36 @@ export async function GET(
       // Determine the section type
       const sectionType = data.type || sectionId;
 
-      // Check if this is a repeatable section (education/employment) with entries
-      if ((sectionType === 'education' || sectionType === 'employment') && data.entries) {
+      // Check if this is the address_history section (Phase 6 Stage 3).
+      // Returns entries (same shape as education/employment) plus an
+      // aggregatedFields object for the deduplicated additional fields.
+      if (sectionType === 'address_history' && data.entries) {
+        // FormSectionData uses an index signature for unknown extras, so we
+        // read aggregatedFields off the data and only accept it when it
+        // looks like an object — defensive, since the saved JSON could in
+        // principle be missing or malformed from a pre-Stage-3 invitation.
+        const rawAggregated = (data as FormSectionData & {
+          aggregatedFields?: unknown;
+        }).aggregatedFields;
+        const aggregatedFields: Record<string, SavedFieldData['value']> =
+          rawAggregated && typeof rawAggregated === 'object' && !Array.isArray(rawAggregated)
+            ? (rawAggregated as Record<string, SavedFieldData['value']>)
+            : {};
+
+        const addressHistorySection: FormattedAddressHistorySection = {
+          entries: data.entries.map((entry: StoredEntry) => ({
+            entryId: entry.entryId,
+            countryId: entry.countryId,
+            entryOrder: entry.entryOrder,
+            fields: entry.fields.map((field: SavedFieldData) => ({
+              requirementId: field.requirementId,
+              value: field.value
+            }))
+          })),
+          aggregatedFields
+        };
+        formattedSections[sectionType] = addressHistorySection;
+      } else if ((sectionType === 'education' || sectionType === 'employment') && data.entries) {
         // Return entries array format for repeatable sections
         const repeatableSection: FormattedRepeatableSection = {
           entries: data.entries.map((entry: StoredEntry) => ({

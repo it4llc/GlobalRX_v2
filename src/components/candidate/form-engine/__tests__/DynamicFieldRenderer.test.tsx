@@ -287,18 +287,42 @@ describe('DynamicFieldRenderer', () => {
     });
   });
 
-  describe('address block placeholder', () => {
-    it('should render placeholder for address_block type', () => {
+  describe('address block rendering', () => {
+    // Phase 6 Stage 3: the Stage 2 "Address fields coming soon" placeholder
+    // has been replaced with the real AddressBlockInput component (Definition
+    // of Done #9, architect plan modification #6). When DynamicFieldRenderer
+    // encounters dataType === 'address_block', it now renders AddressBlockInput
+    // and forwards the new countryId / token props. With no addressConfig
+    // supplied, AddressBlockInput applies the safe default piece set
+    // (street1 required, street2 optional, city required, state required,
+    // postalCode required, county disabled — DoD #4) and renders a stable
+    // test id of `address-${requirementId}-${piece}` per piece.
+    it('should render AddressBlockInput for address_block type', () => {
       render(
         <DynamicFieldRenderer
           {...mockProps}
           dataType="address_block"
           name="Home Address"
           fieldKey="homeAddress"
+          countryId={null}
+          token="test-token-abc"
+          value={{}}
         />
       );
 
-      expect(screen.getByText('Address fields coming soon')).toBeInTheDocument();
+      // Old placeholder text must NOT be present anymore
+      expect(screen.queryByText('Address fields coming soon')).not.toBeInTheDocument();
+
+      // The real AddressBlockInput renders inputs with deterministic test ids
+      // keyed off the requirementId. With the default config, street1, city,
+      // state (free-text fallback because no countryId / no subdivisions),
+      // and postalCode are required and rendered. Confirming a couple of
+      // these test ids proves AddressBlockInput is mounted and receiving
+      // the requirementId prop.
+      expect(screen.getByTestId('address-req-123-street1')).toBeInTheDocument();
+      expect(screen.getByTestId('address-req-123-city')).toBeInTheDocument();
+      expect(screen.getByTestId('address-req-123-state')).toBeInTheDocument();
+      expect(screen.getByTestId('address-req-123-postalCode')).toBeInTheDocument();
     });
   });
 
