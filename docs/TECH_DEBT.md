@@ -1357,6 +1357,40 @@ Before adding any further section types (Stage 4 will add upload-related branche
 
 ---
 
+### TD-052 — Cross-section requirement awareness for Personal Info
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Personal Info & Address History |
+| Severity    | Warning (Data Integrity)                    |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Smoke Testing |
+| Identified by | Andy (smoke test)                         |
+
+**Description:**
+When Address History's DSX mappings make a field required that is collected on the Personal Information tab (e.g., Middle Name becomes required for criminal searches in a specific country), the Personal Information section currently has no awareness of this. The field is correctly excluded from the Address History aggregated area — `AddressHistorySection.computeAggregatedItems` skips any requirement whose UUID appears in `/personal-info-fields` — so the candidate isn't asked twice. But the Personal Info section still shows the field as optional based on its own `isRequired` resolution, which doesn't account for downstream sections' requirements.
+
+The candidate can skip the field on the Personal Info tab and no warning appears until submission validation in Phase 7.
+
+**Why deferred:**
+The fix requires the Personal Info section to consult Address History's DSX mappings (and Education's, and Employment's) when computing per-field `isRequired`. That cross-section coordination is more naturally placed alongside section progress indicators, which Phase 6 Stage 4 will build.
+
+**When to fix:**
+Address in Phase 6 Stage 4 when building section progress indicators. The progress computation should factor in cross-section requirements so Personal Info can show as incomplete if a field it collects is required by another section's DSX mappings. If Stage 4 scope is too tight, defer to Phase 7 validation as a backstop.
+
+**Preferred fix:**
+Update `personal-info-fields` (or a new shared resolver) to OR-merge `isRequired` across:
+1. The field's own `service_requirements` / `dsx_mappings`
+2. Any `dsx_mappings` for the same `requirementId` reachable from Address History entry countries
+3. Any `dsx_mappings` for the same `requirementId` reachable from Education / Employment entry countries
+
+This way a field becomes required on the Personal Info tab if ANY downstream section needs it.
+
+**Files affected:**
+- `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
+- `src/components/candidate/form-engine/PersonalInfoSection.tsx` (if progress UI changes)
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
