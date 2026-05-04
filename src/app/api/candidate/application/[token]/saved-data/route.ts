@@ -5,7 +5,48 @@ import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
 
-import type { CandidateFormData, FormSectionData } from '@/types/candidate-portal';
+import type {
+  CandidateFormData,
+  FormSectionData,
+  SavedFieldData,
+} from '@/types/candidate-portal';
+
+// Shape of a single field in the formatted response: only the fields the
+// frontend needs (requirementId + value), not internal save metadata.
+interface FormattedField {
+  requirementId: string;
+  value: SavedFieldData['value'];
+}
+
+// Shape of a single entry in the formatted response for repeatable sections
+// (education, employment).
+interface FormattedEntry {
+  entryId: string;
+  countryId: string | null;
+  entryOrder: number;
+  fields: FormattedField[];
+}
+
+// Shape of a flat (non-repeatable) section in the formatted response.
+// IDV may additionally carry a countryId at the section level, which is
+// preserved when present on the saved data.
+interface FormattedFlatSection {
+  fields: FormattedField[];
+  countryId?: string | null;
+}
+
+// Shape of a repeatable section (education, employment) in the formatted
+// response.
+interface FormattedRepeatableSection {
+  entries: FormattedEntry[];
+}
+
+type FormattedSection = FormattedFlatSection | FormattedRepeatableSection;
+
+// Shape of an entry as stored in CandidateInvitation.formData. We narrow the
+// union member of FormSectionData['entries'] to a non-undefined element so we
+// can type the .map callbacks without `any`.
+type StoredEntry = NonNullable<FormSectionData['entries']>[number];
 
 /**
  * GET /api/candidate/application/[token]/saved-data
@@ -15,7 +56,8 @@ import type { CandidateFormData, FormSectionData } from '@/types/candidate-porta
  *
  * Required authentication: Valid candidate_session cookie with matching token
  *
- * Response shape:
+ * Response shape — flat-field sections (personal_info, idv, and any other
+ * non-repeatable section) return:
  * {
  *   sections: {
  *     "personal_info": {
@@ -31,6 +73,27 @@ import type { CandidateFormData, FormSectionData } from '@/types/candidate-porta
  *       }]
  *     },
  *     ...
+ *   }
+ * }
+ *
+ * Repeatable sections (education, employment) return an entries array
+ * instead of a flat fields array:
+ * {
+ *   sections: {
+ *     "education": {
+ *       entries: [{
+ *         entryId: string
+ *         countryId: string | null
+ *         entryOrder: number
+ *         fields: [{
+ *           requirementId: string
+ *           value: string | number | boolean | null | string[]
+ *         }]
+ *       }]
+ *     },
+ *     "employment": {
+ *       entries: [ ...same shape as education... ]
+ *     }
  *   }
  * }
  *
@@ -86,36 +149,74 @@ export async function GET(
 
     // Step 5: Format response
     // Transform saved data into the expected format
-    const formattedSections: Record<string, unknown> = {};
+    const formattedSections: Record<string, FormattedSection> = {};
 
     for (const [sectionId, sectionData] of Object.entries(sections)) {
       const data: FormSectionData = sectionData as FormSectionData;
 
-      // Group by section type for cleaner response
+      // Determine the section type
       const sectionType = data.type || sectionId;
 
-      if (!formattedSections[sectionType]) {
-        formattedSections[sectionType] = {
-          fields: []
+      // Check if this is a repeatable section (education/employment) with entries
+      if ((sectionType === 'education' || sectionType === 'employment') && data.entries) {
+        // Return entries array format for repeatable sections
+        const repeatableSection: FormattedRepeatableSection = {
+          entries: data.entries.map((entry: StoredEntry) => ({
+            entryId: entry.entryId,
+            countryId: entry.countryId,
+            entryOrder: entry.entryOrder,
+            fields: entry.fields.map((field: SavedFieldData) => ({
+              requirementId: field.requirementId,
+              value: field.value
+            }))
+          }))
         };
-      }
+        formattedSections[sectionType] = repeatableSection;
+      } else {
+        // Handle flat fields format for non-repeatable sections.
+        // We accumulate into a typed FormattedFlatSection so callers don't
+        // need unsafe casts to read `countryId` or push fields.
+        let flatSection = formattedSections[sectionType] as
+          | FormattedFlatSection
+          | undefined;
+        if (!flatSection) {
+          flatSection = { fields: [] };
+          formattedSections[sectionType] = flatSection;
+        }
 
-      // Add fields from this section
-      if (data.fields && Array.isArray(data.fields)) {
-        for (const field of data.fields) {
-          // Only include the requirementId and value, not internal metadata
-          formattedSections[sectionType].fields.push({
-            requirementId: field.requirementId,
-            value: field.value
-          });
+        // Special handling for IDV sections - preserve countryId if present.
+        // FormSectionData uses an index signature for unknown extras, so we
+        // read countryId as a typed value here and only assign when it's a
+        // string or null (matching FormattedFlatSection.countryId).
+        if (sectionType === 'idv' && 'countryId' in data) {
+          const rawCountryId = data.countryId;
+          if (
+            typeof rawCountryId === 'string' ||
+            rawCountryId === null
+          ) {
+            flatSection.countryId = rawCountryId;
+          }
+        }
+
+        // Add fields from this section
+        if (data.fields && Array.isArray(data.fields)) {
+          for (const field of data.fields as SavedFieldData[]) {
+            // Only include the requirementId and value, not internal metadata
+            flatSection.fields.push({
+              requirementId: field.requirementId,
+              value: field.value
+            });
+          }
         }
       }
     }
 
-    // Ensure standard sections exist even if empty
+    // Always include personal_info and idv sections with empty fields if they don't exist
+    // These are the core sections that the UI expects to always be present
     if (!formattedSections.personal_info) {
       formattedSections.personal_info = { fields: [] };
     }
+
     if (!formattedSections.idv) {
       formattedSections.idv = { fields: [] };
     }

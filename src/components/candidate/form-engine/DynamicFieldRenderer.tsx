@@ -238,7 +238,7 @@ export function DynamicFieldRenderer({
       {dataType !== 'checkbox' && (
         <Label htmlFor={`field-${fieldKey}`} className="block">
           {name}
-          {isRequired && !locked && (
+          {isRequired && (
             <span className="text-red-500 ml-1 required-indicator">*</span>
           )}
         </Label>

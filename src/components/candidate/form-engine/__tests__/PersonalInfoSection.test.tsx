@@ -285,7 +285,7 @@ describe('PersonalInfoSection', () => {
       expect(phoneInput).toHaveAttribute('readonly');
     });
 
-    it('should not show required indicator for locked fields', async () => {
+    it('should show required indicator for locked required fields', async () => {
       mockFetch.mockImplementation((url: string) => {
         if (url.includes('/personal-info-fields')) {
           return Promise.resolve({
@@ -312,10 +312,10 @@ describe('PersonalInfoSection', () => {
 
       expect(await screen.findByText('First Name')).toBeInTheDocument();
 
-      // Find the label containers for locked fields
+      // Find the label container for the locked First Name field
       const labels = screen.getAllByText('First Name')[0].parentElement;
-      // There should be no required indicator (*) for locked fields even though they are required
-      expect(labels?.querySelector('.required-indicator')).not.toBeInTheDocument();
+      // The required indicator (*) should be shown on locked required fields
+      expect(labels?.querySelector('.required-indicator')).toBeInTheDocument();
     });
   });
 
