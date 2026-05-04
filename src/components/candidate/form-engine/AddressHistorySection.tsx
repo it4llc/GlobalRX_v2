@@ -88,6 +88,12 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
   const [aggregatedFieldValues, setAggregatedFieldValues] = useState<Record<string, RepeatableFieldValue>>({});
   const [countries, setCountries] = useState<Array<{ id: string; name: string }>>([]);
   const [countriesError, setCountriesError] = useState(false);
+  // Set of DSX requirement IDs already collected in the Personal Information
+  // section. Used to exclude duplicates from the aggregated requirements area
+  // — when First Name / Last Name / DOB are configured at the DSX level for a
+  // record service, the candidate sees them on the Personal Info tab and they
+  // should not also appear here.
+  const [personalInfoRequirementIds, setPersonalInfoRequirementIds] = useState<Set<string>>(new Set());
   // Per-entry, per-service field map. Keyed by `${entryId}::${serviceId}`.
   // Each value is the array of DSX fields the API returned for that entry's
   // most-specific geographic selection.
@@ -121,6 +127,25 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
           const scopeData = await scopeResponse.json();
           setScope(scopeData);
         }
+      }
+
+      // Personal info requirement IDs — used to dedupe the aggregated area
+      // so fields collected on the Personal Info tab (firstName, lastName,
+      // dateOfBirth, etc.) don't appear as additional information here.
+      try {
+        const piResponse = await fetch(`/api/candidate/application/${token}/personal-info-fields`);
+        if (piResponse.ok) {
+          const piData = await piResponse.json();
+          const ids = new Set<string>(
+            (piData.fields ?? []).map((f: { requirementId: string }) => f.requirementId)
+          );
+          setPersonalInfoRequirementIds(ids);
+        }
+      } catch (error) {
+        logger.warn('Failed to load personal-info-fields for aggregated dedup', {
+          event: 'address_history_personal_info_dedup_fetch_failed',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
 
       // Countries (shared candidate-side endpoint — same as Education /
@@ -385,8 +410,14 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
   // most-restrictive across the candidate's full address history (OR-merge).
   // Per spec layout: sort by service-type order (hidden), then DSX
   // displayOrder. The address_block field itself is excluded from the
-  // aggregated area — it stays inline in the entry.
-  const aggregatedItems = computeAggregatedItems(entries, fieldsByEntryService);
+  // aggregated area — it stays inline in the entry. Personal Info
+  // requirement IDs are also excluded so fields collected on the Personal
+  // Info tab don't reappear here.
+  const aggregatedItems = computeAggregatedItems(
+    entries,
+    fieldsByEntryService,
+    personalInfoRequirementIds
+  );
 
   const renderEntry = (entry: EntryData) => {
     // For each entry we need to determine which DSX field is the
@@ -516,7 +547,8 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
  */
 function computeAggregatedItems(
   entries: EntryData[],
-  fieldsByEntryService: Record<string, DsxField[]>
+  fieldsByEntryService: Record<string, DsxField[]>,
+  personalInfoRequirementIds: Set<string>
 ): AggregatedRequirementItem[] {
   // Map keyed by requirementId. Each value carries the most-recent metadata
   // plus the OR-merged isRequired flag.
@@ -532,6 +564,9 @@ function computeAggregatedItems(
       for (const field of fields) {
         // Address blocks render inline per entry, NOT in the aggregated area.
         if (field.dataType === 'address_block') continue;
+        // Skip fields the candidate already provides on the Personal Info
+        // tab — they are deduplicated by DSX requirement UUID.
+        if (personalInfoRequirementIds.has(field.requirementId)) continue;
         const existing = merged.get(field.requirementId);
         const isRequired = existing
           ? existing.isRequired || field.isRequired
