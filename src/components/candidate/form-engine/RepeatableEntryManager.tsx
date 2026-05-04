@@ -26,7 +26,12 @@ export function RepeatableEntryManager({
   // so the remove button disappears on the only entry but reappears as soon
   // as a second entry is added. Education and Employment omit this prop
   // (defaults to 0) and continue to allow removing every entry.
-  minimumEntries = 0
+  minimumEntries = 0,
+  // Phase 6 Stage 3: when entries.length >= maxEntries the Add button is
+  // hidden. Address History passes maxEntries based on count-based scopes
+  // (current-address → 1, last-x-addresses → x). Education and Employment
+  // omit this prop and remain unlimited.
+  maxEntries
 }: EntryManagerProps) {
   const { t } = useTranslation();
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
@@ -190,15 +195,20 @@ export function RepeatableEntryManager({
         </div>
       ))}
 
-      {/* Add entry button */}
-      <button
-        ref={addButtonRef}
-        onClick={handleAddEntry}
-        className="w-full min-h-[44px] px-4 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-      >
-        <Plus className="h-5 w-5" />
-        {t('candidate.portal.addEntry')}
-      </button>
+      {/* Add entry button — hidden when at or above the maxEntries ceiling
+          (Phase 6 Stage 3: Address History uses count-based scopes to cap
+          entries). Hiding entirely (rather than disabling) avoids confusion
+          about whether more entries are allowed. */}
+      {(maxEntries === undefined || entries.length < maxEntries) && (
+        <button
+          ref={addButtonRef}
+          onClick={handleAddEntry}
+          className="w-full min-h-[44px] px-4 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <Plus className="h-5 w-5" />
+          {t('candidate.portal.addEntry')}
+        </button>
+      )}
     </div>
   );
 }

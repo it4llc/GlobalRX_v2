@@ -496,6 +496,7 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
         renderEntry={renderEntry}
         entryLabelKey="candidate.addressHistory.entryLabel"
         minimumEntries={1}
+        maxEntries={deriveMaxEntries(scope)}
       />
 
       <AggregatedRequirements
@@ -559,6 +560,23 @@ function computeAggregatedItems(
     }
     return a.displayOrder - b.displayOrder;
   });
+}
+
+/**
+ * Derive the maximum allowed entry count from the loaded scope. Count-based
+ * scopes cap the entry count: current-address (count_exact, value 1) and
+ * last-x-addresses (count_specific, value x). Time-based and "all" scopes
+ * have no maximum, so the Add button stays visible.
+ */
+function deriveMaxEntries(scope: ScopeInfo | null): number | undefined {
+  if (!scope) return undefined;
+  if (scope.scopeType === 'count_exact' && typeof scope.scopeValue === 'number') {
+    return scope.scopeValue;
+  }
+  if (scope.scopeType === 'count_specific' && typeof scope.scopeValue === 'number') {
+    return scope.scopeValue;
+  }
+  return undefined;
 }
 
 /**

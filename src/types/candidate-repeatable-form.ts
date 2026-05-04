@@ -53,4 +53,9 @@ export interface EntryManagerProps {
   // — Address History always has at least one entry). Defaults to 0, which
   // preserves the Stage 2 behavior for Education and Employment.
   minimumEntries?: number;
+  // Optional maximum entry count. When entries.length >= maxEntries the
+  // Add button is hidden — used by Address History to enforce count-based
+  // scopes (current-address → 1, last-x-addresses → x). Undefined means
+  // unlimited, which preserves Stage 2 behavior for Education and Employment.
+  maxEntries?: number;
 }
