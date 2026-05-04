@@ -70,9 +70,12 @@ export function EmploymentSection({ token, serviceIds }: EmploymentSectionProps)
     loadInitialData();
   }, [token, serviceIds]);
 
-  // Auto-save when entries change
+  // Auto-save when entries change. We do NOT gate on entries.length > 0:
+  // when the candidate removes the last entry, the server still needs to
+  // receive the empty array so it can clear the section. Per spec,
+  // "Removing an entry removes its data."
   useEffect(() => {
-    if (debouncedPendingSave && entries.length > 0) {
+    if (debouncedPendingSave) {
       saveEntries();
     }
   }, [debouncedPendingSave]);
@@ -319,22 +322,36 @@ export function EmploymentSection({ token, serviceIds }: EmploymentSectionProps)
     }
   };
 
-  // Helper to check if a field is the "currently employed" field
+  // Match by fieldKey only (not display name). Display labels are localized,
+  // so name-based matching breaks for non-English configurations. Substring
+  // matching also risks unrelated fields like "noncurrentlyemployed" — these
+  // helpers use exact fieldKey matches.
+  const CURRENTLY_EMPLOYED_FIELD_KEYS = new Set([
+    'currentlyEmployed',
+    'isCurrent',
+    'isCurrentlyEmployed',
+    'currentEmployment',
+    'current_employment',
+    'currently_employed',
+    'is_current',
+    'is_currently_employed'
+  ]);
+
+  const END_DATE_FIELD_KEYS = new Set([
+    'endDate',
+    'toDate',
+    'end_date',
+    'to_date',
+    'dateTo',
+    'date_to'
+  ]);
+
   const isCurrentlyEmployedField = (field: DsxField): boolean => {
-    const fieldKey = field.fieldKey.toLowerCase();
-    return fieldKey.includes('currentlyemployed') ||
-           fieldKey.includes('iscurrent') ||
-           fieldKey.includes('current_employment') ||
-           fieldKey.includes('currently_employed');
+    return CURRENTLY_EMPLOYED_FIELD_KEYS.has(field.fieldKey);
   };
 
-  // Helper to check if a field is the end date field
   const isEndDateField = (field: DsxField): boolean => {
-    const fieldKey = field.fieldKey.toLowerCase();
-    const fieldName = field.name.toLowerCase();
-    return (fieldKey.includes('enddate') || fieldKey.includes('end_date') ||
-            fieldKey.includes('dateto') || fieldKey.includes('date_to')) ||
-           (fieldName.includes('end date') || fieldName.includes('to date'));
+    return END_DATE_FIELD_KEYS.has(field.fieldKey);
   };
 
   // Check if currently employed is true for an entry
@@ -408,7 +425,7 @@ export function EmploymentSection({ token, serviceIds }: EmploymentSectionProps)
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div>
         <h2 className="text-2xl font-bold mb-4">{t('candidate.portal.sections.employmentHistory')}</h2>
         <div className="text-gray-600">Loading...</div>
       </div>
@@ -416,13 +433,13 @@ export function EmploymentSection({ token, serviceIds }: EmploymentSectionProps)
   }
 
   return (
-    <div className="p-6">
+    <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">{t('candidate.portal.sections.employmentHistory')}</h2>
         <AutoSaveIndicator status={saveStatus} />
       </div>
 
-      {scope && <ScopeDisplay scope={scope} sectionType="employment" />}
+      {scope && <ScopeDisplay scope={scope} />}
 
       {countriesError && (
         <div

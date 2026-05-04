@@ -70,9 +70,12 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
     loadInitialData();
   }, [token, serviceIds]);
 
-  // Auto-save when entries change
+  // Auto-save when entries change. We do NOT gate on entries.length > 0:
+  // when the candidate removes the last entry, the server still needs to
+  // receive the empty array so it can clear the section. Per spec,
+  // "Removing an entry removes its data."
   useEffect(() => {
-    if (debouncedPendingSave && entries.length > 0) {
+    if (debouncedPendingSave) {
       saveEntries();
     }
   }, [debouncedPendingSave]);
@@ -372,7 +375,7 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div>
         <h2 className="text-2xl font-bold mb-4">{t('candidate.portal.sections.educationHistory')}</h2>
         <div className="text-gray-600">Loading...</div>
       </div>
@@ -380,13 +383,13 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
   }
 
   return (
-    <div className="p-6">
+    <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">{t('candidate.portal.sections.educationHistory')}</h2>
         <AutoSaveIndicator status={saveStatus} />
       </div>
 
-      {scope && <ScopeDisplay scope={scope} sectionType="education" />}
+      {scope && <ScopeDisplay scope={scope} />}
 
       {countriesError && (
         <div

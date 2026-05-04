@@ -36,22 +36,26 @@ export function RepeatableEntryManager({
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const lastClickTime = useRef<number>(0);
 
+  // Watch viewport width once. The listener only depends on window.innerWidth,
+  // so registering it on mount with an empty dependency array avoids tearing
+  // down and re-attaching the listener on every entries/expandedEntry change.
   useEffect(() => {
-    // Check if mobile on mount
     const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-
-      // On mobile, expand first entry by default
-      if (mobile && entries.length > 0 && !expandedEntry) {
-        setExpandedEntry(entries[0].entryId);
-      }
+      setIsMobile(window.innerWidth < 768);
     };
 
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, [entries, expandedEntry]);
+  }, []);
+
+  // On mobile, expand the first entry by default. Runs whenever the entry
+  // list or viewport changes, but doesn't manage the resize listener itself.
+  useEffect(() => {
+    if (isMobile && entries.length > 0 && !expandedEntry) {
+      setExpandedEntry(entries[0].entryId);
+    }
+  }, [isMobile, entries, expandedEntry]);
 
   // When the entry list grows after the user clicks "Add", expand the newly
   // appended entry on mobile. Watching entries.length here (rather than using

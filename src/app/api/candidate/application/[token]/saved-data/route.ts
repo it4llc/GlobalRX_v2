@@ -56,7 +56,8 @@ type StoredEntry = NonNullable<FormSectionData['entries']>[number];
  *
  * Required authentication: Valid candidate_session cookie with matching token
  *
- * Response shape:
+ * Response shape — flat-field sections (personal_info, idv, and any other
+ * non-repeatable section) return:
  * {
  *   sections: {
  *     "personal_info": {
@@ -72,6 +73,27 @@ type StoredEntry = NonNullable<FormSectionData['entries']>[number];
  *       }]
  *     },
  *     ...
+ *   }
+ * }
+ *
+ * Repeatable sections (education, employment) return an entries array
+ * instead of a flat fields array:
+ * {
+ *   sections: {
+ *     "education": {
+ *       entries: [{
+ *         entryId: string
+ *         countryId: string | null
+ *         entryOrder: number
+ *         fields: [{
+ *           requirementId: string
+ *           value: string | number | boolean | null | string[]
+ *         }]
+ *       }]
+ *     },
+ *     "employment": {
+ *       entries: [ ...same shape as education... ]
+ *     }
  *   }
  * }
  *

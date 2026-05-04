@@ -61,15 +61,36 @@ type RepeatableEntryField = RepeatableEntry['fields'][number];
  *
  * Required authentication: Valid candidate_session cookie with matching token
  *
- * Request body:
+ * Request body has two shapes depending on the section type:
+ *
+ * Flat-fields format (sectionType: "personal_info" | "idv" |
+ * "workflow_section" | "service_section"):
  * {
- *   sectionType: "personal_info" or "idv" or "service_section"
+ *   sectionType: string
  *   sectionId: string        // Section identifier
  *   fields: [{
  *     requirementId: string  // DSX requirement UUID
  *     value: string | number | boolean | null | string[]  // Field value
  *   }]
  * }
+ *
+ * Repeatable-entries format (sectionType: "education" | "employment"):
+ * {
+ *   sectionType: "education" | "employment"
+ *   sectionId: string        // Section identifier
+ *   entries: [{
+ *     entryId: string        // UUID for this entry
+ *     countryId: string | null  // Country UUID (per-entry)
+ *     entryOrder: number     // Display order, 0-indexed
+ *     fields: [{
+ *       requirementId: string  // DSX requirement UUID
+ *       value: string | number | boolean | null | string[]
+ *     }]
+ *   }]
+ * }
+ *
+ * For repeatable sections the entire entries array replaces the saved
+ * section. Sending an empty entries array clears the section's saved data.
  *
  * Response:
  * {
@@ -82,7 +103,7 @@ type RepeatableEntryField = RepeatableEntry['fields'][number];
  *   - 403: Session token doesn't match URL token
  *   - 404: Invitation not found
  *   - 410: Invitation expired or already completed
- *   - 400: Invalid request body
+ *   - 400: Invalid request body (or repeatable section missing entries)
  */
 export async function POST(
   request: NextRequest,
