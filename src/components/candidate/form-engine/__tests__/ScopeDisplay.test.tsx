@@ -16,7 +16,7 @@ describe('ScopeDisplay', () => {
       scopeDescription: 'Please provide your most recent 2 education entries'
     };
 
-    render(<ScopeDisplay scope={scope} sectionType="education" />);
+    render(<ScopeDisplay scope={scope} />);
 
     const scopeText = screen.getByText('Please provide your most recent 2 education entries');
     expect(scopeText).toBeInTheDocument();
@@ -32,7 +32,7 @@ describe('ScopeDisplay', () => {
       scopeDescription: 'Please provide all employment for the past 5 years'
     };
 
-    render(<ScopeDisplay scope={scope} sectionType="employment" />);
+    render(<ScopeDisplay scope={scope} />);
 
     const scopeText = screen.getByText('Please provide all employment for the past 5 years');
     expect(scopeText).toBeInTheDocument();
@@ -47,7 +47,7 @@ describe('ScopeDisplay', () => {
       scopeDescription: 'Please provide your complete education history'
     };
 
-    const { container } = render(<ScopeDisplay scope={scope} sectionType="education" />);
+    const { container } = render(<ScopeDisplay scope={scope} />);
 
     const scopeContainer = container.querySelector('.mb-4.p-3.bg-blue-50');
     expect(scopeContainer).toBeInTheDocument();

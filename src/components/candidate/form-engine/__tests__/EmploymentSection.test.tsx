@@ -148,4 +148,104 @@ describe('EmploymentSection', () => {
       }
     });
   });
+
+  it('should NOT render the end date field when currently employed is true', async () => {
+    // Saved entry where the candidate has already marked currentlyEmployed = true.
+    // EmploymentSection detects "currently employed" by exact fieldKey match
+    // (CURRENTLY_EMPLOYED_FIELD_KEYS in EmploymentSection.tsx) and hides end date
+    // fields whose fieldKey matches END_DATE_FIELD_KEYS. The detection looks up
+    // the value by requirementId, so the saved field's requirementId must match
+    // the requirement returned from /fields below.
+    const savedEntry = {
+      entryId: 'entry-1',
+      countryId: 'US',
+      entryOrder: 0,
+      fields: [
+        {
+          requirementId: 'req-currently-employed',
+          value: true
+        }
+      ]
+    };
+
+    const savedDataWithCurrentlyEmployed = {
+      sections: {
+        employment: {
+          entries: [savedEntry]
+        }
+      }
+    };
+
+    // Fields returned for country US: one currentlyEmployed boolean and one
+    // endDate. Both fieldKeys are members of the matching sets defined in
+    // EmploymentSection.tsx. Field "name" values double as the labels rendered
+    // by DynamicFieldRenderer, which is what we assert against below.
+    const fieldsResponse = {
+      fields: [
+        {
+          requirementId: 'req-currently-employed',
+          name: 'Currently Employed',
+          fieldKey: 'currentlyEmployed',
+          type: 'field',
+          dataType: 'boolean',
+          isRequired: false,
+          instructions: null,
+          fieldData: { collectionTab: '' },
+          documentData: null,
+          displayOrder: 1
+        },
+        {
+          requirementId: 'req-end-date',
+          name: 'End Date',
+          fieldKey: 'endDate',
+          type: 'field',
+          dataType: 'date',
+          isRequired: false,
+          instructions: null,
+          fieldData: { collectionTab: '' },
+          documentData: null,
+          displayOrder: 2
+        }
+      ]
+    };
+
+    mockFetch
+      // 1. scope
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockScopeResponse
+      })
+      // 2. countries
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockCountriesResponse
+      })
+      // 3. saved-data (with currentlyEmployed=true entry)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => savedDataWithCurrentlyEmployed
+      })
+      // 4. fields for the saved entry's country (US)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => fieldsResponse
+      });
+
+    render(<EmploymentSection token={mockToken} serviceIds={mockServiceIds} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Employment History')).toBeInTheDocument();
+    });
+
+    // Wait until the fields endpoint has been called and the currently-employed
+    // field has rendered for this entry's country.
+    await waitFor(() => {
+      expect(screen.getByText('Currently Employed')).toBeInTheDocument();
+    });
+
+    // The end date field's label must NOT be present in the DOM, because
+    // currentlyEmployed === true should cause EmploymentSection to skip rendering
+    // any field whose fieldKey matches END_DATE_FIELD_KEYS.
+    expect(screen.queryByText('End Date')).not.toBeInTheDocument();
+  });
 });

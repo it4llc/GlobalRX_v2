@@ -34,11 +34,13 @@ describe('RepeatableEntryManager', () => {
     {
       entryId: 'entry-1',
       countryId: 'us',
+      entryOrder: 0,
       fields: []
     },
     {
       entryId: 'entry-2',
       countryId: 'uk',
+      entryOrder: 1,
       fields: []
     }
   ];
