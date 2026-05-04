@@ -1391,6 +1391,99 @@ This way a field becomes required on the Personal Info tab if ANY downstream sec
 
 ---
 
+### TD-053 — Aggregated radio/checkbox fields don't auto-save until next blur
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Address History     |
+| Severity    | Warning (UX)                                |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Code Review   |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+`AggregatedRequirements` calls `onAggregatedFieldChange` on `onChange` and `onAggregatedFieldBlur` on `onBlur`. Auto-save is triggered by the blur callback. For input/text fields this works correctly because they emit a separate blur event. But radio buttons and checkboxes typically only fire `onChange` on toggle, with no follow-up blur. A candidate who clicks a radio in the aggregated area and then leaves the page (or simply does not touch any other field) will lose that selection until the next save cycle.
+
+**Why deferred:**
+The bug is observable but does not cause data loss in the common case where the candidate continues filling out the form (touching any other field triggers the deferred save). Fix requires either changing the auto-save trigger to fire on every change (not just blur) for non-text dataTypes, or wrapping the radio/checkbox fields with an explicit blur emission. Either approach has cross-section implications and is better tackled alongside Stage 4 form polish.
+
+**When to fix:**
+Phase 6 Stage 4 form polish, OR when the auto-save mechanism is reviewed broadly.
+
+**Files affected:**
+- `src/components/candidate/form-engine/AggregatedRequirements.tsx`
+- `src/components/candidate/form-engine/DynamicFieldRenderer.tsx` (radio/checkbox branches)
+
+---
+
+### TD-054 — AddressHistorySection silent failure when fields API errors
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Address History     |
+| Severity    | Warning (UX)                                |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Code Review   |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+`AddressHistorySection.loadFieldsForEntry` (lines 214-251) catches errors when calling `/fields` but only logs them via `clientLogger.error`. The candidate sees no UI surface — the aggregated requirements area silently shows nothing instead of indicating that requirements failed to load. The Stage 3 spec edge case ("Fields API returns an error during requirement loading → the aggregated requirements area shows a recoverable error state") is not implemented.
+
+**Why deferred:**
+Address history will still render with the address block intact even when the fields call fails — the candidate can complete the address itself. The aggregated additional information / required documents would just be missing. A retry button or banner is the right fix but it's a UX polish task, not blocking data integrity.
+
+**When to fix:**
+Phase 6 Stage 4 form polish, OR when general candidate form error handling is reviewed.
+
+**Files affected:**
+- `src/components/candidate/form-engine/AddressHistorySection.tsx`
+
+---
+
+### TD-055 — computeAggregatedItems uses constant serviceTypeOrder
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Address History     |
+| Severity    | Low (Code Quality)                          |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Code Review   |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+`AddressHistorySection.computeAggregatedItems` calls `resolveServiceTypeOrder(serviceId, fields)` for every field, but the helper always returns `SERVICE_TYPE_ORDER_INDEX.record` (= 1) regardless of which service the field came from. Today this is correct because all services routed to Address History are `record`-functionality, so the sort within the aggregated area collapses to `displayOrder` — which is the intended behavior. But the abstraction is misleading: a future change that routes a non-record service into Address History (or that adds a new record-functionality sort key) would silently mis-sort.
+
+**Why deferred:**
+Behaves correctly today. Inline computation of the real per-service rank requires tagging fields with their actual `functionalityType` at fetch time, which is more invasive than the current Stage 3 scope warrants.
+
+**When to fix:**
+When a non-record service is added to Address History, or when sort ordering across record sub-types becomes meaningful. Either inline a comment explaining the intentional collapse, or compute a real per-service rank.
+
+**Files affected:**
+- `src/components/candidate/form-engine/AddressHistorySection.tsx` (`computeAggregatedItems`, `resolveServiceTypeOrder`)
+
+---
+
+### TD-056 — Stale-UUID hydration warnings could become noisy
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Order Display / Hydration                   |
+| Severity    | Low (Operational)                           |
+| Identified  | May 4, 2026 - Phase 6 Stage 3 Code Review   |
+| Identified by | Code Reviewer                             |
+
+**Description:**
+`order-data-resolvers.ts` lines 196-199 emit `logger.warn` for every saved address whose state/county UUID no longer resolves through the `countries` table (deleted or renamed subdivision). Each disabled row in `countries` will warn on every hydration of every order that references it. In production this could become a steady background of warnings if any subdivisions are ever renamed/disabled.
+
+**Why deferred:**
+The warning is correct behavior — data integrity issues should be visible. But the noise level may not match the actual urgency of any individual case.
+
+**When to fix:**
+If/when production logs show this warning is firing frequently. Mitigations could include: dedupe-by-UUID cache so each missing subdivision warns only once per process, downgrade to debug, or move to a periodic data-quality audit job.
+
+**Files affected:**
+- `src/lib/services/order-data-resolvers.ts`
+
+---
+
 ## Resolved Items
 
 _(Move items here when fixed, with a note on how they were resolved)_
