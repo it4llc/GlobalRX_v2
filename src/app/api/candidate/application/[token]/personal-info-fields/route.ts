@@ -24,7 +24,11 @@ import type { FieldMetadata } from '@/types/candidate-portal';
  *     name: string             // Display name
  *     fieldKey: string         // Unique field key
  *     dataType: string         // text, date, number, etc.
- *     isRequired: boolean      // Whether field is required
+ *     isRequired: boolean      // Whether field is required. Derived from
+ *                              // dsx_mappings using OR logic: required if
+ *                              // ANY mapping for this requirement is
+ *                              // marked required. Defaults to false when
+ *                              // a requirement has no mappings at all.
  *     instructions: string | null
  *     fieldData: object        // Complete fieldData from DSX
  *     displayOrder: number
@@ -150,6 +154,29 @@ export async function GET(
       }
     }
 
+    // Step 6.5: Resolve isRequired from dsx_mappings using OR logic — a
+    // requirement is required if ANY of its mappings is marked required. A
+    // requirement with zero mapping rows is treated as optional, matching
+    // the user-facing rule that a field not marked required for any service
+    // should not be required.
+    const personalInfoRequirementIds = Array.from(personalInfoFields.keys());
+
+    const dsxMappings = personalInfoRequirementIds.length > 0
+      ? await prisma.dSXMapping.findMany({
+          where: { requirementId: { in: personalInfoRequirementIds } },
+          select: { requirementId: true, isRequired: true }
+        })
+      : [];
+
+    const requiredByRequirementId = new Map<string, boolean>();
+    for (const mapping of dsxMappings ?? []) {
+      const existing = requiredByRequirementId.get(mapping.requirementId) ?? false;
+      requiredByRequirementId.set(
+        mapping.requirementId,
+        existing || mapping.isRequired
+      );
+    }
+
     // Step 7: Build response with pre-fill and lock information
     const fields = Array.from(personalInfoFields.values())
       .map(({ requirement, displayOrder }) => {
@@ -185,12 +212,14 @@ export async function GET(
             break;
         }
 
+        const isRequired = requiredByRequirementId.get(requirement.id) ?? false;
+
         return {
           requirementId: requirement.id,
           name: requirement.name,
           fieldKey: requirement.fieldKey,
           dataType: fieldData.dataType || 'text',
-          isRequired: true, // Personal info fields are typically required
+          isRequired,
           instructions: fieldData.instructions || null,
           fieldData: requirement.fieldData, // Return complete fieldData as-is
           displayOrder,

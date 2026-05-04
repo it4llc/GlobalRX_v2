@@ -61,6 +61,12 @@ export interface SavedFieldData {
 export interface FormSectionData {
   type?: string;
   fields?: SavedFieldData[];
+  entries?: Array<{
+    entryId: string;
+    countryId: string | null;
+    entryOrder: number;
+    fields: SavedFieldData[];
+  }>;
   [key: string]: unknown;
 }
 

@@ -40,10 +40,11 @@ describe('DynamicFieldRenderer', () => {
       expect(screen.queryByText('*')).not.toBeInTheDocument();
     });
 
-    it('should not show required indicator when field is locked', () => {
+    it('should show required indicator when field is locked and required', () => {
       render(<DynamicFieldRenderer {...mockProps} locked={true} />);
 
-      expect(screen.queryByText('*')).not.toBeInTheDocument();
+      expect(screen.getByText('*')).toBeInTheDocument();
+      expect(screen.getByText('*')).toHaveClass('required-indicator');
     });
 
     it('should display instructions when provided', () => {
