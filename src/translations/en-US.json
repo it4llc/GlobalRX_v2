@@ -637,5 +637,30 @@
   "candidate.portal.scopeCountExact": "Please provide your most recent {type} entry",
   "candidate.portal.scopeCountSpecific": "Please provide your most recent {count} {type} entries",
   "candidate.portal.scopeTimeBased": "Please provide all {type} for the past {years} years",
-  "candidate.portal.scopeAll": "Please provide your complete {type} history"
+  "candidate.portal.scopeAll": "Please provide your complete {type} history",
+
+  "candidate.addressHistory.title": "Address History",
+  "candidate.addressHistory.addAnother": "Add Another Address",
+  "candidate.addressHistory.entryLabel": "Address {number}",
+  "candidate.addressHistory.currentAddress": "Current address",
+  "candidate.addressHistory.fromDate": "From",
+  "candidate.addressHistory.toDate": "To",
+  "candidate.addressHistory.removeConfirm": "Remove this address?",
+
+  "candidate.addressBlock.street1": "Street Address",
+  "candidate.addressBlock.street2": "Apt/Suite",
+  "candidate.addressBlock.city": "City",
+  "candidate.addressBlock.state": "State/Province",
+  "candidate.addressBlock.county": "County",
+  "candidate.addressBlock.postalCode": "ZIP/Postal Code",
+  "candidate.addressBlock.selectState": "Select state/province",
+  "candidate.addressBlock.selectCounty": "Select county",
+  "candidate.addressBlock.selectCity": "Select city",
+  "candidate.addressBlock.loadingSubdivisions": "Loading...",
+  "candidate.addressBlock.noSubdivisions": "No subdivisions available",
+
+  "candidate.aggregatedRequirements.heading": "Based on your address history, we need the following additional information:",
+  "candidate.aggregatedRequirements.additionalInformation": "Additional Information",
+  "candidate.aggregatedRequirements.requiredDocuments": "Required Documents",
+  "candidate.aggregatedRequirements.documentUploadPending": "Upload will be available soon"
 }

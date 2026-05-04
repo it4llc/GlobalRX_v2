@@ -358,6 +358,13 @@ export function IdvSection({ token, serviceIds }: IdvSectionProps) {
                     value={formData[field.requirementId] || ''}
                     onChange={(value) => handleFieldChange(field.requirementId, value)}
                     onBlur={() => handleFieldBlur(field.requirementId)}
+                    // Phase 6 Stage 3: defensive consistency. IDV doesn't
+                    // expect address_block fields today, but if a future DSX
+                    // configuration adds one, this prop must be present so
+                    // the embedded AddressBlockInput can populate its state
+                    // dropdown.
+                    countryId={selectedCountry || null}
+                    token={token}
                   />
                 ))}
             </div>

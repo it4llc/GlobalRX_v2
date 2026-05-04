@@ -15,7 +15,9 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Radio } from '@/components/ui/radio';
+import { AddressBlockInput } from './AddressBlockInput';
 import type { FieldMetadata, FieldValue } from '@/types/candidate-portal';
+import type { AddressBlockValue, AddressConfig } from '@/types/candidate-address';
 
 export interface DynamicFieldProps {
   requirementId: string;
@@ -30,6 +32,15 @@ export interface DynamicFieldProps {
   onBlur?: () => void;
   locked?: boolean;
   error?: string;
+  // Phase 6 Stage 3: required for address_block fields so the embedded
+  // AddressBlockInput can populate its state/province dropdown via the
+  // /subdivisions endpoint. Optional because non-address-block fields
+  // ignore it. Existing callers (PersonalInfoSection, IdvSection,
+  // EducationSection, EmploymentSection) pass this prop through.
+  countryId?: string | null;
+  // Phase 6 Stage 3: required by AddressBlockInput for token-scoped
+  // subdivisions API calls. Same optional rationale as countryId.
+  token?: string;
 }
 
 /**
@@ -50,7 +61,9 @@ export function DynamicFieldRenderer({
   onChange,
   onBlur,
   locked = false,
-  error
+  error,
+  countryId = null,
+  token
 }: DynamicFieldProps) {
 
   // Helper to get HTML input type from data type
@@ -71,12 +84,31 @@ export function DynamicFieldRenderer({
 
   // Render different field types
   const renderField = () => {
-    // Handle address block placeholder
+    // Phase 6 Stage 3: replace the Stage 2 placeholder with the real
+    // AddressBlockInput component. The renderer always passes showDates=false
+    // because Education / Employment address blocks have no dates. The
+    // AddressHistorySection bypasses the renderer for its own address_block
+    // field and renders <AddressBlockInput showDates={true} ... /> directly.
     if (dataType === 'address_block') {
+      const addressBlockValue: AddressBlockValue =
+        value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)
+          ? (value as AddressBlockValue)
+          : {};
+      const addressConfig =
+        (fieldData as { addressConfig?: AddressConfig | null }).addressConfig ?? null;
       return (
-        <div className="p-4 bg-gray-50 rounded-md text-gray-600">
-          Address fields coming soon
-        </div>
+        <AddressBlockInput
+          requirementId={requirementId}
+          addressConfig={addressConfig}
+          countryId={countryId}
+          value={addressBlockValue}
+          onChange={(next) => onChange(next as FieldValue)}
+          onBlur={onBlur}
+          locked={locked}
+          isRequired={isRequired}
+          showDates={false}
+          token={token}
+        />
       );
     }
 

@@ -340,3 +340,224 @@ describe('collectGeographicUuids', () => {
     expect(uuids.size).toBe(0);
   });
 });
+// ===========================================================================
+// Phase 6 Stage 3 — Address date pieces and free-text geographic values
+// ===========================================================================
+
+describe('resolveAddressValue — date pieces (Phase 6 Stage 3)', () => {
+  const standardConfig = {
+    street1: { enabled: true, label: 'Street Address', required: true },
+    street2: { enabled: true, label: 'Apt/Suite', required: false },
+    city: { enabled: true, label: 'City', required: true },
+    state: { enabled: true, label: 'State/Province', required: true },
+    county: { enabled: false, label: 'County', required: false },
+    postalCode: { enabled: true, label: 'ZIP/Postal Code', required: true },
+  };
+  const emptyGeoMap = new Map<string, string>();
+
+  it('appends fromDate as a "From" piece when present in stored address value', () => {
+    const json = JSON.stringify({
+      street1: '123 Main St',
+      city: 'Arlington',
+      postalCode: '22201',
+      fromDate: '2022-03-01'
+    });
+
+    const result = resolveAddressValue(json, standardConfig, emptyGeoMap);
+
+    const fromPiece = result.addressPieces.find((p) => p.key === 'fromDate');
+    expect(fromPiece).toBeDefined();
+    expect(fromPiece?.label).toBe('From');
+    // Format is "Month D, YYYY" (en-US locale).
+    expect(fromPiece?.value).toBe('March 1, 2022');
+  });
+
+  it('appends toDate as a "To" piece when present in stored address value', () => {
+    const json = JSON.stringify({
+      street1: '123 Main St',
+      city: 'Arlington',
+      postalCode: '22201',
+      fromDate: '2022-03-01',
+      toDate: '2024-06-15'
+    });
+
+    const result = resolveAddressValue(json, standardConfig, emptyGeoMap);
+
+    const toPiece = result.addressPieces.find((p) => p.key === 'toDate');
+    expect(toPiece).toBeDefined();
+    expect(toPiece?.label).toBe('To');
+    expect(toPiece?.value).toBe('June 15, 2024');
+  });
+
+  it('shows "Present" for toDate when isCurrent is true and toDate is missing/null', () => {
+    const json = JSON.stringify({
+      street1: '123 Main St',
+      city: 'Arlington',
+      postalCode: '22201',
+      fromDate: '2022-03-01',
+      toDate: null,
+      isCurrent: true
+    });
+
+    const result = resolveAddressValue(json, standardConfig, emptyGeoMap);
+
+    const toPiece = result.addressPieces.find((p) => p.key === 'toDate');
+    expect(toPiece).toBeDefined();
+    expect(toPiece?.value).toBe('Present');
+    // Summary string also includes "Present"
+    expect(result.displayValue).toContain('Present');
+  });
+
+  it('places date pieces AFTER address pieces in display order', () => {
+    const json = JSON.stringify({
+      street1: '123 Main St',
+      city: 'Arlington',
+      state: '', // intentionally empty so it doesn't appear
+      postalCode: '22201',
+      fromDate: '2022-03-01',
+      toDate: '2024-06-15'
+    });
+
+    const result = resolveAddressValue(json, standardConfig, emptyGeoMap);
+
+    const keys = result.addressPieces.map((p) => p.key);
+    // street1, city, postalCode, then fromDate, then toDate
+    const fromIdx = keys.indexOf('fromDate');
+    const toIdx = keys.indexOf('toDate');
+    const street1Idx = keys.indexOf('street1');
+    const cityIdx = keys.indexOf('city');
+    const postalIdx = keys.indexOf('postalCode');
+    expect(fromIdx).toBeGreaterThan(street1Idx);
+    expect(fromIdx).toBeGreaterThan(cityIdx);
+    expect(fromIdx).toBeGreaterThan(postalIdx);
+    expect(toIdx).toBeGreaterThan(fromIdx);
+  });
+
+  it('does NOT add date pieces when none are present (Education / Employment address blocks)', () => {
+    const json = JSON.stringify({
+      street1: '1 Harvard Yard',
+      city: 'Cambridge',
+      postalCode: '02138'
+    });
+
+    const result = resolveAddressValue(json, standardConfig, emptyGeoMap);
+
+    const keys = result.addressPieces.map((p) => p.key);
+    expect(keys).not.toContain('fromDate');
+    expect(keys).not.toContain('toDate');
+  });
+
+  it('shows the actual toDate when both isCurrent=true AND toDate are provided (date wins)', () => {
+    // Defensive: if a candidate left a real toDate AND checked Current, the
+    // hydration shows the real date so user-entered data is never silently dropped.
+    const json = JSON.stringify({
+      street1: '123 Main St',
+      city: 'Arlington',
+      postalCode: '22201',
+      fromDate: '2022-03-01',
+      toDate: '2024-06-15',
+      isCurrent: true
+    });
+
+    const result = resolveAddressValue(json, standardConfig, emptyGeoMap);
+
+    const toPiece = result.addressPieces.find((p) => p.key === 'toDate');
+    expect(toPiece?.value).toBe('June 15, 2024');
+    expect(toPiece?.value).not.toBe('Present');
+  });
+
+  it('treats isCurrent as the string "true" the same as boolean true', () => {
+    // Defensive normalization documented in the resolver — older code paths
+    // may have stringified isCurrent before storage.
+    const json = JSON.stringify({
+      street1: '123 Main St',
+      city: 'Arlington',
+      postalCode: '22201',
+      fromDate: '2022-03-01',
+      toDate: null,
+      isCurrent: 'true'
+    });
+
+    const result = resolveAddressValue(json, standardConfig, emptyGeoMap);
+
+    const toPiece = result.addressPieces.find((p) => p.key === 'toDate');
+    expect(toPiece?.value).toBe('Present');
+  });
+
+  it('omits the toDate piece entirely when isCurrent is false and toDate is empty', () => {
+    const json = JSON.stringify({
+      street1: '123 Main St',
+      city: 'Arlington',
+      postalCode: '22201',
+      fromDate: '2022-03-01',
+      toDate: '',
+      isCurrent: false
+    });
+
+    const result = resolveAddressValue(json, standardConfig, emptyGeoMap);
+
+    const toPiece = result.addressPieces.find((p) => p.key === 'toDate');
+    expect(toPiece).toBeUndefined();
+  });
+});
+
+describe('resolveAddressValue — free-text state/county detection (Phase 6 Stage 3)', () => {
+  const standardConfig = {
+    street1: { enabled: true, label: 'Street Address', required: true },
+    street2: { enabled: false, label: 'Apt/Suite', required: false },
+    city: { enabled: true, label: 'City', required: true },
+    state: { enabled: true, label: 'State/Province', required: true },
+    county: { enabled: true, label: 'County', required: false },
+    postalCode: { enabled: true, label: 'ZIP/Postal Code', required: true },
+  };
+
+  it('displays a free-text (non-UUID) state value as-is, without database resolution', () => {
+    // For countries with no subdivisions, the candidate types a free-text
+    // state — that string must NOT be looked up in the geoNameMap.
+    const geoNameMap = new Map<string, string>();
+    const json = JSON.stringify({
+      street1: '1 Mountain Path',
+      city: 'Thimphu',
+      state: 'Thimphu Province', // plain string, not a UUID
+      postalCode: '11001'
+    });
+
+    const result = resolveAddressValue(json, standardConfig, geoNameMap);
+
+    const statePiece = result.addressPieces.find((p) => p.key === 'state');
+    expect(statePiece?.value).toBe('Thimphu Province');
+  });
+
+  it('still resolves a UUID-formatted state value via the geoNameMap', () => {
+    const queenslandUuid = 'f53e7f72-8bbe-4017-994a-499b681bfc70';
+    const geoNameMap = new Map<string, string>([[queenslandUuid, 'Queensland']]);
+    const json = JSON.stringify({
+      street1: '1 Coast Rd',
+      city: 'Brisbane',
+      state: queenslandUuid,
+      postalCode: '4000'
+    });
+
+    const result = resolveAddressValue(json, standardConfig, geoNameMap);
+
+    const statePiece = result.addressPieces.find((p) => p.key === 'state');
+    expect(statePiece?.value).toBe('Queensland');
+  });
+
+  it('displays a free-text county value as-is when county is enabled', () => {
+    const geoNameMap = new Map<string, string>();
+    const json = JSON.stringify({
+      street1: '1 Country Lane',
+      city: 'Smalltown',
+      state: 'Some State',
+      county: 'Custom County',
+      postalCode: '99999'
+    });
+
+    const result = resolveAddressValue(json, standardConfig, geoNameMap);
+
+    const countyPiece = result.addressPieces.find((p) => p.key === 'county');
+    expect(countyPiece?.value).toBe('Custom County');
+  });
+});
+

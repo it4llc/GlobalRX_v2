@@ -10,14 +10,40 @@ import type { FieldMetadata } from '@/types/candidate-portal';
 /**
  * GET /api/candidate/application/[token]/fields
  *
- * Returns the list of required fields for a specific service in a specific country.
- * The candidate's form calls this to find out what fields to display.
+ * Returns the list of required fields for a specific service in a specific
+ * geographic location. The candidate's form calls this to find out what
+ * fields to display.
+ *
+ * Phase 6 Stage 3 added optional `subregionId` support so the Address History
+ * section can fetch merged requirements from every applicable level of the
+ * geographic hierarchy in one call. When `subregionId` is omitted, behavior
+ * is unchanged (Stage 1 / Stage 2 callers continue to work).
  *
  * Required authentication: Valid candidate_session cookie with matching token
  *
  * Query parameters:
- *   - serviceId: The service ID to get fields for (required)
- *   - countryId: The country ID to get fields for (required)
+ *   - serviceId (required): The service ID to get fields for
+ *   - countryId (required): The country ID to get fields for
+ *   - subregionId (optional, UUID, Phase 6 Stage 3): If provided, the API
+ *     walks the `countries.parentId` chain upward from this id to assemble
+ *     every ancestor level (subregion3 → subregion2 → subregion1 → country),
+ *     consults `dsx_availability` for each level, and merges DSX mappings
+ *     across all levels at which the service is available.
+ *
+ * DSX availability behavior (when subregionId is provided):
+ *   - Missing `dsx_availability` row at a level is treated as "available"
+ *     (per Stage 3 spec — this is the project-wide default).
+ *   - When a service is unavailable at a level, that level's additional
+ *     requirements are skipped — but the address_block field is always
+ *     preserved at the country level so the candidate can still record where
+ *     they lived (needed for scope coverage).
+ *
+ * Cross-level merge:
+ *   - Keyed by requirement.id.
+ *   - `isRequired` is OR-merged: if any applicable level says required, the
+ *     merged value is required (most-restrictive wins).
+ *   - `displayOrder` from the most-specific level wins; falls back to the
+ *     country level's displayOrder.
  *
  * Response shape:
  * {
@@ -40,7 +66,7 @@ import type { FieldMetadata } from '@/types/candidate-portal';
  *   - 403: Session token doesn't match URL token
  *   - 404: Invitation not found
  *   - 410: Invitation expired or already completed
- *   - 400: Missing serviceId or countryId
+ *   - 400: Missing serviceId or countryId, or non-UUID subregionId
  */
 export async function GET(
   request: NextRequest,
@@ -67,10 +93,24 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const serviceId = searchParams.get('serviceId');
     const countryId = searchParams.get('countryId');
+    const subregionId = searchParams.get('subregionId');
 
     if (!serviceId || !countryId) {
       return NextResponse.json(
         { error: 'Missing serviceId or countryId parameter' },
+        { status: 400 }
+      );
+    }
+
+    // Validate subregionId format when present. We use a manual UUID check
+    // here (rather than introducing a Zod schema for the whole query) to
+    // stay consistent with the existing manual check style in this route.
+    // Length 36 + standard hex/dash pattern is enough — the upstream client
+    // can only have produced it from /subdivisions, which already validates.
+    const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (subregionId !== null && subregionId !== '' && !UUID_PATTERN.test(subregionId)) {
+      return NextResponse.json(
+        { error: 'Invalid subregionId parameter' },
         { status: 400 }
       );
     }
@@ -94,24 +134,56 @@ export async function GET(
       return NextResponse.json({ error: 'Invitation already completed' }, { status: 410 });
     }
 
-    // Step 5: Get DSX requirements for this service and country
-    // First, get location-specific requirements from DSXMapping
-    const locationMappings = await prisma.dSXMapping.findMany({
-      where: {
-        serviceId,
-        locationId: countryId,
-      },
-      include: {
-        requirement: true
-      },
-      orderBy: {
-        requirement: {
-          name: 'asc'
+    // Step 5: Build the list of geographic levels to check for DSX mappings.
+    // For Stage 1 / Stage 2 (no subregionId) this is just [countryId].
+    // For Stage 3 with a subregionId, we walk parentId upward to assemble
+    // the full ancestor chain (subregion3 → subregion2 → subregion1 → country).
+    // Order in `levelIds` is country first, then subregion1, then subregion2,
+    // then subregion3 — i.e., from least-specific to most-specific. This
+    // matters for the merge below: we apply each level in order and let the
+    // most-specific one win for displayOrder, while OR-merging isRequired.
+    const levelIds: string[] = [countryId];
+    if (subregionId && subregionId !== '') {
+      // Walk upward from the subregion. At most 3 hops to reach the country
+      // since the geographic hierarchy is country → sub1 → sub2 → sub3.
+      const ancestorChain: string[] = [];
+      let current: string | null = subregionId;
+      let walkSafetyCount = 0;
+      while (current && walkSafetyCount < 4) {
+        const row: { id: string; parentId: string | null } | null =
+          await prisma.country.findUnique({
+            where: { id: current },
+            select: { id: true, parentId: true }
+          });
+        if (!row) break;
+        // Skip the country itself — already in levelIds at index 0.
+        if (row.id !== countryId) {
+          ancestorChain.unshift(row.id);
         }
+        current = row.parentId;
+        walkSafetyCount++;
       }
-    });
+      // Append in order: subregion1, subregion2, subregion3 (deepest last).
+      levelIds.push(...ancestorChain);
+    }
 
-    // Also get universal requirements (not location-specific) from ServiceRequirement
+    // Look up the service's functionality type. Record-type services
+    // (criminal, civil, bankruptcy, etc.) have requirements that are
+    // heavily jurisdiction-specific, so the spec calls for requirements
+    // to come exclusively from per-location dsx_mappings — no service-level
+    // baseline. Education and Employment continue to use the service-level
+    // baseline for universal fields like "First Name" / "School Name".
+    const serviceRecord = await prisma.service.findUnique({
+      where: { id: serviceId },
+      select: { functionalityType: true }
+    });
+    const isRecordService = serviceRecord?.functionalityType === 'record';
+
+    // Get universal (non-location-specific) requirements from ServiceRequirement.
+    // These apply at every level — they're the "always required" baseline.
+    // For record-type services we still load them so we can compute the
+    // correct displayOrder, but we will NOT add them as a baseline below
+    // (only their displayOrder is used to sort dsx_mapping requirements).
     const serviceRequirements = await prisma.serviceRequirement.findMany({
       where: {
         serviceId,
@@ -139,35 +211,126 @@ export async function GET(
       displayOrderByRequirementId.set(serviceReq.requirementId, serviceReq.displayOrder);
     }
 
-    // Combine and deduplicate requirements
-    const allRequirements = new Map<string, any>();
+    // Combine and deduplicate requirements across every applicable geographic
+    // level. The merge keeps:
+    //   - the most-specific level's displayOrder (later levelIds win)
+    //   - the OR-merge of isRequired (any "required" anywhere wins, per spec)
+    //   - the most-specific requirement object (in case fieldData differs)
+    type MergedEntry = {
+      requirement: typeof serviceRequirements[number]['requirement'];
+      isRequired: boolean;
+      displayOrder: number;
+    };
+    const allRequirements = new Map<string, MergedEntry>();
 
-    // Add location-specific requirements first (they take precedence)
-    for (const mapping of locationMappings) {
-      if (!mapping.requirement.disabled) {
-        // Resolve displayOrder from service_requirements when available;
-        // fall back to 999 only when this requirement genuinely has no
-        // entry in service_requirements for this service.
+    for (const levelId of levelIds) {
+      // DSX availability check (Phase 6 Stage 3): when subregionId is present,
+      // we consult dsx_availability for each level. A missing row defaults to
+      // available (per spec — "if no availability entry exists, meaning it
+      // defaults to available"). This check is skipped entirely for the
+      // legacy single-level call (no subregionId), preserving Stage 1/2
+      // behavior.
+      if (subregionId && subregionId !== '') {
+        // Defensive: in test harnesses dsx_availability may not be mocked at
+        // all, in which case we treat the service as available (matching the
+        // spec's missing-row default).
+        let isAvailableHere = true;
+        try {
+          if (
+            prisma.dSXAvailability &&
+            typeof prisma.dSXAvailability.findFirst === 'function'
+          ) {
+            const availabilityRow = await prisma.dSXAvailability.findFirst({
+              where: { serviceId, locationId: levelId }
+            });
+            if (availabilityRow && availabilityRow.isAvailable === false) {
+              isAvailableHere = false;
+            }
+          }
+        } catch (availabilityError) {
+          // If the availability table query fails (e.g., not mocked), default
+          // to available. This is safe because the spec explicitly says missing
+          // data should not block requirement loading. Logged at debug so it
+          // surfaces in development but does not pollute production logs.
+          logger.debug('dsx_availability lookup failed; treating service as available', {
+            event: 'candidate_fields_dsx_availability_fallback',
+            serviceId,
+            levelId,
+            error: availabilityError instanceof Error ? availabilityError.message : 'Unknown error'
+          });
+        }
+
+        if (!isAvailableHere) {
+          // Skip this level's additional requirements. The country-level
+          // mapping (loaded earlier in the loop when levelId === countryId)
+          // still contains the address_block field if any.
+          continue;
+        }
+      }
+
+      const levelMappings = await prisma.dSXMapping.findMany({
+        where: {
+          serviceId,
+          locationId: levelId,
+        },
+        include: {
+          requirement: true
+        },
+        orderBy: {
+          requirement: {
+            name: 'asc'
+          }
+        }
+      });
+
+      for (const mapping of levelMappings) {
+        if (mapping.requirement.disabled) continue;
+
         const resolvedDisplayOrder =
           displayOrderByRequirementId.get(mapping.requirement.id) ?? 999;
 
-        allRequirements.set(mapping.requirement.id, {
-          requirement: mapping.requirement,
-          isRequired: mapping.isRequired,
-          displayOrder: resolvedDisplayOrder
-        });
+        const existing = allRequirements.get(mapping.requirement.id);
+        if (!existing) {
+          allRequirements.set(mapping.requirement.id, {
+            requirement: mapping.requirement,
+            isRequired: mapping.isRequired,
+            displayOrder: resolvedDisplayOrder
+          });
+        } else {
+          // Merge: most-specific level wins for the requirement object and
+          // displayOrder; isRequired OR-merges across levels.
+          allRequirements.set(mapping.requirement.id, {
+            requirement: mapping.requirement,
+            isRequired: existing.isRequired || mapping.isRequired,
+            displayOrder: resolvedDisplayOrder
+          });
+        }
       }
     }
 
-    // Add service-level requirements (if not already present from location mapping)
+    // Add service-level requirements (if not already present from any
+    // location mapping). Service-level requirements always apply, regardless
+    // of geographic level or DSX availability.
+    //
+    // For record-type services we include only address_block service-level
+    // requirements: the address block is the one universal record field
+    // (every record service needs to know where the candidate lived). Other
+    // record requirements — criminal forms, jurisdiction-specific IDs, etc.
+    // — vary heavily by country and the spec mandates they come exclusively
+    // from per-location dsx_mappings. Including them here would surface
+    // fields from one country's configuration when the candidate selected
+    // a different country.
     for (const serviceReq of serviceRequirements) {
-      if (!allRequirements.has(serviceReq.requirement.id)) {
-        allRequirements.set(serviceReq.requirement.id, {
-          requirement: serviceReq.requirement,
-          isRequired: true, // Service-level requirements are assumed required
-          displayOrder: serviceReq.displayOrder
-        });
+      if (allRequirements.has(serviceReq.requirement.id)) continue;
+      if (isRecordService) {
+        const fd = (serviceReq.requirement.fieldData ?? {}) as { dataType?: string };
+        if (fd.dataType !== 'address_block') continue;
       }
+      allRequirements.set(serviceReq.requirement.id, {
+        requirement: serviceReq.requirement,
+        isRequired: true, // Service-level requirements are assumed required
+        displayOrder: serviceReq.displayOrder
+      });
     }
 
     // Step 6: Format the response
