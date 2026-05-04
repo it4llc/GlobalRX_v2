@@ -167,8 +167,23 @@ export async function GET(
       levelIds.push(...ancestorChain);
     }
 
+    // Look up the service's functionality type. Record-type services
+    // (criminal, civil, bankruptcy, etc.) have requirements that are
+    // heavily jurisdiction-specific, so the spec calls for requirements
+    // to come exclusively from per-location dsx_mappings — no service-level
+    // baseline. Education and Employment continue to use the service-level
+    // baseline for universal fields like "First Name" / "School Name".
+    const serviceRecord = await prisma.service.findUnique({
+      where: { id: serviceId },
+      select: { functionalityType: true }
+    });
+    const isRecordService = serviceRecord?.functionalityType === 'record';
+
     // Get universal (non-location-specific) requirements from ServiceRequirement.
     // These apply at every level — they're the "always required" baseline.
+    // For record-type services we still load them so we can compute the
+    // correct displayOrder, but we will NOT add them as a baseline below
+    // (only their displayOrder is used to sort dsx_mapping requirements).
     const serviceRequirements = await prisma.serviceRequirement.findMany({
       where: {
         serviceId,
@@ -289,14 +304,26 @@ export async function GET(
     // Add service-level requirements (if not already present from any
     // location mapping). Service-level requirements always apply, regardless
     // of geographic level or DSX availability.
+    //
+    // For record-type services we include only address_block service-level
+    // requirements: the address block is the one universal record field
+    // (every record service needs to know where the candidate lived). Other
+    // record requirements — criminal forms, jurisdiction-specific IDs, etc.
+    // — vary heavily by country and the spec mandates they come exclusively
+    // from per-location dsx_mappings. Including them here would surface
+    // fields from one country's configuration when the candidate selected
+    // a different country.
     for (const serviceReq of serviceRequirements) {
-      if (!allRequirements.has(serviceReq.requirement.id)) {
-        allRequirements.set(serviceReq.requirement.id, {
-          requirement: serviceReq.requirement,
-          isRequired: true, // Service-level requirements are assumed required
-          displayOrder: serviceReq.displayOrder
-        });
+      if (allRequirements.has(serviceReq.requirement.id)) continue;
+      if (isRecordService) {
+        const fd = (serviceReq.requirement.fieldData ?? {}) as { dataType?: string };
+        if (fd.dataType !== 'address_block') continue;
       }
+      allRequirements.set(serviceReq.requirement.id, {
+        requirement: serviceReq.requirement,
+        isRequired: true, // Service-level requirements are assumed required
+        displayOrder: serviceReq.displayOrder
+      });
     }
 
     // Step 6: Format the response
