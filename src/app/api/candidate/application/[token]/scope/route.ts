@@ -156,12 +156,30 @@ export async function GET(
 
     if (!rawScope || rawScope === null || isDegreeScopeForNonEdu) {
       // No scope (or an inapplicable degree-style scope landing on the
-      // record functionality) means provide everything.
-      scopeType = 'all';
-      scopeValue = null;
-      scopeDescription = isRecord
-        ? `Please provide your complete address history`
-        : `Please provide your complete ${typeLabel} history`;
+      // record functionality) means provide everything — except for record
+      // services, where the scope-selector UI shows "Current address only" as
+      // the default unsaved selection. We mirror that default here so the
+      // candidate sees the same effective scope the customer admin saw when
+      // configuring the package.
+      if (isRecord) {
+        scopeType = 'count_exact';
+        scopeValue = 1;
+        scopeDescription = `Please provide your current address`;
+      } else {
+        scopeType = 'all';
+        scopeValue = null;
+        scopeDescription = `Please provide your complete ${typeLabel} history`;
+      }
+    } else if (rawScope.type === 'current-address') {
+      // Record-only: candidate provides only their current address
+      scopeType = 'count_exact';
+      scopeValue = 1;
+      scopeDescription = `Please provide your current address`;
+    } else if (rawScope.type === 'last-x-addresses' && rawScope.quantity) {
+      // Record-only: candidate provides their last X addresses
+      scopeType = 'count_specific';
+      scopeValue = rawScope.quantity;
+      scopeDescription = `Please provide your last ${rawScope.quantity} ${rawScope.quantity === 1 ? 'address' : 'addresses'}`;
     } else if (rawScope.type === 'most-recent') {
       // Most recent single entry
       scopeType = 'count_exact';
