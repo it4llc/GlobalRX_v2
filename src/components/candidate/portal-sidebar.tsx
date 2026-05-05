@@ -5,6 +5,7 @@
 import React from 'react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import type { CandidatePortalSection } from '@/types/candidate-portal';
+import SectionProgressIndicator from './SectionProgressIndicator';
 
 interface PortalSidebarProps {
   sections: CandidatePortalSection[];
@@ -23,67 +24,41 @@ export default function PortalSidebar({
 }: PortalSidebarProps) {
   const { t } = useTranslation();
 
-  const getStatusIcon = (status: CandidatePortalSection['status']) => {
-    switch (status) {
-      case 'complete':
-        return (
-          <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        );
-      case 'in_progress':
-        return (
-          <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-            <div className="w-2 h-2 bg-white rounded-full" />
-          </div>
-        );
-      default: // not_started
-        return (
-          <div className="w-5 h-5 rounded-full bg-gray-300" />
-        );
-    }
-  };
-
-  const getStatusLabel = (status: CandidatePortalSection['status']) => {
-    switch (status) {
-      case 'complete':
-        return t('candidate.portal.sections.complete');
-      case 'in_progress':
-        return t('candidate.portal.sections.inProgress');
-      default:
-        return t('candidate.portal.sections.notStarted');
-    }
-  };
-
+  // Phase 6 Stage 4: the per-section status indicator now lives in the
+  // SectionProgressIndicator component (BR 14, BR 22). The sidebar passes
+  // the section's status + display label down rather than rendering an
+  // inline icon. Centralising the indicator in one component keeps the
+  // visual rules consistent across every place that shows a status dot.
   const sidebarContent = (
     <nav className="px-3 py-6">
       <ul className="space-y-1">
-        {sections.map((section) => (
-          <li key={section.id}>
-            <button
-              onClick={() => {
-                onSectionClick(section.id);
-                if (onClose) onClose();
-              }}
-              className={`w-full flex items-center justify-between px-3 py-2 min-h-[44px] rounded-md text-left transition-colors ${
-                activeSection === section.id
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-              data-testid="section-item"
-              data-active={activeSection === section.id}
-              // min-h-[44px] ensures mobile touch targets meet accessibility standards
-            >
-              <span className="flex-1 mr-3">{t(section.title)}</span>
-              <div className="flex items-center space-x-2">
-                {getStatusIcon(section.status)}
-                <span className="sr-only">{getStatusLabel(section.status)}</span>
-              </div>
-            </button>
-          </li>
-        ))}
+        {sections.map((section) => {
+          const sectionLabel = t(section.title);
+          return (
+            <li key={section.id}>
+              <button
+                onClick={() => {
+                  onSectionClick(section.id);
+                  if (onClose) onClose();
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 min-h-[44px] rounded-md text-left transition-colors ${
+                  activeSection === section.id
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+                data-testid="section-item"
+                data-active={activeSection === section.id}
+                // min-h-[44px] ensures mobile touch targets meet accessibility standards
+              >
+                <span className="flex-1 mr-3">{sectionLabel}</span>
+                <SectionProgressIndicator
+                  status={section.status}
+                  label={sectionLabel}
+                />
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

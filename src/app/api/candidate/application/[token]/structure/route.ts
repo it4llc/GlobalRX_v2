@@ -28,11 +28,20 @@ import type { CandidatePortalStructureResponse, CandidatePortalSection } from '@
  *   sections: [{
  *     id: string                // Unique identifier for this section
  *     title: string             // Display name shown to the candidate
- *     type: string              // One of: workflow_section, service_section
+ *     type: string              // One of: workflow_section, service_section, personal_info, address_history
  *     placement: string         // One of: before_services, services, after_services
- *     status: string            // One of: not_started, in_progress, complete
+ *     status: string            // One of: not_started, incomplete, complete (lowercase per BR 22)
+ *                               // INITIAL value only — Phase 6 Stage 4 BR 15 requires the client
+ *                               // to recompute progress on every auto-save and override this value
+ *                               // locally. The endpoint never returns a non-not_started status.
  *     order: number             // Sort position within its placement group
  *     functionalityType?: string // For service sections: idv, record, verification-edu, verification-emp
+ *     workflowSection?: {       // Phase 6 Stage 4: full workflow-section payload, present when
+ *       id, name, type,         // type === 'workflow_section'. Carries the content the renderer
+ *       content, fileUrl,       // needs without a second fetch. Per Stage 4 spec Data Requirements.
+ *       fileName, placement,
+ *       displayOrder, isRequired
+ *     }
  *   }]
  * }
  *
@@ -128,7 +137,22 @@ export async function GET(
           placement: 'before_services',
           status: 'not_started',
           order: sectionOrder++,
-          functionalityType: null
+          functionalityType: null,
+          // Phase 6 Stage 4: full workflow content payload so the renderer can
+          // display the section without an extra fetch. The shape matches the
+          // spec's "Structure endpoint additions — workflow section payload"
+          // Data Requirements table.
+          workflowSection: {
+            id: section.id,
+            name: section.name,
+            type: (section.type === 'document' ? 'document' : 'text') as 'text' | 'document',
+            content: section.content,
+            fileUrl: section.fileUrl,
+            fileName: section.fileName,
+            placement: 'before_services',
+            displayOrder: section.displayOrder,
+            isRequired: section.isRequired,
+          },
         });
       }
     }
@@ -224,7 +248,20 @@ export async function GET(
           placement: 'after_services',
           status: 'not_started',
           order: sectionOrder++,
-          functionalityType: null
+          functionalityType: null,
+          // Phase 6 Stage 4: see comment on the before_services workflow
+          // sections — same payload shape, different placement value.
+          workflowSection: {
+            id: section.id,
+            name: section.name,
+            type: (section.type === 'document' ? 'document' : 'text') as 'text' | 'document',
+            content: section.content,
+            fileUrl: section.fileUrl,
+            fileName: section.fileName,
+            placement: 'after_services',
+            displayOrder: section.displayOrder,
+            isRequired: section.isRequired,
+          },
         });
       }
     }

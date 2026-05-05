@@ -5,10 +5,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
+import CrossSectionRequirementBanner from '../CrossSectionRequirementBanner';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
+import { computePersonalInfoStatus } from '@/lib/candidate/sectionProgress';
 import type { FieldMetadata, FieldValue } from '@/types/candidate-portal';
+import type { CrossSectionRequirementEntry, SectionStatus } from '@/types/candidate-stage4';
 
 interface PersonalInfoField {
   requirementId: string;
@@ -25,6 +28,14 @@ interface PersonalInfoField {
 
 interface PersonalInfoSectionProps {
   token: string;
+  // Phase 6 Stage 4 — registry entries posted by other sections (e.g., Address
+  // History) under the `subject` target. Drives both the banner at the top of
+  // this section and the progress calculation, so cross-section-required
+  // fields gate `complete` status here.
+  crossSectionRequirements?: CrossSectionRequirementEntry[];
+  // Phase 6 Stage 4 — pushed up to the shell on every progress recalculation.
+  // The shell uses these statuses to render section progress indicators.
+  onProgressUpdate?: (status: SectionStatus) => void;
 }
 
 /**
@@ -33,7 +44,11 @@ interface PersonalInfoSectionProps {
  * A section that appears first in the candidate's application.
  * It collects basic information about the candidate that isn't tied to any specific service.
  */
-export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
+export function PersonalInfoSection({
+  token,
+  crossSectionRequirements,
+  onProgressUpdate,
+}: PersonalInfoSectionProps) {
   const { t } = useTranslation();
   const [fields, setFields] = useState<PersonalInfoField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -183,6 +198,33 @@ export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
     saveData();
   }, [debouncedPendingSaves, formData, token]);
 
+  // Phase 6 Stage 4 — recompute and report progress whenever fields, values,
+  // or the cross-section registry change. The helper is pure; we translate
+  // the requirementId-keyed formData into a fieldKey-keyed map because the
+  // helper looks up by fieldKey (matching the DSX requirement.fieldKey, which
+  // is also the key used by cross-section registry entries).
+  useEffect(() => {
+    if (loading || !onProgressUpdate) return;
+    const valuesByFieldKey: Record<string, unknown> = {};
+    for (const field of fields) {
+      valuesByFieldKey[field.fieldKey] = formData[field.requirementId];
+    }
+    // The helper expects a FieldLike shape with `id`; PersonalInfoField uses
+    // `requirementId` as the canonical id everywhere else in the component, so
+    // we adapt here without restructuring the local field type.
+    const fieldLikes = fields.map(field => ({
+      id: field.requirementId,
+      fieldKey: field.fieldKey,
+      isRequired: field.isRequired,
+    }));
+    const status = computePersonalInfoStatus(
+      fieldLikes,
+      valuesByFieldKey,
+      crossSectionRequirements ?? [],
+    );
+    onProgressUpdate(status);
+  }, [loading, fields, formData, crossSectionRequirements, onProgressUpdate]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -194,6 +236,10 @@ export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
   if (fields.length === 0) {
     return (
       <div className="p-8 text-center text-gray-600">
+        {/* Even when no local fields exist, we still render the cross-section
+            banner above so candidates see why other tabs may have flagged
+            them. The banner is the only UI in this branch. */}
+        <CrossSectionRequirementBanner requirements={crossSectionRequirements ?? []} />
         {t('candidate.portal.personalInfo.noFieldsRequired')}
       </div>
     );
@@ -201,6 +247,13 @@ export function PersonalInfoSection({ token }: PersonalInfoSectionProps) {
 
   return (
     <div className="space-y-6">
+      {/* Phase 6 Stage 4 — cross-section requirement banner. Hidden when the
+          requirements array is empty (the component handles that internally).
+          Per the technical-plan resolved decision, the banner renders inside
+          this section rather than the shell so it lives next to the heading
+          area it describes. */}
+      <CrossSectionRequirementBanner requirements={crossSectionRequirements ?? []} />
+
       {/* Section header with save indicator */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-semibold">{t('candidate.portal.sections.personalInformation')}</h2>

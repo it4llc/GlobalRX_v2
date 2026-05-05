@@ -50,10 +50,23 @@ interface FormattedAddressHistorySection {
   aggregatedFields: Record<string, SavedFieldData['value']>;
 }
 
+// Shape of a workflow section in the formatted response (Phase 6 Stage 4).
+// Per spec DoD #3 and Business Rule 8, workflow-section saved data is
+// presented to the client as a per-section bucket of the form
+// `{ type: 'workflow_section', acknowledged: boolean }`. The saved storage
+// shape (a flat-fields array with the acknowledgment as a JSON-object value
+// inside the first field) is converted into this clean bucket on read so the
+// shell can hydrate cleanly without inspecting per-field metadata.
+interface FormattedWorkflowSection {
+  type: 'workflow_section';
+  acknowledged: boolean;
+}
+
 type FormattedSection =
   | FormattedFlatSection
   | FormattedRepeatableSection
-  | FormattedAddressHistorySection;
+  | FormattedAddressHistorySection
+  | FormattedWorkflowSection;
 
 // Shape of an entry as stored in CandidateInvitation.formData. We narrow the
 // union member of FormSectionData['entries'] to a non-undefined element so we
@@ -187,6 +200,35 @@ export async function GET(
 
       // Determine the section type
       const sectionType = data.type || sectionId;
+
+      // Phase 6 Stage 4: workflow-section sections are returned as
+      // `{ type: 'workflow_section', acknowledged: boolean }` per BR 8.
+      // The acknowledgment is read from the first field's value: when the
+      // value is an object with `acknowledged === true`, the section is
+      // considered acknowledged. Anything else defaults to false. The bucket
+      // key on read is the workflow_sections.id (the original sectionId in
+      // formData.sections) — we keep that key in the response so the shell
+      // can hydrate the right section without any other lookup.
+      if (sectionType === 'workflow_section') {
+        let acknowledged = false;
+        if (Array.isArray(data.fields) && data.fields.length > 0) {
+          const firstValue = data.fields[0].value;
+          if (
+            firstValue &&
+            typeof firstValue === 'object' &&
+            !Array.isArray(firstValue) &&
+            (firstValue as { acknowledged?: unknown }).acknowledged === true
+          ) {
+            acknowledged = true;
+          }
+        }
+        const workflowSection: FormattedWorkflowSection = {
+          type: 'workflow_section',
+          acknowledged,
+        };
+        formattedSections[sectionId] = workflowSection;
+        continue;
+      }
 
       // Check if this is the address_history section (Phase 6 Stage 3).
       // Returns entries (same shape as education/employment) plus an

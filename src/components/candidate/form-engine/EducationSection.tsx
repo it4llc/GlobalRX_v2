@@ -2,21 +2,33 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import { ScopeDisplay } from './ScopeDisplay';
 import { EntryCountrySelector } from './EntryCountrySelector';
 import { RepeatableEntryManager } from './RepeatableEntryManager';
+import CandidateDocumentUpload from '../CandidateDocumentUpload';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
+import {
+  buildRepeatableProgressInputs,
+  buildSubjectRequirementsForEntries,
+  useRepeatableSectionStage4Wiring,
+} from '@/lib/candidate/useRepeatableSectionStage4Wiring';
 import type {
   EntryData,
   RepeatableFieldValue,
   ScopeInfo,
 } from '@/types/candidate-repeatable-form';
 import type { FieldMetadata, DocumentMetadata, FieldValue } from '@/types/candidate-portal';
+import type {
+  CrossSectionRequirementEntry,
+  CrossSectionTarget,
+  SectionStatus,
+  UploadedDocumentMetadata,
+} from '@/types/candidate-stage4';
 
 interface DsxField {
   requirementId: string;
@@ -43,7 +55,29 @@ interface CountryApiResponse {
 interface EducationSectionProps {
   token: string;
   serviceIds: string[];
+  // Phase 6 Stage 4 — section-progress reporting and cross-section registry
+  // wiring. The section computes its own status after each save and forwards
+  // it to the shell via onProgressUpdate. Subject-targeted DSX requirements
+  // are pushed into the registry so Personal Information's progress check can
+  // include them (BR 17 / 18); they are cleared on entry removal (BR 19) and
+  // when a country selection changes for an entry.
+  onProgressUpdate?: (status: SectionStatus) => void;
+  onCrossSectionRequirementsChanged?: (
+    target: CrossSectionTarget,
+    triggeredBy: string,
+    entries: CrossSectionRequirementEntry[],
+  ) => void;
+  onCrossSectionRequirementsRemovedForEntry?: (
+    triggeredBy: string,
+    entryIndex: number,
+  ) => void;
+  onCrossSectionRequirementsRemovedForSource?: (triggeredBy: string) => void;
 }
+
+// Triggered-by source identifier used for every cross-section registry entry
+// contributed by this section. Stable across countries / entries; the
+// registry stores entryOrder separately so per-entry cleanup works.
+const CROSS_SECTION_SOURCE = 'education_history';
 
 /**
  * Education History Section
@@ -51,7 +85,14 @@ interface EducationSectionProps {
  * Section component with multiple entry support for education history.
  * Uses RepeatableEntryManager, per-entry country selection, and DSX field rendering.
  */
-export function EducationSection({ token, serviceIds }: EducationSectionProps) {
+export function EducationSection({
+  token,
+  serviceIds,
+  onProgressUpdate,
+  onCrossSectionRequirementsChanged,
+  onCrossSectionRequirementsRemovedForEntry,
+  onCrossSectionRequirementsRemovedForSource,
+}: EducationSectionProps) {
   const { t } = useTranslation();
   const [scope, setScope] = useState<ScopeInfo | null>(null);
   const [entries, setEntries] = useState<EntryData[]>([]);
@@ -165,6 +206,12 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
     };
   };
 
+  // Phase 6 Stage 4 — keep subject-targeted fields per country alongside the
+  // local fields so the cross-section registry can be (re)populated whenever
+  // an entry's country changes. Cached by countryId because the underlying
+  // DSX requirements only vary by country, not by entry index.
+  const [subjectFieldsByCountry, setSubjectFieldsByCountry] = useState<Record<string, DsxField[]>>({});
+
   const loadFieldsForCountry = async (countryId: string) => {
     // Check if we already have fields for this country
     if (fieldsByCountry[countryId]) {
@@ -172,7 +219,13 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
     }
 
     try {
-      const fieldMap = new Map<string, DsxField>();
+      const localFieldMap = new Map<string, DsxField>();
+      // Phase 6 Stage 4 — collect subject-targeted fields separately so we
+      // can push them into the cross-section registry under the `subject`
+      // target. Subject fields are still filtered OUT of the local render
+      // path (they belong on Personal Information), but the registry needs to
+      // know about them so Personal Info's progress check evaluates them.
+      const subjectFieldMap = new Map<string, DsxField>();
 
       for (const serviceId of serviceIds) {
         const response = await fetch(
@@ -185,32 +238,41 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
 
         const data = await response.json();
 
-        // Filter out personal info fields. The collectionTab value used by
-        // the database to mark a field as belonging to the Personal Information
-        // section is "subject" (not "personal"), so we exclude fields whose
-        // collectionTab matches "subject" case-insensitively. Fields without a
-        // collectionTab (empty string) are kept and shown in this section.
+        // Split fields by collectionTab. The database value used to mark a
+        // field as belonging to the Personal Information section is "subject"
+        // (BR 17). Fields without a collectionTab (empty string) are kept
+        // and shown in this section locally.
         for (const field of data.fields || []) {
           const fieldData = field.fieldData || {};
           const collectionTab = fieldData.collectionTab || fieldData.collection_tab || '';
 
-          if (!collectionTab.toLowerCase().includes('subject')) {
-            // Use fieldKey as deduplication key
-            if (!fieldMap.has(field.fieldKey)) {
-              fieldMap.set(field.fieldKey, field);
+          if (collectionTab.toLowerCase().includes('subject')) {
+            if (!subjectFieldMap.has(field.fieldKey)) {
+              subjectFieldMap.set(field.fieldKey, field);
+            }
+          } else {
+            if (!localFieldMap.has(field.fieldKey)) {
+              localFieldMap.set(field.fieldKey, field);
             }
           }
         }
       }
 
       // Sort by display order
-      const uniqueFields = Array.from(fieldMap.values()).sort(
+      const uniqueFields = Array.from(localFieldMap.values()).sort(
+        (a, b) => a.displayOrder - b.displayOrder
+      );
+      const uniqueSubjectFields = Array.from(subjectFieldMap.values()).sort(
         (a, b) => a.displayOrder - b.displayOrder
       );
 
       setFieldsByCountry(prev => ({
         ...prev,
         [countryId]: uniqueFields
+      }));
+      setSubjectFieldsByCountry(prev => ({
+        ...prev,
+        [countryId]: uniqueSubjectFields
       }));
     } catch (error) {
       logger.error('Failed to load fields for country', {
@@ -228,6 +290,14 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
   };
 
   const handleRemoveEntry = (entryId: string) => {
+    // Phase 6 Stage 4 — clear cross-section requirements contributed by this
+    // entry before removing it (BR 19). The registry keys by triggeredBy +
+    // triggeredByEntryIndex so the removal is precise; sibling entries with
+    // the same fieldKey but different entryOrder remain in the registry.
+    const entry = entries.find(e => e.entryId === entryId);
+    if (entry && onCrossSectionRequirementsRemovedForEntry) {
+      onCrossSectionRequirementsRemovedForEntry(CROSS_SECTION_SOURCE, entry.entryOrder);
+    }
     setEntries(prev => prev.filter(e => e.entryId !== entryId));
     setPendingSave(true);
   };
@@ -239,6 +309,16 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
   };
 
   const handleCountryChange = async (entryId: string, countryId: string) => {
+    // Phase 6 Stage 4 — when the entry's country changes, the previous
+    // country's subject-targeted fields no longer apply to this entry. Clear
+    // any registry contributions tagged with this entryOrder so stale fields
+    // don't linger; the cross-section "rebuild" useEffect below will re-push
+    // the new country's subject fields once they load.
+    const entry = entries.find(e => e.entryId === entryId);
+    if (entry && onCrossSectionRequirementsRemovedForEntry) {
+      onCrossSectionRequirementsRemovedForEntry(CROSS_SECTION_SOURCE, entry.entryOrder);
+    }
+
     // Update the entry's country
     handleEntryChange(entryId, { countryId });
 
@@ -319,8 +399,34 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
     }
   };
 
+  // Phase 6 Stage 4 — store and persist document metadata for per_entry-scoped
+  // requirements. Metadata is keyed by `${entryId}::${requirementId}` so
+  // multiple entries can each carry their own document for the same
+  // requirement. Reading the persisted value out of the saved entry's fields
+  // covers hydration; writing back into the entry's fields persists via the
+  // standard auto-save (Stage 3 already widened the value union to accept
+  // JSON objects, so no save-shape change is required).
+  const handleDocumentUpload = (
+    entryId: string,
+    requirementId: string,
+    metadata: UploadedDocumentMetadata,
+  ) => {
+    handleFieldChange(entryId, requirementId, metadata as unknown as FieldValue);
+    setPendingSave(true);
+  };
+
+  const handleDocumentRemove = (entryId: string, requirementId: string) => {
+    handleFieldChange(entryId, requirementId, null);
+    setPendingSave(true);
+  };
+
   const renderEntry = (entry: EntryData, index: number) => {
     const fields = entry.countryId ? fieldsByCountry[entry.countryId] || [] : [];
+    // Split into data fields and document requirements. Documents render via
+    // CandidateDocumentUpload (per_entry-scope per BR 11), data fields render
+    // via DynamicFieldRenderer as before.
+    const dataFields = fields.filter(f => f.type !== 'document');
+    const documentFields = fields.filter(f => f.type === 'document');
 
     return (
       <div className="space-y-4">
@@ -338,9 +444,9 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
           </p>
         )}
 
-        {fields.length > 0 && (
+        {dataFields.length > 0 && (
           <div className="space-y-4">
-            {fields.map(field => {
+            {dataFields.map(field => {
               const stored = entry.fields.find(
                 f => f.requirementId === field.requirementId
               );
@@ -372,9 +478,89 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
             })}
           </div>
         )}
+
+        {documentFields.length > 0 && (
+          <div className="space-y-3">
+            {documentFields.map(field => {
+              // Find any previously-saved metadata for this document inside
+              // the entry's persisted fields. Saved values are stored as raw
+              // JSON objects (per Stage 3 widening); we coerce only when the
+              // value looks like an UploadedDocumentMetadata record.
+              const stored = entry.fields.find(
+                f => f.requirementId === field.requirementId
+              );
+              const uploaded =
+                stored &&
+                stored.value &&
+                typeof stored.value === 'object' &&
+                !Array.isArray(stored.value) &&
+                (stored.value as { documentId?: unknown }).documentId
+                  ? (stored.value as unknown as UploadedDocumentMetadata)
+                  : null;
+              return (
+                <CandidateDocumentUpload
+                  key={field.requirementId}
+                  requirement={{
+                    id: field.requirementId,
+                    name: field.name,
+                    instructions: field.instructions ?? null,
+                    isRequired: field.isRequired,
+                    // Per BR 11, documents inside an entry are per_entry-scoped.
+                    scope: 'per_entry',
+                  }}
+                  uploadedDocument={uploaded}
+                  onUploadComplete={(metadata) =>
+                    handleDocumentUpload(entry.entryId, field.requirementId, metadata)
+                  }
+                  onRemove={() =>
+                    handleDocumentRemove(entry.entryId, field.requirementId)
+                  }
+                  token={token}
+                  entryIndex={entry.entryOrder}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
+
+  // Phase 6 Stage 4 — feed the shared helpers + wiring hook. The pure
+  // helpers in useRepeatableSectionStage4Wiring own the shape transforms
+  // (subject-requirements flatten, progress-inputs build) so each section
+  // contributes only the per-section identity (CROSS_SECTION_SOURCE) and the
+  // already-shaped state (entries, subject fields per country, local fields
+  // per country). Memoizing the helper outputs keeps the hook's effect deps
+  // stable across renders.
+  const subjectRequirements = useMemo(
+    () =>
+      buildSubjectRequirementsForEntries(
+        entries,
+        subjectFieldsByCountry,
+        CROSS_SECTION_SOURCE,
+      ),
+    [entries, subjectFieldsByCountry],
+  );
+
+  const progressInputs = useMemo(
+    () =>
+      buildRepeatableProgressInputs({
+        entries,
+        fieldsByCountry,
+        loading,
+      }),
+    [entries, fieldsByCountry, loading],
+  );
+
+  useRepeatableSectionStage4Wiring({
+    triggeredBy: CROSS_SECTION_SOURCE,
+    subjectRequirements,
+    progressInputs,
+    onCrossSectionRequirementsChanged,
+    onCrossSectionRequirementsRemovedForSource,
+    onProgressUpdate,
+  });
 
   if (loading) {
     return (
@@ -414,3 +600,4 @@ export function EducationSection({ token, serviceIds }: EducationSectionProps) {
     </div>
   );
 }
+

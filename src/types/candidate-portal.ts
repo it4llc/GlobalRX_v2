@@ -4,6 +4,8 @@
  * Types for the candidate portal feature
  */
 
+import type { WorkflowSectionPayload } from './candidate-stage4';
+
 export interface CandidateInvitationInfo {
   firstName: string;
   lastName: string;
@@ -17,10 +19,17 @@ export interface CandidatePortalSection {
   title: string;
   type: 'workflow_section' | 'service_section' | 'personal_info' | 'address_history';
   placement: 'before_services' | 'services' | 'after_services';
-  status: 'not_started' | 'in_progress' | 'complete';
+  // Status union narrowed in Phase 6 Stage 4 (BR 22) — `in_progress` was
+  // replaced by `incomplete` so the value space matches the project-wide
+  // lowercase status casing rule and the Stage 4 SectionStatus type.
+  status: 'not_started' | 'incomplete' | 'complete';
   order: number;
   functionalityType: string | null;
   serviceIds?: string[]; // For service sections, the IDs of services in this section
+  // Populated by the structure endpoint when `type === 'workflow_section'`.
+  // Carries the full workflow section payload (content, fileUrl, etc.) so the
+  // shell can render WorkflowSectionRenderer without a second fetch.
+  workflowSection?: WorkflowSectionPayload;
 }
 
 export interface CandidatePortalStructureResponse {
