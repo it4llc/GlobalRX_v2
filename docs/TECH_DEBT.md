@@ -240,6 +240,7 @@ Create a generic `remapFieldNamesToIds` utility function that can handle both se
 | Severity    | Warning                                     |
 | Identified  | March 25, 2026 - Document Persistence Bug Fix Stage 4 |
 | Identified by | Code Reviewer                             |
+| Status      | **Addressed (Phase 6 Stage 4 — May 4, 2026)** |
 
 **Description:**
 In `DocumentsReviewStep.tsx` lines 188 and 195, there are TODO comments indicating that error messages are not shown to users when document uploads fail. While errors are logged to the console, users receive no visual feedback when a document upload fails.
@@ -252,6 +253,9 @@ Add proper error UI components when implementing a broader error handling strate
 
 **Recommendation:**
 Display a toast notification or inline error message when upload fails.
+
+**Resolution (Phase 6 Stage 4 — May 4, 2026):**
+The new `CandidateDocumentUpload` component (`src/components/candidate/CandidateDocumentUpload.tsx`) explicitly surfaces both client-side validation errors (file too large, wrong MIME type) and server-side upload errors via a visible alert region with a "Try again" affordance. The candidate flow is the first place that actively renders these messages; the legacy `DocumentsReviewStep.tsx` TODOs in the internal portal flow are tracked separately as remaining work.
 
 ---
 
@@ -287,6 +291,7 @@ Implement during a storage optimization pass or when adding a scheduled cleanup 
 | Severity    | Minor                                       |
 | Identified  | March 25, 2026 - Document Persistence Bug Fix Stage 4 |
 | Identified by | Code Reviewer                             |
+| Status      | **Addressed (Phase 6 Stage 4 — May 4, 2026)** |
 
 **Description:**
 For large files (up to 10MB limit), users have no visual indication that an upload is in progress. The UI doesn't provide feedback during the upload process.
@@ -299,6 +304,9 @@ Add when implementing a comprehensive loading/progress indicator system across t
 
 **Recommendation:**
 Add a loading spinner or progress bar during file upload, especially for files over 1MB.
+
+**Resolution (Phase 6 Stage 4 — May 4, 2026):**
+`CandidateDocumentUpload` shows an animated spinner alongside the "Uploading…" label whenever the component is in the `uploading` state. The state machine is `empty → uploading → uploaded | error`, and the spinner is gated on the `uploading` state via the `data-status` attribute. Internal portal `DocumentsReviewStep.tsx` is unchanged.
 
 ---
 
@@ -1365,6 +1373,7 @@ Before adding any further section types (Stage 4 will add upload-related branche
 | Severity    | Warning (Data Integrity)                    |
 | Identified  | May 4, 2026 - Phase 6 Stage 3 Smoke Testing |
 | Identified by | Andy (smoke test)                         |
+| Status      | **Addressed (Phase 6 Stage 4 — May 4, 2026)** |
 
 **Description:**
 When Address History's DSX mappings make a field required that is collected on the Personal Information tab (e.g., Middle Name becomes required for criminal searches in a specific country), the Personal Information section currently has no awareness of this. The field is correctly excluded from the Address History aggregated area — `AddressHistorySection.computeAggregatedItems` skips any requirement whose UUID appears in `/personal-info-fields` — so the candidate isn't asked twice. But the Personal Info section still shows the field as optional based on its own `isRequired` resolution, which doesn't account for downstream sections' requirements.
@@ -1388,6 +1397,11 @@ This way a field becomes required on the Personal Info tab if ANY downstream sec
 **Files affected:**
 - `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
 - `src/components/candidate/form-engine/PersonalInfoSection.tsx` (if progress UI changes)
+
+**Resolution (Phase 6 Stage 4 — May 4, 2026):**
+A cross-section requirement registry (`src/lib/candidate/crossSectionRegistry.ts`) and shared wiring hook (`src/lib/candidate/useRepeatableSectionStage4Wiring.ts`) were added so that any repeatable section can publish subject-targeted DSX requirements to a central registry, and `PersonalInfoSection` consumes the `subject` bucket via the new `crossSectionRequirements` prop. Education History, Employment History, and Address History all publish their subject contributions through the registry; their DSX field loaders split fields by `collectionTab` and forward the subject ones to the shell. Banner display is implemented via `CrossSectionRequirementBanner`, rendered inside `PersonalInfoSection.tsx`.
+
+**Address History wiring (final wire-up — May 4, 2026):** `AddressHistorySection.tsx` now consumes the shared `useRepeatableSectionStage4Wiring` hook with the `addressHistoryStage4Wiring` helper module (`src/lib/candidate/addressHistoryStage4Wiring.ts`), and `portal-layout.tsx` passes the four wiring callbacks (`onProgressUpdate`, `onCrossSectionRequirementsChanged`, `onCrossSectionRequirementsRemovedForEntry`, `onCrossSectionRequirementsRemovedForSource`) to `AddressHistorySection` in the same shape used for Education / Employment. User Flow 3 (Address History entry country triggers Middle Name requirement → registry push → PersonalInfo banner / progress) is now end-to-end live.
 
 ---
 
@@ -1540,6 +1554,96 @@ When the candidate portal is being prepared for non-English locales. Should be d
 - `src/translations/es-ES.json`
 - `src/translations/es.json`
 - `src/translations/ja-JP.json`
+
+---
+
+### TD-059 — Sidebar status not reactively recomputed for unmounted sections
+
+| Field       | Detail                                                            |
+|-------------|-------------------------------------------------------------------|
+| Area        | Candidate Application — Portal layout / cross-section requirements |
+| Severity    | Warning (UX)                                                      |
+| Identified  | May 5, 2026 - Phase 6 Stage 4 smoke testing                       |
+| Identified by | Andy (smoke test)                                               |
+
+**Description:**
+When a cross-section requirement changes (e.g., an Address History country selection makes Middle Name required on Personal Info), the sidebar progress indicator for the affected section does not update until the user navigates into that section. Today, `sectionStatuses['personal_info']` is only ever written by `<PersonalInfoSection>`'s internal `onProgressUpdate` effect (`src/components/candidate/form-engine/PersonalInfoSection.tsx:206-226`), and that section is only mounted while it is the active tab. The shell's `subjectCrossSectionRequirements` memo (`src/components/candidate/portal-layout.tsx:221-224`) recomputes correctly, but its only consumer is the (currently unmounted) section.
+
+**Why deferred:**
+Found during smoke testing right before Stage 4 close-out. The fix is medium risk — it requires lifting the Personal Info fields/values fetch into the shell so `computePersonalInfoStatus` can run independent of section mount state. Touching shell-level data fetching this late risks destabilizing Stage 4. Bug 2 (the related stale-cache issue at `AddressHistorySection.tsx:246`) was fixed inline as a one-liner; this one needs a more careful pass.
+
+**Scope note:**
+Today only `personal_info` consumes cross-section registry data, so the visible blast radius is one section. The architectural defect would re-apply to any future cross-section target (the registry shape supports it but the spec only calls out `subject` for Stage 4). The other sections (`idv`, `education`, `employment`, `address_history`) compute their progress from purely local inputs, so although the same architectural pattern applies, there is no external state change that triggers the symptom.
+
+**When to fix:**
+Next candidate-portal pass. The fix should:
+1. Lift the `/personal-info-fields` and `/saved-data` fetches that PersonalInfoSection currently owns into `portal-layout.tsx`. The shell already fetches `/saved-data` once for workflow acknowledgments hydration (`portal-layout.tsx:98-151`) — natural extension point.
+2. Run `computePersonalInfoStatus` in a shell-level effect dependent on `(personalInfoFields, personalInfoSavedValues, subjectCrossSectionRequirements)` and write the result to `sectionStatuses[<personal_info section id>]`.
+3. Remove the `onProgressUpdate` writer from PersonalInfoSection so the shell is the single owner of that section's status.
+4. Pass the shell-fetched fields/values down to PersonalInfoSection as props so it does not double-fetch.
+
+**Files affected:**
+- `src/components/candidate/portal-layout.tsx`
+- `src/components/candidate/form-engine/PersonalInfoSection.tsx`
+
+**Related:**
+TD-052 (cross-section requirement awareness for Personal Info — addressed in Stage 4) is the feature this defect undercuts. The end-to-end flow works once the user navigates to Personal Info; the defect is only that the indicator isn't reactive while another tab is active.
+
+---
+
+### TD-060 — `personal-info-fields` API ignores candidate context when computing `isRequired`
+
+| Field       | Detail                                                            |
+|-------------|-------------------------------------------------------------------|
+| Area        | Candidate Application — `/api/candidate/application/[token]/personal-info-fields` |
+| Severity    | Warning (UX / spec mismatch)                                      |
+| Identified  | May 5, 2026 - Phase 6 Stage 4 smoke testing                       |
+| Identified by | Andy (smoke test) + traced via DevTools console                  |
+
+**Description:**
+The `personal-info-fields` endpoint computes `isRequired` per field via a naive OR over every `dSXMapping` row that references the requirement (`src/app/api/candidate/application/[token]/personal-info-fields/route.ts:164-178`):
+
+```js
+const dsxMappings = await prisma.dSXMapping.findMany({
+  where: { requirementId: { in: personalInfoRequirementIds } },
+  select: { requirementId: true, isRequired: true }
+});
+// OR-aggregate: required if ANY mapping says required
+```
+
+There is no filter on the candidate's current context — no country, no address history, no service scope. As a result, a field like Middle Name that is configured as required for ONE specific country in dsx_mappings will return `isRequired: true` from this endpoint regardless of the candidate's actual address history. The per-field red asterisk in `<PersonalInfoSection>` (rendered via `<DynamicFieldRenderer isRequired={field.isRequired}>` at `src/components/candidate/form-engine/PersonalInfoSection.tsx:279`) becomes sticky-true and never reflects the candidate's current context.
+
+**Why this surfaced now:**
+The Stage 4 cross-section registry mechanism was designed assuming the per-field `isRequired` from this API would represent the BASELINE (fields universally required), and the registry would layer ADDITIONAL conditional requirements on top via the cross-section banner and progress calculation. The API doesn't distinguish baseline from conditional — it ORs them all together. So:
+- The cross-section banner at the top of Personal Info DOES correctly toggle on/off as Address History changes.
+- The cross-section progress calculation DOES correctly reflect cleared registry state.
+- BUT the per-field asterisk on Middle Name stays red whether the cross-section trigger is present or not, because it reads from a stale, context-free server response.
+
+**Verified during smoke testing (May 5, 2026):**
+After removing the triggering Address History country, the registry correctly empties (`{ "subject": [] }`), `crossSectionRequirementsCount: 0` reaches `<PersonalInfoSection>`, but the field-level log shows `fieldKey: "middleName", isRequired: true`. The persistence is on the server response, not the client wiring.
+
+**Why deferred:**
+1. This is a pre-existing API design issue, not a Stage 4 wiring bug. The original Stage 4 Bug 2 (registry not cleaning up) was real and was fixed (`AddressHistorySection.tsx:249` `invalidateEntry` → `clearEntry`). This finding is downstream of that fix.
+2. The proper fix needs spec input on what counts as the candidate's "current context" for required-state computation (saved Address History entries? Service scope? Both?). That's a contract question with implications for other endpoints (`saved-data`, `structure`, etc.).
+3. Same risk envelope as TD-059 — too late in Stage 4 close-out for medium-risk API changes that touch shared contract.
+
+**Scope note:**
+The bug only manifests for fields configured as conditionally-required in dsx_mappings. Fields that are universally required (every mapping `isRequired: true`) and fields that are universally optional (every mapping `isRequired: false`) display correctly. Only fields with mixed mapping rows show the sticky asterisk.
+
+**When to fix:**
+During the next API/contract pass on candidate endpoints. The fix should:
+1. Define what context drives required-state computation (proposal: saved Address History countries + service scope from invitation).
+2. Filter `dsxMappings` query in `personal-info-fields/route.ts` by that context before OR-aggregating.
+3. Make the same filter consistent across `saved-data` and `structure` if they apply similar logic.
+4. Add a regression test that creates a Middle Name dsx_mapping with `isRequired: true` for Country A only, then verifies the API returns `isRequired: false` when the candidate's address history is in Country B.
+
+**Files affected:**
+- `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
+- Possibly `src/app/api/candidate/application/[token]/saved-data/route.ts` and `src/app/api/candidate/application/[token]/structure/route.ts` if they contain similar logic
+
+**Related:**
+- TD-052 (cross-section requirement awareness for Personal Info) — addressed in Stage 4 for the registry/banner/progress paths but cannot be fully complete until TD-060 lands, because the per-field asterisk is the most visible signal of required-state to candidates.
+- TD-059 (sidebar status not reactive for unmounted sections) — same risk envelope, same close-out reasoning.
 
 ---
 

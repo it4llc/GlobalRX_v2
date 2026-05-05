@@ -2,18 +2,35 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { DynamicFieldRenderer } from './DynamicFieldRenderer';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import { ScopeDisplay } from './ScopeDisplay';
 import { EntryCountrySelector } from './EntryCountrySelector';
 import { RepeatableEntryManager } from './RepeatableEntryManager';
 import { AddressBlockInput } from './AddressBlockInput';
 import { AggregatedRequirements } from './AggregatedRequirements';
+import CandidateDocumentUpload from '../CandidateDocumentUpload';
 import { useEntryFieldsLoader, type EntryDsxField as DsxField } from './useEntryFieldsLoader';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
+import {
+  ADDRESS_HISTORY_CROSS_SECTION_SOURCE,
+  buildAddressHistorySubjectRequirements,
+  buildAggregatedDocumentRequirementsForProgress,
+  buildEntryFieldsBuckets,
+  computeAddressHistoryAggregatedItems,
+  extractAggregatedUploadedDocuments,
+  readAggregatedItemScope,
+  readEntryUploadedDocument,
+  routeAddressHistoryDocumentScope,
+  selectPerEntryDocumentFields,
+  splitFieldsByCollectionTab,
+} from '@/lib/candidate/addressHistoryStage4Wiring';
+import {
+  buildRepeatableProgressInputs,
+  useRepeatableSectionStage4Wiring,
+} from '@/lib/candidate/useRepeatableSectionStage4Wiring';
 import type {
   EntryData,
   RepeatableFieldValue,
@@ -25,8 +42,13 @@ import type {
 import type {
   AddressBlockValue,
   AddressConfig,
-  AggregatedRequirementItem,
 } from '@/types/candidate-address';
+import type {
+  CrossSectionRequirementEntry,
+  CrossSectionTarget,
+  SectionStatus,
+  UploadedDocumentMetadata,
+} from '@/types/candidate-stage4';
 
 interface CountryApiResponse {
   id: string;
@@ -37,53 +59,48 @@ interface CountryApiResponse {
 interface AddressHistorySectionProps {
   token: string;
   serviceIds: string[];
+  // Phase 6 Stage 4 — section-progress reporting + cross-section registry
+  // wiring. Same shape as Education / Employment. The section computes the
+  // shapes via helpers in `lib/candidate/addressHistoryStage4Wiring` and
+  // forwards them through `useRepeatableSectionStage4Wiring`.
+  onProgressUpdate?: (status: SectionStatus) => void;
+  onCrossSectionRequirementsChanged?: (
+    target: CrossSectionTarget,
+    triggeredBy: string,
+    entries: CrossSectionRequirementEntry[],
+  ) => void;
+  onCrossSectionRequirementsRemovedForEntry?: (
+    triggeredBy: string,
+    entryIndex: number,
+  ) => void;
+  onCrossSectionRequirementsRemovedForSource?: (triggeredBy: string) => void;
 }
 
-// Fixed service-type ordering used elsewhere in the structure endpoint.
-// Used here only as a hidden sort key — service names are never shown.
-const SERVICE_TYPE_ORDER_INDEX: Record<string, number> = {
-  idv: 0,
-  record: 1,
-  'verification-edu': 2,
-  'verification-emp': 3,
-};
+// Address History only loads record-type services per the structure endpoint,
+// so every field gets the record bucket index. See aggregatedItems memo below.
+const SERVICE_TYPE_ORDER_RECORD = 1;
 
 /**
- * AddressHistorySection
- *
- * Phase 6 Stage 3 section component for the candidate's address history.
- * Reuses the Stage 2 RepeatableEntryManager / ScopeDisplay /
- * EntryCountrySelector / AutoSaveIndicator / DynamicFieldRenderer
- * infrastructure with two additions:
- *   1. The AddressBlockInput component renders the address_block field
- *      with showDates={true}, supplying the section-level date fields
- *      (fromDate / toDate / isCurrent).
- *   2. The AggregatedRequirements component shows additional fields and
- *      document requirements collected across all entries, deduplicated by
- *      dsx_requirements.id and OR-merged for isRequired (most-restrictive
- *      wins per spec Business Rule #20).
- *
- * Always renders at least one entry. The remove control is hidden when
- * entries.length === 1 (handled by RepeatableEntryManager via the
- * minimumEntries={1} prop).
+ * AddressHistorySection — Phase 6 Stage 3 + Stage 4 wiring. See spec docs.
  */
-export function AddressHistorySection({ token, serviceIds }: AddressHistorySectionProps) {
+export function AddressHistorySection({
+  token,
+  serviceIds,
+  onProgressUpdate,
+  onCrossSectionRequirementsChanged,
+  onCrossSectionRequirementsRemovedForEntry,
+  onCrossSectionRequirementsRemovedForSource,
+}: AddressHistorySectionProps) {
   const { t } = useTranslation();
   const [scope, setScope] = useState<ScopeInfo | null>(null);
   const [entries, setEntries] = useState<EntryData[]>([]);
   const [aggregatedFieldValues, setAggregatedFieldValues] = useState<Record<string, RepeatableFieldValue>>({});
   const [countries, setCountries] = useState<Array<{ id: string; name: string }>>([]);
   const [countriesError, setCountriesError] = useState(false);
-  // Set of DSX requirement IDs already collected in the Personal Information
-  // section. Used to exclude duplicates from the aggregated requirements area
-  // — when First Name / Last Name / DOB are configured at the DSX level for a
-  // record service, the candidate sees them on the Personal Info tab and they
-  // should not also appear here.
+  // DSX requirement IDs collected on the Personal Info tab (used to dedupe
+  // the aggregated area so PI fields don't reappear here).
   const [personalInfoRequirementIds, setPersonalInfoRequirementIds] = useState<Set<string>>(new Set());
-  // Per-entry field-loading state, request-token-based stale invalidation,
-  // and the fetch logic itself live in useEntryFieldsLoader (Phase 6 Stage 3
-  // Critical #1 rework). The hook owns `fieldsByEntryService` and exposes
-  // load / invalidate / clear operations.
+  // Per-entry field-loading state lives in useEntryFieldsLoader.
   const {
     fieldsByEntryService,
     loadFieldsForEntry,
@@ -121,9 +138,7 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
         }
       }
 
-      // Personal info requirement IDs — used to dedupe the aggregated area
-      // so fields collected on the Personal Info tab (firstName, lastName,
-      // dateOfBirth, etc.) don't appear as additional information here.
+      // Personal info requirement IDs — dedupe source for the aggregated area.
       try {
         const piResponse = await fetch(`/api/candidate/application/${token}/personal-info-fields`);
         if (piResponse.ok) {
@@ -140,8 +155,6 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
         });
       }
 
-      // Countries (shared candidate-side endpoint — same as Education /
-      // Employment).
       const countriesResponse = await fetch(`/api/candidate/application/${token}/countries`);
       if (countriesResponse.ok) {
         const countriesData: CountryApiResponse[] = await countriesResponse.json();
@@ -155,11 +168,7 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
         setCountriesError(true);
       }
 
-      // Saved data — read entries and aggregatedFields. Address History does
-      // NOT auto-create an empty section if none exists on the server side;
-      // the structure endpoint controls whether we render at all. But on the
-      // client, we always show at least one editable entry per the
-      // minimum-one rule.
+      // Saved data — server may return no section; client still shows one entry.
       const savedDataResponse = await fetch(`/api/candidate/application/${token}/saved-data`);
       if (savedDataResponse.ok) {
         const savedData = await savedDataResponse.json();
@@ -207,14 +216,13 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
   };
 
   const handleRemoveEntry = (entryId: string) => {
-    setEntries((prev) => {
-      // Defensive: never let entries fall to zero (RepeatableEntryManager
-      // also enforces minimumEntries=1, but this guards against any future
-      // programmatic removal too).
-      if (prev.length <= 1) return prev;
-      return prev.filter((e) => e.entryId !== entryId);
-    });
-    // Clear loaded fields and any in-flight loads for the removed entry.
+    // Stage 4: clear registry entries for this entry's index BEFORE removal (BR 19).
+    const removed = entries.find((e) => e.entryId === entryId);
+    if (removed && onCrossSectionRequirementsRemovedForEntry) {
+      onCrossSectionRequirementsRemovedForEntry(ADDRESS_HISTORY_CROSS_SECTION_SOURCE, removed.entryOrder);
+    }
+    // Defensive: never fall below one entry (RepeatableEntryManager also enforces this).
+    setEntries((prev) => (prev.length <= 1 ? prev : prev.filter((e) => e.entryId !== entryId)));
     clearEntry(entryId);
     setPendingSave(true);
   };
@@ -226,30 +234,30 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
   };
 
   const handleCountryChange = async (entryId: string, countryId: string) => {
-    // Reset entry on country change — country drives all subsequent loads.
+    // Stage 4: drop the entry's prior subject contributions; the wiring hook
+    // republishes once new country fields land.
+    const target = entries.find((e) => e.entryId === entryId);
+    if (target && onCrossSectionRequirementsRemovedForEntry) {
+      onCrossSectionRequirementsRemovedForEntry(ADDRESS_HISTORY_CROSS_SECTION_SOURCE, target.entryOrder);
+    }
     setEntries((prev) =>
       prev.map((entry) => (entry.entryId === entryId ? { ...entry, countryId, fields: [] } : entry))
     );
-    // Invalidate any in-flight subregion-driven load (DoD #23).
-    invalidateEntry(entryId);
+    // Wipe the per-entry field cache (not just the request counter) so the next
+    // render's wiring hook does not re-publish the previous country's
+    // subject-targeted fields under the new countryId before the new load lands.
+    clearEntry(entryId);
     if (countryId) {
-      // Initial country-level load so the address_block field renders as soon
-      // as the candidate picks a country. The subregion-aware reload runs
-      // later via onAddressComplete from AddressBlockInput (DoD #24).
+      // Country-level load first; subregion reload happens via onAddressComplete (DoD #24).
       await loadFieldsForEntry(entryId, countryId, null);
     }
     setPendingSave(true);
   };
 
-  // Called by AddressBlockInput once the candidate has made their most-
-  // specific geographic selection (Phase 6 Stage 3 Critical #1, spec
-  // Business Rule #10 + DoD #24). Triggers the subregion-aware fields
-  // reload. Stale-response invalidation is handled inside the hook.
+  // Subregion-aware reload after the candidate finalizes their geographic pick.
+  // Counter bump discards any in-flight earlier load (DoD #25).
   const handleAddressComplete = (entryId: string, countryId: string | null, subregionId: string | null) => {
     if (!countryId) return;
-    // Bump the per-entry counter so any earlier load (country-level or
-    // a previous subregion selection) is discarded when its response
-    // arrives. Then fire the new load.
     invalidateEntry(entryId);
     void loadFieldsForEntry(entryId, countryId, subregionId);
   };
@@ -262,9 +270,7 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
     setEntries((prev) =>
       prev.map((entry) => {
         if (entry.entryId !== entryId) {
-          // Per spec Business Rule #7: only one entry may have isCurrent.
-          // When the changed entry just turned isCurrent on, clear it
-          // anywhere else in the section.
+          // Spec BR 7: only one entry may have isCurrent. Clear elsewhere when set.
           if (nextValue.isCurrent === true) {
             const updatedFields = entry.fields.map((f) => {
               if (
@@ -366,40 +372,85 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
     }
   };
 
-  // Compute the deduplicated AggregatedRequirementItem array from every
-  // entry's loaded fields. Per spec Business Rule #20: isRequired uses
-  // most-restrictive across the candidate's full address history (OR-merge).
-  // Per spec layout: sort by service-type order (hidden), then DSX
-  // displayOrder. The address_block field itself is excluded from the
-  // aggregated area — it stays inline in the entry. Personal Info
-  // requirement IDs are also excluded so fields collected on the Personal
-  // Info tab don't reappear here.
-  const aggregatedItems = computeAggregatedItems(
-    entries,
-    fieldsByEntryService,
-    personalInfoRequirementIds
+  // Stage 4 derivations — pure helpers in addressHistoryStage4Wiring own the
+  // transforms; memoizing keeps the wiring hook's effect deps stable.
+  const entryFieldBuckets = useMemo(
+    () => buildEntryFieldsBuckets(entries, fieldsByEntryService, serviceIds),
+    [entries, fieldsByEntryService, serviceIds],
   );
+  const fieldsSplit = useMemo(() => splitFieldsByCollectionTab(entryFieldBuckets), [entryFieldBuckets]);
+  const aggregatedItems = useMemo(
+    () =>
+      computeAddressHistoryAggregatedItems({
+        buckets: entryFieldBuckets,
+        personalInfoRequirementIds,
+        resolveServiceTypeOrder: () => SERVICE_TYPE_ORDER_RECORD,
+      }),
+    [entryFieldBuckets, personalInfoRequirementIds],
+  );
+  const subjectRequirements = useMemo(
+    () => buildAddressHistorySubjectRequirements(entries, fieldsSplit.subjectFieldsByCountry),
+    [entries, fieldsSplit.subjectFieldsByCountry],
+  );
+  const aggregatedDocuments = useMemo(
+    () => extractAggregatedUploadedDocuments(aggregatedFieldValues),
+    [aggregatedFieldValues],
+  );
+  const aggregatedDocumentRequirements = useMemo(
+    () => buildAggregatedDocumentRequirementsForProgress(aggregatedItems),
+    [aggregatedItems],
+  );
+  const progressInputs = useMemo(
+    () =>
+      buildRepeatableProgressInputs({
+        entries,
+        fieldsByCountry: fieldsSplit.localFieldsByCountry,
+        loading,
+        aggregatedDocuments,
+        aggregatedDocumentRequirements,
+      }),
+    [entries, fieldsSplit.localFieldsByCountry, loading, aggregatedDocuments, aggregatedDocumentRequirements],
+  );
+  useRepeatableSectionStage4Wiring({
+    triggeredBy: ADDRESS_HISTORY_CROSS_SECTION_SOURCE,
+    subjectRequirements,
+    progressInputs,
+    onCrossSectionRequirementsChanged,
+    onCrossSectionRequirementsRemovedForSource,
+    onProgressUpdate,
+  });
+
+  // Aggregated-area document upload (per_search / per_order — BR 11 + BR 23).
+  // jurisdictionId falls back to 'global' per technical plan Risk #2 ruling.
+  const routeAggregatedKey = (requirementId: string) =>
+    routeAddressHistoryDocumentScope({
+      requirementId,
+      scope: readAggregatedItemScope(aggregatedItems.find((i) => i.requirementId === requirementId)),
+      serviceId: serviceIds[0],
+    }).key;
+  const handleAggregatedDocumentUpload = (
+    requirementId: string,
+    metadata: UploadedDocumentMetadata,
+  ) => {
+    const key = routeAggregatedKey(requirementId);
+    setAggregatedFieldValues((prev) => ({ ...prev, [key]: metadata as unknown as RepeatableFieldValue }));
+    setPendingSave(true);
+  };
+  const handleAggregatedDocumentRemove = (requirementId: string) => {
+    const key = routeAggregatedKey(requirementId);
+    setAggregatedFieldValues((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setPendingSave(true);
+  };
 
   const renderEntry = (entry: EntryData) => {
-    // For each entry we need to determine which DSX field is the
-    // address_block. We render that one inline via AddressBlockInput; all
-    // other non-document fields (those NOT in the aggregated area) are
-    // rendered via DynamicFieldRenderer.
-    //
-    // For Stage 3 the aggregated area handles every non-address-block
-    // additional field, so the only inline DSX render is the address block
-    // itself plus the embedded date pieces.
-    const allFieldsForEntry: DsxField[] = serviceIds.flatMap(
-      (sid) => fieldsByEntryService[`${entry.entryId}::${sid}`] ?? []
-    );
-    // Deduplicate by requirementId so the same address_block field
-    // configured under multiple record-type services only renders once.
-    const seenIds = new Set<string>();
-    const dedupedFields = allFieldsForEntry.filter((f) => {
-      if (seenIds.has(f.requirementId)) return false;
-      seenIds.add(f.requirementId);
-      return true;
-    });
+    // The deduped per-entry field list is already computed by
+    // buildEntryFieldsBuckets above; reuse the bucket instead of rebuilding.
+    const dedupedFields: DsxField[] =
+      entryFieldBuckets.find((b) => b.entryId === entry.entryId)?.fields ?? [];
     const addressBlockField = dedupedFields.find((f) => f.dataType === 'address_block');
 
     const addressBlockStored = addressBlockField
@@ -437,21 +488,33 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
           />
         )}
 
-        {/* Non-address, non-document DSX fields rendered inline. In practice
-            for Stage 3 the spec puts these in the aggregated area, but we
-            still render them inline if they're tagged collectionTab=='entry'
-            or similar. The dedupedFields filter excludes address_block. */}
+        {/* Phase 6 Stage 4 — per_entry-scoped document requirements render
+            inline within the entry (BR 11). Aggregated documents (per_search /
+            per_order) live in the AggregatedRequirements area below. */}
         {entry.countryId &&
-          dedupedFields
-            .filter((f) => f.dataType !== 'address_block' && f.type !== 'document')
-            .map((field) => {
-              // For Stage 3 we route every non-address field through the
-              // aggregated area instead of inline. So nothing is rendered
-              // here — the filter above is a guard for future shapes.
-              return null;
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const _placeholder = field;
-            })}
+          selectPerEntryDocumentFields(dedupedFields).map((field) => (
+            <CandidateDocumentUpload
+              key={field.requirementId}
+              requirement={{
+                id: field.requirementId,
+                name: field.name,
+                instructions: field.instructions ?? null,
+                isRequired: field.isRequired,
+                scope: 'per_entry',
+              }}
+              uploadedDocument={readEntryUploadedDocument(entry.fields, field.requirementId)}
+              onUploadComplete={(metadata) => {
+                handleNonAddressFieldChange(entry.entryId, field.requirementId, metadata as unknown as FieldValue);
+                setPendingSave(true);
+              }}
+              onRemove={() => {
+                handleNonAddressFieldChange(entry.entryId, field.requirementId, null);
+                setPendingSave(true);
+              }}
+              token={token}
+              entryIndex={entry.entryOrder}
+            />
+          ))}
       </div>
     );
   };
@@ -499,66 +562,13 @@ export function AddressHistorySection({ token, serviceIds }: AddressHistorySecti
         values={aggregatedFieldValues}
         onAggregatedFieldChange={handleAggregatedFieldChange}
         onAggregatedFieldBlur={handleAggregatedFieldBlur}
+        uploadedDocuments={aggregatedDocuments}
+        onDocumentUploadComplete={handleAggregatedDocumentUpload}
+        onDocumentRemove={handleAggregatedDocumentRemove}
+        token={token}
       />
     </div>
   );
-}
-
-/**
- * Compute the deduplicated, sorted list of aggregated requirement items
- * from every entry's loaded fields. Pulled into a separate function so the
- * dedup logic is easy to follow (spec Risk #6 calls out the OR-merge rule).
- */
-function computeAggregatedItems(
-  entries: EntryData[],
-  fieldsByEntryService: Record<string, DsxField[]>,
-  personalInfoRequirementIds: Set<string>
-): AggregatedRequirementItem[] {
-  // Map keyed by requirementId. Each value carries the most-recent metadata
-  // plus the OR-merged isRequired flag.
-  const merged = new Map<string, AggregatedRequirementItem>();
-
-  for (const entry of entries) {
-    if (!entry.countryId) continue;
-    // Walk every loaded service for this entry.
-    for (const [key, fields] of Object.entries(fieldsByEntryService)) {
-      if (!key.startsWith(`${entry.entryId}::`)) continue;
-      const serviceId = key.split('::')[1];
-      const serviceTypeOrder = resolveServiceTypeOrder(serviceId, fields);
-      for (const field of fields) {
-        // Address blocks render inline per entry, NOT in the aggregated area.
-        if (field.dataType === 'address_block') continue;
-        // Skip fields the candidate already provides on the Personal Info
-        // tab — they are deduplicated by DSX requirement UUID.
-        if (personalInfoRequirementIds.has(field.requirementId)) continue;
-        const existing = merged.get(field.requirementId);
-        const isRequired = existing
-          ? existing.isRequired || field.isRequired
-          : field.isRequired;
-        const item: AggregatedRequirementItem = {
-          requirementId: field.requirementId,
-          name: field.name,
-          dataType: field.dataType,
-          type: field.type === 'document' ? 'document' : 'field',
-          isRequired,
-          instructions: field.instructions ?? null,
-          fieldData: field.fieldData ?? null,
-          documentData: field.documentData ?? null,
-          serviceTypeOrder,
-          displayOrder: field.displayOrder
-        };
-        merged.set(field.requirementId, item);
-      }
-    }
-  }
-
-  // Sort: serviceTypeOrder asc, then displayOrder asc.
-  return Array.from(merged.values()).sort((a, b) => {
-    if (a.serviceTypeOrder !== b.serviceTypeOrder) {
-      return a.serviceTypeOrder - b.serviceTypeOrder;
-    }
-    return a.displayOrder - b.displayOrder;
-  });
 }
 
 /**
@@ -576,21 +586,4 @@ function deriveMaxEntries(scope: ScopeInfo | null): number | undefined {
     return scope.scopeValue;
   }
   return undefined;
-}
-
-/**
- * Best-effort lookup for the service-type sort index. The DSX field response
- * does not include functionalityType today, so we tag fields with their
- * serviceId at load time (see loadFieldsForEntry) and read it back here.
- * If we can't resolve, fall back to the record functionality (Address
- * History always belongs to record services).
- */
-function resolveServiceTypeOrder(serviceId: string, fields: DsxField[]): number {
-  // Fields in the same load all belong to the same service, so we can
-  // sample any of them. We don't have functionalityType in the DSX response,
-  // so we default to the 'record' bucket — Address History only loads
-  // record-type services anyway.
-  void serviceId;
-  void fields;
-  return SERVICE_TYPE_ORDER_INDEX.record ?? 1;
 }

@@ -30,7 +30,7 @@ describe('PortalSidebar', () => {
       title: 'Identity Verification',
       type: 'service_section',
       placement: 'services',
-      status: 'in_progress',
+      status: 'incomplete',
       order: 1,
       functionalityType: 'idv'
     },
@@ -79,11 +79,14 @@ describe('PortalSidebar', () => {
       const grayCircles = document.querySelectorAll('.bg-gray-300');
       expect(grayCircles).toHaveLength(1);
 
-      // In progress - blue circle with white dot
-      const blueCircles = document.querySelectorAll('.bg-blue-500');
-      expect(blueCircles).toHaveLength(1);
-      const whiteDot = document.querySelector('.bg-blue-500 .bg-white');
-      expect(whiteDot).toBeInTheDocument();
+      // Phase 6 Stage 4: the in_progress status was renamed to incomplete
+      // (BR 22) and SectionProgressIndicator now renders a red circle with a
+      // warning icon for the incomplete state instead of a blue circle with a
+      // white dot. Assert the new red-circle markup.
+      const redCircles = document.querySelectorAll('.bg-red-500');
+      expect(redCircles).toHaveLength(1);
+      const incompleteIcon = document.querySelector('.bg-red-500 svg');
+      expect(incompleteIcon).toBeInTheDocument();
 
       // Complete - green circle with checkmark
       const greenCircles = document.querySelectorAll('.bg-green-500');
@@ -267,12 +270,19 @@ describe('PortalSidebar', () => {
       );
 
       // Check for sr-only status labels
+      // Phase 6 Stage 4: SectionProgressIndicator now combines the section
+      // label with the status translation, e.g. "Notice of Processing —
+      // candidate.sectionProgress.notStarted". Translation keys also moved
+      // from `candidate.portal.sections.{notStarted,inProgress,complete}` to
+      // `candidate.sectionProgress.{notStarted,incomplete,complete}` (BR 22
+      // renamed `in_progress` → `incomplete`). Assert each key is present
+      // somewhere in the combined screen-reader strings.
       const srOnlyElements = document.querySelectorAll('.sr-only');
       const statusTexts = Array.from(srOnlyElements).map(el => el.textContent);
 
-      expect(statusTexts).toContain('candidate.portal.sections.notStarted');
-      expect(statusTexts).toContain('candidate.portal.sections.inProgress');
-      expect(statusTexts).toContain('candidate.portal.sections.complete');
+      expect(statusTexts.some(t => t?.includes('candidate.sectionProgress.notStarted'))).toBe(true);
+      expect(statusTexts.some(t => t?.includes('candidate.sectionProgress.incomplete'))).toBe(true);
+      expect(statusTexts.some(t => t?.includes('candidate.sectionProgress.complete'))).toBe(true);
     });
 
     it('should have aria-label on close button', () => {

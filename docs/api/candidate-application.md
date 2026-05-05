@@ -29,15 +29,30 @@ Returns the list of sections the candidate needs to complete, assembled from wor
   "sections": [{
     "id": "string",
     "title": "string",
-    "type": "workflow_section | service_section | personal_info",
+    "type": "workflow_section | service_section | personal_info | address_history",
     "placement": "before_services | services | after_services",
-    "status": "not_started | in_progress | complete",
+    "status": "not_started | incomplete | complete",
     "order": "number",
     "functionalityType": "string | null",
-    "serviceIds": ["string"] // For service sections
+    "serviceIds": ["string"],
+    "workflowSection": {
+      "id": "string",
+      "name": "string",
+      "type": "text | document",
+      "content": "string | null",
+      "fileUrl": "string | null",
+      "fileName": "string | null",
+      "placement": "before_services | after_services",
+      "displayOrder": "number",
+      "isRequired": "boolean"
+    }
   }]
 }
 ```
+
+`workflowSection` is only present when `type === "workflow_section"`. It carries the full content payload so the client can render the section without a second fetch.
+
+`status` always returns `"not_started"` from this endpoint (Phase 6 Stage 4, Business Rule 15). Clients are responsible for recomputing progress locally after each auto-save and overriding this initial value. The status value space changed from Stage 3: `"in_progress"` has been replaced by `"incomplete"` (Business Rule 22).
 
 ### GET /api/candidate/application/[token]/fields
 
@@ -151,8 +166,27 @@ The endpoint accepts two distinct request shapes, dispatched by `sectionType`:
   "sectionId": "string",
   "fields": [{
     "requirementId": "string (UUID)",
-    "value": "any"
+    "value": "string | number | boolean | null | string[] | object"
   }]
+}
+```
+
+Phase 6 Stage 4 extended the `value` union to accept JSON objects, which enables two new save patterns:
+
+- Workflow-section acknowledgment (keyed by `workflow_sections.id` as `requirementId`):
+```json
+{ "acknowledged": true }
+```
+
+- Document-upload metadata (for `per_search` / `per_order` scoped requirements):
+```json
+{
+  "documentId": "string (UUID)",
+  "originalName": "string",
+  "storagePath": "string",
+  "mimeType": "string",
+  "size": "number",
+  "uploadedAt": "ISO8601 timestamp"
 }
 ```
 
@@ -191,7 +225,21 @@ If `sectionType` is `education` or `employment` but the request body does not co
 
 Loads the candidate's previously saved form data for pre-populating the form when they return.
 
-The response contains two section shapes, depending on the section type.
+The response contains three section shapes, depending on the section type.
+
+**Workflow sections** (`workflow_section`) — Phase 6 Stage 4:
+```json
+{
+  "sections": {
+    "<workflow_sections.id>": {
+      "type": "workflow_section",
+      "acknowledged": true
+    }
+  }
+}
+```
+
+The bucket key is the `workflow_sections.id` UUID (matching the key in `formData.sections` and the `sectionId` used when saving). Only workflow sections the candidate has interacted with are present — sections not yet started are absent from the response.
 
 **Flat-field sections** (`personal_info`, `idv`, and other non-repeatable sections):
 ```json
@@ -241,6 +289,65 @@ The response contains two section shapes, depending on the section type.
 ```
 
 Repeatable sections are only present in the response when the candidate has previously saved at least one entry — they are not auto-created.
+
+### POST /api/candidate/application/[token]/upload
+
+Phase 6 Stage 4. Accepts a single document file along with a requirement identifier. Stores the file to disk and returns metadata. Does **not** write a database row — the caller persists the metadata on the next auto-save via the standard `/save` endpoint.
+
+**Request:** `multipart/form-data`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `file` | binary | yes | The document to upload. Max 10 MB. Accepted MIME types: `application/pdf`, `image/jpeg`, `image/png`. |
+| `requirementId` | string (UUID) | yes | The `dsx_requirements.id` this upload satisfies. |
+| `entryIndex` | number | no | Non-negative integer. Only consumed by `per_entry`-scoped requirements to identify which repeatable entry the upload belongs to. |
+
+**Response (201):**
+```json
+{
+  "documentId": "string (UUID)",
+  "originalName": "string",
+  "storagePath": "string",
+  "mimeType": "application/pdf | image/jpeg | image/png",
+  "size": "number (bytes)",
+  "uploadedAt": "ISO8601 timestamp"
+}
+```
+
+`storagePath` is always `uploads/draft-documents/{orderId}/{timestamp}-{sanitizedOriginalName}`.
+
+**Errors:**
+- `400` — Missing or invalid `requirementId`, missing file, file exceeds 10 MB, or disallowed MIME type.
+- `401` — No session.
+- `403` — Session token does not match URL token.
+- `404` — Invitation not found.
+- `410` — Invitation expired or already completed.
+- `500` — Disk write failure.
+
+### DELETE /api/candidate/application/[token]/upload/[documentId]
+
+Phase 6 Stage 4. Removes a previously uploaded file from disk. Verifies that the `documentId` appears in the candidate's saved `formData` and that the file's `storagePath` is within the candidate's own order directory.
+
+**Path parameters:**
+- `token` — invitation token
+- `documentId` — UUID returned by the upload endpoint
+
+**Response (200):**
+```json
+{ "deleted": true }
+```
+
+If the file is already absent from disk (idempotent retry), the endpoint still returns `200`.
+
+No `formData` mutation occurs — the candidate's next auto-save omits the metadata because the UI removes it from local state before triggering the save.
+
+**Errors:**
+- `400` — `documentId` is not a valid UUID.
+- `401` — No session.
+- `403` — Session token does not match URL token.
+- `404` — No metadata found for the `documentId` in the candidate's saved `formData`, or the metadata's `storagePath` does not belong to this candidate's order. Both cases return `404` rather than `403` to avoid leaking document existence across orders.
+- `410` — Invitation expired or already completed.
+- `500` — File removal failed.
 
 ## Error Responses
 
