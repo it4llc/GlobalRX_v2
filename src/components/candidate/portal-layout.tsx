@@ -20,10 +20,14 @@ import {
   removeCrossSectionRequirementsForEntry,
   removeCrossSectionRequirementsForSource,
 } from '@/lib/candidate/crossSectionRegistry';
-import { computeWorkflowSectionStatus } from '@/lib/candidate/sectionProgress';
+import {
+  computePersonalInfoStatus,
+  computeWorkflowSectionStatus,
+} from '@/lib/candidate/sectionProgress';
 import type {
   CandidateInvitationInfo,
   CandidatePortalSection,
+  PersonalInfoField,
 } from '@/types/candidate-portal';
 import type {
   CrossSectionRegistry,
@@ -76,6 +80,19 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   // acknowledged: boolean }`.
   const [workflowAcknowledgments, setWorkflowAcknowledgments] = useState<Record<string, boolean>>({});
 
+  // TD-059 — Personal Info field definitions, fetched once at the shell
+  // level so the lifted progress effect below can recompute status whenever
+  // the cross-section registry changes, even while PersonalInfoSection is
+  // unmounted. The section receives this array as a prop instead of
+  // fetching /personal-info-fields itself.
+  const [personalInfoFields, setPersonalInfoFields] = useState<PersonalInfoField[]>([]);
+
+  // TD-059 — saved Personal Info values keyed by requirementId. Hydrated
+  // from /saved-data alongside workflow acknowledgments and refreshed by
+  // PersonalInfoSection via the onSavedValuesChange callback after each
+  // successful auto-save.
+  const [personalInfoSavedValues, setPersonalInfoSavedValues] = useState<Record<string, unknown>>({});
+
   // Handle responsive behavior
   useEffect(() => {
     const handleResize = () => {
@@ -88,21 +105,21 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // One-time hydration of workflow-section acknowledgments. The shell needs
-  // these because WorkflowSectionRenderer is intentionally presentational —
-  // it doesn't fetch its own state. Service-section children continue to
-  // fetch their own saved data and report progress upward, per the
-  // child-report decision in the technical plan. We deliberately do NOT
-  // re-fetch on every section change; auto-save keeps the in-memory map in
-  // sync after the initial load.
+  // One-time hydration of saved data. The shell uses /saved-data for two
+  // independent purposes:
+  //   1) Workflow-section acknowledgments (BR 7 / 8) — WorkflowSectionRenderer
+  //      is intentionally presentational, so the shell must hydrate.
+  //   2) TD-059 — Personal Info saved values, used by the lifted progress
+  //      effect so the sidebar indicator stays accurate even when
+  //      PersonalInfoSection is unmounted.
+  //
+  // The effect always runs as long as there's a token. A previous version
+  // short-circuited when no workflow sections existed; that early-exit was
+  // removed for TD-059 because Personal Info still needs hydration in
+  // packages without workflow sections. We do NOT re-fetch on every section
+  // change; auto-save keeps the in-memory state in sync after the initial
+  // load (PersonalInfoSection.onSavedValuesChange pushes updates upward).
   useEffect(() => {
-    const workflowSectionIds = sections
-      .filter((s) => s.type === 'workflow_section')
-      .map((s) => s.id);
-    if (workflowSectionIds.length === 0) {
-      return;
-    }
-
     let cancelled = false;
     (async () => {
       try {
@@ -114,8 +131,25 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
         }
         const data = await response.json();
         const savedSections = (data?.sections ?? {}) as Record<string, unknown>;
-        const next: Record<string, boolean> = {};
+        const nextAcknowledgments: Record<string, boolean> = {};
         const statusUpdates: Record<string, SectionStatus> = {};
+
+        // Personal info saved values are keyed by `personal_info` in the
+        // saved-data response (matching the bucket the /save endpoint
+        // writes). The `fields` array uses requirementId/value pairs, and
+        // the shell rekeys to a requirementId-indexed map so PersonalInfo
+        // can hydrate by id without an extra lookup.
+        const personalInfoBucket = savedSections['personal_info'] as
+          | { fields?: Array<{ requirementId: string; value: unknown }> }
+          | undefined
+          | null;
+        const nextPersonalInfoValues: Record<string, unknown> = {};
+        if (personalInfoBucket && Array.isArray(personalInfoBucket.fields)) {
+          for (const f of personalInfoBucket.fields) {
+            nextPersonalInfoValues[f.requirementId] = f.value;
+          }
+        }
+
         for (const section of sections) {
           if (section.type !== 'workflow_section') continue;
           const saved = savedSections[section.id];
@@ -123,7 +157,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             saved !== null &&
             typeof saved === 'object' &&
             (saved as { acknowledged?: unknown }).acknowledged === true;
-          next[section.id] = acknowledged;
+          nextAcknowledgments[section.id] = acknowledged;
           if (section.workflowSection) {
             statusUpdates[section.id] = computeWorkflowSectionStatus(
               section.workflowSection,
@@ -132,15 +166,16 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
           }
         }
         if (!cancelled) {
-          setWorkflowAcknowledgments(next);
+          setWorkflowAcknowledgments(nextAcknowledgments);
+          setPersonalInfoSavedValues(nextPersonalInfoValues);
           setSectionStatuses((prev) => ({ ...prev, ...statusUpdates }));
         }
       } catch (error) {
         // Hydration failure is non-fatal — the candidate can still tick the
         // checkbox and the next save will persist regardless. We avoid logging
         // PII; only the event name and a generic error message ship.
-        logger.error('Failed to hydrate workflow acknowledgments', {
-          event: 'workflow_acknowledgments_hydrate_error',
+        logger.error('Failed to hydrate saved data', {
+          event: 'saved_data_hydrate_error',
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
@@ -149,6 +184,35 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
       cancelled = true;
     };
   }, [token, sections]);
+
+  // TD-059 — One-time fetch of Personal Info field definitions. Owned by the
+  // shell so the lifted progress effect below can run computePersonalInfoStatus
+  // whenever the cross-section registry changes — independent of which tab
+  // is currently mounted. PersonalInfoSection receives this array as a prop
+  // and does NOT make its own fetch.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch(
+          `/api/candidate/application/${encodeURIComponent(token)}/personal-info-fields`,
+        );
+        if (!response.ok || cancelled) return;
+        const data = await response.json();
+        if (!cancelled) {
+          setPersonalInfoFields(data?.fields ?? []);
+        }
+      } catch (error) {
+        logger.error('Failed to load personal info fields in shell', {
+          event: 'shell_personal_info_fields_load_error',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const handleSectionClick = (sectionId: string) => {
     setActiveSection(sectionId);
@@ -222,6 +286,55 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     () => getCrossSectionRequirements(crossSectionRegistry, 'subject'),
     [crossSectionRegistry],
   );
+
+  // TD-059 — lifted Personal Info progress derivation. This effect is the
+  // whole reason the field defs and saved values are owned at the shell
+  // level: it keeps sectionStatuses['personal_info'] accurate even when
+  // PersonalInfoSection is unmounted. When the candidate is on Address
+  // History and changes country, the registry update flows here and the
+  // sidebar indicator re-renders without the section ever mounting.
+  //
+  // PersonalInfoSection ALSO calls onProgressUpdate from inside its own
+  // local effect for live typing — both writes flow through
+  // handleSectionProgressUpdate, which short-circuits identical statuses
+  // via the functional updater (no re-render storm).
+  useEffect(() => {
+    const personalInfoSection = sections.find((s) => s.type === 'personal_info');
+    if (!personalInfoSection) return;
+    if (personalInfoFields.length === 0) return;
+
+    // Translate requirementId-keyed saved values into the fieldKey-keyed
+    // map that computePersonalInfoStatus expects (it joins by fieldKey
+    // because cross-section registry entries also key by fieldKey).
+    const valuesByFieldKey: Record<string, unknown> = {};
+    for (const field of personalInfoFields) {
+      // The shell-side derivation must mirror the view PersonalInfoSection's local
+      // effect uses, which merges prefilledValue into formData on mount. Without
+      // this fallback, a candidate with prefilled-but-not-yet-saved values would
+      // see the sidebar flip to not_started the moment a cross-section requirement
+      // is added (Bug 1, surfaced in smoke testing of TD-059).
+      const savedValue = personalInfoSavedValues[field.requirementId];
+      valuesByFieldKey[field.fieldKey] =
+        savedValue !== undefined ? savedValue : field.prefilledValue ?? undefined;
+    }
+    const fieldLikes = personalInfoFields.map((field) => ({
+      id: field.requirementId,
+      fieldKey: field.fieldKey,
+      isRequired: field.isRequired,
+    }));
+    const status = computePersonalInfoStatus(
+      fieldLikes,
+      valuesByFieldKey,
+      subjectCrossSectionRequirements,
+    );
+    handleSectionProgressUpdate(personalInfoSection.id, status);
+  }, [
+    sections,
+    personalInfoFields,
+    personalInfoSavedValues,
+    subjectCrossSectionRequirements,
+    handleSectionProgressUpdate,
+  ]);
 
   // Sections augmented with their current computed status from sectionStatuses.
   // The sidebar always renders the freshest status; falling back to the
@@ -300,8 +413,16 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
         <div className="p-6" data-testid="main-content">
           <PersonalInfoSection
             token={token}
+            // TD-059 — fields and saved values are owned by the shell so the
+            // lifted progress effect above can keep the sidebar indicator
+            // accurate even when this section is unmounted. The section
+            // updates the shell's saved values via onSavedValuesChange
+            // after each successful auto-save.
+            fields={personalInfoFields}
+            initialSavedValues={personalInfoSavedValues}
             crossSectionRequirements={subjectCrossSectionRequirements}
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
+            onSavedValuesChange={setPersonalInfoSavedValues}
           />
         </div>
       );

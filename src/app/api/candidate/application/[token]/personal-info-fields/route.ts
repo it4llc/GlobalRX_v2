@@ -24,11 +24,16 @@ import type { FieldMetadata } from '@/types/candidate-portal';
  *     name: string             // Display name
  *     fieldKey: string         // Unique field key
  *     dataType: string         // text, date, number, etc.
- *     isRequired: boolean      // Whether field is required. Derived from
- *                              // dsx_mappings using OR logic: required if
- *                              // ANY mapping for this requirement is
- *                              // marked required. Defaults to false when
- *                              // a requirement has no mappings at all.
+ *     isRequired: boolean      // Whether the field is baseline-required for
+ *                              // this candidate's package context. True only
+ *                              // when every dsx_mappings row for this
+ *                              // requirement (filtered to the candidate's
+ *                              // package services AND their available,
+ *                              // non-disabled locations) has isRequired=true.
+ *                              // Defaults to false when no applicable
+ *                              // mappings exist. Conditional, country-specific
+ *                              // requirements are layered on top of this
+ *                              // baseline by the cross-section registry.
  *     instructions: string | null
  *     fieldData: object        // Complete fieldData from DSX
  *     displayOrder: number
@@ -154,28 +159,92 @@ export async function GET(
       }
     }
 
-    // Step 6.5: Resolve isRequired from dsx_mappings using OR logic — a
-    // requirement is required if ANY of its mappings is marked required. A
-    // requirement with zero mapping rows is treated as optional, matching
-    // the user-facing rule that a field not marked required for any service
-    // should not be required.
+    // Step 6.5: Resolve isRequired from dsx_mappings using context-aware AND
+    // logic.
+    //
+    // AND logic: a field is baseline-required only if ALL applicable mapping
+    // rows for the candidate's package context have isRequired=true.
+    // "Applicable" means rows whose (serviceId, locationId) pair is in the
+    // candidate's package services AND a country.disabled IS NOT TRUE
+    // location where dsx_availability.isAvailable=true. Mappings that don't
+    // exist for a given (service, location) pair are not considered (a
+    // missing row is not penalized as "required" or "not required" — it's
+    // simply absent from the AND). The cross-section registry layers
+    // conditional country requirements on top of this baseline at runtime.
+    //
+    // Previously this used OR logic against every mapping in the database
+    // for a requirement, which made any field required globally as soon as
+    // it was required in a single (service, location) row anywhere — see
+    // TD-060.
     const personalInfoRequirementIds = Array.from(personalInfoFields.keys());
 
-    const dsxMappings = personalInfoRequirementIds.length > 0
-      ? await prisma.dSXMapping.findMany({
-          where: { requirementId: { in: personalInfoRequirementIds } },
-          select: { requirementId: true, isRequired: true }
-        })
+    // First, find the (service, location) pairs that are valid for this
+    // candidate's package: services in the package, where the location is
+    // not globally disabled and the service is actually available there.
+    // Country.disabled is nullable, so `NOT: { disabled: true }` correctly
+    // includes both disabled=false rows and disabled IS NULL rows
+    // (DATABASE_STANDARDS Section 2.x; spec Edge Case 5).
+    const availabilityRows = personalInfoRequirementIds.length > 0
+      ? (await prisma.dSXAvailability.findMany({
+          where: {
+            serviceId: { in: serviceIds },
+            isAvailable: true,
+            country: { NOT: { disabled: true } },
+          },
+          select: { serviceId: true, locationId: true },
+        })) ?? []
       : [];
 
     const requiredByRequirementId = new Map<string, boolean>();
-    for (const mapping of dsxMappings ?? []) {
-      const existing = requiredByRequirementId.get(mapping.requirementId) ?? false;
-      requiredByRequirementId.set(
-        mapping.requirementId,
-        existing || mapping.isRequired
-      );
+
+    if (personalInfoRequirementIds.length > 0 && availabilityRows.length > 0) {
+      // Build the explicit (serviceId, locationId) pair list and query
+      // dsx_mappings with an OR-of-pairs filter. Per the unique constraint
+      // @@unique([serviceId, locationId, requirementId]) on dsx_mappings,
+      // each (serviceId, locationId, requirementId) triple is unique, so
+      // the resulting set has no duplicates that would skew aggregation.
+      const pairFilters = availabilityRows.map(row => ({
+        serviceId: row.serviceId,
+        locationId: row.locationId,
+      }));
+
+      const dsxMappings = await prisma.dSXMapping.findMany({
+        where: {
+          requirementId: { in: personalInfoRequirementIds },
+          OR: pairFilters,
+        },
+        select: {
+          requirementId: true,
+          serviceId: true,
+          locationId: true,
+          isRequired: true,
+        },
+      });
+
+      // Group mapping rows by requirementId, then AND-aggregate isRequired
+      // across the group. A requirement with zero applicable mapping rows
+      // stays absent from the map and falls through to the default of
+      // false in the response builder below (Edge Case 3 / Business Rule 3).
+      const mappingsByRequirementId = new Map<string, boolean[]>();
+      for (const mapping of dsxMappings ?? []) {
+        const existing = mappingsByRequirementId.get(mapping.requirementId) ?? [];
+        existing.push(mapping.isRequired);
+        mappingsByRequirementId.set(mapping.requirementId, existing);
+      }
+
+      for (const [requirementId, flags] of mappingsByRequirementId.entries()) {
+        // AND across the group: required only if every applicable row says
+        // so. An empty group should not occur here (Map only contains keys
+        // we pushed to), but if it ever did, every() over [] returns true
+        // — guard explicitly so the empty-group case stays false.
+        const baselineRequired = flags.length > 0 && flags.every(Boolean);
+        requiredByRequirementId.set(requirementId, baselineRequired);
+      }
     }
+    // If availabilityRows is empty (e.g., none of the candidate's services
+    // are available in any non-disabled location), every personal-info
+    // field falls back to isRequired=false via the default lookup at line
+    // ~262 below — matching spec Edge Cases 1, 2.
 
     // Step 7: Build response with pre-fill and lock information
     const fields = Array.from(personalInfoFields.values())

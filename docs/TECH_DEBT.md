@@ -1557,98 +1557,60 @@ When the candidate portal is being prepared for non-English locales. Should be d
 
 ---
 
+## Resolved Items
+
+---
+
 ### TD-059 — Sidebar status not reactively recomputed for unmounted sections
 
-| Field       | Detail                                                            |
-|-------------|-------------------------------------------------------------------|
-| Area        | Candidate Application — Portal layout / cross-section requirements |
-| Severity    | Warning (UX)                                                      |
-| Identified  | May 5, 2026 - Phase 6 Stage 4 smoke testing                       |
-| Identified by | Andy (smoke test)                                               |
+| Field         | Detail                                                             |
+|---------------|--------------------------------------------------------------------|
+| Area          | Candidate Application — Portal layout / cross-section requirements |
+| Severity      | Warning (UX)                                                       |
+| Identified    | May 5, 2026 - Phase 6 Stage 4 smoke testing                        |
+| Identified by | Andy (smoke test)                                                  |
+| Resolved      | May 5, 2026                                                        |
+| Branch        | `fix/td059-td060-personal-info-required-fields-and-sidebar-reactivity` |
+| Commits       | `4a085ce`, `1ddc6bd`, `230b14c`, `19239de`                         |
 
-**Description:**
-When a cross-section requirement changes (e.g., an Address History country selection makes Middle Name required on Personal Info), the sidebar progress indicator for the affected section does not update until the user navigates into that section. Today, `sectionStatuses['personal_info']` is only ever written by `<PersonalInfoSection>`'s internal `onProgressUpdate` effect (`src/components/candidate/form-engine/PersonalInfoSection.tsx:206-226`), and that section is only mounted while it is the active tab. The shell's `subjectCrossSectionRequirements` memo (`src/components/candidate/portal-layout.tsx:221-224`) recomputes correctly, but its only consumer is the (currently unmounted) section.
+**How it was resolved:**
+Personal Info's progress derivation was lifted from `PersonalInfoSection` into `portal-layout.tsx` (the portal shell). The shell now fetches `/personal-info-fields` once on mount and extracts Personal Info saved values from its existing `/saved-data` fetch. A new `useEffect` in the shell calls `computePersonalInfoStatus` whenever `personalInfoFields`, `personalInfoSavedValues`, or `subjectCrossSectionRequirements` change and writes the result to `sectionStatuses` via `handleSectionProgressUpdate`. This effect runs regardless of which tab is active, so the sidebar indicator updates immediately when the cross-section registry changes even when `PersonalInfoSection` is unmounted.
 
-**Why deferred:**
-Found during smoke testing right before Stage 4 close-out. The fix is medium risk — it requires lifting the Personal Info fields/values fetch into the shell so `computePersonalInfoStatus` can run independent of section mount state. Touching shell-level data fetching this late risks destabilizing Stage 4. Bug 2 (the related stale-cache issue at `AddressHistorySection.tsx:246`) was fixed inline as a one-liner; this one needs a more careful pass.
+`PersonalInfoSection` retains its own local progress effect for live typing feedback, and pushes freshly saved values back up to the shell via the new `onSavedValuesChange` prop after each successful auto-save so the shell's effect always operates on current values.
 
-**Scope note:**
-Today only `personal_info` consumes cross-section registry data, so the visible blast radius is one section. The architectural defect would re-apply to any future cross-section target (the registry shape supports it but the spec only calls out `subject` for Stage 4). The other sections (`idv`, `education`, `employment`, `address_history`) compute their progress from purely local inputs, so although the same architectural pattern applies, there is no external state change that triggers the symptom.
+The unmount cleanup in `useRepeatableSectionStage4Wiring` that had been calling `onCrossSectionRequirementsRemovedForSource` on tab navigation was reverted (commit `1ddc6bd`) because it was clearing the registry on unmount, which prevented the lifted shell effect from seeing the contributions that should have triggered the Personal Info update.
 
-**When to fix:**
-Next candidate-portal pass. The fix should:
-1. Lift the `/personal-info-fields` and `/saved-data` fetches that PersonalInfoSection currently owns into `portal-layout.tsx`. The shell already fetches `/saved-data` once for workflow acknowledgments hydration (`portal-layout.tsx:98-151`) — natural extension point.
-2. Run `computePersonalInfoStatus` in a shell-level effect dependent on `(personalInfoFields, personalInfoSavedValues, subjectCrossSectionRequirements)` and write the result to `sectionStatuses[<personal_info section id>]`.
-3. Remove the `onProgressUpdate` writer from PersonalInfoSection so the shell is the single owner of that section's status.
-4. Pass the shell-fetched fields/values down to PersonalInfoSection as props so it does not double-fetch.
-
-**Files affected:**
+**Files changed:**
 - `src/components/candidate/portal-layout.tsx`
 - `src/components/candidate/form-engine/PersonalInfoSection.tsx`
-
-**Related:**
-TD-052 (cross-section requirement awareness for Personal Info — addressed in Stage 4) is the feature this defect undercuts. The end-to-end flow works once the user navigates to Personal Info; the defect is only that the indicator isn't reactive while another tab is active.
+- `src/lib/candidate/useRepeatableSectionStage4Wiring.ts`
+- `src/types/candidate-portal.ts` (moved `PersonalInfoField` interface here from `PersonalInfoSection.tsx`)
 
 ---
 
 ### TD-060 — `personal-info-fields` API ignores candidate context when computing `isRequired`
 
-| Field       | Detail                                                            |
-|-------------|-------------------------------------------------------------------|
-| Area        | Candidate Application — `/api/candidate/application/[token]/personal-info-fields` |
-| Severity    | Warning (UX / spec mismatch)                                      |
-| Identified  | May 5, 2026 - Phase 6 Stage 4 smoke testing                       |
-| Identified by | Andy (smoke test) + traced via DevTools console                  |
+| Field         | Detail                                                                                      |
+|---------------|---------------------------------------------------------------------------------------------|
+| Area          | Candidate Application — `/api/candidate/application/[token]/personal-info-fields`          |
+| Severity      | Warning (UX / spec mismatch)                                                                |
+| Identified    | May 5, 2026 - Phase 6 Stage 4 smoke testing                                                 |
+| Identified by | Andy (smoke test) + traced via DevTools console                                             |
+| Resolved      | May 5, 2026                                                                                 |
+| Branch        | `fix/td059-td060-personal-info-required-fields-and-sidebar-reactivity`                      |
+| Commits       | `4a085ce`, `230b14c`, `19239de`                                                             |
 
-**Description:**
-The `personal-info-fields` endpoint computes `isRequired` per field via a naive OR over every `dSXMapping` row that references the requirement (`src/app/api/candidate/application/[token]/personal-info-fields/route.ts:164-178`):
+**How it was resolved:**
+The `personal-info-fields` route now scopes its `isRequired` computation to the candidate's package context. The previous implementation used OR logic across every `dsx_mappings` row for a requirement, making any field globally required if it was required in even a single (service, location) mapping row anywhere in the database.
 
-```js
-const dsxMappings = await prisma.dSXMapping.findMany({
-  where: { requirementId: { in: personalInfoRequirementIds } },
-  select: { requirementId: true, isRequired: true }
-});
-// OR-aggregate: required if ANY mapping says required
-```
+The replacement logic:
+1. Queries `dsx_availability` filtered to the package's service IDs, `isAvailable = true`, and `country.disabled IS NOT TRUE` (handling the nullable `Country.disabled` column correctly).
+2. Uses the resulting (serviceId, locationId) pairs as an OR-of-pairs filter on the subsequent `dsx_mappings` query.
+3. AND-aggregates `isRequired` across the matching rows per requirement: a field is baseline-required only if every applicable mapping row has `isRequired = true`. Fields with no applicable mapping rows default to `isRequired: false`.
 
-There is no filter on the candidate's current context — no country, no address history, no service scope. As a result, a field like Middle Name that is configured as required for ONE specific country in dsx_mappings will return `isRequired: true` from this endpoint regardless of the candidate's actual address history. The per-field red asterisk in `<PersonalInfoSection>` (rendered via `<DynamicFieldRenderer isRequired={field.isRequired}>` at `src/components/candidate/form-engine/PersonalInfoSection.tsx:279`) becomes sticky-true and never reflects the candidate's current context.
+The response shape is unchanged. An audit of the neighboring `saved-data` and `structure` routes confirmed neither contains the same bug pattern; neither was modified.
 
-**Why this surfaced now:**
-The Stage 4 cross-section registry mechanism was designed assuming the per-field `isRequired` from this API would represent the BASELINE (fields universally required), and the registry would layer ADDITIONAL conditional requirements on top via the cross-section banner and progress calculation. The API doesn't distinguish baseline from conditional — it ORs them all together. So:
-- The cross-section banner at the top of Personal Info DOES correctly toggle on/off as Address History changes.
-- The cross-section progress calculation DOES correctly reflect cleared registry state.
-- BUT the per-field asterisk on Middle Name stays red whether the cross-section trigger is present or not, because it reads from a stale, context-free server response.
-
-**Verified during smoke testing (May 5, 2026):**
-After removing the triggering Address History country, the registry correctly empties (`{ "subject": [] }`), `crossSectionRequirementsCount: 0` reaches `<PersonalInfoSection>`, but the field-level log shows `fieldKey: "middleName", isRequired: true`. The persistence is on the server response, not the client wiring.
-
-**Why deferred:**
-1. This is a pre-existing API design issue, not a Stage 4 wiring bug. The original Stage 4 Bug 2 (registry not cleaning up) was real and was fixed (`AddressHistorySection.tsx:249` `invalidateEntry` → `clearEntry`). This finding is downstream of that fix.
-2. The proper fix needs spec input on what counts as the candidate's "current context" for required-state computation (saved Address History entries? Service scope? Both?). That's a contract question with implications for other endpoints (`saved-data`, `structure`, etc.).
-3. Same risk envelope as TD-059 — too late in Stage 4 close-out for medium-risk API changes that touch shared contract.
-
-**Scope note:**
-The bug only manifests for fields configured as conditionally-required in dsx_mappings. Fields that are universally required (every mapping `isRequired: true`) and fields that are universally optional (every mapping `isRequired: false`) display correctly. Only fields with mixed mapping rows show the sticky asterisk.
-
-**When to fix:**
-During the next API/contract pass on candidate endpoints. The fix should:
-1. Define what context drives required-state computation (proposal: saved Address History countries + service scope from invitation).
-2. Filter `dsxMappings` query in `personal-info-fields/route.ts` by that context before OR-aggregating.
-3. Make the same filter consistent across `saved-data` and `structure` if they apply similar logic.
-4. Add a regression test that creates a Middle Name dsx_mapping with `isRequired: true` for Country A only, then verifies the API returns `isRequired: false` when the candidate's address history is in Country B.
-
-**Files affected:**
+**Files changed:**
 - `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
-- Possibly `src/app/api/candidate/application/[token]/saved-data/route.ts` and `src/app/api/candidate/application/[token]/structure/route.ts` if they contain similar logic
-
-**Related:**
-- TD-052 (cross-section requirement awareness for Personal Info) — addressed in Stage 4 for the registry/banner/progress paths but cannot be fully complete until TD-060 lands, because the per-field asterisk is the most visible signal of required-state to candidates.
-- TD-059 (sidebar status not reactive for unmounted sections) — same risk envelope, same close-out reasoning.
-
----
-
-## Resolved Items
-
-_(Move items here when fixed, with a note on how they were resolved)_
 
 ---
