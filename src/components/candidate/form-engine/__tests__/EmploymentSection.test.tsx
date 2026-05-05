@@ -132,7 +132,7 @@ describe('EmploymentSection', () => {
     });
 
     // Click Add Entry
-    const addButton = screen.getByRole('button', { name: /Add Entry/i });
+    const addButton = await screen.findByRole('button', { name: /Add Entry/i });
     await userEvent.click(addButton);
 
     // Should trigger save with employment section type
