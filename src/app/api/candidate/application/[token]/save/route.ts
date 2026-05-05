@@ -9,7 +9,20 @@ import { INVITATION_STATUSES } from '@/constants/invitation-status';
 
 import type { CandidateFormData, SavedFieldData } from '@/types/candidate-portal';
 
-// Schema for save request body (flat fields structure)
+// Schema for save request body (flat fields structure).
+// Phase 6 Stage 4 widened the per-field `value` union to also accept JSON
+// objects so workflow-section acknowledgments and document-upload metadata
+// can flow through the flat-save path:
+//   - Workflow acknowledgment value shape (BR 7, BR 8):
+//       { acknowledged: boolean }
+//     keyed by `requirementId = workflow_sections.id` (the workflow
+//     section's UUID becomes the requirementId because flat saves index by
+//     it). The saved-data endpoint flattens this back to the spec's
+//     per-section bucket shape on read.
+//   - Document-upload metadata shape (per_search/per_order, BR 11):
+//       { documentId, originalName, storagePath, mimeType, size, uploadedAt }
+// The repeatable and address-history schemas already accepted JSON-object
+// values from Stage 3 — this brings the flat schema into parity.
 const saveRequestSchema = z.object({
   sectionType: z.enum(['personal_info', 'idv', 'workflow_section', 'service_section']),
   sectionId: z.string(),
@@ -20,7 +33,8 @@ const saveRequestSchema = z.object({
       z.number(),
       z.boolean(),
       z.null(),
-      z.array(z.string())
+      z.array(z.string()),
+      z.record(z.union([z.string(), z.number(), z.boolean(), z.null()]))
     ])
   }))
 });

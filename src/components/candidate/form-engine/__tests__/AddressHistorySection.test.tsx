@@ -455,8 +455,8 @@ describe('AddressHistorySection', () => {
 
       expect(screen.getByText('AFP Form')).toBeInTheDocument();
       expect(screen.getByText('Download and complete the AFP form')).toBeInTheDocument();
-      // No upload UI per Stage 3.
-      expect(document.querySelectorAll('input[type="file"]').length).toBe(0);
+      // Stage 4 spec: aggregated upload UI renders via <CandidateDocumentUpload>.
+      expect(document.querySelectorAll('input[type="file"]').length).toBe(1);
     });
   });
 

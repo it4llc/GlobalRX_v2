@@ -4,10 +4,12 @@
 
 import React from 'react';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
+import CandidateDocumentUpload from '../CandidateDocumentUpload';
 import { useTranslation } from '@/contexts/TranslationContext';
 import type { AggregatedRequirementItem } from '@/types/candidate-address';
 import type { FieldValue } from '@/types/candidate-portal';
 import type { RepeatableFieldValue } from '@/types/candidate-repeatable-form';
+import type { UploadedDocumentMetadata } from '@/types/candidate-stage4';
 
 export interface AggregatedRequirementsProps {
   /**
@@ -24,6 +26,19 @@ export interface AggregatedRequirementsProps {
   onAggregatedFieldChange: (requirementId: string, value: FieldValue) => void;
   /** Called on field blur (auto-save trigger). */
   onAggregatedFieldBlur?: () => void;
+  // Phase 6 Stage 4 — document upload pass-through. The parent owns the
+  // metadata storage decision (per BR 11 routing) and supplies the
+  // already-resolved uploadedDocuments map keyed by requirement UUID. This
+  // component only renders one CandidateDocumentUpload per document item and
+  // forwards the upload/remove callbacks back to the parent.
+  uploadedDocuments?: Record<string, UploadedDocumentMetadata | undefined>;
+  onDocumentUploadComplete?: (
+    requirementId: string,
+    metadata: UploadedDocumentMetadata,
+  ) => void;
+  onDocumentRemove?: (requirementId: string) => void;
+  /** Candidate auth token — passed through to the upload component. */
+  token?: string;
 }
 
 /**
@@ -48,6 +63,10 @@ export function AggregatedRequirements({
   values,
   onAggregatedFieldChange,
   onAggregatedFieldBlur,
+  uploadedDocuments,
+  onDocumentUploadComplete,
+  onDocumentRemove,
+  token,
 }: AggregatedRequirementsProps) {
   const { t } = useTranslation();
 
@@ -111,34 +130,63 @@ export function AggregatedRequirements({
           </h4>
           <ul className="space-y-3">
             {documents.map((doc) => {
-              // Per Stage 3 spec Data Requirements (line 716, "Document
-              // Requirement Display"): document instructions live on
-              // `documentData.instructions`. We fall back to the legacy
-              // top-level `instructions` for callers that haven't been
-              // updated yet, then to null. This is a read-only fix — the
-              // upstream item-builder in AddressHistorySection still copies
-              // both fields onto the item.
+              // Per Stage 3 spec Data Requirements: document instructions live
+              // on `documentData.instructions`, with a legacy fallback to the
+              // top-level `instructions`.
               const documentInstructions =
                 doc.documentData?.instructions ?? doc.instructions ?? null;
+              // Phase 6 Stage 4 — render the live upload component when the
+              // parent has wired the callbacks. If the parent didn't (token
+              // missing, callbacks omitted), fall back to the Stage 3
+              // informational display so this component can still be used in
+              // read-only contexts.
+              const liveUpload =
+                token !== undefined &&
+                onDocumentUploadComplete !== undefined &&
+                onDocumentRemove !== undefined;
+              const uploaded = uploadedDocuments?.[doc.requirementId] ?? null;
               return (
-              <li
-                key={doc.requirementId}
-                className="border border-gray-200 rounded-md p-3 bg-gray-50"
-                data-testid={`aggregated-document-${doc.requirementId}`}
-              >
-                <div className="font-medium">
-                  {doc.name}
-                  {doc.isRequired && (
-                    <span className="text-red-500 ml-1 required-indicator">*</span>
+                <li
+                  key={doc.requirementId}
+                  className="border border-gray-200 rounded-md p-3 bg-gray-50"
+                  data-testid={`aggregated-document-${doc.requirementId}`}
+                >
+                  {liveUpload ? (
+                    <CandidateDocumentUpload
+                      requirement={{
+                        id: doc.requirementId,
+                        name: doc.name,
+                        instructions: documentInstructions,
+                        isRequired: doc.isRequired,
+                        scope:
+                          typeof doc.documentData?.scope === 'string'
+                            ? (doc.documentData.scope as string)
+                            : 'per_search',
+                      }}
+                      uploadedDocument={uploaded}
+                      onUploadComplete={(metadata) =>
+                        onDocumentUploadComplete!(doc.requirementId, metadata)
+                      }
+                      onRemove={() => onDocumentRemove!(doc.requirementId)}
+                      token={token!}
+                    />
+                  ) : (
+                    <>
+                      <div className="font-medium">
+                        {doc.name}
+                        {doc.isRequired && (
+                          <span className="text-red-500 ml-1 required-indicator">*</span>
+                        )}
+                      </div>
+                      {documentInstructions && (
+                        <p className="text-sm text-gray-600 mt-1">{documentInstructions}</p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2 italic">
+                        {t('candidate.aggregatedRequirements.documentUploadPending')}
+                      </p>
+                    </>
                   )}
-                </div>
-                {documentInstructions && (
-                  <p className="text-sm text-gray-600 mt-1">{documentInstructions}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-2 italic">
-                  {t('candidate.aggregatedRequirements.documentUploadPending')}
-                </p>
-              </li>
+                </li>
               );
             })}
           </ul>

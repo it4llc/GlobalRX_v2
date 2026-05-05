@@ -66,7 +66,7 @@ describe('PortalLayout', () => {
       title: 'Address History',
       type: 'service_section',
       placement: 'services',
-      status: 'in_progress',
+      status: 'incomplete',
       order: 3,
       functionalityType: 'record'
     },

@@ -363,11 +363,25 @@ describe('GET /api/candidate/application/[token]/saved-data', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Fields should be grouped by section type
-      expect(data.sections.workflow_section.fields).toHaveLength(2);
-      expect(data.sections.workflow_section.fields).toContainEqual({ requirementId: 'req-w-1', value: 'value1' });
-      expect(data.sections.workflow_section.fields).toContainEqual({ requirementId: 'req-w-2', value: 'value2' });
+      // Phase 6 Stage 4 (BR 8 / DoD #3): workflow-section sections are now
+      // returned as a per-section bucket keyed by workflow_sections.id with
+      // shape `{ type: 'workflow_section', acknowledged: boolean }`. The
+      // legacy "grouped by section type" `data.sections.workflow_section`
+      // shape no longer exists. The two workflow sections appear under their
+      // own UUID keys; neither is acknowledged because the saved values are
+      // plain strings, not the `{ acknowledged: true }` object form.
+      expect(data.sections['section-1']).toEqual({
+        type: 'workflow_section',
+        acknowledged: false
+      });
+      expect(data.sections['section-2']).toEqual({
+        type: 'workflow_section',
+        acknowledged: false
+      });
 
+      // Service sections continue to use the legacy "grouped by section type"
+      // shape — both `service_idv` and `service_record` fall through to the
+      // `service_section` bucket.
       expect(data.sections.service_section.fields).toHaveLength(2);
       expect(data.sections.service_section.fields).toContainEqual({ requirementId: 'req-s-1', value: 'value3' });
       expect(data.sections.service_section.fields).toContainEqual({ requirementId: 'req-s-2', value: 'value4' });
