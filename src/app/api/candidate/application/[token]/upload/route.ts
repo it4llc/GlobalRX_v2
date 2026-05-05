@@ -6,7 +6,7 @@ import logger from '@/lib/logger';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
-import { randomUUID } from 'crypto';
+import crypto from 'crypto';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
 
 // File constraints per Phase 6 Stage 4 Business Rule 9.
@@ -230,7 +230,7 @@ export async function POST(
     }
 
     const responseBody = {
-      documentId: randomUUID(),
+      documentId: crypto.randomUUID(),
       originalName: file.name,
       storagePath: relativePath,
       mimeType: file.type,
