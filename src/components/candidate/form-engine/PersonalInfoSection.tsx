@@ -5,7 +5,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
-import CrossSectionRequirementBanner from '../CrossSectionRequirementBanner';
+import CrossSectionRequirementBanner from '@/components/candidate/CrossSectionRequirementBanner';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
@@ -54,7 +54,7 @@ export function PersonalInfoSection({
   onSavedValuesChange,
 }: PersonalInfoSectionProps) {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, FieldValue>>({});
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
@@ -70,17 +70,17 @@ export function PersonalInfoSection({
   // not refetch on every render; the shell pushes new values via the
   // initialSavedValues prop after auto-save round-trips.
   useEffect(() => {
-    const initial: Record<string, any> = {};
+    const initial: Record<string, FieldValue> = {};
     for (const field of fields) {
       if (field.prefilledValue !== null && field.prefilledValue !== undefined) {
-        initial[field.requirementId] = field.prefilledValue;
+        initial[field.requirementId] = field.prefilledValue as FieldValue;
       }
     }
     if (initialSavedValues) {
       for (const [requirementId, value] of Object.entries(initialSavedValues)) {
         const fieldDef = fields.find(f => f.requirementId === requirementId);
         if (!fieldDef?.locked) {
-          initial[requirementId] = value;
+          initial[requirementId] = value as FieldValue;
         }
       }
     }
@@ -158,7 +158,6 @@ export function PersonalInfoSection({
       } catch (error) {
         logger.error('Failed to save personal info', {
           event: 'personal_info_save_error',
-          token,
           sectionType: 'personal_info',
           error: error instanceof Error ? error.message : 'Unknown error'
         });
