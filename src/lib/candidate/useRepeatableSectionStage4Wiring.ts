@@ -134,18 +134,11 @@ export function useRepeatableSectionStage4Wiring(
     onProgressUpdate(status);
   }, [progressInputs, onProgressUpdate]);
 
-  // Effect 3 — unmount cleanup. When the section is removed from the tree
-  // (e.g., the candidate navigates to a different tab and the parent stops
-  // rendering the section component, or the application is closed) we clear
-  // every contribution from this source. Without this, Personal Info's
-  // progress check could keep evaluating against fields the registry
-  // believes are still being triggered.
-  useEffect(() => {
-    return () => {
-      if (!onCrossSectionRequirementsRemovedForSource) return;
-      onCrossSectionRequirementsRemovedForSource(triggeredBy);
-    };
-  }, [triggeredBy, onCrossSectionRequirementsRemovedForSource]);
+  // No unmount cleanup — TD-059 requires cross-section contributions to
+  // persist across tab navigation so Personal Info's status stays accurate
+  // while the source section is unmounted. Cleanup is still correctly handled
+  // by Effect 1's replace semantics (when country selection changes) and by
+  // per-entry removal callbacks invoked from the source section's own logic.
 }
 
 // ---------------------------------------------------------------------------
