@@ -81,9 +81,13 @@ export interface UseRepeatableSectionStage4WiringArgs {
 
   /**
    * Shell-provided callback that clears every entry contributed by this
-   * source. The hook calls it from the unmount cleanup and is a no-op when
-   * undefined. Stage 4 sections also call this directly on country reset to
-   * the "no country" state; the hook does not duplicate that path.
+   * source. The hook does NOT invoke this callback — TD-059 requires
+   * cross-section contributions to persist across tab navigation, so the
+   * unmount cleanup that previously called this was removed. The prop is
+   * preserved on the interface because section components still receive it
+   * from the shell and pass it through; explicit cleanup paths (per-entry
+   * removal, replace semantics on country change) handle correctness without
+   * the hook's involvement.
    */
   onCrossSectionRequirementsRemovedForSource?: (triggeredBy: string) => void;
 
@@ -109,7 +113,6 @@ export function useRepeatableSectionStage4Wiring(
     subjectRequirements,
     progressInputs,
     onCrossSectionRequirementsChanged,
-    onCrossSectionRequirementsRemovedForSource,
     onProgressUpdate,
   } = args;
 
