@@ -8,7 +8,9 @@ import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
+import { computeIdvStatus } from '@/lib/candidate/sectionProgress';
 import type { FieldMetadata, DocumentMetadata, FieldValue } from '@/types/candidate-portal';
+import type { SectionStatus } from '@/types/candidate-stage4';
 import {
   Select,
   SelectContent,
@@ -33,6 +35,11 @@ interface IdvField {
 interface IdvSectionProps {
   token: string;
   serviceIds: string[];
+  // Phase 6 Stage 4 — pushed up to the shell on every progress recalculation.
+  // The shell uses this to render the IDV progress indicator. IDV is not a
+  // cross-section target in Stage 4 (BR 17 — only `subject` is) so no banner
+  // or registry wiring is required here.
+  onProgressUpdate?: (status: SectionStatus) => void;
 }
 
 /**
@@ -46,7 +53,7 @@ interface IdvSectionProps {
  * without affecting the rest of the application. The parent only needs to know
  * whether IDV is started/complete, not the internal field details.
  */
-export function IdvSection({ token, serviceIds }: IdvSectionProps) {
+export function IdvSection({ token, serviceIds, onProgressUpdate }: IdvSectionProps) {
   const { t } = useTranslation();
   const [countries, setCountries] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('');
@@ -294,6 +301,41 @@ export function IdvSection({ token, serviceIds }: IdvSectionProps) {
 
     saveData();
   }, [debouncedPendingSaves, formData, selectedCountry, token]);
+
+  // Phase 6 Stage 4 — recompute and report progress whenever fields, values,
+  // or country selection change. IDV is country-gated: until the candidate
+  // selects a country, no fields exist and the section is `not_started`.
+  // Once fields load, the helper evaluates each required field against the
+  // requirement-id-keyed values map (translated to fieldKey-keyed for the
+  // helper, matching how PersonalInfoSection does the same thing).
+  //
+  // Note re: cross-section sourcing — IDV does not currently produce
+  // subject-targeted DSX requirements, so no registry push is wired here.
+  // If a future configuration introduces such a field, the existing
+  // collectionTab filter would surface it on the Personal Info tab via the
+  // shell's registry; the implementer can add a defensive push from IDV at
+  // that point. Stage 4 leaves this out per the technical-plan section #8.
+  useEffect(() => {
+    if (!onProgressUpdate) return;
+    if (!selectedCountry || fields.length === 0) {
+      onProgressUpdate('not_started');
+      return;
+    }
+    const valuesByFieldKey: Record<string, unknown> = {};
+    for (const field of fields) {
+      valuesByFieldKey[field.fieldKey] = formData[field.requirementId];
+    }
+    // Adapt IdvField → FieldLike (id vs requirementId — the helper expects
+    // `id`). Same pattern PersonalInfoSection uses; keeps both component
+    // field types stable while letting them share the pure helper.
+    const fieldLikes = fields.map(field => ({
+      id: field.requirementId,
+      fieldKey: field.fieldKey,
+      isRequired: field.isRequired,
+    }));
+    const status = computeIdvStatus(fieldLikes, valuesByFieldKey);
+    onProgressUpdate(status);
+  }, [selectedCountry, fields, formData, onProgressUpdate]);
 
   return (
     <div className="space-y-6">

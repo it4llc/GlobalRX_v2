@@ -196,6 +196,11 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(data.sections).toHaveLength(7); // 1 personal + 1 before + 3 services (edu deduplicated) + 2 after
 
       // Check before_services section comes first
+      // Phase 6 Stage 4: workflow_section sections now carry a workflowSection
+      // payload (id, name, type, placement, displayOrder, isRequired) so the
+      // renderer can display the content without an extra fetch. Optional
+      // string fields (content, fileUrl, fileName) that are undefined on the
+      // source row are dropped from the JSON response.
       expect(data.sections[0]).toEqual({
         id: 'section-1',
         title: 'Notice of Processing',
@@ -203,7 +208,15 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         placement: 'before_services',
         status: 'not_started',
         order: 0,
-        functionalityType: null
+        functionalityType: null,
+        workflowSection: {
+          id: 'section-1',
+          name: 'Notice of Processing',
+          type: 'text',
+          placement: 'before_services',
+          displayOrder: 1,
+          isRequired: true
+        }
       });
 
       // Check Personal Information section comes after before_services
@@ -258,6 +271,9 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       });
 
       // Check after_services sections
+      // Phase 6 Stage 4: workflow_section sections in the after_services zone
+      // also carry the workflowSection payload — same shape as before_services,
+      // different placement value.
       expect(data.sections[5]).toEqual({
         id: 'section-2',
         title: 'Consent Form',
@@ -265,7 +281,15 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         placement: 'after_services',
         status: 'not_started',
         order: 5,
-        functionalityType: null
+        functionalityType: null,
+        workflowSection: {
+          id: 'section-2',
+          name: 'Consent Form',
+          type: 'text',
+          placement: 'after_services',
+          displayOrder: 1,
+          isRequired: true
+        }
       });
 
       expect(data.sections[6]).toEqual({
@@ -275,7 +299,15 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         placement: 'after_services',
         status: 'not_started',
         order: 6,
-        functionalityType: null
+        functionalityType: null,
+        workflowSection: {
+          id: 'section-3',
+          name: 'Authorization',
+          type: 'text',
+          placement: 'after_services',
+          displayOrder: 2,
+          isRequired: true
+        }
       });
     });
 

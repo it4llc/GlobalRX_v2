@@ -662,5 +662,27 @@
   "candidate.aggregatedRequirements.heading": "Based on your address history, we need the following additional information:",
   "candidate.aggregatedRequirements.additionalInformation": "Additional Information",
   "candidate.aggregatedRequirements.requiredDocuments": "Required Documents",
-  "candidate.aggregatedRequirements.documentUploadPending": "Upload will be available soon"
+  "candidate.aggregatedRequirements.documentUploadPending": "Upload will be available soon",
+
+  "candidate.workflowSection.acknowledgmentLabel": "I have read and agree to the above",
+  "candidate.workflowSection.openDocument": "Open document",
+  "candidate.workflowSection.documentUnavailable": "Document not available.",
+
+  "candidate.documentUpload.required": "Required",
+  "candidate.documentUpload.optional": "Optional",
+  "candidate.documentUpload.upload": "Upload",
+  "candidate.documentUpload.uploading": "Uploading…",
+  "candidate.documentUpload.remove": "Remove",
+  "candidate.documentUpload.replace": "Replace",
+  "candidate.documentUpload.errorTooLarge": "File too large. Maximum size is 10 MB.",
+  "candidate.documentUpload.errorWrongType": "File type not allowed. Accepted types: PDF, JPEG, PNG.",
+  "candidate.documentUpload.errorUploadFailed": "Upload failed. Please try again.",
+  "candidate.documentUpload.errorRemoveFailed": "Couldn't remove the file. Please try again.",
+  "candidate.documentUpload.tryAgain": "Try again",
+
+  "candidate.sectionProgress.notStarted": "Not started",
+  "candidate.sectionProgress.incomplete": "Incomplete",
+  "candidate.sectionProgress.complete": "Complete",
+
+  "candidate.crossSection.bannerLead": "Based on information you entered in another section, the following fields are now required:"
 }

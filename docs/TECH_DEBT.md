@@ -240,6 +240,7 @@ Create a generic `remapFieldNamesToIds` utility function that can handle both se
 | Severity    | Warning                                     |
 | Identified  | March 25, 2026 - Document Persistence Bug Fix Stage 4 |
 | Identified by | Code Reviewer                             |
+| Status      | **Addressed (Phase 6 Stage 4 — May 4, 2026)** |
 
 **Description:**
 In `DocumentsReviewStep.tsx` lines 188 and 195, there are TODO comments indicating that error messages are not shown to users when document uploads fail. While errors are logged to the console, users receive no visual feedback when a document upload fails.
@@ -252,6 +253,9 @@ Add proper error UI components when implementing a broader error handling strate
 
 **Recommendation:**
 Display a toast notification or inline error message when upload fails.
+
+**Resolution (Phase 6 Stage 4 — May 4, 2026):**
+The new `CandidateDocumentUpload` component (`src/components/candidate/CandidateDocumentUpload.tsx`) explicitly surfaces both client-side validation errors (file too large, wrong MIME type) and server-side upload errors via a visible alert region with a "Try again" affordance. The candidate flow is the first place that actively renders these messages; the legacy `DocumentsReviewStep.tsx` TODOs in the internal portal flow are tracked separately as remaining work.
 
 ---
 
@@ -287,6 +291,7 @@ Implement during a storage optimization pass or when adding a scheduled cleanup 
 | Severity    | Minor                                       |
 | Identified  | March 25, 2026 - Document Persistence Bug Fix Stage 4 |
 | Identified by | Code Reviewer                             |
+| Status      | **Addressed (Phase 6 Stage 4 — May 4, 2026)** |
 
 **Description:**
 For large files (up to 10MB limit), users have no visual indication that an upload is in progress. The UI doesn't provide feedback during the upload process.
@@ -299,6 +304,9 @@ Add when implementing a comprehensive loading/progress indicator system across t
 
 **Recommendation:**
 Add a loading spinner or progress bar during file upload, especially for files over 1MB.
+
+**Resolution (Phase 6 Stage 4 — May 4, 2026):**
+`CandidateDocumentUpload` shows an animated spinner alongside the "Uploading…" label whenever the component is in the `uploading` state. The state machine is `empty → uploading → uploaded | error`, and the spinner is gated on the `uploading` state via the `data-status` attribute. Internal portal `DocumentsReviewStep.tsx` is unchanged.
 
 ---
 
@@ -1365,6 +1373,7 @@ Before adding any further section types (Stage 4 will add upload-related branche
 | Severity    | Warning (Data Integrity)                    |
 | Identified  | May 4, 2026 - Phase 6 Stage 3 Smoke Testing |
 | Identified by | Andy (smoke test)                         |
+| Status      | **Addressed (Phase 6 Stage 4 — May 4, 2026)** |
 
 **Description:**
 When Address History's DSX mappings make a field required that is collected on the Personal Information tab (e.g., Middle Name becomes required for criminal searches in a specific country), the Personal Information section currently has no awareness of this. The field is correctly excluded from the Address History aggregated area — `AddressHistorySection.computeAggregatedItems` skips any requirement whose UUID appears in `/personal-info-fields` — so the candidate isn't asked twice. But the Personal Info section still shows the field as optional based on its own `isRequired` resolution, which doesn't account for downstream sections' requirements.
@@ -1388,6 +1397,11 @@ This way a field becomes required on the Personal Info tab if ANY downstream sec
 **Files affected:**
 - `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
 - `src/components/candidate/form-engine/PersonalInfoSection.tsx` (if progress UI changes)
+
+**Resolution (Phase 6 Stage 4 — May 4, 2026):**
+A cross-section requirement registry (`src/lib/candidate/crossSectionRegistry.ts`) and shared wiring hook (`src/lib/candidate/useRepeatableSectionStage4Wiring.ts`) were added so that any repeatable section can publish subject-targeted DSX requirements to a central registry, and `PersonalInfoSection` consumes the `subject` bucket via the new `crossSectionRequirements` prop. Education History, Employment History, and Address History all publish their subject contributions through the registry; their DSX field loaders split fields by `collectionTab` and forward the subject ones to the shell. Banner display is implemented via `CrossSectionRequirementBanner`, rendered inside `PersonalInfoSection.tsx`.
+
+**Address History wiring (final wire-up — May 4, 2026):** `AddressHistorySection.tsx` now consumes the shared `useRepeatableSectionStage4Wiring` hook with the `addressHistoryStage4Wiring` helper module (`src/lib/candidate/addressHistoryStage4Wiring.ts`), and `portal-layout.tsx` passes the four wiring callbacks (`onProgressUpdate`, `onCrossSectionRequirementsChanged`, `onCrossSectionRequirementsRemovedForEntry`, `onCrossSectionRequirementsRemovedForSource`) to `AddressHistorySection` in the same shape used for Education / Employment. User Flow 3 (Address History entry country triggers Middle Name requirement → registry push → PersonalInfo banner / progress) is now end-to-end live.
 
 ---
 
@@ -1545,6 +1559,58 @@ When the candidate portal is being prepared for non-English locales. Should be d
 
 ## Resolved Items
 
-_(Move items here when fixed, with a note on how they were resolved)_
+---
+
+### TD-059 — Sidebar status not reactively recomputed for unmounted sections
+
+| Field         | Detail                                                             |
+|---------------|--------------------------------------------------------------------|
+| Area          | Candidate Application — Portal layout / cross-section requirements |
+| Severity      | Warning (UX)                                                       |
+| Identified    | May 5, 2026 - Phase 6 Stage 4 smoke testing                        |
+| Identified by | Andy (smoke test)                                                  |
+| Resolved      | May 5, 2026                                                        |
+| Branch        | `fix/td059-td060-personal-info-required-fields-and-sidebar-reactivity` |
+| Commits       | `4a085ce`, `1ddc6bd`, `230b14c`, `19239de`                         |
+
+**How it was resolved:**
+Personal Info's progress derivation was lifted from `PersonalInfoSection` into `portal-layout.tsx` (the portal shell). The shell now fetches `/personal-info-fields` once on mount and extracts Personal Info saved values from its existing `/saved-data` fetch. A new `useEffect` in the shell calls `computePersonalInfoStatus` whenever `personalInfoFields`, `personalInfoSavedValues`, or `subjectCrossSectionRequirements` change and writes the result to `sectionStatuses` via `handleSectionProgressUpdate`. This effect runs regardless of which tab is active, so the sidebar indicator updates immediately when the cross-section registry changes even when `PersonalInfoSection` is unmounted.
+
+`PersonalInfoSection` retains its own local progress effect for live typing feedback, and pushes freshly saved values back up to the shell via the new `onSavedValuesChange` prop after each successful auto-save so the shell's effect always operates on current values.
+
+The unmount cleanup in `useRepeatableSectionStage4Wiring` that had been calling `onCrossSectionRequirementsRemovedForSource` on tab navigation was reverted (commit `1ddc6bd`) because it was clearing the registry on unmount, which prevented the lifted shell effect from seeing the contributions that should have triggered the Personal Info update.
+
+**Files changed:**
+- `src/components/candidate/portal-layout.tsx`
+- `src/components/candidate/form-engine/PersonalInfoSection.tsx`
+- `src/lib/candidate/useRepeatableSectionStage4Wiring.ts`
+- `src/types/candidate-portal.ts` (moved `PersonalInfoField` interface here from `PersonalInfoSection.tsx`)
+
+---
+
+### TD-060 — `personal-info-fields` API ignores candidate context when computing `isRequired`
+
+| Field         | Detail                                                                                      |
+|---------------|---------------------------------------------------------------------------------------------|
+| Area          | Candidate Application — `/api/candidate/application/[token]/personal-info-fields`          |
+| Severity      | Warning (UX / spec mismatch)                                                                |
+| Identified    | May 5, 2026 - Phase 6 Stage 4 smoke testing                                                 |
+| Identified by | Andy (smoke test) + traced via DevTools console                                             |
+| Resolved      | May 5, 2026                                                                                 |
+| Branch        | `fix/td059-td060-personal-info-required-fields-and-sidebar-reactivity`                      |
+| Commits       | `4a085ce`, `230b14c`, `19239de`                                                             |
+
+**How it was resolved:**
+The `personal-info-fields` route now scopes its `isRequired` computation to the candidate's package context. The previous implementation used OR logic across every `dsx_mappings` row for a requirement, making any field globally required if it was required in even a single (service, location) mapping row anywhere in the database.
+
+The replacement logic:
+1. Queries `dsx_availability` filtered to the package's service IDs, `isAvailable = true`, and `country.disabled IS NOT TRUE` (handling the nullable `Country.disabled` column correctly).
+2. Uses the resulting (serviceId, locationId) pairs as an OR-of-pairs filter on the subsequent `dsx_mappings` query.
+3. AND-aggregates `isRequired` across the matching rows per requirement: a field is baseline-required only if every applicable mapping row has `isRequired = true`. Fields with no applicable mapping rows default to `isRequired: false`.
+
+The response shape is unchanged. An audit of the neighboring `saved-data` and `structure` routes confirmed neither contains the same bug pattern; neither was modified.
+
+**Files changed:**
+- `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
 
 ---
