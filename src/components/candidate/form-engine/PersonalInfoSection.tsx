@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import CrossSectionRequirementBanner from '../CrossSectionRequirementBanner';
@@ -201,6 +201,14 @@ export function PersonalInfoSection({
     onProgressUpdate(status);
   }, [loading, fields, formData, crossSectionRequirements, onProgressUpdate]);
 
+  const crossSectionRequiredKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const cs of crossSectionRequirements ?? []) {
+      if (cs.isRequired) set.add(cs.fieldKey);
+    }
+    return set;
+  }, [crossSectionRequirements]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -252,7 +260,11 @@ export function PersonalInfoSection({
               name={field.name}
               fieldKey={field.fieldKey}
               dataType={field.dataType}
-              isRequired={field.isRequired}
+              // Cross-section requirements registered for the `subject` target can mark a
+              // field as required even when its baseline DSX isRequired is false. Overlay
+              // here so the red-star indicator matches what computePersonalInfoStatus is
+              // already accounting for (Bug 2, surfaced in smoke testing of TD-059).
+              isRequired={field.isRequired || crossSectionRequiredKeys.has(field.fieldKey)}
               instructions={field.instructions}
               fieldData={field.fieldData}
               value={formData[field.requirementId] || ''}

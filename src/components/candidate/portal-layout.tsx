@@ -308,7 +308,14 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     // because cross-section registry entries also key by fieldKey).
     const valuesByFieldKey: Record<string, unknown> = {};
     for (const field of personalInfoFields) {
-      valuesByFieldKey[field.fieldKey] = personalInfoSavedValues[field.requirementId];
+      // The shell-side derivation must mirror the view PersonalInfoSection's local
+      // effect uses, which merges prefilledValue into formData on mount. Without
+      // this fallback, a candidate with prefilled-but-not-yet-saved values would
+      // see the sidebar flip to not_started the moment a cross-section requirement
+      // is added (Bug 1, surfaced in smoke testing of TD-059).
+      const savedValue = personalInfoSavedValues[field.requirementId];
+      valuesByFieldKey[field.fieldKey] =
+        savedValue !== undefined ? savedValue : field.prefilledValue ?? undefined;
     }
     const fieldLikes = personalInfoFields.map((field) => ({
       id: field.requirementId,
