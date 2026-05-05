@@ -76,10 +76,16 @@ The inline `getStatusIcon` / `getStatusLabel` functions are removed. Each sectio
 
 ### `PortalLayout`
 
-Three new pieces of shell-level state are added:
+Three new pieces of shell-level state are added (Stage 4):
 - `sectionStatuses` — `Record<string, SectionStatus>` initialized from the structure endpoint's initial statuses. Updated by a `handleSectionProgressUpdate` callback that sections call after each auto-save.
 - `crossSectionRegistry` — `CrossSectionRegistry` (`Partial<Record<CrossSectionTarget, CrossSectionRequirementEntry[]>>`). Updated by three callbacks (`handleCrossSectionRequirementsChanged`, `handleCrossSectionRequirementsRemovedForEntry`, `handleCrossSectionRequirementsRemovedForSource`) that delegate to pure helpers in `src/lib/candidate/crossSectionRegistry.ts`.
 - `workflowAcknowledgments` — `Record<string, boolean>` keyed by `workflow_sections.id`. Hydrated once on mount via `GET /saved-data`; kept in sync by the `handleWorkflowAcknowledge` callback.
+
+**TD-059 additions (May 2026):** Two additional pieces of shell-level state were added to fix sidebar reactivity for unmounted sections:
+- `personalInfoFields` — `PersonalInfoField[]`. Populated by a one-time fetch of `GET /personal-info-fields` on mount. Passed to `PersonalInfoSection` as a prop so the section does not make its own fetch.
+- `personalInfoSavedValues` — `Record<string, unknown>` keyed by `requirementId`. Extracted from the existing `GET /saved-data` hydration effect alongside workflow acknowledgments; refreshed by `PersonalInfoSection` via `onSavedValuesChange` after each successful auto-save.
+
+A shell-level `useEffect` with dependencies `(personalInfoFields, personalInfoSavedValues, subjectCrossSectionRequirements)` calls `computePersonalInfoStatus` and writes the result to `sectionStatuses` via `handleSectionProgressUpdate` whenever any input changes. This runs regardless of which tab is active, so the sidebar indicator for Personal Info stays accurate even when `PersonalInfoSection` is unmounted.
 
 A `sectionsWithStatus` memo merges `sectionStatuses` over the original `sections` prop and passes the result to both sidebar instances so the indicator always reflects the latest computed value.
 
@@ -87,9 +93,16 @@ The `WorkflowSectionRenderer` is now dispatched for `type === 'workflow_section'
 
 ### `PersonalInfoSection`
 
-Two new optional props: `crossSectionRequirements?: CrossSectionRequirementEntry[]` and `onProgressUpdate?: (status: SectionStatus) => void`.
+Stage 4 added two optional props: `crossSectionRequirements?: CrossSectionRequirementEntry[]` and `onProgressUpdate?: (status: SectionStatus) => void`. A `useEffect` recomputed `computePersonalInfoStatus` whenever `fields`, `formData`, or `crossSectionRequirements` changed, and called `onProgressUpdate` with the result.
 
-A `useEffect` recomputes `computePersonalInfoStatus` whenever `fields`, `formData`, or `crossSectionRequirements` change, and calls `onProgressUpdate` with the result.
+**TD-059 additions (May 2026):** The component's internal `GET /personal-info-fields` and `GET /saved-data` fetches were removed. Three new props replace those fetches:
+- `fields: PersonalInfoField[]` — field definitions, now provided by the shell.
+- `initialSavedValues?: Record<string, unknown>` — saved values keyed by `requirementId`, provided by the shell.
+- `onSavedValuesChange?: (next: Record<string, unknown>) => void` — called after each successful auto-save to push fresh values back up to the shell.
+
+The local progress effect (`onProgressUpdate` call on `formData` change) is retained for live typing feedback. The `formData` type was tightened from `Record<string, any>` to `Record<string, FieldValue>`.
+
+A `crossSectionRequiredKeys` memo was added to compute the set of fieldKeys promoted to required by the cross-section registry. This set is OR'd with the field's baseline `isRequired` when passing `isRequired` to `DynamicFieldRenderer`, so the red-star indicator matches what `computePersonalInfoStatus` already accounts for.
 
 `CrossSectionRequirementBanner` is rendered at the top of the section (and in the empty-fields branch) driven by the `crossSectionRequirements` prop.
 
@@ -148,7 +161,9 @@ Shared React hook used by Education, Employment, and (via an adapter) Address Hi
 - Recomputing section progress after each save and calling `onProgressUpdate`.
 - Splitting DSX fields by `collectionTab` into local and subject-targeted buckets.
 - Pushing subject-targeted fields to the cross-section registry via `onCrossSectionRequirementsChanged`.
-- Cleaning up registry entries when an entry is removed (`onCrossSectionRequirementsRemovedForEntry`) or when a source section is cleared (`onCrossSectionRequirementsRemovedForSource`).
+- Cleaning up registry entries when an entry is removed (`onCrossSectionRequirementsRemovedForEntry`).
+
+**TD-059 change (May 2026):** The unmount cleanup effect that previously called `onCrossSectionRequirementsRemovedForSource` when the hook's host section was navigated away from was removed. Cross-section contributions must persist across tab navigation so the shell's lifted Personal Info progress effect continues to see the correct registry state. Registry cleanup on source section clear is still handled by the explicit per-entry removal callbacks and the replace semantics in Effect 1 — the hook itself no longer participates in unmount cleanup. The `onCrossSectionRequirementsRemovedForSource` prop is retained on the interface because section components still receive and pass it through for direct use.
 
 Exported helpers: `useRepeatableSectionStage4Wiring`, `buildRepeatableProgressInputs`, `buildSubjectRequirementsForEntries`.
 
@@ -176,10 +191,12 @@ New file. Defines all Stage 4-specific types:
 
 ### `src/types/candidate-portal.ts`
 
-Changes:
+Stage 4 changes:
 - `CandidatePortalSection.status` narrowed from `'not_started' | 'in_progress' | 'complete'` to `'not_started' | 'incomplete' | 'complete'` (Business Rule 22; `in_progress` is replaced by `incomplete`).
 - `CandidatePortalSection.type` union extended to also include `'personal_info'` and `'address_history'` (these were handled by the structure endpoint but were not reflected in the type).
 - `CandidatePortalSection.workflowSection?: WorkflowSectionPayload` added — populated by the structure endpoint when `type === 'workflow_section'`.
+
+**TD-059 addition (May 2026):** `PersonalInfoField` interface exported from this file. Previously defined as a local interface inside `PersonalInfoSection.tsx`; moved here so `portal-layout.tsx` can reference the same type for its `personalInfoFields` state.
 
 ## API Endpoint Changes
 

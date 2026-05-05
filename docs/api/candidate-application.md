@@ -153,6 +153,8 @@ Returns personal information fields from across all package services where the D
 }
 ```
 
+**`isRequired` semantics (TD-060 fix, May 2026):** A field's `isRequired` value is `true` only when every `dsx_mappings` row for that requirement, filtered to the candidate's package services and their available non-disabled locations (`dsx_availability.isAvailable = true` AND `Country.disabled IS NOT TRUE`), has `isRequired = true`. Fields with no applicable mapping rows default to `false`. Country-specific conditional requirements (where some but not all applicable mappings have `isRequired = true`) are not reflected here as baseline-required; the cross-section registry handles those at runtime. A field will appear with `isRequired: false` from this endpoint and be promoted to required by the registry when the candidate selects a relevant country in another section.
+
 ### POST /api/candidate/application/[token]/save
 
 Auto-saves the candidate's in-progress form data. Called automatically when the candidate moves between fields, adds an entry, or removes an entry.
