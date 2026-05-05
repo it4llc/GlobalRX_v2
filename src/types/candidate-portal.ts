@@ -108,3 +108,20 @@ export type FieldValue =
   | string[]
   | null
   | { [k: string]: string | number | boolean | null | undefined };
+
+// Personal Info field definition. Lifted out of PersonalInfoSection.tsx in the
+// TD-059 fix so portal-layout.tsx (the shell) can hold the same shape in
+// state and feed it to computePersonalInfoStatus when the cross-section
+// registry changes — even when the section isn't mounted.
+export interface PersonalInfoField {
+  requirementId: string;
+  name: string;
+  fieldKey: string;
+  dataType: string;
+  isRequired: boolean;
+  instructions?: string | null;
+  fieldData?: FieldMetadata | null;
+  displayOrder: number;
+  locked: boolean;
+  prefilledValue?: string | null;
+}
