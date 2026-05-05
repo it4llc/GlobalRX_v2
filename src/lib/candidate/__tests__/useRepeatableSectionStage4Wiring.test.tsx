@@ -202,7 +202,22 @@ describe('useRepeatableSectionStage4Wiring', () => {
     expect(onProgressUpdate).toHaveBeenLastCalledWith<[SectionStatus]>('incomplete');
   });
 
-  it('calls removeForSource exactly once on unmount with the section id', () => {
+  // TD-059 architectural decision — see commit 1ddc6bd:
+  // The original Stage 4 plan called for the hook to clear its source's
+  // contributions from the cross-section registry on unmount. That cleanup
+  // was REMOVED because Personal Info's lifted progress derivation needs
+  // those contributions to persist across tab navigation. If a candidate
+  // selects Australia on Address History, switches to Personal Info, then
+  // back to Address History, the registry must still hold the AU-triggered
+  // subject requirements throughout — otherwise the sidebar's Personal Info
+  // indicator drops back to not_started/complete each time the source
+  // section unmounts. Cleanup is now handled exclusively by:
+  //   - Effect 1's replace-semantics on country change (the source pushes
+  //     fresh entries; the shell's handler removes prior ones first).
+  //   - The per-entry removal callback when the candidate deletes an entry.
+  // Source: docs/specs/fix-td059-td060-...md and the bug-investigator's
+  // report on personal-info-shell-prefill-progress.
+  it('does NOT clear cross-section contributions on unmount — entries persist for the lifted Personal Info derivation', () => {
     const onCrossSectionRequirementsRemovedForSource = vi.fn();
 
     const { unmount } = renderHook(() =>
@@ -218,10 +233,12 @@ describe('useRepeatableSectionStage4Wiring', () => {
 
     unmount();
 
-    expect(onCrossSectionRequirementsRemovedForSource).toHaveBeenCalledTimes(1);
-    expect(onCrossSectionRequirementsRemovedForSource).toHaveBeenCalledWith(
-      'employment_history',
-    );
+    // After unmount, the cleanup callback must NOT have fired. The source
+    // section's contributions stay in the registry so Personal Info's
+    // shell-level progress effect can still see them while the section is
+    // mounted — and even when it is unmounted, since that's the whole
+    // point of TD-059's lifted derivation.
+    expect(onCrossSectionRequirementsRemovedForSource).not.toHaveBeenCalled();
   });
 
   it('does not throw when every callback is undefined', () => {
