@@ -14,10 +14,37 @@ export interface CandidateInvitationInfo {
   companyName: string;
 }
 
+// Phase 7 Stage 1: scope info attached to scoped sections (Address History,
+// Education, Employment) so the frontend can show the scope description
+// without a second fetch. Exposes translation keys (not English) so the new
+// in-section banners can localize cleanly. The legacy /scope endpoint still
+// returns English strings for backward compatibility — see plan §11.8.
+export interface CandidatePortalSectionScope {
+  scopeType:
+    | 'count_exact'
+    | 'count_specific'
+    | 'time_based'
+    | 'highest_degree'
+    | 'highest_degree_inc_hs'
+    | 'all_degrees'
+    | 'all';
+  scopeValue: number | null;
+  scopeDescriptionKey: string;
+  scopeDescriptionPlaceholders?: Record<string, string | number>;
+}
+
 export interface CandidatePortalSection {
   id: string;
   title: string;
-  type: 'workflow_section' | 'service_section' | 'personal_info' | 'address_history';
+  // Phase 7 Stage 1 added 'review_submit' for the synthetic Review & Submit
+  // entry the structure endpoint appends after all after_services workflow
+  // sections.
+  type:
+    | 'workflow_section'
+    | 'service_section'
+    | 'personal_info'
+    | 'address_history'
+    | 'review_submit';
   placement: 'before_services' | 'services' | 'after_services';
   // Status union narrowed in Phase 6 Stage 4 (BR 22) — `in_progress` was
   // replaced by `incomplete` so the value space matches the project-wide
@@ -30,6 +57,10 @@ export interface CandidatePortalSection {
   // Carries the full workflow section payload (content, fileUrl, etc.) so the
   // shell can render WorkflowSectionRenderer without a second fetch.
   workflowSection?: WorkflowSectionPayload;
+  // Phase 7 Stage 1: present on Address History, Education, and Employment
+  // sections. The structure endpoint resolves the most demanding scope from
+  // the package's services per Rule 19.
+  scope?: CandidatePortalSectionScope;
 }
 
 export interface CandidatePortalStructureResponse {

@@ -2,16 +2,31 @@
 
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import CrossSectionRequirementBanner from '@/components/candidate/CrossSectionRequirementBanner';
+import { SectionErrorBanner } from '@/components/candidate/SectionErrorBanner';
+import { FieldErrorMessage } from '@/components/candidate/FieldErrorMessage';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
 import { computePersonalInfoStatus } from '@/lib/candidate/sectionProgress';
 import type { FieldValue, PersonalInfoField } from '@/types/candidate-portal';
 import type { CrossSectionRequirementEntry, SectionStatus } from '@/types/candidate-stage4';
+import type { SectionValidationResult } from '@/lib/candidate/validation/types';
+
+// Phase 7 Stage 1 fix-up — local "is value present" helper. Mirrors the same
+// rule used in lib/candidate/sectionProgress.ts so the in-section red-border
+// state stays consistent with the section status the shell already computes
+// (cross-section-required field empty → status incomplete → red border + inline
+// error). Empty strings (post-trim) and empty arrays count as missing.
+function hasFieldValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+}
 
 interface PersonalInfoSectionProps {
   token: string;
@@ -37,6 +52,16 @@ interface PersonalInfoSectionProps {
   // auto-save so the shell's lifted progress effect always sees fresh values.
   // Avoids a /saved-data refetch round-trip on every save.
   onSavedValuesChange?: (next: Record<string, unknown>) => void;
+  // Phase 7 Stage 1 — server-derived validation state. Errors are emitted
+  // for every section regardless of visit status (the engine doesn't gate);
+  // `errorsVisible` is the gate the shell computes from sectionVisits +
+  // reviewPageVisitedAt. We pass both so the section can render the banner
+  // and per-field messages only when appropriate.
+  sectionValidation?: SectionValidationResult | null;
+  errorsVisible?: boolean;
+  // Phase 7 Stage 1 — invoked after a successful auto-save so the shell can
+  // re-fetch /validate. Kept optional so older callers / tests don't break.
+  onSaveSuccess?: () => void;
 }
 
 /**
@@ -52,6 +77,9 @@ export function PersonalInfoSection({
   crossSectionRequirements,
   onProgressUpdate,
   onSavedValuesChange,
+  sectionValidation,
+  errorsVisible,
+  onSaveSuccess,
 }: PersonalInfoSectionProps) {
   const { t } = useTranslation();
   const [formData, setFormData] = useState<Record<string, FieldValue>>({});
@@ -61,6 +89,22 @@ export function PersonalInfoSection({
 
   // Debounce the pending saves to batch them
   const debouncedPendingSaves = useDebounce(pendingSaves, 300);
+
+  // Bug fix (smoke testing — infinite loop on Personal Info): the auto-save
+  // effect previously listed `formData` in its dependency array. After a
+  // successful save we push formData up to the shell via
+  // onSavedValuesChange, which re-renders the shell, which passes a new
+  // initialSavedValues prop, which causes the hydration effect to call
+  // setFormData(...) with a fresh object reference. Because debouncedPendingSaves
+  // takes 300ms to catch up to the cleared pendingSaves Set, the new formData
+  // reference re-triggered the save effect with stale `debouncedPendingSaves` —
+  // looping forever. Per COMPONENT_STANDARDS Section 2.2 the fix is to read
+  // formData via a ref inside the effect so reference changes do not retrigger
+  // it.
+  const formDataRef = useRef(formData);
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
 
   // TD-059 — hydrate formData from shell-provided fields and saved values.
   // The shell fetches /personal-info-fields and /saved-data once on mount;
@@ -118,9 +162,14 @@ export function PersonalInfoSection({
       setSaveStatus('saving');
 
       try {
+        // Read formData via the ref (see Bug fix note above). The ref is
+        // updated synchronously after every render, so this reflects the
+        // latest committed values without making the effect depend on the
+        // formData reference itself.
+        const currentFormData = formDataRef.current;
         const fieldsToSave = Array.from(debouncedPendingSaves).map(requirementId => ({
           requirementId,
-          value: formData[requirementId]
+          value: currentFormData[requirementId]
         }));
 
         const response = await fetch(
@@ -148,7 +197,10 @@ export function PersonalInfoSection({
         // This avoids a /saved-data refetch on every save (the shell would
         // otherwise be one round-trip behind on registry-change recomputes
         // that fire while another tab is active).
-        onSavedValuesChange?.(formData);
+        onSavedValuesChange?.(currentFormData);
+        // Phase 7 Stage 1 — re-fetch /validate after the save lands so
+        // banner / field error visibility tracks the new saved values.
+        onSaveSuccess?.();
 
         // Clear saved indicator after 3 seconds
         setTimeout(() => {
@@ -171,7 +223,10 @@ export function PersonalInfoSection({
     };
 
     saveData();
-  }, [debouncedPendingSaves, formData, token, onSavedValuesChange]);
+    // formData is intentionally NOT a dependency — it is read via formDataRef
+    // to break the auto-save → onSavedValuesChange → setFormData → re-fire
+    // loop documented above.
+  }, [debouncedPendingSaves, token, onSavedValuesChange, onSaveSuccess]);
 
   // Phase 6 Stage 4 — recompute and report progress whenever fields, values,
   // or the cross-section registry change. The helper is pure; we translate
@@ -208,6 +263,45 @@ export function PersonalInfoSection({
     return set;
   }, [crossSectionRequirements]);
 
+  // Phase 7 Stage 1 — index field-level errors by fieldName for O(1) lookup
+  // when rendering each input. We use fieldName because the validation engine
+  // emits FieldError.fieldName matching the section's fieldKey/name pair.
+  const fieldErrorsByName = useMemo(() => {
+    const map: Record<string, { messageKey: string; placeholders?: Record<string, string | number> }> = {};
+    if (!sectionValidation || !errorsVisible) return map;
+    for (const fe of sectionValidation.fieldErrors) {
+      map[fe.fieldName] = { messageKey: fe.messageKey, placeholders: fe.placeholders };
+    }
+    return map;
+  }, [sectionValidation, errorsVisible]);
+
+  // Phase 7 Stage 1 fix-up — synthesize field-level errors locally for fields
+  // that are required ONLY because of a cross-section requirement (e.g.,
+  // Address History country forces Middle Name to be required for the
+  // subject). The /validate engine has no visibility into cross-section
+  // requirements (those live in browser memory), so without this local
+  // synthesis the empty cross-section-required field would never trigger
+  // the red-border / inline-error UI. Gated by errorsVisible to respect the
+  // "no errors until visit-and-departure" rule (Rule 4).
+  const fieldKeysWithCrossSectionRequiredEmpty = useMemo(() => {
+    const set = new Set<string>();
+    if (!errorsVisible) return set;
+    for (const field of fields) {
+      // Only synthesize for fields that are cross-section-required AND empty.
+      // If the field is locally required and empty, the validate engine still
+      // won't emit a FieldError today (the engine doesn't generate field
+      // errors for personal_info), but the same path catches that case too —
+      // we're conservative on the cross-section flag rather than always-on
+      // because a locally-required field is already shown with the red
+      // asterisk via the original isRequired prop.
+      if (!crossSectionRequiredKeys.has(field.fieldKey)) continue;
+      if (!hasFieldValue(formData[field.requirementId])) {
+        set.add(field.fieldKey);
+      }
+    }
+    return set;
+  }, [errorsVisible, fields, formData, crossSectionRequiredKeys]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -237,6 +331,19 @@ export function PersonalInfoSection({
           area it describes. */}
       <CrossSectionRequirementBanner requirements={crossSectionRequirements ?? []} />
 
+      {/* Phase 7 Stage 1 — section-level error banner (Rule 8). Renders only
+          when errors are gated visible AND the section has scope/gap/document
+          errors. Personal Info has no scope/gap/document errors per Rule 18,
+          so the banner self-hides; we still pass the props in case future
+          DSX configuration introduces document requirements here. */}
+      {errorsVisible && sectionValidation && (
+        <SectionErrorBanner
+          scopeErrors={sectionValidation.scopeErrors}
+          gapErrors={sectionValidation.gapErrors}
+          documentErrors={sectionValidation.documentErrors}
+        />
+      )}
+
       {/* Section header with save indicator */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-semibold">{t('candidate.portal.sections.personalInformation')}</h2>
@@ -252,34 +359,65 @@ export function PersonalInfoSection({
       <div className="space-y-4">
         {fields
           .sort((a, b) => a.displayOrder - b.displayOrder)
-          .map(field => (
-            <DynamicFieldRenderer
-              key={field.requirementId}
-              requirementId={field.requirementId}
-              name={field.name}
-              fieldKey={field.fieldKey}
-              dataType={field.dataType}
-              // Cross-section requirements registered for the `subject` target can mark a
-              // field as required even when its baseline DSX isRequired is false. Overlay
-              // here so the red-star indicator matches what computePersonalInfoStatus is
-              // already accounting for (Bug 2, surfaced in smoke testing of TD-059).
-              isRequired={field.isRequired || crossSectionRequiredKeys.has(field.fieldKey)}
-              instructions={field.instructions}
-              fieldData={field.fieldData}
-              value={formData[field.requirementId] || ''}
-              onChange={(value) => handleFieldChange(field.requirementId, value)}
-              onBlur={() => handleFieldBlur(field.requirementId)}
-              locked={field.locked}
-              // Phase 6 Stage 3: Personal Information is location-independent
-              // (Stage 1 spec Business Rule #10) and should never receive an
-              // address_block field. Passing null is defensive — if a
-              // misconfigured DSX field ever did appear here, the address
-              // block would fall back to free-text inputs (no country
-              // context, no subdivisions to load).
-              countryId={null}
-              token={token}
-            />
-          ))}
+          .map(field => {
+            const validationFieldError = fieldErrorsByName[field.name];
+            // Phase 7 Stage 1 fix-up — when the field is cross-section-required
+            // but empty, synthesize a "this field is required" error locally
+            // so the candidate sees both the red border (via hasError) AND the
+            // inline error message. Validation-engine field errors take
+            // precedence when present, since they may carry richer data
+            // (e.g., format errors with placeholders).
+            const isCrossSectionEmptyRequired =
+              fieldKeysWithCrossSectionRequiredEmpty.has(field.fieldKey);
+            const fieldError =
+              validationFieldError ??
+              (isCrossSectionEmptyRequired
+                ? { messageKey: 'candidate.validation.field.required', placeholders: undefined }
+                : undefined);
+            return (
+              <div key={field.requirementId}>
+                <DynamicFieldRenderer
+                  requirementId={field.requirementId}
+                  name={field.name}
+                  fieldKey={field.fieldKey}
+                  dataType={field.dataType}
+                  // Cross-section requirements registered for the `subject` target can mark a
+                  // field as required even when its baseline DSX isRequired is false. Overlay
+                  // here so the red-star indicator matches what computePersonalInfoStatus is
+                  // already accounting for (Bug 2, surfaced in smoke testing of TD-059).
+                  isRequired={field.isRequired || crossSectionRequiredKeys.has(field.fieldKey)}
+                  instructions={field.instructions}
+                  fieldData={field.fieldData}
+                  value={formData[field.requirementId] || ''}
+                  onChange={(value) => handleFieldChange(field.requirementId, value)}
+                  onBlur={() => handleFieldBlur(field.requirementId)}
+                  locked={field.locked}
+                  // Phase 7 Stage 1 fix-up — drive aria-invalid (red border) when
+                  // the validate engine reported a field error OR when the field
+                  // is cross-section-required and currently empty (the engine
+                  // doesn't see cross-section reqs, so we synthesize locally).
+                  hasError={Boolean(validationFieldError) || isCrossSectionEmptyRequired}
+                  // Phase 6 Stage 3: Personal Information is location-independent
+                  // (Stage 1 spec Business Rule #10) and should never receive an
+                  // address_block field. Passing null is defensive — if a
+                  // misconfigured DSX field ever did appear here, the address
+                  // block would fall back to free-text inputs (no country
+                  // context, no subdivisions to load).
+                  countryId={null}
+                  token={token}
+                />
+                {/* Phase 7 Stage 1 — Rule 4 / Rule 5 — required + format
+                    errors only render when the section's errors are visible. */}
+                {fieldError && (
+                  <FieldErrorMessage
+                    messageKey={fieldError.messageKey}
+                    placeholders={fieldError.placeholders}
+                    fieldName={field.name}
+                  />
+                )}
+              </div>
+            );
+          })}
       </div>
     </div>
   );

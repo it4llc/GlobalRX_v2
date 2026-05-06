@@ -20,12 +20,20 @@
 import React from 'react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { sanitizeWorkflowContent } from '@/lib/candidate/sanitizeWorkflowContent';
+import { SectionErrorBanner } from '@/components/candidate/SectionErrorBanner';
 import type { WorkflowSectionPayload } from '@/types/candidate-stage4';
+import type { SectionValidationResult } from '@/lib/candidate/validation/types';
 
 interface WorkflowSectionRendererProps {
   section: WorkflowSectionPayload;
   acknowledged: boolean;
   onAcknowledge: (checked: boolean) => void;
+  // Phase 7 Stage 1 — workflow sections only carry field/document errors
+  // (no scope, no gap per Rule 18). When errorsVisible is true and the
+  // result has document errors (e.g., the workflow content references a
+  // required document) the banner renders above the section content.
+  sectionValidation?: SectionValidationResult | null;
+  errorsVisible?: boolean;
 }
 
 // Defense-in-depth allow-list for the document `href`. The fileUrl is
@@ -46,6 +54,8 @@ export default function WorkflowSectionRenderer({
   section,
   acknowledged,
   onAcknowledge,
+  sectionValidation,
+  errorsVisible,
 }: WorkflowSectionRendererProps) {
   const { t } = useTranslation();
 
@@ -55,6 +65,16 @@ export default function WorkflowSectionRenderer({
 
   return (
     <div className="space-y-4" data-testid="workflow-section-renderer">
+      {/* Phase 7 Stage 1 — workflow section error banner. Only document
+          errors are possible here (Rule 18 — no scope/gap on workflow
+          sections); the banner self-hides when nothing is to show. */}
+      {errorsVisible && sectionValidation && (
+        <SectionErrorBanner
+          scopeErrors={sectionValidation.scopeErrors}
+          gapErrors={sectionValidation.gapErrors}
+          documentErrors={sectionValidation.documentErrors}
+        />
+      )}
       <h2 className="text-xl font-semibold text-gray-900">{section.name}</h2>
 
       {section.type === 'text' && (
