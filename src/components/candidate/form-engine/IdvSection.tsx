@@ -2,15 +2,18 @@
 
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
+import { SectionErrorBanner } from '@/components/candidate/SectionErrorBanner';
+import { FieldErrorMessage } from '@/components/candidate/FieldErrorMessage';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
 import { computeIdvStatus } from '@/lib/candidate/sectionProgress';
 import type { FieldMetadata, DocumentMetadata, FieldValue } from '@/types/candidate-portal';
 import type { SectionStatus } from '@/types/candidate-stage4';
+import type { SectionValidationResult } from '@/lib/candidate/validation/types';
 import {
   Select,
   SelectContent,
@@ -40,6 +43,12 @@ interface IdvSectionProps {
   // cross-section target in Stage 4 (BR 17 — only `subject` is) so no banner
   // or registry wiring is required here.
   onProgressUpdate?: (status: SectionStatus) => void;
+  // Phase 7 Stage 1 — server-derived validation state. IDV has no scope/gap
+  // checks (Rule 18) but document errors are possible if the DSX requirement
+  // configuration includes any.
+  sectionValidation?: SectionValidationResult | null;
+  errorsVisible?: boolean;
+  onSaveSuccess?: () => void;
 }
 
 /**
@@ -53,7 +62,14 @@ interface IdvSectionProps {
  * without affecting the rest of the application. The parent only needs to know
  * whether IDV is started/complete, not the internal field details.
  */
-export function IdvSection({ token, serviceIds, onProgressUpdate }: IdvSectionProps) {
+export function IdvSection({
+  token,
+  serviceIds,
+  onProgressUpdate,
+  sectionValidation,
+  errorsVisible,
+  onSaveSuccess,
+}: IdvSectionProps) {
   const { t } = useTranslation();
   const [countries, setCountries] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('');
@@ -278,6 +294,9 @@ export function IdvSection({ token, serviceIds, onProgressUpdate }: IdvSectionPr
         setSaveStatus('saved');
         setPendingSaves(new Set());
 
+        // Phase 7 Stage 1 — re-fetch /validate after the save lands.
+        onSaveSuccess?.();
+
         // Clear saved indicator after 3 seconds
         setTimeout(() => {
           setSaveStatus('idle');
@@ -337,8 +356,29 @@ export function IdvSection({ token, serviceIds, onProgressUpdate }: IdvSectionPr
     onProgressUpdate(status);
   }, [selectedCountry, fields, formData, onProgressUpdate]);
 
+  // Phase 7 Stage 1 — index field-level errors by fieldName for O(1) lookup
+  // when rendering each input.
+  const fieldErrorsByName = useMemo(() => {
+    const map: Record<string, { messageKey: string; placeholders?: Record<string, string | number> }> = {};
+    if (!sectionValidation || !errorsVisible) return map;
+    for (const fe of sectionValidation.fieldErrors) {
+      map[fe.fieldName] = { messageKey: fe.messageKey, placeholders: fe.placeholders };
+    }
+    return map;
+  }, [sectionValidation, errorsVisible]);
+
   return (
     <div className="space-y-6">
+      {/* Phase 7 Stage 1 — section-level error banner. IDV has no scope/gap
+          checks per Rule 18; document errors render here when configured. */}
+      {errorsVisible && sectionValidation && (
+        <SectionErrorBanner
+          scopeErrors={sectionValidation.scopeErrors}
+          gapErrors={sectionValidation.gapErrors}
+          documentErrors={sectionValidation.documentErrors}
+        />
+      )}
+
       {/* Section header with save indicator */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-semibold">{t('candidate.portal.sections.identityVerification')}</h2>
@@ -387,28 +427,39 @@ export function IdvSection({ token, serviceIds, onProgressUpdate }: IdvSectionPr
             <div className="space-y-4">
               {fields
                 .filter(field => field.type === 'field') // Only show field types, not documents
-                .map(field => (
-                  <DynamicFieldRenderer
-                    key={field.requirementId}
-                    requirementId={field.requirementId}
-                    name={field.name}
-                    fieldKey={field.fieldKey}
-                    dataType={field.dataType}
-                    isRequired={field.isRequired}
-                    instructions={field.instructions}
-                    fieldData={field.fieldData}
-                    value={formData[field.requirementId] || ''}
-                    onChange={(value) => handleFieldChange(field.requirementId, value)}
-                    onBlur={() => handleFieldBlur(field.requirementId)}
-                    // Phase 6 Stage 3: defensive consistency. IDV doesn't
-                    // expect address_block fields today, but if a future DSX
-                    // configuration adds one, this prop must be present so
-                    // the embedded AddressBlockInput can populate its state
-                    // dropdown.
-                    countryId={selectedCountry || null}
-                    token={token}
-                  />
-                ))}
+                .map(field => {
+                  const fieldError = fieldErrorsByName[field.name];
+                  return (
+                    <div key={field.requirementId}>
+                      <DynamicFieldRenderer
+                        requirementId={field.requirementId}
+                        name={field.name}
+                        fieldKey={field.fieldKey}
+                        dataType={field.dataType}
+                        isRequired={field.isRequired}
+                        instructions={field.instructions}
+                        fieldData={field.fieldData}
+                        value={formData[field.requirementId] || ''}
+                        onChange={(value) => handleFieldChange(field.requirementId, value)}
+                        onBlur={() => handleFieldBlur(field.requirementId)}
+                        // Phase 6 Stage 3: defensive consistency. IDV doesn't
+                        // expect address_block fields today, but if a future DSX
+                        // configuration adds one, this prop must be present so
+                        // the embedded AddressBlockInput can populate its state
+                        // dropdown.
+                        countryId={selectedCountry || null}
+                        token={token}
+                      />
+                      {fieldError && (
+                        <FieldErrorMessage
+                          messageKey={fieldError.messageKey}
+                          placeholders={fieldError.placeholders}
+                          fieldName={field.name}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>

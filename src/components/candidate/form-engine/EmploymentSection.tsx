@@ -17,6 +17,13 @@ import {
   buildSubjectRequirementsForEntries,
   useRepeatableSectionStage4Wiring,
 } from '@/lib/candidate/useRepeatableSectionStage4Wiring';
+// Phase 7 Stage 1: extracted constants so dateExtractors.ts (validation engine)
+// and this section share a single fieldKey alias source. See
+// docs/specs/phase7-stage1-validation-scope-gaps-review-technical-plan.md §5.3.
+import {
+  CURRENTLY_EMPLOYED_FIELD_KEYS,
+  END_DATE_FIELD_KEYS,
+} from './employmentDateFieldKeys';
 import type {
   EntryData,
   RepeatableFieldValue,
@@ -72,6 +79,9 @@ interface EmploymentSectionProps {
     entryIndex: number,
   ) => void;
   onCrossSectionRequirementsRemovedForSource?: (triggeredBy: string) => void;
+  // Phase 7 Stage 1 — invoked after a successful auto-save so the shell can
+  // re-fetch /validate. Matches the prop in PersonalInfoSection / IdvSection.
+  onSaveSuccess?: () => void;
 }
 
 // Triggered-by source identifier used for every cross-section registry entry
@@ -92,6 +102,7 @@ export function EmploymentSection({
   onCrossSectionRequirementsChanged,
   onCrossSectionRequirementsRemovedForEntry,
   onCrossSectionRequirementsRemovedForSource,
+  onSaveSuccess,
 }: EmploymentSectionProps) {
   const { t } = useTranslation();
   const [scope, setScope] = useState<ScopeInfo | null>(null);
@@ -387,6 +398,9 @@ export function EmploymentSection({
       }
 
       setSaveStatus('saved');
+      // Phase 7 Stage 1 — re-fetch /validate after the save lands so the
+      // shell-rendered SectionErrorBanner reflects the updated scope/gap state.
+      onSaveSuccess?.();
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       logger.error('Failed to save employment entries', {
@@ -401,27 +415,9 @@ export function EmploymentSection({
   // Match by fieldKey only (not display name). Display labels are localized,
   // so name-based matching breaks for non-English configurations. Substring
   // matching also risks unrelated fields like "noncurrentlyemployed" — these
-  // helpers use exact fieldKey matches.
-  const CURRENTLY_EMPLOYED_FIELD_KEYS = new Set([
-    'currentlyEmployed',
-    'isCurrent',
-    'isCurrentlyEmployed',
-    'currentEmployment',
-    'current_employment',
-    'currently_employed',
-    'is_current',
-    'is_currently_employed'
-  ]);
-
-  const END_DATE_FIELD_KEYS = new Set([
-    'endDate',
-    'toDate',
-    'end_date',
-    'to_date',
-    'dateTo',
-    'date_to'
-  ]);
-
+  // helpers use exact fieldKey matches. The alias sets themselves are imported
+  // from `./employmentDateFieldKeys` so the validation engine and this
+  // component cannot drift apart.
   const isCurrentlyEmployedField = (field: DsxField): boolean => {
     return CURRENTLY_EMPLOYED_FIELD_KEYS.has(field.fieldKey);
   };

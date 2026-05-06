@@ -32,6 +32,14 @@ export interface DynamicFieldProps {
   onBlur?: () => void;
   locked?: boolean;
   error?: string;
+  // Phase 7 Stage 1 fix-up — when true, the rendered input gets
+  // aria-invalid set so the existing Tailwind `aria-invalid:border-destructive`
+  // styling on the shared Input component fires. Used by Personal Info to
+  // show the red-border state for cross-section-required fields that are
+  // empty after the candidate has visited and departed the section. The
+  // text-field default case wires this through; richer field types
+  // (select / address block) currently rely on `error` text only.
+  hasError?: boolean;
   // Phase 6 Stage 3: required for address_block fields so the embedded
   // AddressBlockInput can populate its state/province dropdown via the
   // /subdivisions endpoint. Optional because non-address-block fields
@@ -62,6 +70,7 @@ export function DynamicFieldRenderer({
   onBlur,
   locked = false,
   error,
+  hasError = false,
   countryId = null,
   token
 }: DynamicFieldProps) {
@@ -246,7 +255,10 @@ export function DynamicFieldRenderer({
       );
     }
 
-    // Default: render as input field
+    // Default: render as input field. The Input component already styles
+    // `aria-invalid` with the destructive border (see src/components/ui/input.tsx),
+    // so wiring the hasError prop here is enough to surface the red-border
+    // state without any new CSS.
     return (
       <Input
         id={`field-${fieldKey}`}
@@ -256,6 +268,7 @@ export function DynamicFieldRenderer({
         onBlur={onBlur}
         disabled={locked}
         readOnly={locked}
+        aria-invalid={hasError || undefined}
         className={`min-h-[44px] text-base ${locked ? 'bg-gray-100' : ''}`}
         placeholder={locked ? '' : `Enter ${name}`}
         data-testid={`field-${fieldKey}`}

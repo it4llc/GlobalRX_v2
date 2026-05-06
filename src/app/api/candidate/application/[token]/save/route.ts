@@ -8,6 +8,15 @@ import { z } from 'zod';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
 
 import type { CandidateFormData, SavedFieldData } from '@/types/candidate-portal';
+// Phase 7 Stage 1: visit-tracking save shape merges into formData using the
+// pure helpers in sectionVisitTracking.ts. The handler dispatches new
+// `section_visit_tracking` requests through the helpers below; existing four
+// shapes are unchanged.
+import {
+  mergeReviewPageVisitedAt,
+  mergeSectionVisits,
+  type SectionVisitsMap,
+} from '@/lib/candidate/sectionVisitTracking';
 
 // Schema for save request body (flat fields structure).
 // Phase 6 Stage 4 widened the per-field `value` union to also accept JSON
@@ -109,7 +118,25 @@ const addressHistorySaveRequestSchema = z.object({
   ]))
 });
 
-// Inferred types for the three request shapes. These give us a typed payload
+// Phase 7 Stage 1: visit-tracking save shape. `section_visit_tracking`
+// requests update formData.sectionVisits (and/or formData.reviewPageVisitedAt)
+// without touching formData.sections. The body may include either or both
+// of the two top-level fields — partial updates are valid.
+const visitTrackingSaveRequestSchema = z.object({
+  sectionType: z.literal('section_visit_tracking'),
+  sectionVisits: z
+    .array(
+      z.object({
+        sectionId: z.string().min(1),
+        visitedAt: z.string().datetime(),
+        departedAt: z.string().datetime().nullable(),
+      }),
+    )
+    .optional(),
+  reviewPageVisitedAt: z.string().datetime().nullable().optional(),
+});
+
+// Inferred types for the request shapes. These give us a typed payload
 // after validation succeeds so we don't need `as any` casts when reading
 // fields/entries/aggregatedFields.
 type FlatSaveRequest = z.infer<typeof saveRequestSchema>;
@@ -216,6 +243,62 @@ export async function POST(
 
     // Step 3: Parse and validate request body
     const body = await request.json();
+
+    // Phase 7 Stage 1: handle the visit-tracking shape first. It is a sibling
+    // of the existing four save shapes, not a replacement. The handler reads
+    // the existing formData, merges the incoming visit data via the pure
+    // helpers in sectionVisitTracking.ts, and writes the result back. No
+    // `formData.sections` mutation occurs in this branch.
+    if (body?.sectionType === 'section_visit_tracking') {
+      const validation = visitTrackingSaveRequestSchema.safeParse(body);
+      if (!validation.success) {
+        return NextResponse.json(
+          { error: 'Invalid request body', details: validation.error.errors },
+          { status: 400 },
+        );
+      }
+
+      const invitation = await prisma.candidateInvitation.findUnique({
+        where: { token },
+      });
+      if (!invitation) {
+        return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
+      }
+      if (new Date(invitation.expiresAt) < new Date()) {
+        return NextResponse.json({ error: 'Invitation expired' }, { status: 410 });
+      }
+      if (invitation.status === INVITATION_STATUSES.COMPLETED) {
+        return NextResponse.json({ error: 'Invitation already completed' }, { status: 410 });
+      }
+
+      const currentFormData: CandidateFormData =
+        (invitation.formData as unknown as CandidateFormData) || { sections: {} };
+      const existingVisits = (currentFormData.sectionVisits as unknown as SectionVisitsMap | undefined) ?? {};
+      const existingReviewVisitedAt =
+        (currentFormData.reviewPageVisitedAt as unknown as string | null | undefined) ?? null;
+
+      const mergedVisits = mergeSectionVisits(existingVisits, validation.data.sectionVisits ?? []);
+      const mergedReviewVisitedAt = mergeReviewPageVisitedAt(
+        existingReviewVisitedAt,
+        validation.data.reviewPageVisitedAt,
+      );
+
+      const nextFormData: CandidateFormData = {
+        ...currentFormData,
+        sectionVisits: mergedVisits,
+        reviewPageVisitedAt: mergedReviewVisitedAt,
+      };
+
+      await prisma.candidateInvitation.update({
+        where: { id: invitation.id },
+        data: {
+          formData: nextFormData as unknown as Prisma.InputJsonValue,
+          lastAccessedAt: new Date(),
+        },
+      });
+
+      return NextResponse.json({ success: true, savedAt: new Date().toISOString() });
+    }
 
     // Address history (Phase 6 Stage 3) uses entries + aggregatedFields.
     // Education/employment use entries only. Personal info/IDV/etc. use flat

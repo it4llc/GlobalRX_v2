@@ -29,7 +29,7 @@ Returns the list of sections the candidate needs to complete, assembled from wor
   "sections": [{
     "id": "string",
     "title": "string",
-    "type": "workflow_section | service_section | personal_info | address_history",
+    "type": "workflow_section | service_section | personal_info | address_history | review_submit",
     "placement": "before_services | services | after_services",
     "status": "not_started | incomplete | complete",
     "order": "number",
@@ -45,12 +45,22 @@ Returns the list of sections the candidate needs to complete, assembled from wor
       "placement": "before_services | after_services",
       "displayOrder": "number",
       "isRequired": "boolean"
+    },
+    "scope": {
+      "scopeType": "count_exact | count_specific | time_based | highest_degree | highest_degree_inc_hs | all_degrees | all",
+      "scopeValue": "number | null",
+      "scopeDescriptionKey": "string (translation key)",
+      "scopeDescriptionPlaceholders": "object | undefined"
     }
   }]
 }
 ```
 
 `workflowSection` is only present when `type === "workflow_section"`. It carries the full content payload so the client can render the section without a second fetch.
+
+`scope` is only present on scoped sections: Address History (`type === "address_history"`), Education (`functionalityType === "verification-edu"`), and Employment (`functionalityType === "verification-emp"`). The scope reflects the most-demanding scope across all package services sharing that functionality type (spec Rule 19). `scopeDescriptionKey` is a translation key — not an English string — so the client can localize it.
+
+Phase 7 Stage 1 appends a synthetic `review_submit` section entry at the end of the list (after all after-services workflow sections). Its `id` is always `"review_submit"`, its `type` is `"review_submit"`, and its `placement` is `"after_services"`. It carries no `workflowSection` or `scope` payload.
 
 `status` always returns `"not_started"` from this endpoint (Phase 6 Stage 4, Business Rule 15). Clients are responsible for recomputing progress locally after each auto-save and overriding this initial value. The status value space changed from Stage 3: `"in_progress"` has been replaced by `"incomplete"` (Business Rule 22).
 
@@ -159,7 +169,22 @@ Returns personal information fields from across all package services where the D
 
 Auto-saves the candidate's in-progress form data. Called automatically when the candidate moves between fields, adds an entry, or removes an entry.
 
-The endpoint accepts two distinct request shapes, dispatched by `sectionType`:
+The endpoint accepts five distinct request shapes, dispatched by `sectionType`:
+
+**Visit-tracking format** — Phase 7 Stage 1. Used to persist section visit records and the Review & Submit visit flag without touching `formData.sections`:
+```json
+{
+  "sectionType": "section_visit_tracking",
+  "sectionVisits": [{
+    "sectionId": "string",
+    "visitedAt": "ISO 8601 timestamp",
+    "departedAt": "ISO 8601 timestamp | null"
+  }],
+  "reviewPageVisitedAt": "ISO 8601 timestamp | null"
+}
+```
+
+Both `sectionVisits` and `reviewPageVisitedAt` are optional; either or both may be included in a single request. The server merges the incoming visit data using immutable rules: `visitedAt` is never overwritten once set; `departedAt`, once non-null, is never cleared; `reviewPageVisitedAt`, once set, is never cleared.
 
 **Flat-fields format** — used for `personal_info`, `idv`, `workflow_section`, and `service_section`:
 ```json
@@ -292,6 +317,75 @@ The bucket key is the `workflow_sections.id` UUID (matching the key in `formData
 
 Repeatable sections are only present in the response when the candidate has previously saved at least one entry — they are not auto-created.
 
+Phase 7 Stage 1 extended the response to include visit tracking data as siblings of `sections`:
+
+```json
+{
+  "sections": { "...": "..." },
+  "sectionVisits": {
+    "<sectionId>": { "visitedAt": "ISO", "departedAt": "ISO | null" }
+  },
+  "reviewPageVisitedAt": "ISO | null"
+}
+```
+
+`sectionVisits` is an empty object `{}` when no visit data has been saved. `reviewPageVisitedAt` is `null` until the candidate first visits the Review & Submit page.
+
+### POST /api/candidate/application/[token]/validate
+
+Phase 7 Stage 1. Runs the full validation engine for the candidate and returns per-section status and error lists. Called by the client whenever validation results are needed — after section departure, on Review & Submit page load, and after each auto-save. Results are never cached.
+
+**Authentication:** Valid `candidate_session` cookie with matching token.
+
+**Request body:** none.
+
+**Response (200):**
+```json
+{
+  "sections": [{
+    "sectionId": "string",
+    "status": "not_started | incomplete | complete",
+    "fieldErrors": [{
+      "fieldName": "string",
+      "messageKey": "string",
+      "placeholders": "object | undefined"
+    }],
+    "scopeErrors": [{
+      "messageKey": "string",
+      "placeholders": "object"
+    }],
+    "gapErrors": [{
+      "messageKey": "string",
+      "placeholders": "object",
+      "gapStart": "ISO date string",
+      "gapEnd": "ISO date string",
+      "gapDays": "number"
+    }],
+    "documentErrors": [{
+      "requirementId": "string (UUID)",
+      "documentNameKey": "string (translation key)"
+    }]
+  }],
+  "summary": {
+    "sections": [{
+      "sectionId": "string",
+      "sectionName": "string",
+      "status": "not_started | incomplete | complete",
+      "errors": ["ReviewError union — see types.ts"]
+    }],
+    "allComplete": "boolean",
+    "totalErrors": "number"
+  }
+}
+```
+
+**Errors:**
+- `401` — No session.
+- `403` — Session token does not match URL token.
+- `404` — Invitation not found.
+- `410` — Invitation expired or already completed.
+- `500` — Validation engine threw.
+
 ### POST /api/candidate/application/[token]/upload
 
 Phase 6 Stage 4. Accepts a single document file along with a requirement identifier. Stores the file to disk and returns metadata. Does **not** write a database row — the caller persists the metadata on the next auto-save via the standard `/save` endpoint.
@@ -415,3 +509,20 @@ Form data is stored in the `formData` JSON column on the `CandidateInvitation` t
 ```
 
 Repeatable sections (`education`, `employment`) store entries directly under the section. Whole-section replacement on save means the stored `entries` array is always overwritten with the request body's `entries` array.
+
+Phase 7 Stage 1 added two sibling keys alongside `sections` to persist visit tracking data:
+
+```json
+{
+  "sections": { "...": "..." },
+  "sectionVisits": {
+    "<sectionId>": {
+      "visitedAt": "ISO 8601 timestamp",
+      "departedAt": "ISO 8601 timestamp | null"
+    }
+  },
+  "reviewPageVisitedAt": "ISO 8601 timestamp | null"
+}
+```
+
+Both keys default to their empty state (`{}` and `null`) when no visit data has been saved. They are written by the `section_visit_tracking` save shape and read back by the `/saved-data` endpoint.

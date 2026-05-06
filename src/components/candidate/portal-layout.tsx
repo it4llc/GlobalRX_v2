@@ -13,7 +13,20 @@ import { EducationSection } from './form-engine/EducationSection';
 import { EmploymentSection } from './form-engine/EmploymentSection';
 import { AddressHistorySection } from './form-engine/AddressHistorySection';
 import WorkflowSectionRenderer from './form-engine/WorkflowSectionRenderer';
+import { ReviewSubmitPage } from './review-submit/ReviewSubmitPage';
+import { SectionErrorBanner } from './SectionErrorBanner';
 import { clientLogger as logger } from '@/lib/client-logger';
+// Phase 7 Stage 1 — visit tracking + /validate-driven error display.
+// usePortalValidation owns sectionVisits, reviewPageVisitedAt, and the
+// FullValidationResult; the layout consumes it to render error banners
+// and to gate the Review & Submit page.
+import { usePortalValidation } from '@/lib/candidate/usePortalValidation';
+import { mergeSectionStatus } from '@/lib/candidate/validation/mergeSectionStatus';
+import type { SectionVisitsMap } from '@/lib/candidate/sectionVisitTracking';
+import type {
+  ReviewError,
+  SectionValidationResult,
+} from '@/lib/candidate/validation/types';
 import {
   addCrossSectionRequirements,
   getCrossSectionRequirements,
@@ -93,6 +106,33 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   // successful auto-save.
   const [personalInfoSavedValues, setPersonalInfoSavedValues] = useState<Record<string, unknown>>({});
 
+  // Phase 7 Stage 1 — saved-data hydration payload. Null until /saved-data
+  // settles (success or failure); populated with `sectionVisits` and
+  // `reviewPageVisitedAt` so the validation hook can adopt them on mount and
+  // visit state survives a browser reload (Spec Rules 1/2/3).
+  const [savedDataHydration, setSavedDataHydration] = useState<{
+    sectionVisits: SectionVisitsMap;
+    reviewPageVisitedAt: string | null;
+  } | null>(null);
+
+  // Phase 7 Stage 1 — visit tracking + validation result driven by
+  // usePortalValidation. The hook hydrates from initial values pushed in
+  // by the saved-data hydration effect below, owns the /save +
+  // /validate round-trips, and exposes per-section "errors visible"
+  // gating per Rules 4 / 8 / 34.
+  const {
+    validationResult,
+    isErrorVisible,
+    markSectionVisited,
+    markSectionDeparted,
+    markReviewVisited,
+    refreshValidation,
+  } = usePortalValidation({
+    token,
+    initialSectionVisits: savedDataHydration?.sectionVisits,
+    initialReviewPageVisitedAt: savedDataHydration?.reviewPageVisitedAt,
+  });
+
   // Handle responsive behavior
   useEffect(() => {
     const handleResize = () => {
@@ -127,6 +167,9 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
           `/api/candidate/application/${encodeURIComponent(token)}/saved-data`,
         );
         if (!response.ok) {
+          if (!cancelled) {
+            setSavedDataHydration({ sectionVisits: {}, reviewPageVisitedAt: null });
+          }
           return;
         }
         const data = await response.json();
@@ -165,10 +208,24 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             );
           }
         }
+
+        // Phase 7 Stage 1 — section_visit_tracking and review-page visit
+        // are siblings of `sections` in the saved-data response. Surface
+        // them through savedDataHydration so usePortalValidation can adopt
+        // them on its first non-undefined hydration tick.
+        const incomingSectionVisits =
+          (data?.sectionVisits ?? {}) as SectionVisitsMap;
+        const incomingReviewPageVisitedAt =
+          (data?.reviewPageVisitedAt ?? null) as string | null;
+
         if (!cancelled) {
           setWorkflowAcknowledgments(nextAcknowledgments);
           setPersonalInfoSavedValues(nextPersonalInfoValues);
           setSectionStatuses((prev) => ({ ...prev, ...statusUpdates }));
+          setSavedDataHydration({
+            sectionVisits: incomingSectionVisits,
+            reviewPageVisitedAt: incomingReviewPageVisitedAt,
+          });
         }
       } catch (error) {
         // Hydration failure is non-fatal — the candidate can still tick the
@@ -178,12 +235,27 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
           event: 'saved_data_hydrate_error',
           error: error instanceof Error ? error.message : 'Unknown error',
         });
+        if (!cancelled) {
+          setSavedDataHydration({ sectionVisits: {}, reviewPageVisitedAt: null });
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [token, sections]);
+
+  // Phase 7 Stage 1 — mark the initially-active section visited once the
+  // saved-data hydration completes (Rule 2). Without this, the candidate's
+  // first section never gets a `visitedAt` record, so `markSectionDeparted`
+  // short-circuits when they navigate away and the section's errors stay
+  // hidden permanently. The hook's `markSectionVisited` itself short-circuits
+  // when the section already has a visit record, so re-runs are no-ops.
+  useEffect(() => {
+    if (!savedDataHydration) return;
+    if (!defaultSection) return;
+    markSectionVisited(defaultSection);
+  }, [savedDataHydration, defaultSection, markSectionVisited]);
 
   // TD-059 — One-time fetch of Personal Info field definitions. Owned by the
   // shell so the lifted progress effect below can run computePersonalInfoStatus
@@ -214,7 +286,20 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     };
   }, [token]);
 
+  // Phase 7 Stage 1 — every section click marks the previously-active section
+  // as departed (Rule 1 / 2) and the new section as visited (first-visit only).
+  // Clicking the synthetic Review & Submit entry additionally flips
+  // reviewPageVisitedAt from null → ISO timestamp (Rule 3 / 34), which makes
+  // every section's errors eligible for display on its next render.
   const handleSectionClick = (sectionId: string) => {
+    if (activeSection && activeSection !== sectionId) {
+      markSectionDeparted(activeSection);
+    }
+    if (sectionId === 'review_submit') {
+      markReviewVisited();
+    } else {
+      markSectionVisited(sectionId);
+    }
     setActiveSection(sectionId);
   };
 
@@ -336,16 +421,63 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     handleSectionProgressUpdate,
   ]);
 
-  // Sections augmented with their current computed status from sectionStatuses.
-  // The sidebar always renders the freshest status; falling back to the
-  // structure-endpoint value when none has been pushed yet.
+  // Sections augmented with their current computed status. The sidebar
+  // always renders the freshest available value; the merge logic (Rule 27)
+  // lives in `mergeSectionStatus` so this layout file only orchestrates
+  // the inputs. The synthetic `review_submit` entry mirrors
+  // `summary.allComplete` (complete when every section is, else
+  // not_started — the Review page itself never reports incomplete).
   const sectionsWithStatus = useMemo(
     () =>
-      sections.map((section) => ({
-        ...section,
-        status: sectionStatuses[section.id] ?? section.status,
-      })),
-    [sections, sectionStatuses],
+      sections.map((section) => {
+        if (section.type === 'review_submit') {
+          const allComplete = validationResult?.summary.allComplete ?? false;
+          return {
+            ...section,
+            status: allComplete ? ('complete' as const) : ('not_started' as const),
+          };
+        }
+        const validationStatus = validationResult?.sections.find(
+          (s) => s.sectionId === section.id,
+        )?.status;
+        return {
+          ...section,
+          status: mergeSectionStatus({
+            localStatus: sectionStatuses[section.id],
+            validationStatus,
+            fallbackStatus: section.status,
+          }),
+        };
+      }),
+    [sections, sectionStatuses, validationResult],
+  );
+
+  // Helper — return the per-section validation result (or null when /validate
+  // hasn't returned yet). The section components consume this to render
+  // SectionErrorBanner + FieldErrorMessage when isErrorVisible(sectionId) is
+  // true.
+  const getValidationForSection = useCallback(
+    (sectionId: string): SectionValidationResult | null => {
+      return (
+        validationResult?.sections.find((s) => s.sectionId === sectionId) ?? null
+      );
+    },
+    [validationResult],
+  );
+
+  // Phase 7 Stage 1 — Review-page tap-to-navigate handler (Rule 31).
+  // ReviewSubmitPage emits one of these per error click; we navigate to
+  // the section that owns the error so the candidate can act on it.
+  const handleReviewErrorNavigate = useCallback(
+    (sectionId: string, _error: ReviewError) => {
+      handleSectionClick(sectionId);
+    },
+    // handleSectionClick is stable enough for this use; we omit it from deps
+    // because it captures markSectionVisited/markSectionDeparted from the
+    // hook (themselves useCallback-stable). Adding it as a dep would force
+    // recreating this callback on every render with no behavior gain.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [markSectionVisited, markSectionDeparted, markReviewVisited, activeSection],
   );
 
   // Acknowledge handler invoked by a workflow section's checkbox. Updates the
@@ -377,6 +509,8 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             ],
           }),
         });
+        // Phase 7 Stage 1 — refresh validation after the workflow ack save.
+        void refreshValidation();
       } catch (error) {
         logger.error('Failed to save workflow acknowledgment', {
           event: 'workflow_acknowledgment_save_error',
@@ -384,7 +518,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
         });
       }
     },
-    [token, handleSectionProgressUpdate],
+    [token, handleSectionProgressUpdate, refreshValidation],
   );
 
   const getActiveContent = () => {
@@ -407,6 +541,40 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
       );
     }
 
+    // Phase 7 Stage 1 — Review & Submit page dispatch (Rule 29 / 30).
+    // Renders the section list with statuses + error counts; tapping a
+    // listed error navigates back to the owning section.
+    //
+    // Bug 1b / Bug 3 — pass the canonical sidebar section list (already
+    // in structure-endpoint order, with translation-key titles) so the
+    // Review page renders sections in sidebar order with localized
+    // titles instead of falling back to the validation engine's raw
+    // section IDs as `sectionName`. We exclude the synthetic Review &
+    // Submit entry from the descriptor list so the page does not try to
+    // render itself as one of its own listed sections.
+    if (section.type === 'review_submit') {
+      const reviewPageSections = sectionsWithStatus
+        .filter((s) => s.type !== 'review_submit')
+        .map((s) => ({ id: s.id, title: s.title }));
+      return (
+        <div className="p-6" data-testid="main-content">
+          <ReviewSubmitPage
+            validationResult={validationResult}
+            sections={reviewPageSections}
+            onErrorNavigate={handleReviewErrorNavigate}
+          />
+        </div>
+      );
+    }
+
+    // Phase 7 Stage 1 — per-section validation result + visibility flag
+    // forwarded to every section component. Sections render
+    // SectionErrorBanner / FieldErrorMessage when errorsVisible is true
+    // (Rule 4 / 8 / 34); otherwise they suppress display per the spec's
+    // "no errors until visited and departed" rule.
+    const sectionValidation = getValidationForSection(section.id);
+    const errorsVisible = isErrorVisible(section.id);
+
     // Render actual form sections for Personal Information and IDV
     if (section.type === 'personal_info') {
       return (
@@ -423,6 +591,10 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             crossSectionRequirements={subjectCrossSectionRequirements}
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
             onSavedValuesChange={setPersonalInfoSavedValues}
+            // Phase 7 Stage 1 — error banner + per-field error wiring.
+            sectionValidation={sectionValidation}
+            errorsVisible={errorsVisible}
+            onSaveSuccess={refreshValidation}
           />
         </div>
       );
@@ -435,6 +607,9 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             token={token}
             serviceIds={section.serviceIds || []}
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
+            sectionValidation={sectionValidation}
+            errorsVisible={errorsVisible}
+            onSaveSuccess={refreshValidation}
           />
         </div>
       );
@@ -449,16 +624,31 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     // Education / Employment. Subject-targeted contributions (e.g., Middle
     // Name when Country X is selected) flow through the cross-section
     // registry and surface in PersonalInfoSection (BR 17 / User Flow 3).
+    // Phase 7 Stage 1 — for the repeatable sections (Address History,
+    // Education, Employment) the SectionErrorBanner is rendered HERE in
+    // the shell rather than inside each section. This keeps the section
+    // components below their file-size soft trigger and avoids a wide
+    // prop-surface change to three large files. Per-field error display
+    // for repeatable rows is deferred to a follow-up; the banner alone
+    // satisfies Rule 8 / 10 / 11 / 25 for scope/gap/document errors which
+    // are the dominant case in these sections (Rule 18).
     if (section.type === 'address_history') {
       return (
         <div className="p-6" data-testid="main-content">
+          {errorsVisible && sectionValidation && (
+            <SectionErrorBanner sectionId={section.id}
+              scopeErrors={sectionValidation.scopeErrors}
+              gapErrors={sectionValidation.gapErrors}
+              documentErrors={sectionValidation.documentErrors}
+            />
+          )}
           <AddressHistorySection
             token={token}
             serviceIds={section.serviceIds || []}
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
             onCrossSectionRequirementsChanged={handleCrossSectionRequirementsChanged}
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
-            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource}
+            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={refreshValidation}
           />
         </div>
       );
@@ -467,13 +657,20 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     if (section.type === 'service_section' && section.functionalityType === 'verification-edu') {
       return (
         <div className="p-6" data-testid="main-content">
+          {errorsVisible && sectionValidation && (
+            <SectionErrorBanner sectionId={section.id}
+              scopeErrors={sectionValidation.scopeErrors}
+              gapErrors={sectionValidation.gapErrors}
+              documentErrors={sectionValidation.documentErrors}
+            />
+          )}
           <EducationSection
             token={token}
             serviceIds={section.serviceIds || []}
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
             onCrossSectionRequirementsChanged={handleCrossSectionRequirementsChanged}
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
-            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource}
+            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={refreshValidation}
           />
         </div>
       );
@@ -482,13 +679,20 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     if (section.type === 'service_section' && section.functionalityType === 'verification-emp') {
       return (
         <div className="p-6" data-testid="main-content">
+          {errorsVisible && sectionValidation && (
+            <SectionErrorBanner sectionId={section.id}
+              scopeErrors={sectionValidation.scopeErrors}
+              gapErrors={sectionValidation.gapErrors}
+              documentErrors={sectionValidation.documentErrors}
+            />
+          )}
           <EmploymentSection
             token={token}
             serviceIds={section.serviceIds || []}
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
             onCrossSectionRequirementsChanged={handleCrossSectionRequirementsChanged}
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
-            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource}
+            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={refreshValidation}
           />
         </div>
       );
@@ -504,6 +708,8 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             section={section.workflowSection}
             acknowledged={workflowAcknowledgments[section.id] ?? false}
             onAcknowledge={(checked) => handleWorkflowAcknowledge(section, checked)}
+            sectionValidation={sectionValidation}
+            errorsVisible={errorsVisible}
           />
         </div>
       );

@@ -141,6 +141,16 @@ type StoredEntry = NonNullable<FormSectionData['entries']>[number];
  * personal_info / idv, it is conditional on the package containing
  * record-type services. The structure endpoint controls whether it appears.
  *
+ * Phase 7 Stage 1 also surfaces visit tracking and the Review & Submit visit
+ * flag at the top level of the response (sibling to `sections`):
+ * {
+ *   sections: { ... },
+ *   sectionVisits: {                          // empty object when unset
+ *     [sectionId]: { visitedAt: ISO, departedAt: ISO | null }
+ *   },
+ *   reviewPageVisitedAt: ISO | null            // null until first visit
+ * }
+ *
  * Errors:
  *   - 401: No session or invalid session
  *   - 403: Session token doesn't match URL token
@@ -190,6 +200,17 @@ export async function GET(
     // Step 4: Extract saved data from formData
     const formData: CandidateFormData = (invitation.formData as unknown as CandidateFormData) || { sections: {} };
     const sections = formData.sections || {};
+    // Phase 7 Stage 1: surface visit tracking + Review-page visit flag so the
+    // portal layout can hydrate them on mount. Both keys live as siblings of
+    // `sections` inside formData and are written by the new
+    // `section_visit_tracking` save shape (see save/route.ts).
+    const sectionVisits =
+      (formData.sectionVisits as unknown as Record<
+        string,
+        { visitedAt: string; departedAt: string | null }
+      > | undefined) ?? {};
+    const reviewPageVisitedAt =
+      (formData.reviewPageVisitedAt as unknown as string | null | undefined) ?? null;
 
     // Step 5: Format response
     // Transform saved data into the expected format
@@ -322,7 +343,11 @@ export async function GET(
       formattedSections.idv = { fields: [] };
     }
 
-    return NextResponse.json({ sections: formattedSections });
+    return NextResponse.json({
+      sections: formattedSections,
+      sectionVisits,
+      reviewPageVisitedAt,
+    });
 
   } catch (error) {
     logger.error('Failed to get candidate saved data', {
