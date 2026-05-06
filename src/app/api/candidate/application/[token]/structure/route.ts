@@ -3,7 +3,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
-import type { CandidatePortalStructureResponse, CandidatePortalSection } from '@/types/candidate-portal';
+import type {
+  CandidatePortalStructureResponse,
+  CandidatePortalSection,
+  CandidatePortalSectionScope,
+} from '@/types/candidate-portal';
+// Phase 7 Stage 1 §3.3 — single source of truth for the package-service
+// scope JSON shape. Used to attach a `scope` block to each scoped section
+// (Address History, Education, Employment) and to support Rule 19 ("most
+// demanding scope wins") when a single section has multiple package services.
+import {
+  normalizeRawScope,
+  pickMostDemandingScope,
+  type RawPackageServiceScope,
+  type ResolvedScope,
+  type ScopeFunctionalityType,
+} from '@/lib/candidate/validation/packageScopeShape';
 
 /**
  * GET /api/candidate/application/[token]/structure
@@ -28,7 +43,8 @@ import type { CandidatePortalStructureResponse, CandidatePortalSection } from '@
  *   sections: [{
  *     id: string                // Unique identifier for this section
  *     title: string             // Display name shown to the candidate
- *     type: string              // One of: workflow_section, service_section, personal_info, address_history
+ *     type: string              // One of: workflow_section, service_section, personal_info,
+ *                               //   address_history, review_submit (Phase 7 Stage 1)
  *     placement: string         // One of: before_services, services, after_services
  *     status: string            // One of: not_started, incomplete, complete (lowercase per BR 22)
  *                               // INITIAL value only — Phase 6 Stage 4 BR 15 requires the client
@@ -41,8 +57,18 @@ import type { CandidatePortalStructureResponse, CandidatePortalSection } from '@
  *       content, fileUrl,       // needs without a second fetch. Per Stage 4 spec Data Requirements.
  *       fileName, placement,
  *       displayOrder, isRequired
+ *     },
+ *     scope?: {                 // Phase 7 Stage 1 §3.3 — present on scoped sections
+ *       scopeType,              //   (Address History, Education, Employment). The scope is the
+ *       scopeValue,             //   most-demanding scope across all package services that share
+ *       scopeDescriptionKey,    //   the same functionality type (Rule 19). Description is a
+ *       scopeDescriptionPlaceholders //   translation key, not English (frontend localizes).
  *     }
  *   }]
+ *
+ *   The list always ends with a synthetic Review & Submit section
+ *   (id: 'review_submit', type: 'review_submit', placement: 'after_services')
+ *   so the sidebar can show it as the last entry (Rule 29).
  * }
  *
  * Errors:
@@ -122,6 +148,76 @@ export async function GET(
     // Step 5: Build section list
     const sections: CandidatePortalSection[] = [];
     let sectionOrder = 0;
+
+    // Phase 7 Stage 1 §3.3 — per-functionality-type scope resolution.
+    // Group package services by functionality type, normalize each one's
+    // scope JSON, then pick the most-demanding scope for the section so
+    // Rule 19 holds when multiple services share a section (e.g., two
+    // record-type services both contributing to Address History).
+    const scopeByFunctionalityType = new Map<string, ResolvedScope>();
+    if (orderedPackage?.packageServices) {
+      const grouped = new Map<string, RawPackageServiceScope[]>();
+      for (const ps of orderedPackage.packageServices) {
+        const funcType = ps.service?.functionalityType;
+        if (!funcType) continue;
+        if (funcType !== 'record' && funcType !== 'verification-edu' && funcType !== 'verification-emp') continue;
+        const existing = grouped.get(funcType) ?? [];
+        existing.push(ps.scope as RawPackageServiceScope | null ?? {});
+        grouped.set(funcType, existing);
+      }
+      for (const [funcType, rawScopes] of grouped.entries()) {
+        const resolved = rawScopes.map((raw) =>
+          normalizeRawScope(raw, funcType as ScopeFunctionalityType),
+        );
+        scopeByFunctionalityType.set(funcType, pickMostDemandingScope(resolved));
+      }
+    }
+
+    // Builds the optional `scope` block attached to scoped sections.
+    // Translation keys mirror the existing /scope endpoint's English wording
+    // contract but stay as keys so the candidate UI can localize cleanly.
+    const buildSectionScope = (
+      funcType: 'record' | 'verification-edu' | 'verification-emp',
+    ): CandidatePortalSectionScope | undefined => {
+      const resolved = scopeByFunctionalityType.get(funcType);
+      if (!resolved) return undefined;
+      const typeLabel =
+        funcType === 'verification-edu'
+          ? 'education'
+          : funcType === 'verification-emp'
+            ? 'employment'
+            : 'address';
+      // Map normalized scopeType → existing portal-scope translation key. The
+      // keys already exist in the translation files (see Phase 6 Stage 3 work).
+      let scopeDescriptionKey = 'candidate.portal.scopeAll';
+      const placeholders: Record<string, string | number> = { type: typeLabel };
+      switch (resolved.scopeType) {
+        case 'count_exact':
+          scopeDescriptionKey = 'candidate.portal.scopeCountExact';
+          break;
+        case 'count_specific':
+          scopeDescriptionKey = 'candidate.portal.scopeCountSpecific';
+          placeholders.count = resolved.scopeValue ?? 0;
+          break;
+        case 'time_based':
+          scopeDescriptionKey = 'candidate.portal.scopeTimeBased';
+          placeholders.years = resolved.scopeValue ?? 0;
+          break;
+        case 'highest_degree':
+        case 'highest_degree_inc_hs':
+        case 'all_degrees':
+        case 'all':
+        default:
+          scopeDescriptionKey = 'candidate.portal.scopeAll';
+          break;
+      }
+      return {
+        scopeType: resolved.scopeType,
+        scopeValue: resolved.scopeValue,
+        scopeDescriptionKey,
+        scopeDescriptionPlaceholders: placeholders,
+      };
+    };
 
     // Add before_services workflow sections
     if (orderedPackage?.workflow?.sections) {
@@ -209,6 +305,10 @@ export async function GET(
         // fixed serviceTypeOrder, which puts Address History right after
         // IDV and before Education.
         if (funcType === 'record') {
+          // Phase 7 Stage 1 §3.3 — attach the resolved scope block so the
+          // frontend can display the scope description without a second
+          // /scope fetch.
+          const recordScope = buildSectionScope('record');
           sections.push({
             id: 'address_history',
             title: serviceTitleMap[funcType] || funcType,
@@ -217,9 +317,18 @@ export async function GET(
             status: 'not_started',
             order: sectionOrder++,
             functionalityType: funcType,
-            serviceIds
+            serviceIds,
+            ...(recordScope ? { scope: recordScope } : {}),
           });
         } else {
+          // Phase 7 Stage 1 §3.3 — attach the resolved scope block on the
+          // education and employment service sections.
+          const sectionScope =
+            funcType === 'verification-edu'
+              ? buildSectionScope('verification-edu')
+              : funcType === 'verification-emp'
+                ? buildSectionScope('verification-emp')
+                : undefined;
           sections.push({
             id: `service_${funcType}`,
             title: serviceTitleMap[funcType] || funcType,
@@ -228,7 +337,8 @@ export async function GET(
             status: 'not_started',
             order: sectionOrder++,
             functionalityType: funcType,
-            serviceIds // Include service IDs for the form to use
+            serviceIds, // Include service IDs for the form to use
+            ...(sectionScope ? { scope: sectionScope } : {}),
           });
         }
       }
@@ -265,6 +375,20 @@ export async function GET(
         });
       }
     }
+
+    // Phase 7 Stage 1 §3.3 — append the synthetic Review & Submit section
+    // as the last entry. Per Rule 29 ("positioned last after all workflow
+    // after-service sections"). The sidebar dispatches on
+    // section.type === 'review_submit' to render the Review page.
+    sections.push({
+      id: 'review_submit',
+      title: 'candidate.portal.sections.reviewSubmit',
+      type: 'review_submit',
+      placement: 'after_services',
+      status: 'not_started',
+      order: sectionOrder++,
+      functionalityType: null,
+    });
 
     // Step 6: Build response
     const response: CandidatePortalStructureResponse = {

@@ -74,6 +74,9 @@ interface AddressHistorySectionProps {
     entryIndex: number,
   ) => void;
   onCrossSectionRequirementsRemovedForSource?: (triggeredBy: string) => void;
+  // Phase 7 Stage 1 — invoked after a successful auto-save so the shell can
+  // re-fetch /validate. Matches the prop in PersonalInfoSection / IdvSection.
+  onSaveSuccess?: () => void;
 }
 
 // Address History only loads record-type services per the structure endpoint,
@@ -90,6 +93,7 @@ export function AddressHistorySection({
   onCrossSectionRequirementsChanged,
   onCrossSectionRequirementsRemovedForEntry,
   onCrossSectionRequirementsRemovedForSource,
+  onSaveSuccess,
 }: AddressHistorySectionProps) {
   const { t } = useTranslation();
   const [scope, setScope] = useState<ScopeInfo | null>(null);
@@ -361,6 +365,9 @@ export function AddressHistorySection({
         throw new Error('Failed to save');
       }
       setSaveStatus('saved');
+      // Phase 7 Stage 1 — re-fetch /validate after the save lands so the
+      // shell-rendered SectionErrorBanner reflects the updated scope/gap state.
+      onSaveSuccess?.();
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       logger.error('Failed to save address history entries', {

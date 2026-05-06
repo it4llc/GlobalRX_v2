@@ -1557,6 +1557,165 @@ When the candidate portal is being prepared for non-English locales. Should be d
 
 ---
 
+---
+
+### TD-061 — In-row FieldErrorMessage inside repeatable entry rows deferred
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Address History, Education, Employment |
+| Severity    | Warning (UX — errors shown in banner but not inline in rows) |
+| Identified  | May 6, 2026 - Phase 7 Stage 1               |
+| Identified by | Implementer                               |
+
+**Description:**
+Per-row inline `FieldErrorMessage` display inside repeatable entry rows (AddressHistorySection, EducationSection, EmploymentSection) was deferred. Field errors for these sections are surfaced via the `SectionErrorBanner` and on the Review & Submit page, but not inline next to the individual field within the row. This is a UX gap — the candidate cannot see exactly which field in which row is failing without navigating to the section and reading the banner.
+
+**Why deferred:**
+Those component files are each over 500 lines. Adding per-row inline error display requires threading per-entry field error data through nested component props in files that are already at or past the CODING_STANDARDS.md Section 9 size limit. The files should be refactored and split first, then the inline error wiring added.
+
+**When to fix:**
+When any of these three files is refactored for another reason, add per-row `FieldErrorMessage` rendering using the `fieldErrors` prop already passed to the component.
+
+**Files affected:**
+- `src/components/candidate/form-engine/AddressHistorySection.tsx`
+- `src/components/candidate/form-engine/EducationSection.tsx`
+- `src/components/candidate/form-engine/EmploymentSection.tsx`
+
+---
+
+### TD-062 — Validation engine does not check Personal Info / IDV required fields directly
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Validation Engine   |
+| Severity    | Warning (Coverage gap)                      |
+| Identified  | May 6, 2026 - Phase 7 Stage 1               |
+| Identified by | Implementer                               |
+
+**Description:**
+The validation engine in `validationEngine.ts` does not independently load and check required fields for Personal Info and IDV sections. Instead it relies on the `mergeSectionStatus` workaround: the local component-computed status for those sections (which does check required fields) is merged with the engine's result, and the most-restrictive status wins. This means the `/validate` endpoint's per-section `fieldErrors` array for Personal Info and IDV sections may be empty even when required fields are missing — only the `status` field reflects the actual completeness.
+
+**Why deferred:**
+Personal Info and IDV required-field computation requires loading `personal-info-fields` and the IDV field set from the database (with package-context scoping per TD-060's fix). Adding that to the engine was judged to be out of scope for Stage 1; the `mergeSectionStatus` workaround produces the correct sidebar indicator color even when the field-errors array is incomplete.
+
+**When to fix:**
+Before Stage 2's server-side pre-submit validation call. The submit handler will call `runValidation()` server-side and must be able to identify missing Personal Info and IDV fields from `fieldErrors` without relying on client-side local status.
+
+**Files affected:**
+- `src/lib/candidate/validation/validationEngine.ts`
+
+---
+
+### TD-063 — Gap dates displayed as ISO strings instead of locale-aware format
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Error Display       |
+| Severity    | Warning (UX / i18n)                         |
+| Identified  | May 6, 2026 - Phase 7 Stage 1               |
+| Identified by | Implementer                               |
+
+**Description:**
+Gap error messages show dates using ISO date strings (e.g., `2021-05-01`) because `GapError.gapStart` and `GapError.gapEnd` are typed as ISO strings and the frontend renders them via translation placeholders without locale-aware formatting. Candidates see raw ISO dates instead of locale-formatted dates (e.g., "May 1, 2021" or "01/05/2021").
+
+**Why deferred:**
+Locale-aware date formatting requires injecting a date-format function at the rendering layer and is a broader i18n concern. The ISO string is unambiguous and technically correct, but the UX does not match the spec's example wording ("from March 2023 to June 2023").
+
+**When to fix:**
+During a candidate portal i18n pass. Format the `gapStart` and `gapEnd` values in `ReviewErrorListItem` and `SectionErrorBanner` using the translation context's locale before inserting them into the placeholder string.
+
+**Files affected:**
+- `src/components/candidate/review-submit/ReviewErrorListItem.tsx`
+- `src/components/candidate/SectionErrorBanner.tsx`
+- Possibly `src/lib/candidate/validation/gapDetection.ts` (if the format is moved to the engine)
+
+---
+
+### TD-064 — Duplicated resolveSectionLabelKey helper
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Review & Submit     |
+| Severity    | Low (Code quality / duplication)            |
+| Identified  | May 6, 2026 - Phase 7 Stage 1               |
+| Identified by | Implementer                               |
+
+**Description:**
+The `resolveSectionLabelKey` helper function is duplicated in `SectionErrorBanner.tsx` and `ReviewErrorListItem.tsx`. It maps a `sectionId` to the translation key for that section's label (e.g., `'candidate.addressHistory.title'`). Both files carry identical implementations.
+
+**Why deferred:**
+The duplication is two small files, each under 100 lines. Extracting a shared utility requires deciding on a home module, which is a design choice beyond Stage 1's scope.
+
+**When to fix:**
+During any future modification to either file. Extract into a shared module (e.g., `src/lib/candidate/validation/sectionLabelKeys.ts`) and import from both files.
+
+**Files affected:**
+- `src/components/candidate/SectionErrorBanner.tsx`
+- `src/components/candidate/review-submit/ReviewErrorListItem.tsx`
+
+---
+
+### TD-065 — portal-layout.tsx and validationEngine.ts exceed size limits
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Portal Shell / Validation |
+| Severity    | Warning (Maintainability — CODING_STANDARDS.md Section 9) |
+| Identified  | May 6, 2026 - Phase 7 Stage 1               |
+| Identified by | Implementer                               |
+
+**Description:**
+After Phase 7 Stage 1 additions, `portal-layout.tsx` is approximately 711 lines and `validationEngine.ts` is approximately 628 lines. Both exceed the 600-line hard stop defined in CODING_STANDARDS.md Section 9.
+
+`portal-layout.tsx` has grown across multiple phases to own visit tracking, validation result state, cross-section registry wiring, saved-data hydration, and section rendering dispatch. `validationEngine.ts` owns the full orchestration including database loading, per-section validation, and summary construction.
+
+**Why deferred:**
+Both files were within limits when Stage 1 began. The additions were required by the spec. Splitting mid-stage would have been riskier than completing Stage 1 and logging the debt.
+
+**When to fix:**
+Before Phase 7 Stage 2 adds further orchestration to either file.
+
+**Suggested splits:**
+- `portal-layout.tsx`: extract the saved-data hydration effect into a custom hook; extract section rendering dispatch into a `SectionRenderer` component.
+- `validationEngine.ts`: extract the database-loading logic into a `loadValidationInputs` module; the engine file retains only the orchestration loop and summary construction.
+
+**Files affected:**
+- `src/components/candidate/portal-layout.tsx`
+- `src/lib/candidate/validation/validationEngine.ts`
+
+---
+
+### TD-066 — scope/route.ts still returns English strings for scopeDescription
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Scope API / i18n    |
+| Severity    | Warning (i18n — backward compatibility workaround) |
+| Identified  | May 6, 2026 - Phase 7 Stage 1               |
+| Identified by | Implementer                               |
+
+**Description:**
+`GET /api/candidate/application/[token]/scope` still returns an English `scopeDescription` string (not a translation key) in its response. This is intentional: the existing `ScopeDisplay` component consumes the English string directly, and changing the response shape would break that consumer.
+
+Phase 7 Stage 1 introduced a parallel pattern: the `/structure` endpoint now returns a `scopeDescriptionKey` (translation key) alongside `scopeDescriptionPlaceholders` for the same scope information. New components (error banners, Review & Submit page) use the key-based pattern and localize cleanly. The `/scope` endpoint's English-string pattern is inconsistent with this and with COMPONENT_STANDARDS.md S6.1.
+
+This is a continuation and expansion of TD-057 (which logged the same pattern for the pre-existing scope endpoint).
+
+**Why deferred:**
+Changing the `/scope` endpoint response shape would require updating `ScopeDisplay.tsx` and the `ScopeInfo` type simultaneously. That file was not part of Phase 7 Stage 1's scope.
+
+**When to fix:**
+During the candidate portal i18n pass. Convert the `/scope` endpoint to return `{ scopeKey, scopeParams }` instead of `scopeDescription`, update `ScopeDisplay.tsx` to call `t(scopeKey, scopeParams)`, and add translation keys for all scope variants to all five language files. Resolve TD-057 at the same time.
+
+**Files affected:**
+- `src/app/api/candidate/application/[token]/scope/route.ts`
+- `src/components/candidate/form-engine/ScopeDisplay.tsx`
+- `src/types/candidate-repeatable-form.ts` (`ScopeInfo` shape)
+- All five translation files
+
+---
+
 ## Resolved Items
 
 ---
