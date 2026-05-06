@@ -277,7 +277,7 @@ describe('runValidation', () => {
       );
 
       const result = await runValidation('inv-123');
-      const idv = result.sections.find((s) => s.sectionId === 'idv');
+      const idv = result.sections.find((s) => s.sectionId === 'service_idv');
 
       expect(idv).toBeDefined();
       expect(idv!.scopeErrors).toEqual([]);
@@ -290,7 +290,7 @@ describe('runValidation', () => {
       );
 
       const result = await runValidation('inv-123');
-      const idv = result.sections.find((s) => s.sectionId === 'idv');
+      const idv = result.sections.find((s) => s.sectionId === 'service_idv');
 
       expect(idv).toBeUndefined();
     });

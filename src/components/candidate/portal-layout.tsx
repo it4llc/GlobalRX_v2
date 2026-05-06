@@ -22,6 +22,7 @@ import { clientLogger as logger } from '@/lib/client-logger';
 // and to gate the Review & Submit page.
 import { usePortalValidation } from '@/lib/candidate/usePortalValidation';
 import { mergeSectionStatus } from '@/lib/candidate/validation/mergeSectionStatus';
+import type { SectionVisitsMap } from '@/lib/candidate/sectionVisitTracking';
 import type {
   ReviewError,
   SectionValidationResult,
@@ -105,6 +106,15 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   // successful auto-save.
   const [personalInfoSavedValues, setPersonalInfoSavedValues] = useState<Record<string, unknown>>({});
 
+  // Phase 7 Stage 1 — saved-data hydration payload. Null until /saved-data
+  // settles (success or failure); populated with `sectionVisits` and
+  // `reviewPageVisitedAt` so the validation hook can adopt them on mount and
+  // visit state survives a browser reload (Spec Rules 1/2/3).
+  const [savedDataHydration, setSavedDataHydration] = useState<{
+    sectionVisits: SectionVisitsMap;
+    reviewPageVisitedAt: string | null;
+  } | null>(null);
+
   // Phase 7 Stage 1 — visit tracking + validation result driven by
   // usePortalValidation. The hook hydrates from initial values pushed in
   // by the saved-data hydration effect below, owns the /save +
@@ -117,7 +127,11 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     markSectionDeparted,
     markReviewVisited,
     refreshValidation,
-  } = usePortalValidation({ token });
+  } = usePortalValidation({
+    token,
+    initialSectionVisits: savedDataHydration?.sectionVisits,
+    initialReviewPageVisitedAt: savedDataHydration?.reviewPageVisitedAt,
+  });
 
   // Handle responsive behavior
   useEffect(() => {
@@ -153,6 +167,9 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
           `/api/candidate/application/${encodeURIComponent(token)}/saved-data`,
         );
         if (!response.ok) {
+          if (!cancelled) {
+            setSavedDataHydration({ sectionVisits: {}, reviewPageVisitedAt: null });
+          }
           return;
         }
         const data = await response.json();
@@ -191,10 +208,24 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             );
           }
         }
+
+        // Phase 7 Stage 1 — section_visit_tracking and review-page visit
+        // are siblings of `sections` in the saved-data response. Surface
+        // them through savedDataHydration so usePortalValidation can adopt
+        // them on its first non-undefined hydration tick.
+        const incomingSectionVisits =
+          (data?.sectionVisits ?? {}) as SectionVisitsMap;
+        const incomingReviewPageVisitedAt =
+          (data?.reviewPageVisitedAt ?? null) as string | null;
+
         if (!cancelled) {
           setWorkflowAcknowledgments(nextAcknowledgments);
           setPersonalInfoSavedValues(nextPersonalInfoValues);
           setSectionStatuses((prev) => ({ ...prev, ...statusUpdates }));
+          setSavedDataHydration({
+            sectionVisits: incomingSectionVisits,
+            reviewPageVisitedAt: incomingReviewPageVisitedAt,
+          });
         }
       } catch (error) {
         // Hydration failure is non-fatal — the candidate can still tick the
@@ -204,12 +235,27 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
           event: 'saved_data_hydrate_error',
           error: error instanceof Error ? error.message : 'Unknown error',
         });
+        if (!cancelled) {
+          setSavedDataHydration({ sectionVisits: {}, reviewPageVisitedAt: null });
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [token, sections]);
+
+  // Phase 7 Stage 1 — mark the initially-active section visited once the
+  // saved-data hydration completes (Rule 2). Without this, the candidate's
+  // first section never gets a `visitedAt` record, so `markSectionDeparted`
+  // short-circuits when they navigate away and the section's errors stay
+  // hidden permanently. The hook's `markSectionVisited` itself short-circuits
+  // when the section already has a visit record, so re-runs are no-ops.
+  useEffect(() => {
+    if (!savedDataHydration) return;
+    if (!defaultSection) return;
+    markSectionVisited(defaultSection);
+  }, [savedDataHydration, defaultSection, markSectionVisited]);
 
   // TD-059 — One-time fetch of Personal Info field definitions. Owned by the
   // shell so the lifted progress effect below can run computePersonalInfoStatus

@@ -216,7 +216,8 @@ export async function runValidation(
   );
 
   // IDV — same as Personal Info (Rule 18 — no scope/gap). IDV is its own
-  // service section keyed `idv`, visible only when the package contains an
+  // service section keyed `service_idv` (matching the structure endpoint,
+  // portal-layout, and sidebar), visible only when the package contains an
   // idv-functionality service. It isn't in the scoped-types map (idv is
   // not a scope-bearing functionality), so we look for it directly.
   const hasIdv = orderedPackage.packageServices.some(
@@ -225,8 +226,8 @@ export async function runValidation(
   if (hasIdv) {
     sectionResults.push(
       validateNonScopedSection({
-        sectionId: 'idv',
-        sectionData: sectionsData['idv'],
+        sectionId: 'service_idv',
+        sectionData: sectionsData['service_idv'],
         sectionVisits,
         reviewVisitedAt,
       }),

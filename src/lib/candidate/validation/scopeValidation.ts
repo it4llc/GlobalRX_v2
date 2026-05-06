@@ -214,8 +214,8 @@ export function evaluateTimeBasedScope(
   }
 
   const coveredMs = merged.reduce((sum, iv) => sum + (iv.end - iv.start), 0);
-  // Use ceil so a 364.99-day coverage doesn't round to 364 days, which would
-  // make a "barely covered" 7-year scope look 1 day short.
+  // Math.round to the nearest whole day — partial-day fragments at the
+  // boundaries of merged intervals shouldn't decide pass/fail on their own.
   const coveredDays = Math.round(coveredMs / MS_PER_DAY);
 
   if (coveredDays >= requiredDays) {

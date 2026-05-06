@@ -16,7 +16,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { clientLogger as logger } from '@/lib/client-logger';
 import {
@@ -61,6 +61,31 @@ export function usePortalValidation(
     input.initialReviewPageVisitedAt ?? null,
   );
   const [validationResult, setValidationResult] = useState<FullValidationResult | null>(null);
+
+  // One-shot hydration from props that arrive after mount. The portal layout
+  // fetches /saved-data asynchronously and feeds the result back through
+  // initialSectionVisits / initialReviewPageVisitedAt once it resolves, so
+  // visit-tracking state survives a browser reload (Spec Rules 1/2/3).
+  // useState only consults the props on first render; this effect adopts
+  // them on the first non-undefined prop change, then locks via the ref.
+  // We never overwrite non-empty state — if the candidate clicked through
+  // sections before the fetch resolved, those local visits win.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    const visits = input.initialSectionVisits;
+    const reviewAt = input.initialReviewPageVisitedAt;
+    if (visits === undefined && reviewAt === undefined) return;
+    hydratedRef.current = true;
+    if (visits && Object.keys(visits).length > 0) {
+      setSectionVisits((prev) =>
+        Object.keys(prev).length === 0 ? visits : prev,
+      );
+    }
+    if (reviewAt) {
+      setReviewPageVisitedAt((prev) => (prev === null ? reviewAt : prev));
+    }
+  }, [input.initialSectionVisits, input.initialReviewPageVisitedAt]);
 
   const refreshValidation = useCallback(async () => {
     if (paused) return;
