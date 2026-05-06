@@ -193,7 +193,10 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       });
 
       // Check sections array - now includes Personal Information as first item
-      expect(data.sections).toHaveLength(7); // 1 personal + 1 before + 3 services (edu deduplicated) + 2 after
+      // Phase 7 Stage 1 §3.3 — the structure response now appends a synthetic
+      // `review_submit` entry after all after_services workflow sections, so
+      // the total length grows by 1 (Rule 29).
+      expect(data.sections).toHaveLength(8); // 1 personal + 1 before + 3 services (edu deduplicated) + 2 after + 1 review_submit
 
       // Check before_services section comes first
       // Phase 6 Stage 4: workflow_section sections now carry a workflowSection
@@ -248,6 +251,11 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // service section ordering (after IDV, before Education) per the spec
       // "Section Position in the Candidate Application" and Definition of Done
       // items #10 and #11.
+      // Phase 7 Stage 1 §3.3 — Address History now carries a resolved
+      // `scope` block. With null/missing scope on the underlying record
+      // service, normalizeRawScope returns count_exact 1 (current address
+      // default per packageScopeShape's record default). The frontend uses
+      // scopeDescriptionKey + scopeDescriptionPlaceholders to localize.
       expect(data.sections[3]).toEqual({
         id: 'address_history',
         title: 'candidate.portal.sections.addressHistory',
@@ -256,9 +264,18 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         status: 'not_started',
         order: 3,
         functionalityType: 'record',
-        serviceIds: ['service-2']
+        serviceIds: ['service-2'],
+        scope: {
+          scopeType: 'count_exact',
+          scopeValue: 1,
+          scopeDescriptionKey: 'candidate.portal.scopeCountExact',
+          scopeDescriptionPlaceholders: { type: 'address' },
+        },
       });
 
+      // Phase 7 Stage 1 §3.3 — Education service section also carries the
+      // resolved scope. The mock service has no explicit scope JSON so the
+      // normalized scope is `all` (the non-record default).
       expect(data.sections[4]).toEqual({
         id: 'service_verification-edu',
         title: 'candidate.portal.sections.educationHistory',
@@ -267,7 +284,13 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         status: 'not_started',
         order: 4,
         functionalityType: 'verification-edu',
-        serviceIds: ['service-3', 'service-4']
+        serviceIds: ['service-3', 'service-4'],
+        scope: {
+          scopeType: 'all',
+          scopeValue: null,
+          scopeDescriptionKey: 'candidate.portal.scopeAll',
+          scopeDescriptionPlaceholders: { type: 'education' },
+        },
       });
 
       // Check after_services sections
@@ -308,6 +331,18 @@ describe('GET /api/candidate/application/[token]/structure', () => {
           displayOrder: 2,
           isRequired: true
         }
+      });
+
+      // Phase 7 Stage 1 §3.3 — synthetic Review & Submit section as the
+      // last entry, after every after_services workflow section (Rule 29).
+      expect(data.sections[7]).toEqual({
+        id: 'review_submit',
+        title: 'candidate.portal.sections.reviewSubmit',
+        type: 'review_submit',
+        placement: 'after_services',
+        status: 'not_started',
+        order: 7,
+        functionalityType: null,
       });
     });
 
@@ -398,8 +433,10 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // Phase 6 Stage 3: record-functionality services emit a dedicated
       // `address_history` section type, so the set of valid types after
       // personal_info now includes 'service_section' AND 'address_history'.
+      // Phase 7 Stage 1 §3.3: the synthetic 'review_submit' entry is appended
+      // last and must also be accepted in the post-personal-info slice.
       expect(data.sections[0].type).toBe('personal_info');
-      const validServiceSectionTypes = ['service_section', 'address_history'];
+      const validServiceSectionTypes = ['service_section', 'address_history', 'review_submit'];
       expect(
         data.sections.slice(1).every((s: any) => validServiceSectionTypes.includes(s.type))
       ).toBe(true);
@@ -431,12 +468,14 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       const data = await response.json();
 
       // Should have workflow sections first, then personal info
-      // With no services, should have: 1 before_services + 1 personal_info + 2 after_services = 4 sections
-      expect(data.sections).toHaveLength(4);
+      // With no services, should have: 1 before_services + 1 personal_info + 2 after_services
+      // + 1 review_submit (Phase 7 Stage 1 §3.3) = 5 sections
+      expect(data.sections).toHaveLength(5);
       expect(data.sections[0].type).toBe('workflow_section'); // before_services
       expect(data.sections[1].type).toBe('personal_info');
       expect(data.sections[2].type).toBe('workflow_section'); // after_services
       expect(data.sections[3].type).toBe('workflow_section'); // after_services
+      expect(data.sections[4].type).toBe('review_submit');     // synthetic Review & Submit
     });
 
     it('should maintain correct order for service sections', async () => {
@@ -609,8 +648,10 @@ describe('GET /api/candidate/application/[token]/structure', () => {
 
       expect(response.status).toBe(200);
       const data = await response.json();
-      // Should still have the Personal Information section
-      expect(data.sections).toHaveLength(1);
+      // Should still have the Personal Information section.
+      // Phase 7 Stage 1 §3.3: a synthetic Review & Submit entry is also
+      // appended unconditionally, so the empty-package response is 2 entries.
+      expect(data.sections).toHaveLength(2);
       expect(data.sections[0]).toEqual({
         id: 'personal_info',
         title: 'candidate.portal.sections.personalInformation',
@@ -619,6 +660,15 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         status: 'not_started',
         order: 0,
         functionalityType: null
+      });
+      expect(data.sections[1]).toEqual({
+        id: 'review_submit',
+        title: 'candidate.portal.sections.reviewSubmit',
+        type: 'review_submit',
+        placement: 'after_services',
+        status: 'not_started',
+        order: 1,
+        functionalityType: null,
       });
     });
 
@@ -692,12 +742,15 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Services with null functionality type are NOT included
+      // Services with null functionality type are NOT included.
+      // Phase 7 Stage 1 §3.3 — the synthetic Review & Submit entry is
+      // appended after the service sections, so the total is now 3.
       const sections = data.sections;
       expect(sections[0].type).toBe('personal_info');
       expect(sections[1].functionalityType).toBe('idv');
       // Service with null functionality type should NOT be included
-      expect(sections.length).toBe(2); // Only personal_info and idv
+      expect(sections.length).toBe(3); // personal_info + idv + review_submit
+      expect(sections[2].type).toBe('review_submit');
     });
   });
 });

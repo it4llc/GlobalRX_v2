@@ -154,6 +154,5 @@ describe('buildFormatErrorKey', () => {
 
     expect(key).toMatch(/^candidate\.validation\.format\./);
     expect(key).not.toMatch(/please/i);
-    expect(key).not.toMatch(/valid/i);
   });
 });

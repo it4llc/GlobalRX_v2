@@ -37,7 +37,8 @@
       "Bash(awk '/^diff --git/{file=$3; sub\\(/^a\\\\//, \"\", file\\)} /^\\\\+.*as any/{print NR\":\"file\":\"$0}' /tmp/stage2-full.diff)",
       "Bash(pnpm vitest *)",
       "Bash(pnpm typecheck *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(node *)"
     ],
     "deny": [],
     "ask": []

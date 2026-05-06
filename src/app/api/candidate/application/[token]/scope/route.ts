@@ -5,6 +5,13 @@ import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { z } from 'zod';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
+// Phase 7 Stage 1: single source of truth for the PackageService.scope JSON
+// shape. Both this route and the validation engine import normalizeRawScope
+// from packageScopeShape.ts so the two interpretations cannot drift.
+import {
+  normalizeRawScope,
+  type RawPackageServiceScope,
+} from '@/lib/candidate/validation/packageScopeShape';
 
 // Zod schema for query parameters.
 // Phase 6 Stage 3 added 'record' so the new AddressHistorySection can fetch
@@ -119,17 +126,15 @@ export async function GET(
     }
 
     // Step 6: Extract and format scope information
-    // Handle actual database scope format: {"type": "most-recent"} or {"type": "most-recent-x", "quantity": 2} or {"type": "past-x-years", "years": 7}
-    // The scope column is Prisma JSON, so we narrow it to the shape we expect at runtime.
-    interface PackageServiceScope {
-      type?: string;
-      quantity?: number;
-      years?: number;
-    }
-    const rawScope = matchingPackageService.scope as PackageServiceScope | null;
-    let scopeType: string;
-    let scopeValue: number | null = null;
-    let scopeDescription: string;
+    //
+    // Phase 7 Stage 1 refactor: the JSON-shape → normalized-scope mapping was
+    // moved to `src/lib/candidate/validation/packageScopeShape.ts` so the
+    // validation engine and this route share one definition. We still build
+    // the English `scopeDescription` string here to preserve the route's
+    // public contract (existing ScopeDisplay components consume English).
+    const rawScope = matchingPackageService.scope as RawPackageServiceScope | null;
+    const normalized = normalizeRawScope(rawScope, validatedFunctionalityType);
+    const { scopeType, scopeValue } = normalized;
 
     // Map the functionality type to a human-readable noun used in the scope
     // description ("Please provide your complete <typeLabel> history"). The
@@ -141,89 +146,67 @@ export async function GET(
         : validatedFunctionalityType === 'verification-emp'
         ? 'employment'
         : 'address';
-
-    // Degree-specific scope types are only meaningful for the education
-    // functionality. For record (address history) we fall back to 'all' if
-    // a misconfigured package somehow ends up with one — this is documented
-    // in the technical plan's "scope endpoint label wording" risk.
     const isRecord = validatedFunctionalityType === 'record';
-    const isDegreeScopeForNonEdu =
-      isRecord &&
-      rawScope &&
-      (rawScope.type === 'highest-degree' ||
-        rawScope.type === 'highest-degree-inc-highschool' ||
-        rawScope.type === 'all-degrees');
 
-    if (!rawScope || rawScope === null || isDegreeScopeForNonEdu) {
-      // No scope (or an inapplicable degree-style scope landing on the
-      // record functionality) means provide everything — except for record
-      // services, where the scope-selector UI shows "Current address only" as
-      // the default unsaved selection. We mirror that default here so the
-      // candidate sees the same effective scope the customer admin saw when
-      // configuring the package.
-      if (isRecord) {
-        scopeType = 'count_exact';
-        scopeValue = 1;
-        scopeDescription = `Please provide your current address`;
-      } else {
-        scopeType = 'all';
-        scopeValue = null;
-        scopeDescription = `Please provide your complete ${typeLabel} history`;
+    // Build the English description from the normalized output. The mapping
+    // here mirrors the same wording the route used pre-refactor so callers
+    // see no behavior change.
+    let scopeDescription: string;
+    switch (scopeType) {
+      case 'count_exact':
+        if (isRecord) {
+          // Pre-refactor wording rule (preserved exactly):
+          //   - rawScope === null OR a misconfigured degree-style scope on
+          //     record → "Please provide your current address" (the
+          //     record-default).
+          //   - rawScope.type === 'current-address' → same wording.
+          //   - rawScope.type === 'most-recent' → "Please provide your most
+          //     recent address" (count_exact 1 for the record functionality).
+          if (rawScope?.type === 'most-recent') {
+            scopeDescription = `Please provide your most recent address`;
+          } else {
+            scopeDescription = `Please provide your current address`;
+          }
+        } else {
+          scopeDescription = `Please provide your most recent ${typeLabel} entry`;
+        }
+        break;
+      case 'count_specific': {
+        const qty = scopeValue ?? 0;
+        if (isRecord) {
+          if (rawScope?.type === 'last-x-addresses') {
+            scopeDescription = `Please provide your last ${qty} ${qty === 1 ? 'address' : 'addresses'}`;
+          } else {
+            scopeDescription = `Please provide your most recent ${qty} ${qty === 1 ? 'address' : 'addresses'}`;
+          }
+        } else {
+          const entryWord = qty === 1 ? 'entry' : 'entries';
+          scopeDescription = `Please provide your most recent ${qty} ${typeLabel} ${entryWord}`;
+        }
+        break;
       }
-    } else if (rawScope.type === 'current-address') {
-      // Record-only: candidate provides only their current address
-      scopeType = 'count_exact';
-      scopeValue = 1;
-      scopeDescription = `Please provide your current address`;
-    } else if (rawScope.type === 'last-x-addresses' && rawScope.quantity) {
-      // Record-only: candidate provides their last X addresses
-      scopeType = 'count_specific';
-      scopeValue = rawScope.quantity;
-      scopeDescription = `Please provide your last ${rawScope.quantity} ${rawScope.quantity === 1 ? 'address' : 'addresses'}`;
-    } else if (rawScope.type === 'most-recent') {
-      // Most recent single entry
-      scopeType = 'count_exact';
-      scopeValue = 1;
-      scopeDescription = isRecord
-        ? `Please provide your most recent address`
-        : `Please provide your most recent ${typeLabel} entry`;
-    } else if (rawScope.type === 'most-recent-x' && rawScope.quantity) {
-      // Most recent X entries
-      scopeType = 'count_specific';
-      scopeValue = rawScope.quantity;
-      const entryWord = rawScope.quantity === 1 ? 'entry' : 'entries';
-      scopeDescription = isRecord
-        ? `Please provide your most recent ${rawScope.quantity} ${rawScope.quantity === 1 ? 'address' : 'addresses'}`
-        : `Please provide your most recent ${rawScope.quantity} ${typeLabel} ${entryWord}`;
-    } else if (rawScope.type === 'past-x-years' && rawScope.years) {
-      // Past X years
-      scopeType = 'time_based';
-      scopeValue = rawScope.years;
-      scopeDescription = isRecord
-        ? `Please provide all addresses where you have lived in the past ${rawScope.years} years`
-        : `Please provide all ${typeLabel} for the past ${rawScope.years} years`;
-    } else if (rawScope.type === 'highest-degree') {
-      // Highest degree (post high school)
-      scopeType = 'highest_degree';
-      scopeValue = 1;
-      scopeDescription = `Please provide your highest degree (post high school)`;
-    } else if (rawScope.type === 'highest-degree-inc-highschool') {
-      // Highest degree (including high school)
-      scopeType = 'highest_degree_inc_hs';
-      scopeValue = 1;
-      scopeDescription = `Please provide your highest degree (including high school)`;
-    } else if (rawScope.type === 'all-degrees') {
-      // All degrees (post high school)
-      scopeType = 'all_degrees';
-      scopeValue = null;
-      scopeDescription = `Please provide all degrees (post high school)`;
-    } else {
-      // Fallback to all if we can't parse the scope
-      scopeType = 'all';
-      scopeValue = null;
-      scopeDescription = isRecord
-        ? `Please provide your complete address history`
-        : `Please provide your complete ${typeLabel} history`;
+      case 'time_based': {
+        const years = scopeValue ?? 0;
+        scopeDescription = isRecord
+          ? `Please provide all addresses where you have lived in the past ${years} years`
+          : `Please provide all ${typeLabel} for the past ${years} years`;
+        break;
+      }
+      case 'highest_degree':
+        scopeDescription = `Please provide your highest degree (post high school)`;
+        break;
+      case 'highest_degree_inc_hs':
+        scopeDescription = `Please provide your highest degree (including high school)`;
+        break;
+      case 'all_degrees':
+        scopeDescription = `Please provide all degrees (post high school)`;
+        break;
+      case 'all':
+      default:
+        scopeDescription = isRecord
+          ? `Please provide your complete address history`
+          : `Please provide your complete ${typeLabel} history`;
+        break;
     }
 
     // Step 7: Return scope information

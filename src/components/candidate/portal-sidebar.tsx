@@ -29,34 +29,53 @@ export default function PortalSidebar({
   // the section's status + display label down rather than rendering an
   // inline icon. Centralising the indicator in one component keeps the
   // visual rules consistent across every place that shows a status dot.
+  //
+  // Phase 7 Stage 1 — the Review & Submit entry (section.type === 'review_submit')
+  // is rendered last with a separator above it (Rule 29). All sections
+  // — including Review & Submit — go through the same SectionProgressIndicator
+  // so the visual treatment stays consistent.
   const sidebarContent = (
     <nav className="px-3 py-6">
       <ul className="space-y-1">
-        {sections.map((section) => {
+        {sections.map((section, idx) => {
           const sectionLabel = t(section.title);
+          const isReview = section.type === 'review_submit';
+          // Insert a separator above the first review_submit entry so it's
+          // visually distinct from the regular sections above it.
+          const showSeparator =
+            isReview && idx > 0 && sections[idx - 1].type !== 'review_submit';
           return (
-            <li key={section.id}>
-              <button
-                onClick={() => {
-                  onSectionClick(section.id);
-                  if (onClose) onClose();
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2 min-h-[44px] rounded-md text-left transition-colors ${
-                  activeSection === section.id
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-                data-testid="section-item"
-                data-active={activeSection === section.id}
-                // min-h-[44px] ensures mobile touch targets meet accessibility standards
-              >
-                <span className="flex-1 mr-3">{sectionLabel}</span>
-                <SectionProgressIndicator
-                  status={section.status}
-                  label={sectionLabel}
+            <React.Fragment key={section.id}>
+              {showSeparator && (
+                <li
+                  aria-hidden="true"
+                  className="my-2 border-t border-gray-200"
+                  data-testid="review-separator"
                 />
-              </button>
-            </li>
+              )}
+              <li>
+                <button
+                  onClick={() => {
+                    onSectionClick(section.id);
+                    if (onClose) onClose();
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 min-h-[44px] rounded-md text-left transition-colors ${
+                    activeSection === section.id
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                  data-testid={isReview ? 'review-submit-item' : 'section-item'}
+                  data-active={activeSection === section.id}
+                  // min-h-[44px] ensures mobile touch targets meet accessibility standards
+                >
+                  <span className="flex-1 mr-3">{sectionLabel}</span>
+                  <SectionProgressIndicator
+                    status={section.status}
+                    label={sectionLabel}
+                  />
+                </button>
+              </li>
+            </React.Fragment>
           );
         })}
       </ul>
