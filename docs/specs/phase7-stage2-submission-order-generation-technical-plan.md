@@ -706,3 +706,23 @@ None. The spec's Open Questions section is empty (line 308 — "None — all des
 - [x] Every one of the 31 Definition of Done items has a corresponding implementation step (§9 Order of Implementation), file (§2 / §3), or response shape (§11.3 / §17).
 
 **This plan is execution-ready for the test-writer.**
+
+---
+
+## 21. Pass 2 Regression Test Follow-ups (added during Implementer stage)
+
+A regression was caught during smoke testing of Stage 2: education and employment scope banners stayed red even after the candidate added valid entries. Bug investigator (May 7, 2026) traced this to a **pre-existing latent bug from Phase 7 Stage 1** (commit `cd712d4`) where `validationEngine.ts` was reading saved entries from `sectionsData['service_verification-edu']` / `'service_verification-emp'` while the save endpoint stored them at `sectionsData['education']` / `'employment'`. Address History and Personal Info worked because their save-keys and read-keys happened to match.
+
+**Fix applied in this Stage 3 commit:**
+- `src/lib/candidate/validation/validationEngine.ts` line 209 — `sectionsData['service_verification-edu']` → `sectionsData['education']`
+- `src/lib/candidate/validation/validationEngine.ts` line 227 — `sectionsData['service_verification-emp']` → `sectionsData['employment']`
+- The `SectionValidationResult.sectionId` values (`service_verification-edu`/`-emp`) were intentionally left unchanged — the rest of the engine, the validate route, portal-layout, the SectionErrorBanner, and the Review page all continue to key off them.
+
+**Test-writer-2 must add the following regression tests** in `src/lib/candidate/validation/__tests__/validationEngine.test.ts` during Pass 2:
+
+1. **REGRESSION TEST — proves bug fix for education-employment scope banner.** Construct an invitation with `verification-edu` and `verification-emp` services (default `'all'` scope), populate `formData.sections.education.entries` with one valid entry and `formData.sections.employment.entries` with one valid entry, run `runValidation`, assert that the result's `service_verification-edu` and `service_verification-emp` sections have empty `scopeErrors` and (assuming the section was visited) status `'complete'`. Must fail before the fix and pass after. Mark as `// REGRESSION TEST: proves bug fix for education-employment scope banner` and forbidden to delete or weaken later.
+2. **Address History parity test** — same shape but for `formData.sections.address_history.entries`, locking in that the previously-working path stays working.
+3. **Empty entries still error** — `formData.sections.education = { entries: [] }` still produces a scope error (ensures the fix doesn't accidentally short-circuit empty cases).
+4. **Stale-key defense** — populate the OLD wrong key `formData.sections['service_verification-edu'].entries` with entries and assert the result reports zero entries (so the engine isn't accidentally reading both keys and double-counting).
+
+These tests guard against the same key-mismatch class of bug recurring as new sections are added.

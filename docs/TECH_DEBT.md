@@ -1716,6 +1716,69 @@ During the candidate portal i18n pass. Convert the `/scope` endpoint to return `
 
 ---
 
+### TD-067 — portal-layout.tsx exceeds file-size soft trigger
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Portal Shell        |
+| Severity    | Warning (Maintainability — CODING_STANDARDS.md Section 9.4) |
+| Identified  | May 7, 2026 - Phase 7 Stage 2               |
+| Identified by | Implementer                               |
+
+**Description:**
+After Phase 7 Stage 2 additions (submission state, router, useTranslation, handleSubmit callback), `src/components/candidate/portal-layout.tsx` is approximately 841 lines, well past the 500-line soft trigger from CODING_STANDARDS.md Section 9.4 and meaningfully past the previously-flagged 711-line state recorded in TD-065.
+
+The file now owns too many concerns simultaneously: visit tracking state, validation result wiring, cross-section registry plumbing, saved-data hydration, submission state and submit-fetch orchestration, section rendering dispatch for every section type, and routing. A change to any one concern forces the developer to load the whole file's mental model.
+
+**Why deferred:**
+Andy granted a Rule 10 waiver for the Stage 2 additions because the alternative (extracting a `useCandidateSubmit` hook mid-stage) introduced a new file outside the architect's plan. Splitting after Stage 2 lands is the correct sequencing.
+
+**When to fix:**
+Before any further Phase 7 work that adds orchestration to this file. Supersedes TD-065 with respect to portal-layout.tsx — TD-065 also covers `validationEngine.ts` and remains open for that file.
+
+**Suggested splits:**
+- Extract a `useCandidateSubmit(token)` hook owning the `submitting` / `submitError` state and the `handleSubmit` callback, into `src/lib/candidate/submission/useCandidateSubmit.ts`.
+- Extract the section-rendering dispatch (`getActiveContent`) into a `<PortalSectionRenderer>` component.
+- Extract the saved-data hydration effect into a `useSavedDataHydration` hook.
+- The shell file should retain only top-level state composition and JSX layout.
+
+**Files affected:**
+- `src/components/candidate/portal-layout.tsx`
+
+---
+
+### TD-068 — portal-layout.test.tsx mock fetch return type does not satisfy `typeof fetch`
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Portal Shell tests  |
+| Severity    | Warning (Type safety — TESTING_STANDARDS.md) |
+| Identified  | May 7, 2026 - Phase 7 Stage 2               |
+| Identified by | Implementer                               |
+
+**Description:**
+`pnpm tsc --noEmit` reports five TS2345 errors in `src/components/candidate/portal-layout.test.tsx` at lines 276, 759, 864, 966, and 1060. Each call site assigns a mock function with the shape `(url: string) => Promise<Response> | Promise<{ ok: boolean; status: number; }>` to a binding typed as the global `fetch` signature `(input: string | URL | Request, init?: RequestInit) => Promise<Response>`. The mocks return either a real `Response` or a hand-rolled `{ ok, status }` object literal, so the inferred union is not assignable to the strict global signature.
+
+These errors are pre-existing — they were present on this branch before Phase 7 Stage 2 began. They were surfaced (not introduced) when the new submission code in `portal-layout.tsx` made the project-wide `tsc --noEmit` output more visible.
+
+**Why deferred:**
+Implementer agents may not edit test files (Absolute Rule 1). Fixing the mocks requires either casting each return as `Response` or constructing a real `Response` instance — both are test-file edits. Stage 2 was finished without touching the test file to comply with Rule 1.
+
+**When to fix:**
+Either as part of Phase 7 Stage 2 Pass 2 testing (test-writer-2 will be writing new component tests for the submit flow in this same file and can normalize the existing mocks at the same time), or as a standalone test-cleanup task before the next branch with broad TypeScript work.
+
+**Suggested fix:**
+Replace each mock fetch return literal with a real `Response` instance:
+```ts
+return new Response(JSON.stringify({ ... }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+```
+or cast the literal: `return { ok: true, status: 200 } as Response;`. Both options satisfy the `typeof fetch` signature.
+
+**Files affected:**
+- `src/components/candidate/portal-layout.test.tsx` (lines 276, 759, 864, 966, 1060)
+
+---
+
 ## Resolved Items
 
 ---
