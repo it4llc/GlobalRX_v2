@@ -36,6 +36,7 @@ import { detectGaps } from './gapDetection';
 import {
   extractAddressEntryDates,
   extractEmploymentEntryDates,
+  type RequirementMetadata,
 } from './dateExtractors';
 import { validateWorkflowSection } from './validateWorkflowSection';
 import {
@@ -179,6 +180,26 @@ export async function runValidation(
     }
   }
 
+  // Build a requirementId → { fieldKey, name, dataType } map across all
+  // package services. The employment / education extractor uses this to
+  // identify saved fields by their requirement metadata (Phase 7 Stage 2
+  // fix — the previous fieldKey-only approach broke for packages whose
+  // requirements use auto-fallback UUID-based fieldKeys, e.g. EDUCATIONV).
+  const requirementMetadata = new Map<string, RequirementMetadata>();
+  for (const ps of orderedPackage.packageServices) {
+    const reqs = ps.service?.serviceRequirements ?? [];
+    for (const sr of reqs) {
+      const r = sr.requirement;
+      if (!r) continue;
+      const fieldKey = typeof r.fieldKey === 'string' ? r.fieldKey : '';
+      const name = typeof r.name === 'string' ? r.name : '';
+      const fieldData = (r.fieldData as { dataType?: unknown } | null) ?? {};
+      const dataType =
+        typeof fieldData.dataType === 'string' ? fieldData.dataType : '';
+      requirementMetadata.set(sr.requirementId, { fieldKey, name, dataType });
+    }
+  }
+
   const sectionResults: SectionValidationResult[] = [];
 
   // Address History (record functionality)
@@ -193,6 +214,7 @@ export async function runValidation(
         today,
         sectionVisits,
         reviewVisitedAt,
+        requirementMetadata,
       }),
     );
   }
@@ -211,6 +233,7 @@ export async function runValidation(
         today,
         sectionVisits,
         reviewVisitedAt,
+        requirementMetadata,
       }),
     );
   }
@@ -230,6 +253,7 @@ export async function runValidation(
         today,
         sectionVisits,
         reviewVisitedAt,
+        requirementMetadata,
       }),
     );
   }
@@ -382,6 +406,11 @@ interface ScopedSectionInput {
   today: Date;
   sectionVisits: Record<string, SectionVisitRecord>;
   reviewVisitedAt: string | null;
+  // Map of saved-field requirementId → { fieldKey, name, dataType }, supplied
+  // to `extractEmploymentEntryDates` so it can identify start/end/current
+  // fields by requirement metadata. Address-history and personal-info paths
+  // ignore this; only employment and education time-based scope use it.
+  requirementMetadata: Map<string, RequirementMetadata>;
 }
 
 function validateAddressHistorySection(
@@ -450,7 +479,11 @@ function validateEducationSection(
 
   if (input.scope.scopeType === 'time_based') {
     const datedEntries: DatedEntryLike[] = entries.map((e) =>
-      extractEmploymentEntryDates(flattenEntry(e), {}),
+      extractEmploymentEntryDates(
+        flattenEntry(e),
+        {},
+        input.requirementMetadata,
+      ),
     );
     const tb = evaluateTimeBasedScope(input.scope, datedEntries, input.today);
     result.scopeErrors = tb.errors;
@@ -475,7 +508,11 @@ function validateEmploymentSection(
   const result = emptySectionResult(input.sectionId, 'not_started');
 
   const datedEntries: DatedEntryLike[] = entries.map((e) =>
-    extractEmploymentEntryDates(flattenEntry(e), {}),
+    extractEmploymentEntryDates(
+      flattenEntry(e),
+      {},
+      input.requirementMetadata,
+    ),
   );
 
   const entryLikes: EntryLike[] = entries.map((e) => ({

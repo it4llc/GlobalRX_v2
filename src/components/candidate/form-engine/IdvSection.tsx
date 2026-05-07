@@ -35,6 +35,15 @@ interface IdvField {
   displayOrder: number;
 }
 
+// Shape of an entry returned by /api/candidate/application/[token]/countries.
+// The API returns id (UUID), name, and code2; we only need id and name here,
+// but allow code2 to be present so this matches the API contract.
+interface CountryApiResponse {
+  id: string;
+  name: string;
+  code2?: string;
+}
+
 interface IdvSectionProps {
   token: string;
   serviceIds: string[];
@@ -72,6 +81,7 @@ export function IdvSection({
 }: IdvSectionProps) {
   const { t } = useTranslation();
   const [countries, setCountries] = useState<Array<{ id: string; name: string }>>([]);
+  const [countriesError, setCountriesError] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [fields, setFields] = useState<IdvField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -89,21 +99,39 @@ export function IdvSection({
   }, [token]);
 
   const loadCountries = async () => {
+    // Load countries from candidate-specific API.
+    // We do NOT fall back to a hardcoded list here: the database stores Country.id
+    // as a UUID, so any non-UUID stand-in (e.g. "US") would be rejected at submission
+    // when OrderItem.locationId is set from this value (FK to Country.id), and would
+    // also be rejected by other save endpoints' Zod schemas. If the API call fails
+    // we surface a clear error to the candidate instead.
     try {
-      // For now, use a static list. In production, this would come from the database
-      const countryList = [
-        { id: 'US', name: 'United States' },
-        { id: 'CA', name: 'Canada' },
-        { id: 'UK', name: 'United Kingdom' },
-        { id: 'AU', name: 'Australia' },
-        { id: 'XX', name: 'Other' } // For testing no-fields scenario
-      ];
-      setCountries(countryList);
+      const countriesResponse = await fetch(
+        `/api/candidate/application/${token}/countries`
+      );
+      if (countriesResponse.ok) {
+        const countriesData: CountryApiResponse[] = await countriesResponse.json();
+        const countryList = countriesData.map((country) => ({
+          id: country.id,
+          name: country.name,
+        }));
+        setCountries(countryList);
+        setCountriesError(false);
+      } else {
+        logger.error('Failed to load countries', {
+          event: 'idv_countries_load_error',
+          status: countriesResponse.status,
+        });
+        setCountries([]);
+        setCountriesError(true);
+      }
     } catch (error) {
       logger.error('Failed to load countries', {
-        event: 'countries_load_error',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        event: 'idv_countries_load_error',
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
+      setCountries([]);
+      setCountriesError(true);
     }
   };
 
@@ -117,14 +145,27 @@ export function IdvSection({
         const savedData = await savedDataResponse.json();
         const idvData = savedData.sections?.idv?.fields || [];
 
-        // Build form data map
+        // Build form data map and extract the saved country.
+        //
+        // The country selection is persisted as a synthetic flat field row with
+        // requirementId === 'idv_country' (see handleCountryChange / save handler
+        // below). The submission code reads from this same row (see
+        // submitApplication.ts readIdvCountryId and orderItemGeneration.ts), so
+        // we hydrate from it here too. We do NOT read from a top-level
+        // sections.idv.country key — the save handler does not write one, and
+        // relying on that would silently break country persistence on reload.
         const dataMap: Record<string, any> = {};
+        let savedCountry: string | null = null;
         for (const field of idvData) {
+          if (field.requirementId === 'idv_country') {
+            if (typeof field.value === 'string' && field.value.length > 0) {
+              savedCountry = field.value;
+            }
+            continue;
+          }
           dataMap[field.requirementId] = field.value;
         }
 
-        // Check if there's a saved country
-        const savedCountry = savedData.sections?.idv?.country;
         if (savedCountry) {
           setSelectedCountry(savedCountry);
         }
@@ -384,6 +425,19 @@ export function IdvSection({
         <h2 className="text-2xl font-semibold">{t('candidate.portal.sections.identityVerification')}</h2>
         <AutoSaveIndicator status={saveStatus} />
       </div>
+
+      {/* Phase 7 Stage 2 — countries load error. Mirrors EducationSection's
+          countriesError alert. We surface this instead of falling back to a
+          hardcoded list because the saved country must be a real Country.id
+          (UUID) so submission's FK to Country can resolve. */}
+      {countriesError && (
+        <div
+          role="alert"
+          className="mb-4 p-3 border border-red-300 bg-red-50 text-red-800 rounded-md text-sm"
+        >
+          {t('candidate.portal.countriesLoadError')}
+        </div>
+      )}
 
       {/* Country selector */}
       <div className="space-y-2">

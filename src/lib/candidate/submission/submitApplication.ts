@@ -288,8 +288,8 @@ export async function submitApplication(
 
   // ---- Step 3: Generate OrderItem keys -----------------------------------
   const addressHistory = readAddressHistorySection(formData);
-  const education = readEduEmpSection(formData, 'service_verification-edu');
-  const employment = readEduEmpSection(formData, 'service_verification-emp');
+  const education = readEduEmpSection(formData, 'education');
+  const employment = readEduEmpSection(formData, 'employment');
   const idv = readIdvSection(formData);
   const idvCountryId = readIdvCountryId(idv);
 

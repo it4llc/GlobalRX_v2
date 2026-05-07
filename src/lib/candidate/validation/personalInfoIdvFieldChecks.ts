@@ -310,7 +310,14 @@ export async function collectIdvFieldRequirements(
   // because requirements are shared across services.
   const requirementById = new Map<
     string,
-    { id: string; name: string; fieldKey: string; type: string; disabled: boolean }
+    {
+      id: string;
+      name: string;
+      fieldKey: string;
+      type: string;
+      disabled: boolean;
+      fieldData: FieldDataShape | null;
+    }
   >();
 
   for (const ps of packageServices) {
@@ -327,6 +334,7 @@ export async function collectIdvFieldRequirements(
         fieldKey: req.fieldKey,
         type: req.type,
         disabled: req.disabled === true,
+        fieldData: (req.fieldData as unknown as FieldDataShape | null) ?? null,
       });
     }
   }
@@ -359,6 +367,13 @@ export async function collectIdvFieldRequirements(
     if (!req) continue; // requirement not in our package's services
     if (req.disabled) continue;
     if (req.type !== 'field') continue;
+    // Exclude requirements claimed by the Personal Info collector. Same
+    // heuristic as collectPersonalInfoFieldRequirements / IdvSection's UI
+    // filter — without this exclusion, IDV-mapped DSX fields with
+    // collectionTab='subject' (e.g. firstName/lastName) get reported as
+    // unfilled IDV requirements even though the candidate satisfies them
+    // via Personal Info / locked invitation columns.
+    if (isPersonalInfoField(req.fieldKey, req.fieldData)) continue;
 
     if (!candidates.has(req.id)) {
       candidates.set(req.id, {

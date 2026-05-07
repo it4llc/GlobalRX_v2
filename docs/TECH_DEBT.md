@@ -1779,7 +1779,139 @@ or cast the literal: `return { ok: true, status: 200 } as Response;`. Both optio
 
 ---
 
+### TD-069 — Per-entry required field validation missing for Address History, Education, and Employment sections
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate Application — Validation Engine   |
+| Severity    | Major (Correctness — sections validate green when actually incomplete) |
+| Identified  | May 7, 2026 - Phase 7 Stage 2 smoke testing |
+| Identified by | Andy (smoke test) + bug-investigator     |
+
+**Description:**
+The validation engine checks entry count and date coverage for Address History, Education, and Employment, but does not verify that required fields within each entry have values. A candidate can create entries with only dates filled in (and, for address-history, only `countryId` + `fromDate` / `toDate` / `isCurrent` inside the address_block JSON) and the section validates as `complete`. There is no equivalent of the TD-062 `checkRequiredFields` walk for these three repeatable sections — TD-062 only wired up Personal Info and IDV.
+
+The bug surfaces visibly in Address History (where the address detail fields like `street1`, `city`, `state`, `postalCode` may be empty on every entry yet the section reads green); the same gap is latent in Education and Employment.
+
+**Separate from the form-rendering gap:**
+A related but distinct symptom was observed during smoke testing: address detail inputs (street, city, state, postal code) sometimes do not appear in the rendered `AddressHistorySection` form, even when the candidate has saved an entry with country and dates. That is a UI gate problem (`AddressHistorySection.tsx:479` only renders `<AddressBlockInput>` when both `entry.countryId` and a DSX `address_block`-typed field are resolved) and is **not** the same issue as this validation gap. Fixing this validation gap will correctly turn the section red but will not make missing inputs appear; the rendering gap needs its own repro and separate fix.
+
+**Why deferred:**
+Andy chose to scope the Phase 7 Stage 2 smoke-test fixes to Issue 2 (the date-extractor bug) only, and defer Issue 1 (per-entry required field validation) to a future stage to avoid expanding the scope of the Stage 2 implementer commit.
+
+**When to fix:**
+Before Phase 7 ships. The submission flow currently allows a candidate to submit a package with empty required fields inside Address History entries because validation reports `allComplete: true`. This is a correctness regression against the spec's status table (`docs/specs/phase7-stage1-validation-scope-gaps-review.md` Rules 4–7).
+
+**Suggested fix:**
+- Add a per-entry field-completeness walk to `validateAddressHistorySection`, `validateEducationSection`, and `validateEmploymentSection` that mirrors the TD-062 pattern in `personalInfoIdvFieldChecks.ts`.
+- For each entry, resolve the DSX field requirements for the entry's jurisdiction and emit a `FieldError` for every required field whose saved value is empty.
+- For `address_block`-typed fields specifically, descend into the JSON value and check each piece marked `required: true` in the requirement's `addressConfig` (`street1`, `city`, etc.) — not just whether the JSON object exists.
+- Reuse the `findMappings` adapter and `checkRequiredFields` helper already built for TD-062 where possible.
+
+**Files affected:**
+- `src/lib/candidate/validation/validationEngine.ts` — `validateAddressHistorySection`, `validateEducationSection`, `validateEmploymentSection`
+- Possibly a new helper file analogous to `personalInfoIdvFieldChecks.ts` for the repeatable-section field walk
+- New regression tests in `src/lib/candidate/validation/__tests__/validationEngine.test.ts` proving each section turns red when an entry has empty required fields
+
+---
+
+### TD-072 — IDV stale per-country form-data leak on country switch
+
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — `IdvSection.tsx`                                |
+| Severity      | Warning (correctness — orphaned OrderData rows)                         |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
+| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md` CO-01)  |
+
+**Description:**
+When the candidate switches IDV country, the previous country's per-field values are stashed under a synthetic `country_${countryId}` key in client `formData` state, but the existing `formData[<requirementId>]` entries are NOT cleared. The next save (triggered by typing a new field for the new country) sends ALL `pendingSaves` requirementIds, including any pending entries from the previous country. Saved values are referenced by requirementId, so orphaned values can persist in `formData.sections.idv.fields` until a new field with the same requirementId overwrites them. `readIdvSection` will include them in OrderData rows, attached to the *current* country's IDV OrderItem.
+
+**Impact:**
+OrderData rows for IDV may carry residual values from a country that's no longer selected, attached to the OrderItem for the new country. Submission still produces an IDV OrderItem for the right country and the `locationId` FK is correct, so this does not block submission — but the vendor receives field values that don't belong to the selected jurisdiction.
+
+**Why deferred:**
+Cosmetic per the audit: the candidate is unlikely to switch countries mid-flow in production, the `locationId` is correct, and the fix requires reasoning about the `pendingSaves` lifecycle in `IdvSection.tsx:236–272`. Logged as tech debt rather than blocking the BL-01/BL-02 submission fix.
+
+**When to fix:**
+Before Phase 7 ships if user research confirms candidates do switch IDV country during the flow; otherwise can be addressed in a follow-up cleanup pass.
+
+**Suggested fix:**
+On country switch in `IdvSection.tsx`, clear all `formData[<requirementId>]` entries that belong to DSX requirements scoped to the previous country before stashing the snapshot. Equivalently, walk the previous country's field set and `delete formData[req.id]` for each. Add a regression test that switches country, types in a field, and asserts the save payload does not include orphaned requirementIds from the prior country.
+
+**Files affected:**
+- `src/components/candidate/form-engine/IdvSection.tsx` (lines 236–272 — country-switch handling and `pendingSaves` flush)
+
+---
+
+### TD-073 — Education / Employment date extractor is locale-dependent and silently no-ops
+
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Validation Engine date extractors               |
+| Severity      | Warning (correctness — non-English packages may bypass scope/gap checks) |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
+| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md` CO-02)  |
+
+**Description:**
+The extractor's primary identification path in `dateExtractors.ts:165–252` uses `requirement.name` substring matching — it looks for "start", "end", "graduation", "current". This is locale-dependent. A non-English package configuration would fall through to the camelCase alias-set fallback, which uses `meta.fieldKey`. If both metadata is missing AND the known aliases don't match, dates simply won't be detected and the section will validate as if it has no date data. **No warning or error is logged when this happens.**
+
+**Impact:**
+A package whose DSX requirements have neither a recognized fieldKey alias (`startDate`, `endDate`, `graduationDate`, `currentlyEmployed`, etc.) nor an English name with "start" / "end" / "current" / "graduation" will silently bypass time-based scope and gap checks for Education and Employment. The candidate could submit an out-of-scope entry without the engine flagging it.
+
+**Why deferred:**
+Cosmetic per the audit: today's package configurations all use English names and recognized fieldKey aliases, so the silent fallback is not currently triggered in production. Logged as tech debt to address proactively before non-English package configurations are introduced or before locale-translated requirement names ship.
+
+**When to fix:**
+Before any package configuration ships with non-English `requirement.name` values, or before the date-extractor is reused in any locale-localized context.
+
+**Suggested fix:**
+- When `extractEmploymentEntryDates` (or its caller) finds an entry that has fields but no role-identified start/end date, log a `warn` with the entry's requirementIds and the candidate token so the gap is observable instead of silent.
+- Consider replacing the substring-on-name path with a stricter fieldKey-only match — `requirement.name` should not be load-bearing for semantic role detection.
+- Add a regression test that constructs a package whose date requirements have non-English names but recognized fieldKey aliases, and asserts the extractor still resolves them.
+
+**Files affected:**
+- `src/lib/candidate/validation/dateExtractors.ts` (lines 165–252)
+- `src/lib/candidate/validation/validationEngine.ts` (lines 188–201 — metadata population, where the warning could also be emitted)
+
+---
+
 ## Resolved Items
+
+---
+
+### TD-071 — Submission edu/emp data-key mismatch (silent dropping of education and employment OrderItems)
+
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Submission orchestrator                         |
+| Severity      | Blocker (Correctness — no edu/emp OrderItems generated at submission)   |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
+| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md` BL-01, BL-02) |
+| Resolved      | May 7, 2026                                                             |
+| Branch        | `feature/phase7-stage2-submission-order-generation`                     |
+
+**How it was resolved:**
+`submitApplication.ts` read `formData.sections` using the sidebar / `result.sectionId` keys (`'service_verification-edu'` and `'service_verification-emp'`) instead of the save endpoint's data keys (`'education'` and `'employment'`). Because `formData.sections['service_verification-edu' | '-emp']` does not exist, `readEduEmpSection` returned `entries: []` and `buildEduEmpOrderItemKeys` produced zero OrderItems. The failure was silent — validation passed, submission succeeded, the order was created with no education or employment items.
+
+The validation engine had the same bug fixed at the data-key level in commit `3aaf0d2` (TD-062 fix); the submission service was missed in that pass and was caught by the comprehensive Phase 7 Stage 2 data-flow audit (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md`).
+
+Two string-literal fixes in `submitApplication.ts:291–292`:
+- Line 291: `'service_verification-edu'` → `'education'`
+- Line 292: `'service_verification-emp'` → `'employment'`
+
+The validation engine's `result.sectionId` values (`'service_verification-edu'` and `'service_verification-emp'` in `validationEngine.ts:230, 249`) are intentionally unchanged — those are sidebar / structure section IDs used by `portal-layout.tsx`, the `sectionVisits` map, the Review error nav, and `SectionErrorBanner`. They live in a different directory and are not data keys.
+
+**Verification:**
+- `grep -rn "service_verification" src/lib/candidate/submission/` returns zero hits after the fix.
+- 72/72 Pass 1 tests in `src/lib/candidate/submission/__tests__/` pass (`buildOrderSubject.test.ts` 12, `orderDataPopulation.test.ts` 19, `orderItemGeneration.test.ts` 41).
+- A browser smoke test of the submission flow with edu and emp entries is queued.
+
+**Files changed:**
+- `src/lib/candidate/submission/submitApplication.ts` (two string literals on lines 291–292)
+
+**Follow-ups:**
+- A Pass 2 regression test must fixture both edu and emp entries with `countryId`s, run `submitApplication` end-to-end, and assert `OrderItem` rows are created with the matching `serviceId` and `locationId`. Labelled `// REGRESSION TEST: proves bug fix for submission edu/emp data-key mismatch (TD-071)`.
 
 ---
 
