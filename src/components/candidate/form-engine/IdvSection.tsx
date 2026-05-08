@@ -84,7 +84,9 @@ export function IdvSection({
   const [countriesError, setCountriesError] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [fields, setFields] = useState<IdvField[]>([]);
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  // Slots are either a FieldValue (per-requirement value) or, under synthetic
+  // `country_<id>` keys, a snapshot of that country's prior field values.
+  const [formData, setFormData] = useState<Record<string, FieldValue | Record<string, FieldValue>>>({});
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
@@ -154,7 +156,7 @@ export function IdvSection({
         // we hydrate from it here too. We do NOT read from a top-level
         // sections.idv.country key — the save handler does not write one, and
         // relying on that would silently break country persistence on reload.
-        const dataMap: Record<string, any> = {};
+        const dataMap: Record<string, FieldValue> = {};
         let savedCountry: string | null = null;
         for (const field of idvData) {
           if (field.requirementId === 'idv_country') {
@@ -232,11 +234,14 @@ export function IdvSection({
 
       setFields(uniqueFields);
 
-      // Preserve existing form data for this country
-      if (formData[`country_${countryId}`]) {
+      // Preserve existing form data for this country. The snapshot under the
+      // synthetic country_<id> key is always a Record<string, FieldValue>;
+      // narrow before spreading so the union type can be widened back out.
+      const countrySnapshot = formData[`country_${countryId}`];
+      if (countrySnapshot && typeof countrySnapshot === 'object' && !Array.isArray(countrySnapshot) && !(countrySnapshot instanceof Date)) {
         setFormData(prev => ({
           ...prev,
-          ...formData[`country_${countryId}`]
+          ...(countrySnapshot as Record<string, FieldValue>)
         }));
       }
 
@@ -258,10 +263,13 @@ export function IdvSection({
   const handleCountryChange = useCallback((countryId: string) => {
     // Save current country's data before switching
     if (selectedCountry && fields.length > 0) {
-      const currentCountryData: Record<string, any> = {};
+      const currentCountryData: Record<string, FieldValue> = {};
       for (const field of fields) {
-        if (formData[field.requirementId] !== undefined) {
-          currentCountryData[field.requirementId] = formData[field.requirementId];
+        // field.requirementId is a UUID — never collides with the synthetic
+        // country_<id> snapshot keys, so the slot is always a FieldValue.
+        const value = formData[field.requirementId] as FieldValue | undefined;
+        if (value !== undefined) {
+          currentCountryData[field.requirementId] = value;
         }
       }
 
@@ -493,7 +501,7 @@ export function IdvSection({
                         isRequired={field.isRequired}
                         instructions={field.instructions}
                         fieldData={field.fieldData}
-                        value={formData[field.requirementId] || ''}
+                        value={(formData[field.requirementId] as FieldValue | undefined) ?? ''}
                         onChange={(value) => handleFieldChange(field.requirementId, value)}
                         onBlur={() => handleFieldBlur(field.requirementId)}
                         // Phase 6 Stage 3: defensive consistency. IDV doesn't

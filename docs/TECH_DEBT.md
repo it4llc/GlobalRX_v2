@@ -1876,7 +1876,104 @@ Before any package configuration ships with non-English `requirement.name` value
 
 ---
 
+### TD-074 — Submission orchestrator bypasses `OrderCoreService.addOrderItem`
+
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Submission orchestrator                         |
+| Severity      | Warning (architectural — accepted deviation from DATABASE_STANDARDS S2.2) |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 standards check                           |
+| Identified by | standards-checker                                                       |
+
+**Description:**
+DATABASE_STANDARDS Section 2.2 states that the canonical function for creating an `OrderItem` is `OrderCoreService.addOrderItem` and that `OrderItem` records must not be created directly via `prisma.orderItem.create()`. `submitApplication.ts` (Phase 7 Stage 2) creates `OrderItem` rows directly inside its outer `prisma.$transaction()` rather than calling the canonical function.
+
+**Why deferred:**
+`OrderCoreService.addOrderItem` opens its own `prisma.$transaction()`. Calling it from inside the submission's outer transaction would either nest transactions (unsupported) or splinter the submit operation across multiple independent transactions, breaking the all-or-nothing invariant the technical plan §12 explicitly requires. The submission orchestrator therefore replicates the same transactional pattern inline — `tx.orderItem.create` immediately followed by `tx.servicesFulfillment.create({ assignedVendorId: null })` in the same transaction — preserving the `OrderItem` ↔ `ServicesFulfillment` 1:1 invariant that S2.2 was written to enforce. The deviation was reviewed and accepted by the code-reviewer and standards-checker stages of the Phase 7 Stage 2 pipeline.
+
+**Risks of the deviation:**
+- The duplicate-check (`findMany({ orderId, serviceId, locationId })`) that `addOrderItem` performs is not replicated here. The submission flow relies on upstream dedup logic (`dedupeOrderItemKeys`) plus idempotency guards on the order's `statusCode === 'draft'` precondition. Concurrent retries that pass the in-transaction guard could in principle write duplicates; mitigation is the candidate UI's button-disable plus session-bound auth.
+- Future changes to `OrderCoreService.addOrderItem` (e.g., new audit hooks or side effects) will not flow through to the submission path automatically.
+
+**When to fix:**
+When `OrderCoreService` is refactored to accept an externally provided `tx` parameter (i.e., `addOrderItem(tx, …)` becomes possible), migrate the submission orchestrator to call it directly. Alternatively, extract the inner write pattern into a shared helper that both paths invoke.
+
+**Suggested fix:**
+- Refactor `OrderCoreService.addOrderItem` to accept an optional `tx: Prisma.TransactionClient` parameter and use it instead of opening a new transaction when provided. Then replace the inline `tx.orderItem.create` + `tx.servicesFulfillment.create` block in `submitApplication.ts` (around line 407) with a call to `OrderCoreService.addOrderItem(tx, …)`.
+- Add a duplicate `(orderId, serviceId, locationId)` precondition check in the helper for parity with the existing `addOrderItem` behavior.
+
+**Files affected:**
+- `src/lib/candidate/submission/submitApplication.ts` (around line 407 — direct `tx.orderItem.create` + `tx.servicesFulfillment.create` block)
+- `src/lib/services/order-core.service.ts` (`addOrderItem` — would need a tx-pass-through variant)
+
+---
+
+### TD-075 — `submitApplication.ts` exceeds 600-line file-size hard stop
+
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Submission orchestrator                         |
+| Severity      | Warning (file size — accepted override)                                 |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 standards check                           |
+| Identified by | standards-checker                                                       |
+
+**Description:**
+`src/lib/candidate/submission/submitApplication.ts` is 689 lines, exceeding the 600-line hard stop in CODING_STANDARDS S9.
+
+**Why accepted:**
+The file is the orchestrator for the entire candidate submission pipeline. The technical plan (`docs/specs/phase7-stage2-submission-order-generation-technical-plan.md` §12) deliberately keeps the 11 sequential steps in a single file so the all-or-nothing transaction shape is readable in one place. Splitting the orchestrator across multiple files would either re-introduce the transaction-nesting problem already documented in TD-074 or fragment the sequence diagram across helpers, hurting readability of the most critical safety-bearing code path in the candidate flow.
+
+**When to fix:**
+If the orchestrator grows beyond ~800 lines, or if a future feature adds a wholly new submission step that can be cleanly extracted as a co-equal sibling helper. Until then, the size is a deliberate trade-off.
+
+**Files affected:**
+- `src/lib/candidate/submission/submitApplication.ts`
+
+---
+
+### TD-076 — `personalInfoIdvFieldChecks.ts` exceeds 600-line file-size soft warning
+
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Validation engine field checks                  |
+| Severity      | Warning (file size — accepted override)                                 |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 standards check                           |
+| Identified by | standards-checker                                                       |
+
+**Description:**
+`src/lib/candidate/validation/personalInfoIdvFieldChecks.ts` is 632 lines, over the soft warning threshold and approaching the 600-line hard stop in CODING_STANDARDS S9.
+
+**Why accepted:**
+The file was deliberately extracted from `validationEngine.ts` (already TD-065) to keep the validation engine itself manageable. The collectors, AND-aggregator, `checkRequiredFields`, and the two section validators it contains share the same data shapes and helper logic — the code-reviewer's first pass concluded that splitting it further would create unnatural seams without any cohesion benefit.
+
+**When to fix:**
+If a future stage adds a third section validator (beyond Personal Info and IDV) to this file, the section-level collector and validator pairs should be split into per-section files at that point.
+
+**Files affected:**
+- `src/lib/candidate/validation/personalInfoIdvFieldChecks.ts`
+
+---
+
 ## Resolved Items
+
+---
+
+### TD-070 — Alias-set approach to date field identification in dateExtractors.ts
+
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Validation engine date extractors               |
+| Severity      | Warning (correctness — locale-fragile field identification)             |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
+| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md`)        |
+| Resolved      | May 7, 2026                                                             |
+| Branch        | `feature/phase7-stage2-submission-order-generation`                     |
+
+**How it was resolved:**
+Originally logged for the alias-set approach to date field identification. Resolved by replacing alias sets with `dataType`-based field identification in `dateExtractors.ts`.
+
+**Files changed:**
+- `src/lib/candidate/validation/dateExtractors.ts`
 
 ---
 

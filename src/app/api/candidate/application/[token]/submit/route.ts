@@ -22,6 +22,7 @@ import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
+import { ORDER_STATUSES } from '@/constants/order-status';
 import { runValidation } from '@/lib/candidate/validation/validationEngine';
 import {
   AlreadySubmittedError,
@@ -126,7 +127,7 @@ export async function POST(
 
     // Step 7: Draft-only guard (Spec Rule 20 — corrupted state where
     // invitation.status hasn't flipped but the order has.)
-    if (invitation.order.statusCode !== 'draft') {
+    if (invitation.order.statusCode !== ORDER_STATUSES.DRAFT) {
       const body: SubmitAlreadySubmittedResponse = {
         success: true,
         message: 'Application has already been submitted',

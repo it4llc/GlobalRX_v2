@@ -30,7 +30,7 @@ import { Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
 
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
-import { ORDER_STATUS_VALUES } from '@/constants/order-status';
+import { ORDER_STATUSES } from '@/constants/order-status';
 import { SERVICE_STATUSES } from '@/constants/service-status';
 import {
   normalizeRawScope,
@@ -76,13 +76,12 @@ export class AlreadySubmittedError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Submission status (lowercase per project standard)
+// Submission status (lowercase per project standard) — all status values
+// must come from ORDER_STATUSES per DATABASE_STANDARDS S5.2.
 // ---------------------------------------------------------------------------
 
-const STATUS_DRAFT = 'draft';
-// Pull "submitted" from the constants array so a future rename to the order
-// status surface flows through here automatically.
-const STATUS_SUBMITTED = ORDER_STATUS_VALUES.find((s) => s === 'submitted') ?? 'submitted';
+const STATUS_DRAFT = ORDER_STATUSES.DRAFT;
+const STATUS_SUBMITTED = ORDER_STATUSES.SUBMITTED;
 
 // ---------------------------------------------------------------------------
 // Public input / output shapes
