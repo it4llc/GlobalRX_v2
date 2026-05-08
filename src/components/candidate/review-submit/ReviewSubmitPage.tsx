@@ -2,12 +2,18 @@
 //
 // Phase 7 Stage 1 — top-level Review & Submit page. Loads /validate on
 // mount and on every save-triggered refresh, renders one section block per
-// FullValidationResult.sections entry plus the disabled Submit button + help
-// text.
+// FullValidationResult.sections entry plus the Submit button + help text.
+//
+// Phase 7 Stage 2 — wired the Submit button to a host-supplied
+// `onSubmit` handler with loading/error states. The host (portal-layout)
+// owns the actual fetch and the navigation; this component remains
+// presentational for everything except the click handler.
 //
 // Spec:           docs/specs/phase7-stage1-validation-scope-gaps-review.md
 //                 (Rules 29–33)
+//                 docs/specs/phase7-stage2-submission-order-generation.md (Rule 1, 24)
 // Technical plan: docs/specs/phase7-stage1-validation-scope-gaps-review-technical-plan.md §4 #12, §9
+//                 docs/specs/phase7-stage2-submission-order-generation-technical-plan.md §3.2 / §17
 
 'use client';
 
@@ -61,11 +67,38 @@ interface ReviewSubmitPageProps {
    * so the host can scroll to a specific field where applicable (Rule 31).
    */
   onErrorNavigate: (sectionId: string, error: ReviewError) => void;
+  /**
+   * Phase 7 Stage 2 — invoked when the candidate taps Submit. Host
+   * (portal-layout) makes the actual fetch and handles the response.
+   * Optional so existing callers / tests that only render the Stage 1
+   * surface keep working — when omitted, the button stays disabled.
+   */
+  onSubmit?: () => void | Promise<void>;
+  /**
+   * Phase 7 Stage 2 — host-controlled "submission in flight" flag. When
+   * true the button is disabled (regardless of validation state), the
+   * label swaps to the loading-state translation, and aria-busy is set so
+   * assistive tech announces the change.
+   */
+  submitting?: boolean;
+  /**
+   * Phase 7 Stage 2 — already-localized error string (or null when no
+   * error). When non-null, a banner is rendered above the Submit button
+   * using the existing `.form-error` class.
+   */
+  submitError?: string | null;
 }
 
 export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
   const { t } = useTranslation();
-  const { validationResult, sections, onErrorNavigate } = props;
+  const {
+    validationResult,
+    sections,
+    onErrorNavigate,
+    onSubmit,
+    submitting = false,
+    submitError = null,
+  } = props;
 
   // Build the renderable list. Two paths so existing tests that only pass
   // validationResult continue to work, while production (which passes
@@ -130,18 +163,58 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
       </div>
 
       <footer className="mt-6 flex flex-col items-stretch gap-2 sm:items-center">
+        {/* Phase 7 Stage 2 — submit error banner. Renders above the button
+            when the host reports a non-null error (validation failure,
+            expired invitation, server error, network failure). Already
+            localized by the host; we render it through the existing
+            .form-error class for visual consistency with other error
+            banners in the candidate portal. */}
+        {submitError ? (
+          <div
+            role="alert"
+            data-testid="submit-error-banner"
+            className="form-error w-full rounded-md border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+          >
+            {submitError}
+          </div>
+        ) : null}
+
         <button
           type="button"
-          // Stage 1: Submit is always disabled. Stage 2 will activate it.
-          disabled
-          aria-disabled="true"
-          // Disabled visual treatment uses the standard "muted gray" pattern
-          // — opacity-60 + cursor-not-allowed. No tooltip per Rule 33
-          // (mobile has no hover); the help text below the button is
-          // permanent and visible to all candidates.
-          className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-gray-300 px-6 py-2 text-sm font-medium text-gray-600 opacity-60 cursor-not-allowed"
+          // Phase 7 Stage 2 — Submit is enabled only when:
+          //   1. validation reports allComplete=true (Spec Rule 1), AND
+          //   2. the host wired an onSubmit handler, AND
+          //   3. no submission is currently in flight.
+          // The legacy disabled-only path is preserved for any caller that
+          // forgets to pass onSubmit, so the test suite's Stage 1 fixtures
+          // continue to behave as before.
+          disabled={
+            !onSubmit ||
+            !validationResult?.summary.allComplete ||
+            submitting
+          }
+          aria-disabled={
+            !onSubmit ||
+            !validationResult?.summary.allComplete ||
+            submitting
+          }
+          aria-busy={submitting ? 'true' : undefined}
+          onClick={onSubmit ? () => void onSubmit() : undefined}
+          // Active palette when ready to submit; muted gray otherwise. The
+          // ternary avoids ambiguity about which palette wins in the
+          // "submitting === true" case (gray, because the button is
+          // disabled at that point).
+          className={
+            !onSubmit ||
+            !validationResult?.summary.allComplete ||
+            submitting
+              ? 'inline-flex min-h-[44px] items-center justify-center rounded-md bg-gray-300 px-6 py-2 text-sm font-medium text-gray-600 opacity-60 cursor-not-allowed'
+              : 'inline-flex min-h-[44px] items-center justify-center rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer'
+          }
         >
-          {t('candidate.reviewSubmit.submit')}
+          {submitting
+            ? t('candidate.submission.submitting')
+            : t('candidate.reviewSubmit.submit')}
         </button>
         <p className="text-center text-xs text-gray-500">
           {t('candidate.reviewSubmit.submitHelp')}

@@ -721,6 +721,7 @@ When `fieldType='document'`, the `fieldValue` contains a JSON object with:
 - `updatedAt` (DateTime, required): Last modification timestamp
 - `completedAt` (DateTime, optional): When candidate completed the process
 - `lastAccessedAt` (DateTime, optional): When candidate last accessed the invitation
+- `formData` (Json, required, default `{}`): Candidate's in-progress application state. Section data is stored under `formData.sections[<sectionKey>]` keyed by save-route `sectionType` (`personal_info`, `idv`, `address_history`, `education`, `employment`; plus per-package `workflow_section` / `service_section`). See `DATABASE_STANDARDS.md` §2.4.
 
 **Status Values:**
 - `sent`: Invitation has been sent to candidate

@@ -279,9 +279,8 @@ The bucket key is the `workflow_sections.id` UUID (matching the key in `formData
       }]
     },
     "idv": {
-      "countryId": "string (UUID) | null",
       "fields": [{
-        "requirementId": "string (UUID)",
+        "requirementId": "string (UUID or 'idv_country')",
         "value": "any"
       }]
     }
@@ -289,7 +288,7 @@ The bucket key is the `workflow_sections.id` UUID (matching the key in `formData
 }
 ```
 
-`personal_info` and `idv` sections are always present in the response, even when the candidate has not saved any data — they appear with an empty `fields` array. The IDV section additionally exposes the saved `countryId` at the section level when present on stored data.
+`personal_info` and `idv` sections are always present in the response, even when the candidate has not saved any data — they appear with an empty `fields` array. The IDV section stores the candidate's selected country as a flat field row with `requirementId === 'idv_country'` inside the `fields` array (Phase 7 Stage 2). It is not a DSX requirement UUID; it is a synthetic marker written and read by `IdvSection.tsx` and by the submission orchestrator. Callers should not treat it as a DSX field.
 
 **Repeatable sections** (`education`, `employment`) return an `entries` array instead of a flat `fields` array:
 ```json
@@ -420,6 +419,33 @@ Phase 6 Stage 4. Accepts a single document file along with a requirement identif
 - `410` — Invitation expired or already completed.
 - `500` — Disk write failure.
 
+### POST /api/candidate/application/[token]/submit
+
+Phase 7 Stage 2. Runs the candidate submission pipeline: validates the application server-side, creates all OrderItems and their paired ServicesFulfillment records, populates OrderData from saved form data, flips the Order to `submitted`, writes OrderStatusHistory and one ServiceComment per OrderItem, and marks the CandidateInvitation as `completed`. Every database write executes inside a single `prisma.$transaction()` call with a 30-second timeout — if any step fails the entire transaction rolls back and no partial state is written.
+
+**Authentication:** Valid `candidate_session` cookie with matching token.
+
+**Request body:** none. The token identifies the invitation; all input is read from the database.
+
+**Responses:**
+
+| Status | Body shape | Meaning |
+|--------|-----------|---------|
+| `200` | `{ success: true, message: string, redirectTo: string }` | Submission succeeded. Client should `router.push(redirectTo)`. |
+| `200` | `{ success: true, message: string, redirectTo: string }` | Idempotent: invitation was already `completed`, or order was already not `draft`. No writes performed. Same envelope as a fresh success. |
+| `400` | `{ success: false, error: 'Validation failed', validationResult: FullValidationResult }` | Server-side validation failed. `validationResult` carries the same shape as the `/validate` endpoint. The client should refresh its validation state and keep the candidate on the Review page. |
+| `401` | `{ error: 'Unauthorized' }` | No session cookie. |
+| `403` | `{ error: 'Forbidden' }` | Session token does not match URL token. |
+| `403` | `{ success: false, error: 'This invitation has expired' }` | Invitation past its `expiresAt` date. |
+| `404` | `{ error: 'Invitation not found' }` | No invitation row matches the token. |
+| `500` | `{ success: false, error: 'Internal server error' }` | Unexpected exception. Logged via Winston with `event: 'candidate_submit_error'`; never logs PII. |
+
+**Important invariant:** The endpoint is idempotent. Submitting a second time returns `200` with the same response shape as a fresh success. This is safe to retry on network failure.
+
+**`redirectTo`** is always `/candidate/{token}/portal/submitted`. The client navigates there after receiving a `success: true` response.
+
+**Concurrency:** The submission orchestrator re-reads the invitation and order inside the transaction and throws an internal sentinel (`AlreadySubmittedError`) if state shifted between the pre-transaction guard and the transaction's own read. That sentinel is translated back to the `200` idempotent response rather than a `500`.
+
 ### DELETE /api/candidate/application/[token]/upload/[documentId]
 
 Phase 6 Stage 4. Removes a previously uploaded file from disk. Verifies that the `documentId` appears in the candidate's saved `formData` and that the file's `storagePath` is within the candidate's own order directory.
@@ -480,8 +506,10 @@ Form data is stored in the `formData` JSON column on the `CandidateInvitation` t
     },
     "idv": {
       "type": "idv",
-      "country": "US",
-      "fields": [...]
+      "fields": [
+        { "requirementId": "idv_country", "value": "<country UUID>" },
+        { "requirementId": "<dsx-requirement UUID>", "value": "..." }
+      ]
     },
     "service_<id>": {
       "type": "service_section",
