@@ -3,6 +3,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/contexts/TranslationContext';
 import PortalHeader from './portal-header';
 import PortalSidebar from './portal-sidebar';
 import PortalWelcome from './portal-welcome';
@@ -114,6 +116,19 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     sectionVisits: SectionVisitsMap;
     reviewPageVisitedAt: string | null;
   } | null>(null);
+
+  // Phase 7 Stage 2 — submission state lifted into the shell. The Review &
+  // Submit page is presentational; the shell owns the fetch and the
+  // post-submit navigation so the page itself can stay test-friendly and
+  // free of Next-router coupling. See plan §3.3 / §17.
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Phase 7 Stage 2 — router for post-submit navigation to the success page.
+  // useTranslation is also pulled here (rather than in handleSubmit) because
+  // hooks cannot be called from inside a useCallback body.
+  const router = useRouter();
+  const { t } = useTranslation();
 
   // Phase 7 Stage 1 — visit tracking + validation result driven by
   // usePortalValidation. The hook hydrates from initial values pushed in
@@ -480,6 +495,72 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     [markSectionVisited, markSectionDeparted, markReviewVisited, activeSection],
   );
 
+  // Phase 7 Stage 2 — Submit handler. Owned by the shell so the Review &
+  // Submit page stays presentational. Per plan §3.3 / §17:
+  //   - 200 success / already-submitted (success===true) → router.push(redirectTo)
+  //   - 400 validation failure → refresh validation, show banner, stay on page
+  //   - 403 expired → show banner (no redirect — plan §17 row 5)
+  //   - 500 / network failure → show generic server-error banner
+  // The route response shape is `{ success, message?, redirectTo?, error? }`
+  // (see /api/candidate/application/[token]/submit/route.ts). We discriminate
+  // on HTTP status first, then on the body's `success` flag for the 200/400
+  // shapes that share envelopes.
+  const handleSubmit = useCallback(async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const response = await fetch(
+        `/api/candidate/application/${encodeURIComponent(token)}/submit`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        },
+      );
+      const body = (await response.json().catch(() => null)) as
+        | { success?: boolean; redirectTo?: string }
+        | null;
+
+      if (response.status === 200 && body?.success === true && body.redirectTo) {
+        // Success or already-submitted (idempotent). Both paths return the
+        // same envelope per plan §11.3, so a single check covers them.
+        router.push(body.redirectTo);
+        return;
+      }
+
+      if (response.status === 400) {
+        // Validation failure. Re-run /validate so the Review page picks up
+        // the freshly-discovered missing fields, then surface the banner.
+        // The candidate stays on the Review page; the button re-enables
+        // once allComplete flips back to true after they fix the gaps.
+        void refreshValidation();
+        setSubmitError(t('candidate.submission.error.validationFailed'));
+        return;
+      }
+
+      if (response.status === 403) {
+        // Expired (or token mismatch — same banner is acceptable per plan
+        // §17 row 6; the candidate cannot recover from either without a
+        // new invitation).
+        setSubmitError(t('candidate.submission.error.expired'));
+        return;
+      }
+
+      // 401 / 404 / 500 / anything else — treat as server error per
+      // plan §17 row 7. The route logs the underlying cause via Winston.
+      setSubmitError(t('candidate.submission.error.serverError'));
+    } catch (error) {
+      // Network failure (fetch threw) or JSON parse failure. We don't log
+      // PII; only the event name and a generic error message ship.
+      logger.error('Candidate submit failed', {
+        event: 'candidate_submit_request_error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      setSubmitError(t('candidate.submission.error.serverError'));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [token, router, refreshValidation, t]);
+
   // Acknowledge handler invoked by a workflow section's checkbox. Updates the
   // local map immediately so the UI reflects the change, then persists via the
   // standard /save endpoint. Per BR 7/8, the saved shape is keyed by
@@ -562,6 +643,9 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             validationResult={validationResult}
             sections={reviewPageSections}
             onErrorNavigate={handleReviewErrorNavigate}
+            onSubmit={handleSubmit}
+            submitting={submitting}
+            submitError={submitError}
           />
         </div>
       );
