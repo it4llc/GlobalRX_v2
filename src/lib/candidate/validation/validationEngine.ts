@@ -8,6 +8,13 @@
 // Spec:           docs/specs/phase7-stage1-validation-scope-gaps-review.md
 // Technical plan: docs/specs/phase7-stage1-validation-scope-gaps-review-technical-plan.md §2.8
 //
+// Phase 7 Stage 2 — TD-062 fix: Personal Info / IDV now validate required
+// DSX field requirements rather than just relying on visit state. The
+// per-section logic lives in `personalInfoIdvFieldChecks.ts` (Andy's
+// Option 1 — sibling-file path). This file's edits are intentionally
+// minimal: an extended Prisma include, two replaced call sites, and one
+// shared findMappings adapter.
+//
 // Single rule about "today": Rule 14 / Tech Plan §11.3 — capture once at the
 // top of runValidation(), thread it through every helper.
 
@@ -29,8 +36,16 @@ import { detectGaps } from './gapDetection';
 import {
   extractAddressEntryDates,
   extractEmploymentEntryDates,
+  type RequirementMetadata,
 } from './dateExtractors';
 import { validateWorkflowSection } from './validateWorkflowSection';
+import {
+  collectPersonalInfoFieldRequirements,
+  validateIdvSection,
+  validatePersonalInfoSection,
+  type DsxMappingRow,
+  type FindDsxMappings,
+} from './personalInfoIdvFieldChecks';
 import type {
   DatedEntryLike,
   EntryLike,
@@ -102,7 +117,22 @@ export async function runValidation(
       package: {
         include: {
           workflow: { include: { sections: true } },
-          packageServices: { include: { service: true } },
+          // Phase 7 Stage 2 / TD-062 — extended include so the engine can
+          // resolve Personal Info / IDV field-level required-state without
+          // a second round-trip. The personalInfoIdvFieldChecks helpers
+          // walk service.serviceRequirements (limited to type='field' at
+          // read time) and service.availability for the (service,
+          // location) pair list.
+          packageServices: {
+            include: {
+              service: {
+                include: {
+                  serviceRequirements: { include: { requirement: true } },
+                  availability: true,
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -150,6 +180,26 @@ export async function runValidation(
     }
   }
 
+  // Build a requirementId → { fieldKey, name, dataType } map across all
+  // package services. The employment / education extractor uses this to
+  // identify saved fields by their requirement metadata (Phase 7 Stage 2
+  // fix — the previous fieldKey-only approach broke for packages whose
+  // requirements use auto-fallback UUID-based fieldKeys, e.g. EDUCATIONV).
+  const requirementMetadata = new Map<string, RequirementMetadata>();
+  for (const ps of orderedPackage.packageServices) {
+    const reqs = ps.service?.serviceRequirements ?? [];
+    for (const sr of reqs) {
+      const r = sr.requirement;
+      if (!r) continue;
+      const fieldKey = typeof r.fieldKey === 'string' ? r.fieldKey : '';
+      const name = typeof r.name === 'string' ? r.name : '';
+      const fieldData = (r.fieldData as { dataType?: unknown } | null) ?? {};
+      const dataType =
+        typeof fieldData.dataType === 'string' ? fieldData.dataType : '';
+      requirementMetadata.set(sr.requirementId, { fieldKey, name, dataType });
+    }
+  }
+
   const sectionResults: SectionValidationResult[] = [];
 
   // Address History (record functionality)
@@ -164,6 +214,7 @@ export async function runValidation(
         today,
         sectionVisits,
         reviewVisitedAt,
+        requirementMetadata,
       }),
     );
   }
@@ -177,11 +228,12 @@ export async function runValidation(
     sectionResults.push(
       validateEducationSection({
         sectionId: 'service_verification-edu',
-        sectionData: sectionsData['service_verification-edu'],
+        sectionData: sectionsData['education'],
         scope,
         today,
         sectionVisits,
         reviewVisitedAt,
+        requirementMetadata,
       }),
     );
   }
@@ -195,43 +247,72 @@ export async function runValidation(
     sectionResults.push(
       validateEmploymentSection({
         sectionId: 'service_verification-emp',
-        sectionData: sectionsData['service_verification-emp'],
+        sectionData: sectionsData['employment'],
         scope,
         gapToleranceDays,
         today,
         sectionVisits,
         reviewVisitedAt,
+        requirementMetadata,
       }),
     );
   }
 
-  // Personal Info — no scope/gap, only existence/visit awareness.
+  // Personal Info — TD-062 fix. Walks the package's DSX field requirements
+  // and emits a FieldError for every required field that's empty. Locked
+  // fields (firstName/lastName/email/phone) are sourced from the invitation
+  // columns and pass the check whenever the column is non-empty.
+  const findMappings: FindDsxMappings = buildFindMappings();
+  const lockedValues: Record<string, string | null | undefined> = {
+    firstName: invitation.firstName,
+    lastName: invitation.lastName,
+    email: invitation.email,
+    // The portal API also recognizes `phone` and `phoneNumber` as locked
+    // when the invitation has a phone number; we feed the concatenated
+    // value (country code + number) into both keys so either fieldKey
+    // shape passes the locked check.
+    phone: invitation.phoneNumber
+      ? `${invitation.phoneCountryCode ?? ''}${invitation.phoneNumber}`
+      : null,
+    phoneNumber: invitation.phoneNumber
+      ? `${invitation.phoneCountryCode ?? ''}${invitation.phoneNumber}`
+      : null,
+  };
+
+  const personalInfoRequirements = await collectPersonalInfoFieldRequirements(
+    orderedPackage.packageServices,
+    findMappings,
+  );
   sectionResults.push(
-    validateNonScopedSection({
+    validatePersonalInfoSection({
       sectionId: 'personal_info',
       sectionData: sectionsData['personal_info'],
+      requiredFields: personalInfoRequirements,
+      lockedValues,
       sectionVisits,
       reviewVisitedAt,
+      deriveStatus: deriveStatusWithErrors,
     }),
   );
 
-  // IDV — same as Personal Info (Rule 18 — no scope/gap). IDV is its own
-  // service section keyed `service_idv` (matching the structure endpoint,
-  // portal-layout, and sidebar), visible only when the package contains an
-  // idv-functionality service. It isn't in the scoped-types map (idv is
-  // not a scope-bearing functionality), so we look for it directly.
+  // IDV — TD-062 fix. Section bucket is keyed `idv` in saved-data (the IDV
+  // section saves with sectionId: 'idv' — see IdvSection.tsx); we keep the
+  // SectionValidationResult.sectionId as `service_idv` so the rest of the
+  // engine and the Review page don't need a sectionId rename.
   const hasIdv = orderedPackage.packageServices.some(
     (ps) => ps.service?.functionalityType === 'idv',
   );
   if (hasIdv) {
-    sectionResults.push(
-      validateNonScopedSection({
-        sectionId: 'service_idv',
-        sectionData: sectionsData['service_idv'],
-        sectionVisits,
-        reviewVisitedAt,
-      }),
-    );
+    const idvResult = await validateIdvSection({
+      sectionId: 'service_idv',
+      idvSectionData: sectionsData['idv'],
+      packageServices: orderedPackage.packageServices,
+      findMappings,
+      sectionVisits,
+      reviewVisitedAt,
+      deriveStatus: deriveStatusWithErrors,
+    });
+    sectionResults.push(idvResult);
   }
 
   // Workflow sections — emit a per-section result so the Review page can
@@ -325,6 +406,11 @@ interface ScopedSectionInput {
   today: Date;
   sectionVisits: Record<string, SectionVisitRecord>;
   reviewVisitedAt: string | null;
+  // Map of saved-field requirementId → { fieldKey, name, dataType }, supplied
+  // to `extractEmploymentEntryDates` so it can identify start/end/current
+  // fields by requirement metadata. Address-history and personal-info paths
+  // ignore this; only employment and education time-based scope use it.
+  requirementMetadata: Map<string, RequirementMetadata>;
 }
 
 function validateAddressHistorySection(
@@ -393,7 +479,11 @@ function validateEducationSection(
 
   if (input.scope.scopeType === 'time_based') {
     const datedEntries: DatedEntryLike[] = entries.map((e) =>
-      extractEmploymentEntryDates(flattenEntry(e), {}),
+      extractEmploymentEntryDates(
+        flattenEntry(e),
+        {},
+        input.requirementMetadata,
+      ),
     );
     const tb = evaluateTimeBasedScope(input.scope, datedEntries, input.today);
     result.scopeErrors = tb.errors;
@@ -418,7 +508,11 @@ function validateEmploymentSection(
   const result = emptySectionResult(input.sectionId, 'not_started');
 
   const datedEntries: DatedEntryLike[] = entries.map((e) =>
-    extractEmploymentEntryDates(flattenEntry(e), {}),
+    extractEmploymentEntryDates(
+      flattenEntry(e),
+      {},
+      input.requirementMetadata,
+    ),
   );
 
   const entryLikes: EntryLike[] = entries.map((e) => ({
@@ -625,5 +719,38 @@ function emptyResult(): FullValidationResult {
   return {
     sections: [],
     summary: { sections: [], allComplete: true, totalErrors: 0 },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// findMappings adapter — TD-062 fix
+//
+// Wraps prisma.dSXMapping.findMany so the personalInfoIdvFieldChecks helpers
+// don't need to import prisma themselves (keeps them unit-testable). When
+// `requirementIds` is empty we omit the IN filter — the IDV collector uses
+// this to fetch every mapping at the (service, country) pairs and infer
+// the requirement set from the rows that come back (Plan §10.4 step 2).
+// ---------------------------------------------------------------------------
+function buildFindMappings(): FindDsxMappings {
+  return async ({ requirementIds, pairs }): Promise<DsxMappingRow[]> => {
+    if (pairs.length === 0) return [];
+    const rows = await prisma.dSXMapping.findMany({
+      where: {
+        ...(requirementIds.length > 0
+          ? { requirementId: { in: requirementIds } }
+          : {}),
+        OR: pairs.map((p) => ({
+          serviceId: p.serviceId,
+          locationId: p.locationId,
+        })),
+      },
+      select: {
+        requirementId: true,
+        serviceId: true,
+        locationId: true,
+        isRequired: true,
+      },
+    });
+    return rows;
   };
 }

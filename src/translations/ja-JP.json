@@ -488,5 +488,16 @@
   "candidate.reviewSubmit.sectionNotStarted": "Not yet started",
   "candidate.reviewSubmit.scopeRequirement": "Scope: {{scopeDescription}}",
   "candidate.reviewSubmit.submit": "Submit",
-  "candidate.reviewSubmit.submitHelp": "Submit will be available once all sections are complete."
+  "candidate.reviewSubmit.submitHelp": "Submit will be available once all sections are complete.",
+  "candidate.submission.success.title": "Application Submitted",
+  "candidate.submission.success.message": "Your application has been submitted successfully. Thank you for completing your background check application.",
+  "candidate.submission.success.whatNext": "What happens next?",
+  "candidate.submission.success.nextSteps": "Your information will be reviewed and processed. You do not need to take any further action.",
+  "candidate.submission.submitting": "Submitting your application...",
+  "candidate.submission.error.expired": "This invitation has expired. Please contact the company that sent you this link.",
+  "candidate.submission.error.alreadySubmitted": "This application has already been submitted.",
+  "candidate.submission.error.validationFailed": "Your application could not be submitted because some sections are incomplete. Please review and fix the issues listed below.",
+  "candidate.submission.error.serverError": "Something went wrong while submitting your application. Please try again. If the problem continues, contact the company that sent you this link.",
+  "candidate.validation.fieldRequired": "This field is required.",
+  "candidate.validation.idvCountryRequired": "Please select your country to continue identity verification."
 }

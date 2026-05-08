@@ -103,6 +103,33 @@ assignedVendor: { select: { contactEmail: true } }
 
 **This mistake will not be caught by tests** because Prisma mocks return whatever you tell them to return. The error only appears at runtime when a real database query executes against the real schema. Always check the schema file when selecting fields from `VendorOrganization`.
 
+### 2.4 `CandidateInvitation.formData.sections` Uses Save-Route Data Keys
+
+`CandidateInvitation.formData` is a JSON column (`Json @default("{}")`) that holds the candidate's in-progress application state. Saved section data lives under `formData.sections[<sectionKey>]`. The set of valid section keys is fixed and is owned by the **save route** (`src/app/api/candidate/application/[token]/save/route.ts`) — not by the validation engine, not by the sidebar layout.
+
+**Valid section keys** (from the `sectionType` Zod enums in `save/route.ts`):
+
+- `personal_info`
+- `idv`
+- `address_history`
+- `education`
+- `employment`
+
+Per-package keys (`workflow_section`, `service_section`) also exist in the same enum and follow the same rule. See `save/route.ts` for the complete list.
+
+**Not to be confused with:** `DSXRequirement.formData` — a separate JSON column on a different model that stores requirement-definition data (form-builder shape), not candidate-input data. The two never interact.
+
+**Why this matters:**
+Three independent modules touch `formData.sections`: the save route writes it, the validation engine reads it for section status, and the submission orchestrator reads it to build `Order.subject` and generate `OrderItem` rows. The validation engine *separately* uses `result.sectionId` strings like `'service_verification-edu'` to address sidebar entries — those are sidebar IDs, **not** data keys, and they don't exist in `formData.sections`. Mixing the two looks plausible but fails silently: the read returns `undefined`, validation passes, submission completes, and the order ships with missing items. (TD-062 was this bug in the validation engine; TD-071 was the same bug in the submission orchestrator, six weeks later.)
+
+**Rules:**
+1. Code that reads or writes `formData.sections[X]` must use a save-route `sectionType` value. The Zod enums in `save/route.ts` are the single source of truth.
+2. Never use `result.sectionId` strings (`'service_verification-edu'`, `'service_verification-emp'`, etc.) as `formData.sections` keys. They are sidebar / structure IDs and live in a different module.
+3. When both identifiers are needed in the same scope (e.g., submission, where saved data is read and per-section validation errors are emitted), keep them as distinct named variables — never substitute one for the other.
+4. Adding a new section type means updating the `sectionType` enum in `save/route.ts` first, then updating all readers together.
+
+**Verification:** `grep -rn "formData.sections\['service_verification" src/` must return zero hits.
+
 ---
 
 ## SECTION 3: Prisma Migration Process
