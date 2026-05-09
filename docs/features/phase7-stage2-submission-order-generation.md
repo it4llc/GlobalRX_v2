@@ -105,7 +105,7 @@ Sibling helper to `validationEngine.ts`. Owns the Personal Info and IDV required
 - Added a `requirementMetadata` map (`requirementId → { fieldKey, name, dataType }`) built from the extended include and passed into `validateEducationSection` and `validateEmploymentSection`.
 - Replaced `validateNonScopedSection` calls for `personal_info` and `service_idv` with `validatePersonalInfoSection` and `validateIdvSection` from `personalInfoIdvFieldChecks.ts`.
 - Fixed the education and employment section's `sectionData` lookup keys: `'service_verification-edu'` and `'service_verification-emp'` were corrected to `'education'` and `'employment'` — the keys the save endpoint actually writes (TD-071 fix).
-- Added `buildFindMappings()` — a private adapter that wraps `prisma.dSXMapping.findMany` and satisfies the injected `FindDsxMappings` callback signature.
+- Added `buildFindMappings()` — a private adapter that wraps `prisma.dSXMapping.findMany` and satisfies the injected `FindDsxMappings` callback signature. **Phase 7 Stage 3a note:** this adapter was subsequently moved to `loadValidationInputs.ts` as part of the validation engine split.
 
 ### `src/lib/candidate/validation/dateExtractors.ts`
 

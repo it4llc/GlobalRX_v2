@@ -38,7 +38,11 @@
       "Bash(pnpm vitest *)",
       "Bash(pnpm typecheck *)",
       "Bash(git *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Skill(plan-feature)",
+      "Bash(sed -n '114,139p' /tmp/engine_original.ts)",
+      "Bash(sed -n '65,87p' /Users/andyhellman/Projects/GlobalRx_v2/src/lib/candidate/validation/loadValidationInputs.ts)",
+      "Bash(grep *)"
     ],
     "deny": [],
     "ask": []

@@ -1684,6 +1684,11 @@ Before Phase 7 Stage 2 adds further orchestration to either file.
 - `src/components/candidate/portal-layout.tsx`
 - `src/lib/candidate/validation/validationEngine.ts`
 
+**Partial resolution — Phase 7 Stage 3a (`feature/phase7-stage3a-validation-engine-split`, 2026-05-09):**
+The `validationEngine.ts` half of this entry is resolved. Database loading was extracted into `src/lib/candidate/validation/loadValidationInputs.ts` and two pure helpers (`flattenEntry`, `inferAddressBlockRequirementId`) were moved to `src/lib/candidate/validation/savedEntryShape.ts`. The engine is now 580 lines (under the 600-line hard stop). A pre-existing `prisma.dSXMapping.findMany` call was also given an explicit `orderBy` clause to satisfy API_STANDARDS S7.3.
+
+The `portal-layout.tsx` half remains open and is tracked separately by TD-067.
+
 ---
 
 ### TD-066 — scope/route.ts still returns English strings for scopeDescription
@@ -1872,7 +1877,7 @@ Before any package configuration ships with non-English `requirement.name` value
 
 **Files affected:**
 - `src/lib/candidate/validation/dateExtractors.ts` (lines 165–252)
-- `src/lib/candidate/validation/validationEngine.ts` (lines 188–201 — metadata population, where the warning could also be emitted)
+- `src/lib/candidate/validation/loadValidationInputs.ts` — metadata population (the `requirementMetadata` map build) moved here from `validationEngine.ts` in Phase 7 Stage 3a; the warning could be emitted from this function
 
 ---
 
@@ -1950,6 +1955,31 @@ The file was deliberately extracted from `validationEngine.ts` (already TD-065) 
 If a future stage adds a third section validator (beyond Personal Info and IDV) to this file, the section-level collector and validator pairs should be split into per-section files at that point.
 
 **Files affected:**
+- `src/lib/candidate/validation/personalInfoIdvFieldChecks.ts`
+
+---
+
+### TD-077 — Document the deliberate structural re-declaration pattern
+
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Validation engine module structure              |
+| Severity      | Warning                                                                 |
+| Identified    | May 9, 2026 - Phase 7 Stage 3a documentation pass                       |
+| Identified by | documentation-writer                                                    |
+
+**Description:**
+Several files in `src/lib/candidate/validation/` re-declare the same TypeScript interface shapes rather than importing from a shared location. This is intentional architectural layering (see Phase 7 Stage 3a technical plan §3.1) but is undocumented in code, creating risk that a future engineer will "consolidate" the duplication and break the layering.
+
+**Affected sites:**
+- `CandidateFormDataShape` in `loadValidationInputs.ts`
+- The DSX mapping shape types in `personalInfoIdvFieldChecks.ts` (lines 47–76)
+
+**Fix:**
+Add brief comment blocks at each re-declaration site noting that the duplication is intentional and pointing to the architectural rationale (Phase 7 Stage 3a technical plan §3.1).
+
+**Files affected:**
+- `src/lib/candidate/validation/loadValidationInputs.ts`
 - `src/lib/candidate/validation/personalInfoIdvFieldChecks.ts`
 
 ---
