@@ -263,6 +263,11 @@ function buildFindMappings(): FindDsxMappings {
         locationId: true,
         isRequired: true,
       },
+      orderBy: [
+        { serviceId: 'asc' },
+        { locationId: 'asc' },
+        { requirementId: 'asc' },
+      ],
     });
     return rows;
   };
