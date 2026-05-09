@@ -18,9 +18,6 @@
 // Single rule about "today": Rule 14 / Tech Plan §11.3 — capture once at the
 // top of runValidation(), thread it through every helper.
 
-import { prisma } from '@/lib/prisma';
-import logger from '@/lib/logger';
-
 import {
   normalizeRawScope,
   pickMostDemandingScope,
@@ -43,9 +40,18 @@ import {
   collectPersonalInfoFieldRequirements,
   validateIdvSection,
   validatePersonalInfoSection,
-  type DsxMappingRow,
-  type FindDsxMappings,
 } from './personalInfoIdvFieldChecks';
+import { loadValidationInputs } from './loadValidationInputs';
+import {
+  flattenEntry,
+  inferAddressBlockRequirementId,
+} from './savedEntryShape';
+import type {
+  SavedFieldRecord,
+  SavedRepeatableEntry,
+  SavedSectionData,
+  SectionVisitRecord,
+} from './savedEntryShape';
 import type {
   DatedEntryLike,
   EntryLike,
@@ -58,41 +64,6 @@ import type {
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const DAYS_PER_YEAR = 365;
-
-// ---------------------------------------------------------------------------
-// Internal data shapes (narrow what we read from `formData`)
-// ---------------------------------------------------------------------------
-
-interface SavedFieldRecord {
-  requirementId: string;
-  value: unknown;
-}
-
-interface SavedRepeatableEntry {
-  entryId: string;
-  countryId: string | null;
-  entryOrder: number;
-  fields: SavedFieldRecord[];
-}
-
-interface SavedSectionData {
-  type?: string;
-  fields?: SavedFieldRecord[];
-  entries?: SavedRepeatableEntry[];
-  aggregatedFields?: Record<string, unknown>;
-}
-
-interface SectionVisitRecord {
-  visitedAt: string;
-  departedAt: string | null;
-}
-
-interface CandidateFormDataShape {
-  sections?: Record<string, SavedSectionData>;
-  sectionVisits?: Record<string, SectionVisitRecord>;
-  reviewPageVisitedAt?: string | null;
-  [key: string]: unknown;
-}
 
 // ---------------------------------------------------------------------------
 // runValidation — public entry point
@@ -111,94 +82,28 @@ export async function runValidation(
   // Date so a long-running call cannot see two different "todays".
   const today = new Date();
 
-  const invitation = await prisma.candidateInvitation.findUnique({
-    where: { id: invitationId },
-    include: {
-      package: {
-        include: {
-          workflow: { include: { sections: true } },
-          // Phase 7 Stage 2 / TD-062 — extended include so the engine can
-          // resolve Personal Info / IDV field-level required-state without
-          // a second round-trip. The personalInfoIdvFieldChecks helpers
-          // walk service.serviceRequirements (limited to type='field' at
-          // read time) and service.availability for the (service,
-          // location) pair list.
-          packageServices: {
-            include: {
-              service: {
-                include: {
-                  serviceRequirements: { include: { requirement: true } },
-                  availability: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!invitation) {
-    throw new Error(`Invitation not found: ${invitationId}`);
-  }
-
-  const formData = (invitation.formData as unknown as CandidateFormDataShape) ?? {};
-  const sectionsData = formData.sections ?? {};
-  const sectionVisits = formData.sectionVisits ?? {};
-  const reviewVisitedAt = formData.reviewPageVisitedAt ?? null;
-
-  const orderedPackage = invitation.package;
-  if (!orderedPackage) {
-    logger.warn('runValidation invoked on invitation without package', {
-      event: 'candidate_validation_no_package',
-      invitationId,
-    });
+  // All database reads and pre-section derivations live in the loader
+  // (Phase 7 Stage 3a). The orchestrator only sees a discriminated union:
+  // `kind: 'no_package'` short-circuits to emptyResult(); `kind: 'ok'`
+  // hands us the invitation, package, formData, scope groupings, the
+  // requirement metadata map, the locked-values record, and the DSX
+  // findMappings adapter — all of which used to be built inline here.
+  const inputs = await loadValidationInputs(invitationId);
+  if (inputs.kind === 'no_package') {
     return emptyResult();
   }
 
-  const gapToleranceDays =
-    typeof orderedPackage.workflow?.gapToleranceDays === 'number'
-      ? orderedPackage.workflow.gapToleranceDays
-      : null;
-
-  // Group package services by functionality type so each section can pick
-  // the most demanding scope (Rule 19).
-  const servicesByType = new Map<
-    ScopeFunctionalityType,
-    typeof orderedPackage.packageServices
-  >();
-  for (const ps of orderedPackage.packageServices) {
-    const ft = ps.service?.functionalityType;
-    if (
-      ft === 'verification-edu' ||
-      ft === 'verification-emp' ||
-      ft === 'record'
-    ) {
-      const list = servicesByType.get(ft) ?? [];
-      list.push(ps);
-      servicesByType.set(ft, list);
-    }
-  }
-
-  // Build a requirementId → { fieldKey, name, dataType } map across all
-  // package services. The employment / education extractor uses this to
-  // identify saved fields by their requirement metadata (Phase 7 Stage 2
-  // fix — the previous fieldKey-only approach broke for packages whose
-  // requirements use auto-fallback UUID-based fieldKeys, e.g. EDUCATIONV).
-  const requirementMetadata = new Map<string, RequirementMetadata>();
-  for (const ps of orderedPackage.packageServices) {
-    const reqs = ps.service?.serviceRequirements ?? [];
-    for (const sr of reqs) {
-      const r = sr.requirement;
-      if (!r) continue;
-      const fieldKey = typeof r.fieldKey === 'string' ? r.fieldKey : '';
-      const name = typeof r.name === 'string' ? r.name : '';
-      const fieldData = (r.fieldData as { dataType?: unknown } | null) ?? {};
-      const dataType =
-        typeof fieldData.dataType === 'string' ? fieldData.dataType : '';
-      requirementMetadata.set(sr.requirementId, { fieldKey, name, dataType });
-    }
-  }
+  const {
+    orderedPackage,
+    sectionsData,
+    sectionVisits,
+    reviewVisitedAt,
+    gapToleranceDays,
+    servicesByType,
+    requirementMetadata,
+    lockedValues,
+    findMappings,
+  } = inputs;
 
   const sectionResults: SectionValidationResult[] = [];
 
@@ -260,25 +165,10 @@ export async function runValidation(
 
   // Personal Info — TD-062 fix. Walks the package's DSX field requirements
   // and emits a FieldError for every required field that's empty. Locked
-  // fields (firstName/lastName/email/phone) are sourced from the invitation
-  // columns and pass the check whenever the column is non-empty.
-  const findMappings: FindDsxMappings = buildFindMappings();
-  const lockedValues: Record<string, string | null | undefined> = {
-    firstName: invitation.firstName,
-    lastName: invitation.lastName,
-    email: invitation.email,
-    // The portal API also recognizes `phone` and `phoneNumber` as locked
-    // when the invitation has a phone number; we feed the concatenated
-    // value (country code + number) into both keys so either fieldKey
-    // shape passes the locked check.
-    phone: invitation.phoneNumber
-      ? `${invitation.phoneCountryCode ?? ''}${invitation.phoneNumber}`
-      : null,
-    phoneNumber: invitation.phoneNumber
-      ? `${invitation.phoneCountryCode ?? ''}${invitation.phoneNumber}`
-      : null,
-  };
-
+  // fields (firstName/lastName/email/phone) come from the invitation
+  // columns via the loader; they pass the check whenever the column is
+  // non-empty. `findMappings` is the shared DSX mapping adapter (also
+  // built by the loader, closed over module `prisma`).
   const personalInfoRequirements = await collectPersonalInfoFieldRequirements(
     orderedPackage.packageServices,
     findMappings,
@@ -627,39 +517,6 @@ function computeScopeStart(scope: ResolvedScope, today: Date): Date | null {
   return new Date(today.getTime() - days * MS_PER_DAY);
 }
 
-// Translate the saved-data per-entry shape (fields: SavedFieldRecord[]) into
-// the date-extractor shape (fields: Record<requirementId|fieldKey, value>).
-function flattenEntry(entry: SavedRepeatableEntry): {
-  entryOrder: number;
-  fields: Record<string, unknown>;
-} {
-  const flat: Record<string, unknown> = {};
-  for (const field of entry.fields) {
-    flat[field.requirementId] = field.value;
-  }
-  return { entryOrder: entry.entryOrder, fields: flat };
-}
-
-// Heuristic: an "address_block" field is a saved field whose value is a JSON
-// object containing fromDate / toDate / isCurrent keys. We sniff the first
-// entry's fields so the validator doesn't need a separate metadata fetch.
-function inferAddressBlockRequirementId(
-  entries: SavedRepeatableEntry[],
-): string | null {
-  for (const entry of entries) {
-    for (const field of entry.fields) {
-      const v = field.value;
-      if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
-        const obj = v as object;
-        if ('fromDate' in obj || 'toDate' in obj || 'isCurrent' in obj) {
-          return field.requirementId;
-        }
-      }
-    }
-  }
-  return null;
-}
-
 function buildReviewSummary(
   sectionResults: SectionValidationResult[],
 ): ReviewPageSummary {
@@ -719,38 +576,5 @@ function emptyResult(): FullValidationResult {
   return {
     sections: [],
     summary: { sections: [], allComplete: true, totalErrors: 0 },
-  };
-}
-
-// ---------------------------------------------------------------------------
-// findMappings adapter — TD-062 fix
-//
-// Wraps prisma.dSXMapping.findMany so the personalInfoIdvFieldChecks helpers
-// don't need to import prisma themselves (keeps them unit-testable). When
-// `requirementIds` is empty we omit the IN filter — the IDV collector uses
-// this to fetch every mapping at the (service, country) pairs and infer
-// the requirement set from the rows that come back (Plan §10.4 step 2).
-// ---------------------------------------------------------------------------
-function buildFindMappings(): FindDsxMappings {
-  return async ({ requirementIds, pairs }): Promise<DsxMappingRow[]> => {
-    if (pairs.length === 0) return [];
-    const rows = await prisma.dSXMapping.findMany({
-      where: {
-        ...(requirementIds.length > 0
-          ? { requirementId: { in: requirementIds } }
-          : {}),
-        OR: pairs.map((p) => ({
-          serviceId: p.serviceId,
-          locationId: p.locationId,
-        })),
-      },
-      select: {
-        requirementId: true,
-        serviceId: true,
-        locationId: true,
-        isRequired: true,
-      },
-    });
-    return rows;
   };
 }

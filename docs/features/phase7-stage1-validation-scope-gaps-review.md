@@ -65,7 +65,9 @@ Merges a section's three possible status signals (local component-computed statu
 
 ### `validationEngine.ts`
 
-The top-level orchestrator. Exports `runValidation(invitationId: string): Promise<FullValidationResult>`. Loads the candidate's saved data, the package scope configuration, workflow `gapToleranceDays`, and DSX requirement metadata from the database, then delegates to the pure helpers above and assembles the `FullValidationResult`. The live current date is captured once at the top of `runValidation` and threaded through all helpers. Results are never cached (spec Rule 35).
+The top-level orchestrator. Exports `runValidation(invitationId: string): Promise<FullValidationResult>`. Captures the current date, calls `loadValidationInputs` (see `loadValidationInputs.ts`, added in Phase 7 Stage 3a), delegates to the per-section validators, and assembles the `FullValidationResult` via `buildReviewSummary`. Results are never cached (spec Rule 35).
+
+**Phase 7 Stage 3a note:** Database loading, derived data shapes, and the `buildFindMappings` adapter were extracted from this file into `loadValidationInputs.ts` and `savedEntryShape.ts`. The engine's public API (`runValidation` signature and return type) is unchanged.
 
 ## New Helper: Section Visit Tracking
 
