@@ -260,30 +260,55 @@ export function IdvSection({
   };
 
   // Handle country change
+  //
+  // Phase 7 Stage 3b — TD-072 fix. The previous implementation snapshot-
+  // stashed the active per-requirement slot values under
+  // `country_<previousCountryId>` but left the active slots in `formData`
+  // unchanged. The next debounced save then included those orphan
+  // requirementId keys in its payload — a save attempt against the new
+  // country whose values belonged to the previous country.
+  //
+  // The fix folds the snapshot AND the cleanup into a single setFormData
+  // callback so React applies both atomically:
+  //   1. Read the previous-country values from `prev` (not the closure-
+  //      captured `formData`) — keeps rapid X→Y→X switches consistent
+  //      (Spec Edge Case 12).
+  //   2. Drop those requirementId keys from the cloned object.
+  //   3. Attach the snapshot under `country_<previousCountryId>` so a
+  //      return to the previous country re-hydrates per `loadFieldsForCountry`
+  //      lines 240–246 (Spec Rule 15).
+  //
+  // The dependency array drops `formData` because the callback now reads
+  // its previous-country values from `prev` inside `setFormData`. This is
+  // the standard React state-callback pattern and is correct for rapid
+  // switches.
   const handleCountryChange = useCallback((countryId: string) => {
-    // Save current country's data before switching
     if (selectedCountry && fields.length > 0) {
-      const currentCountryData: Record<string, FieldValue> = {};
-      for (const field of fields) {
-        // field.requirementId is a UUID — never collides with the synthetic
-        // country_<id> snapshot keys, so the slot is always a FieldValue.
-        const value = formData[field.requirementId] as FieldValue | undefined;
-        if (value !== undefined) {
-          currentCountryData[field.requirementId] = value;
+      setFormData(prev => {
+        const currentCountryData: Record<string, FieldValue> = {};
+        for (const field of fields) {
+          // field.requirementId is a UUID — never collides with the
+          // synthetic country_<id> snapshot keys, so the slot is always a
+          // FieldValue.
+          const value = prev[field.requirementId] as FieldValue | undefined;
+          if (value !== undefined) {
+            currentCountryData[field.requirementId] = value;
+          }
         }
-      }
-
-      setFormData(prev => ({
-        ...prev,
-        [`country_${selectedCountry}`]: currentCountryData
-      }));
+        const next: typeof prev = { ...prev };
+        for (const field of fields) {
+          delete next[field.requirementId];
+        }
+        next[`country_${selectedCountry}`] = currentCountryData;
+        return next;
+      });
     }
 
     setSelectedCountry(countryId);
 
     // Save country selection
     setPendingSaves(prev => new Set(prev).add('country'));
-  }, [selectedCountry, fields, formData]);
+  }, [selectedCountry, fields]);
 
   // Handle field value change
   const handleFieldChange = useCallback((requirementId: string, value: FieldValue) => {

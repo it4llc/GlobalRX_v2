@@ -56,6 +56,29 @@ interface CandidateFormDataShape {
 }
 
 // ---------------------------------------------------------------------------
+// RequirementRecord — per-requirement record exposed to the per-entry walk.
+//
+// Re-declared structurally per TD-077 rather than imported from a shared
+// types module: the Phase 7 Stage 2/3a layering keeps each validator helper
+// re-declaring the slice of the Prisma payload it actually reads. Importing
+// a cross-layer types module would couple the loader to whichever helper
+// declared the canonical shape, and the duplication has been deliberate
+// since `personalInfoIdvFieldChecks.ts` and `savedEntryShape.ts` first
+// followed this pattern. The validator side narrows `addressConfig` (typed
+// `unknown` here) to its own `AddressConfig` shape; tightening at the loader
+// boundary would couple the loader to the validator's addressConfig contract.
+// ---------------------------------------------------------------------------
+
+export interface RequirementRecord {
+  id: string;
+  name: string;
+  fieldKey: string;
+  type: string;
+  disabled: boolean;
+  fieldData: { dataType?: string; addressConfig?: unknown } | null;
+}
+
+// ---------------------------------------------------------------------------
 // Prisma include shape — declared once with `satisfies` so we can derive the
 // fully-narrowed payload type via `Prisma.CandidateInvitationGetPayload`.
 // This is the technical-plan §6.1 fallback pattern; it produces a type that
@@ -120,6 +143,12 @@ export type ValidationInputs =
       gapToleranceDays: number | null;
       servicesByType: Map<ScopeFunctionalityType, PackageServiceWithRelations[]>;
       requirementMetadata: Map<string, RequirementMetadata>;
+      // Phase 7 Stage 3b — added so the per-entry walk in
+      // `repeatableEntryFieldChecks.ts` can resolve a saved field's
+      // requirement metadata (name, fieldData.dataType, addressConfig)
+      // without a second Prisma round-trip. Built in the same loop that
+      // builds `requirementMetadata`.
+      requirementById: Map<string, RequirementRecord>;
       lockedValues: Record<string, string | null | undefined>;
       findMappings: FindDsxMappings;
     };
@@ -184,6 +213,11 @@ export async function loadValidationInputs(
   // fix — the previous fieldKey-only approach broke for packages whose
   // requirements use auto-fallback UUID-based fieldKeys, e.g. EDUCATIONV).
   const requirementMetadata = new Map<string, RequirementMetadata>();
+  // Phase 7 Stage 3b — sibling map keyed by requirementId carrying the
+  // wider per-requirement record the per-entry walk needs (name, fieldKey,
+  // type, disabled, fieldData incl. addressConfig). Same iteration as
+  // `requirementMetadata`; one extra Map.set per requirement.
+  const requirementById = new Map<string, RequirementRecord>();
   for (const ps of orderedPackage.packageServices) {
     const reqs = ps.service?.serviceRequirements ?? [];
     for (const sr of reqs) {
@@ -191,10 +225,33 @@ export async function loadValidationInputs(
       if (!r) continue;
       const fieldKey = typeof r.fieldKey === 'string' ? r.fieldKey : '';
       const name = typeof r.name === 'string' ? r.name : '';
-      const fieldData = (r.fieldData as { dataType?: unknown } | null) ?? {};
+      const fieldDataRaw =
+        (r.fieldData as { dataType?: unknown; addressConfig?: unknown } | null) ?? null;
+      const fieldDataObj = fieldDataRaw ?? {};
       const dataType =
-        typeof fieldData.dataType === 'string' ? fieldData.dataType : '';
+        typeof fieldDataObj.dataType === 'string' ? fieldDataObj.dataType : '';
       requirementMetadata.set(sr.requirementId, { fieldKey, name, dataType });
+
+      // requirementById may receive multiple writes for the same requirement
+      // when the package maps it to multiple services; the record is
+      // identical across writes (same `requirement` row), so last-write-wins
+      // is safe and matches how `requirementMetadata` is built above.
+      requirementById.set(sr.requirementId, {
+        id: r.id,
+        name,
+        fieldKey,
+        type: typeof r.type === 'string' ? r.type : '',
+        disabled: r.disabled === true,
+        fieldData: fieldDataRaw === null
+          ? null
+          : {
+              dataType:
+                typeof fieldDataRaw.dataType === 'string'
+                  ? fieldDataRaw.dataType
+                  : undefined,
+              addressConfig: fieldDataRaw.addressConfig,
+            },
+      });
     }
   }
 
@@ -226,6 +283,7 @@ export async function loadValidationInputs(
     gapToleranceDays,
     servicesByType,
     requirementMetadata,
+    requirementById,
     lockedValues,
     findMappings,
   };
