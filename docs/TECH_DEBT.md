@@ -2067,6 +2067,58 @@ Trace the source of the required-state decoration in the form-rendering code pat
 
 ---
 
+### TD-085 — DSX admin UI does not propagate required-state across geographic hierarchy
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | DSX administration UI / `dsx_mappings` data integrity |
+| Severity    | Medium (data inconsistency)                 |
+| Identified  | Phase 7 follow-up — TD-084 investigation (2026-05-11) |
+
+**Description:**
+The DSX admin interface allows per-mapping `isRequired` toggling at country, region, and subregion levels without enforcing consistency between levels. As a result, the `dsx_mappings` table can contain inconsistent geographic-hierarchy data: a parent country may be marked required while a subregion under it is marked optional, or vice versa.
+
+The intended product behavior is that geographic-hierarchy required-state propagates:
+- Marking a country required should mark all subregions under it required automatically.
+- Unchecking a single subregion should uncheck the parent country (and any other subregions that were implicitly required by the parent).
+- Required-state inheritance should be enforced at edit time, so the table cannot end up with inconsistent levels.
+
+Today this propagation is not implemented. The TD-084 investigation surfaced this when explaining the OR-merge logic in the `/fields` route: the route's merge behavior partly compensates for the table's inability to express consistent multi-level rules.
+
+**Why deferred:**
+This is a DSX admin-UI concern, not a candidate-portal concern. TD-084 will land the rendering / validation fixes assuming the table may contain inconsistent data and will use OR-merge to compensate. Once the admin UI enforces propagation, the OR-merge becomes a safety net rather than a workaround.
+
+**When to fix:**
+Implement required-state inheritance in the DSX admin UI: marking a parent location required propagates to children; unchecking a child propagates up to the parent. Add a data-integrity migration (or one-time cleanup script) to reconcile any existing inconsistent rows in `dsx_mappings`.
+
+---
+
+### TD-086 — `fromDate` / `toDate` asterisks hardcoded in AddressBlockInput.tsx
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate portal — AddressBlockInput component |
+| Severity    | Low (visual only — likely correct behavior already) |
+| Identified  | Phase 7 follow-up — TD-084 investigation (2026-05-11) |
+
+**Description:**
+`src/components/candidate/form-engine/AddressBlockInput.tsx:493` and `:537` render an unconditional red asterisk on the `fromDate` and `toDate` fields with no condition tied to `dsx_mappings` or any per-country logic:
+
+```tsx
+<span className="text-red-500 ml-1 required-indicator">*</span>
+```
+
+The asterisk is always rendered, regardless of which country the entry is for or whether the mapping data says required. Surfaced by the TD-084 investigation.
+
+The likely correct behavior is to leave these asterisks unconditional, because date coverage is required for any address-history entry to be useful (scope validation and gap detection both depend on dates being populated). However, this hasn't been explicitly verified as the intended behavior.
+
+**Why deferred:**
+The asterisks are outside `dsx_mappings`'s scope (mappings cover per-piece required-state for street / city / state / postal code, not dates). The behavior is probably intentional. TD-084's fix should NOT touch these — it's a scope-creep trap.
+
+**When to fix:**
+Confirm with product whether dates should remain unconditionally required for address-history entries. If yes, document the decision in code with a brief comment near the asterisks. If no, align the date asterisks with whatever per-country logic governs them (probably a separate mapping or config).
+
+---
 ## Resolved Items
 
 ---
