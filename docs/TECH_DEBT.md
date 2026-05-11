@@ -2038,32 +2038,32 @@ When test infrastructure work permits, write a deferred-promise race test for th
 
 ---
 
-### TD-084 — IDV section field rendering and required-state indicators do not filter by per-country DSX mappings
+### TD-084 — Required-state indicator on form fields does not reflect per-country DSX mappings
 
 | Field       | Detail                                      |
 |-------------|---------------------------------------------|
-| Area        | Candidate portal — IdvSection component     |
-| Severity    | Medium                                      |
+| Area        | Candidate portal — form rendering           |
+| Severity    | Low (visual only — validation is correct)   |
 | Identified  | Phase 7 Stage 3b smoke test (2026-05-11)    |
 
 **Description:**
-The IDV section's form rendering does not appear to consult per-country `dsx_mappings` when deciding which fields to display or how to decorate their required-state. Three observations from smoke testing:
+In sections where the candidate has selected a country (IDV section's country dropdown; per-entry country on Address History / Education / Employment entries), form fields render with a required-state visual indicator (red asterisk) that does not reflect the per-country `dsx_mappings.isRequired` value for the candidate's package services. Specifically:
 
-1. With IDV country set to Ukraine (not present in any `dsx_mappings` row for `In-Country Address` at any service in the candidate's package), the In-Country Address field still rendered in the candidate portal and accepted input.
+- Fields render with a required indicator even when no `dsx_mappings` row marks them required at the candidate's selected country for any service in their package. Observed on the IDV In-Country Address field with country = US and on Address History address-block pieces with country = US.
 
-2. With IDV country set to Mexico (present in `dsx_mappings` for multiple IDV-relevant requirements via service `8388bb60-48e4-4781-a867-7c86b51be776`, which IS in the candidate's package), those Mexico-specific requirements did not render.
+The validation engine itself correctly reads per-country `dsx_mappings.isRequired` (confirmed by Stage 3b's per-entry walk — section indicator turns green when the field is blank but not actually required, and submission is not blocked).
 
-3. The In-Country Address field renders with a red asterisk / required-state visual indicator regardless of whether the field is actually required for the currently-selected country at the candidate's package services. With country set to US (where In-Country Address is not required for any service in the candidate's package), the field is still drawn as visually required, even though the validation engine correctly treats it as optional and the Review & Submit tab indicator correctly turns green.
+This is a visual inconsistency, not a correctness bug. Candidates may be confused by the asterisk but are not blocked from submitting.
 
-All three observations are consistent with the form-rendering logic being driven by `service_requirements` (which has no country dimension) rather than by per-country `dsx_mappings`.
+**Out of scope for this entry:**
+- Personal Info section's required-state indicator behavior. Personal Info does not have cross-section country awareness, so fields like Mother's Maiden Name (which is required at Mexico per `dsx_mappings` but rendered on Personal Info per `collectionTab`) do not reflect any country-specific required-state. This is the inverse problem and is tracked under TD-052.
+- Field visibility / which fields render. Per current product rules, a field renders if it is associated with any service in the candidate's package. Per-country filtering of field visibility is a future product enhancement, not part of TD-084.
 
 **Why deferred:**
-This is a candidate-portal rendering concern, not a validation correctness concern. Phase 7 Stage 3b's per-entry walk correctly evaluates per-country `dsx_mappings` to determine which fields are required (verified by smoke test: tab indicator correctly reflects required-state). The rendering question is independent of Stage 3b's scope.
+Visual-only inconsistency. Validation engine is correct; submission is not blocked. Worth fixing for candidate clarity but not urgent.
 
 **When to fix:**
-Investigate which source the IdvSection component reads when constructing the rendered field list and deciding required-state visual indicators. Align rendering with the validation engine's contract: a field should render and show a required indicator only when there is a `(service, country)` mapping in `dsx_mappings` for that requirement, where the service is in the candidate's package and the country is the currently-selected IDV country.
-
-Note: This issue likely affects other repeatable sections (Address History, Education, Employment) similarly. Investigation should confirm scope.
+Trace the source of the required-state decoration in the form-rendering code path. Likely candidates: a default flag on the requirement itself, a field-config default in the API response, or hardcoded asterisk decoration in the input component. Align it with per-country `dsx_mappings.isRequired` lookups using the same data the validation engine already consumes.
 
 ---
 
