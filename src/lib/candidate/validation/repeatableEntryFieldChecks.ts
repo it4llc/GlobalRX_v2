@@ -25,9 +25,8 @@
 //      either descend into address_block pieces or apply the scalar empty-
 //      check.
 
-import logger from '@/lib/logger';
-
 import type { Prisma } from '@prisma/client';
+import logger from '@/lib/logger';
 
 import type { FieldError } from './types';
 import type {
