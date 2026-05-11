@@ -11,8 +11,8 @@ handled during a future pass on the affected area.
 
 - **Add an item** when a code review, standards check, or dev session identifies
   something that should be fixed but is being intentionally deferred.
-- **Remove an item** when it has been resolved — note the fix in the entry before
-  deleting it, or move it to the Resolved section at the bottom.
+- **Mark an item resolved** when the underlying issue has been addressed. Add `Resolved` (date) and `Branch` fields to the entry's metadata table, add a `**How it was resolved:**` section describing the fix, and include `**Files changed:**` listing the source files touched.
+- **Move the resolved entry to the Resolved Items section** at the bottom of the document once the resolution metadata is in place. Resolved entries are kept in the doc as audit history; they are not deleted.
 - **Reference this doc** at the start of any work on an affected area so the
   issue can be addressed at the right time.
 
@@ -1985,60 +1985,89 @@ Add brief comment blocks at each re-declaration site noting that the duplication
 - `src/lib/candidate/validation/personalInfoIdvFieldChecks.ts`
 
 
+---
+
+### TD-082 — `evaluateTimeBasedScope` does not flag entries with null dates inside a time-bounded scope
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate validation engine — scope checks  |
+| Severity    | Medium                                      |
+| Identified  | Phase 7 Stage 3b code review (2026-05-10)   |
+
+**Description:**
+When a repeatable section has a time-based scope (e.g., 5-year employment scope) and a saved entry has null `startDate` and/or `endDate` fields, `evaluateTimeBasedScope` returns zero scope errors. The expected behavior is for the function to emit a scope error indicating the entry cannot be evaluated against the time-based scope because it lacks the dates needed to compute coverage.
+
+Surfaced by the DoD 9 Pass 1 test in `validationEngine.test.ts:1219–1311`, which constructs a 5-year-scope employment with a single entry that has no date fields populated and expects a scope error to be produced. The test fails on Pass 1 and continues to fail after Stage 3b's implementation — the per-entry walk is unrelated.
+
+The DoD 9 test in validationEngine.test.ts is currently .skip'd with a pointer to this TD entry. When the underlying behavior is fixed (or the fixture is corrected), un-skip the test.
+
+**Why deferred:**
+Stage 3b scope was strictly TD-069 and TD-072. The scope-extractor's behavior with null-date entries is a pre-existing issue with its own implications and should be evaluated independently.
+
+**When to fix:**
+Either tighten `evaluateTimeBasedScope` to emit an error when an entry's dates are null inside a time-bounded scope, or fix the fixture in the DoD 9 test to populate dates. Decide which by inspecting how time-based scope is expected to behave when dates are missing — this may surface a broader product question about whether a candidate should be permitted to save an entry without dates.
 
 ---
 
-### TD-070 — Alias-set approach to date field identification in dateExtractors.ts
+### TD-083 — TD-072 country-switch cleanup race not under deterministic automated test
 
-| Field         | Detail                                                                  |
-|---------------|-------------------------------------------------------------------------|
-| Area          | Candidate Application — Validation engine date extractors               |
-| Severity      | Warning (correctness — locale-fragile field identification)             |
-| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
-| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md`)        |
-| Resolved      | May 7, 2026                                                             |
-| Branch        | `feature/phase7-stage2-submission-order-generation`                     |
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | IdvSection candidate component — country switch |
+| Severity    | Low (behavior is verified by spec review + manual smoke) |
+| Identified  | Phase 7 Stage 3b test-writer Pass 1 (2026-05-10) |
 
-**How it was resolved:**
-Originally logged for the alias-set approach to date field identification. Resolved by replacing alias sets with `dataType`-based field identification in `dateExtractors.ts`.
+**Description:**
+The bug TD-072 fixes is a race condition: when a candidate types into a country-X-scoped IDV field and then switches to country Y *before* the user-typed save's debounced request has fired, the country-X requirementId stays in `pendingSaves` and gets included in the country-switch save body as if it belonged to country Y.
 
-**Files changed:**
-- `src/lib/candidate/validation/dateExtractors.ts`
+The Stage 3b Pass 1 tests for TD-072 (`IdvSection.test.tsx:1472–1541` and `:1560–1664`) cannot deterministically reproduce this race because the fetch mock's `setupCountrySwitchFetchMock` returns immediately-resolving promises. Both tests pass on Pass 1 (before any cleanup logic exists) as well as after the implementation lands — they serve as forward regression guards on the save-body shape rather than as Pass-1-failure tests.
+
+The actual cleanup behavior is verified by spec review and by DoD 14's manual smoke test, both of which the implementer confirmed.
+
+**Why deferred:**
+Reproducing the race deterministically requires a deferred-promise fetch mock where the test can hold the country-X save's response in flight while the country switch fires, then resolve and re-assert. The existing test infrastructure does not expose this pattern, and orchestrating it is non-trivial work that should not block Stage 3b shipping.
+
+**When to fix:**
+When test infrastructure work permits, write a deferred-promise race test for the `pendingSaves` orphan window. The test should:
+1. Type into a country-X-scoped field.
+2. Hold the resulting save request unresolved.
+3. Switch to country Y.
+4. Resolve the country-X save.
+5. Assert that the country-switch save body does NOT contain the country-X requirementId.
 
 ---
 
-### TD-071 — Submission edu/emp data-key mismatch (silent dropping of education and employment OrderItems)
+### TD-084 — IDV section field rendering and required-state indicators do not filter by per-country DSX mappings
 
-| Field         | Detail                                                                  |
-|---------------|-------------------------------------------------------------------------|
-| Area          | Candidate Application — Submission orchestrator                         |
-| Severity      | Blocker (Correctness — no edu/emp OrderItems generated at submission)   |
-| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
-| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md` BL-01, BL-02) |
-| Resolved      | May 7, 2026                                                             |
-| Branch        | `feature/phase7-stage2-submission-order-generation`                     |
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate portal — IdvSection component     |
+| Severity    | Medium                                      |
+| Identified  | Phase 7 Stage 3b smoke test (2026-05-11)    |
 
-**How it was resolved:**
-`submitApplication.ts` read `formData.sections` using the sidebar / `result.sectionId` keys (`'service_verification-edu'` and `'service_verification-emp'`) instead of the save endpoint's data keys (`'education'` and `'employment'`). Because `formData.sections['service_verification-edu' | '-emp']` does not exist, `readEduEmpSection` returned `entries: []` and `buildEduEmpOrderItemKeys` produced zero OrderItems. The failure was silent — validation passed, submission succeeded, the order was created with no education or employment items.
+**Description:**
+The IDV section's form rendering does not appear to consult per-country `dsx_mappings` when deciding which fields to display or how to decorate their required-state. Three observations from smoke testing:
 
-The validation engine had the same bug fixed at the data-key level in commit `3aaf0d2` (TD-062 fix); the submission service was missed in that pass and was caught by the comprehensive Phase 7 Stage 2 data-flow audit (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md`).
+1. With IDV country set to Ukraine (not present in any `dsx_mappings` row for `In-Country Address` at any service in the candidate's package), the In-Country Address field still rendered in the candidate portal and accepted input.
 
-Two string-literal fixes in `submitApplication.ts:291–292`:
-- Line 291: `'service_verification-edu'` → `'education'`
-- Line 292: `'service_verification-emp'` → `'employment'`
+2. With IDV country set to Mexico (present in `dsx_mappings` for multiple IDV-relevant requirements via service `8388bb60-48e4-4781-a867-7c86b51be776`, which IS in the candidate's package), those Mexico-specific requirements did not render.
 
-The validation engine's `result.sectionId` values (`'service_verification-edu'` and `'service_verification-emp'` in `validationEngine.ts:230, 249`) are intentionally unchanged — those are sidebar / structure section IDs used by `portal-layout.tsx`, the `sectionVisits` map, the Review error nav, and `SectionErrorBanner`. They live in a different directory and are not data keys.
+3. The In-Country Address field renders with a red asterisk / required-state visual indicator regardless of whether the field is actually required for the currently-selected country at the candidate's package services. With country set to US (where In-Country Address is not required for any service in the candidate's package), the field is still drawn as visually required, even though the validation engine correctly treats it as optional and the Review & Submit tab indicator correctly turns green.
 
-**Verification:**
-- `grep -rn "service_verification" src/lib/candidate/submission/` returns zero hits after the fix.
-- 72/72 Pass 1 tests in `src/lib/candidate/submission/__tests__/` pass (`buildOrderSubject.test.ts` 12, `orderDataPopulation.test.ts` 19, `orderItemGeneration.test.ts` 41).
-- A browser smoke test of the submission flow with edu and emp entries is queued.
+All three observations are consistent with the form-rendering logic being driven by `service_requirements` (which has no country dimension) rather than by per-country `dsx_mappings`.
 
-**Files changed:**
-- `src/lib/candidate/submission/submitApplication.ts` (two string literals on lines 291–292)
+**Why deferred:**
+This is a candidate-portal rendering concern, not a validation correctness concern. Phase 7 Stage 3b's per-entry walk correctly evaluates per-country `dsx_mappings` to determine which fields are required (verified by smoke test: tab indicator correctly reflects required-state). The rendering question is independent of Stage 3b's scope.
 
-**Follow-ups:**
-- A Pass 2 regression test must fixture both edu and emp entries with `countryId`s, run `submitApplication` end-to-end, and assert `OrderItem` rows are created with the matching `serviceId` and `locationId`. Labelled `// REGRESSION TEST: proves bug fix for submission edu/emp data-key mismatch (TD-071)`.
+**When to fix:**
+Investigate which source the IdvSection component reads when constructing the rendered field list and deciding required-state visual indicators. Align rendering with the validation engine's contract: a field should render and show a required indicator only when there is a `(service, country)` mapping in `dsx_mappings` for that requirement, where the service is in the candidate's package and the country is the currently-selected IDV country.
+
+Note: This issue likely affects other repeatable sections (Address History, Education, Employment) similarly. Investigation should confirm scope.
+
+---
+
+## Resolved Items
 
 ---
 
@@ -2095,55 +2124,57 @@ The response shape is unchanged. An audit of the neighboring `saved-data` and `s
 - `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
 
 ---
-### TD-082 — `evaluateTimeBasedScope` does not flag entries with null dates inside a time-bounded scope
 
-| Field       | Detail                                      |
-|-------------|---------------------------------------------|
-| Area        | Candidate validation engine — scope checks  |
-| Severity    | Medium                                      |
-| Identified  | Phase 7 Stage 3b code review (2026-05-10)   |
+### TD-070 — Alias-set approach to date field identification in dateExtractors.ts
 
-**Description:**
-When a repeatable section has a time-based scope (e.g., 5-year employment scope) and a saved entry has null `startDate` and/or `endDate` fields, `evaluateTimeBasedScope` returns zero scope errors. The expected behavior is for the function to emit a scope error indicating the entry cannot be evaluated against the time-based scope because it lacks the dates needed to compute coverage.
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Validation engine date extractors               |
+| Severity      | Warning (correctness — locale-fragile field identification)             |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
+| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md`)        |
+| Resolved      | May 7, 2026                                                             |
+| Branch        | `feature/phase7-stage2-submission-order-generation`                     |
 
-Surfaced by the DoD 9 Pass 1 test in `validationEngine.test.ts:1219–1311`, which constructs a 5-year-scope employment with a single entry that has no date fields populated and expects a scope error to be produced. The test fails on Pass 1 and continues to fail after Stage 3b's implementation — the per-entry walk is unrelated.
+**How it was resolved:**
+Originally logged for the alias-set approach to date field identification. Resolved by replacing alias sets with `dataType`-based field identification in `dateExtractors.ts`.
 
-The DoD 9 test in validationEngine.test.ts is currently .skip'd with a pointer to this TD entry. When the underlying behavior is fixed (or the fixture is corrected), un-skip the test.
-
-**Why deferred:**
-Stage 3b scope was strictly TD-069 and TD-072. The scope-extractor's behavior with null-date entries is a pre-existing issue with its own implications and should be evaluated independently.
-
-**When to fix:**
-Either tighten `evaluateTimeBasedScope` to emit an error when an entry's dates are null inside a time-bounded scope, or fix the fixture in the DoD 9 test to populate dates. Decide which by inspecting how time-based scope is expected to behave when dates are missing — this may surface a broader product question about whether a candidate should be permitted to save an entry without dates.
+**Files changed:**
+- `src/lib/candidate/validation/dateExtractors.ts`
 
 ---
 
-### TD-083 — TD-072 country-switch cleanup race not under deterministic automated test
+### TD-071 — Submission edu/emp data-key mismatch (silent dropping of education and employment OrderItems)
 
-| Field       | Detail                                      |
-|-------------|---------------------------------------------|
-| Area        | IdvSection candidate component — country switch |
-| Severity    | Low (behavior is verified by spec review + manual smoke) |
-| Identified  | Phase 7 Stage 3b test-writer Pass 1 (2026-05-10) |
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Submission orchestrator                         |
+| Severity      | Blocker (Correctness — no edu/emp OrderItems generated at submission)   |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
+| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md` BL-01, BL-02) |
+| Resolved      | May 7, 2026                                                             |
+| Branch        | `feature/phase7-stage2-submission-order-generation`                     |
 
-**Description:**
-The bug TD-072 fixes is a race condition: when a candidate types into a country-X-scoped IDV field and then switches to country Y *before* the user-typed save's debounced request has fired, the country-X requirementId stays in `pendingSaves` and gets included in the country-switch save body as if it belonged to country Y.
+**How it was resolved:**
+`submitApplication.ts` read `formData.sections` using the sidebar / `result.sectionId` keys (`'service_verification-edu'` and `'service_verification-emp'`) instead of the save endpoint's data keys (`'education'` and `'employment'`). Because `formData.sections['service_verification-edu' | '-emp']` does not exist, `readEduEmpSection` returned `entries: []` and `buildEduEmpOrderItemKeys` produced zero OrderItems. The failure was silent — validation passed, submission succeeded, the order was created with no education or employment items.
 
-The Stage 3b Pass 1 tests for TD-072 (`IdvSection.test.tsx:1472–1541` and `:1560–1664`) cannot deterministically reproduce this race because the fetch mock's `setupCountrySwitchFetchMock` returns immediately-resolving promises. Both tests pass on Pass 1 (before any cleanup logic exists) as well as after the implementation lands — they serve as forward regression guards on the save-body shape rather than as Pass-1-failure tests.
+The validation engine had the same bug fixed at the data-key level in commit `3aaf0d2` (TD-062 fix); the submission service was missed in that pass and was caught by the comprehensive Phase 7 Stage 2 data-flow audit (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md`).
 
-The actual cleanup behavior is verified by spec review and by DoD 14's manual smoke test, both of which the implementer confirmed.
+Two string-literal fixes in `submitApplication.ts:291–292`:
+- Line 291: `'service_verification-edu'` → `'education'`
+- Line 292: `'service_verification-emp'` → `'employment'`
 
-**Why deferred:**
-Reproducing the race deterministically requires a deferred-promise fetch mock where the test can hold the country-X save's response in flight while the country switch fires, then resolve and re-assert. The existing test infrastructure does not expose this pattern, and orchestrating it is non-trivial work that should not block Stage 3b shipping.
+The validation engine's `result.sectionId` values (`'service_verification-edu'` and `'service_verification-emp'` in `validationEngine.ts:230, 249`) are intentionally unchanged — those are sidebar / structure section IDs used by `portal-layout.tsx`, the `sectionVisits` map, the Review error nav, and `SectionErrorBanner`. They live in a different directory and are not data keys.
 
-**When to fix:**
-When test infrastructure work permits, write a deferred-promise race test for the `pendingSaves` orphan window. The test should:
-1. Type into a country-X-scoped field.
-2. Hold the resulting save request unresolved.
-3. Switch to country Y.
-4. Resolve the country-X save.
-5. Assert that the country-switch save body does NOT contain the country-X requirementId.
+**Verification:**
+- `grep -rn "service_verification" src/lib/candidate/submission/` returns zero hits after the fix.
+- 72/72 Pass 1 tests in `src/lib/candidate/submission/__tests__/` pass (`buildOrderSubject.test.ts` 12, `orderDataPopulation.test.ts` 19, `orderItemGeneration.test.ts` 41).
+- A browser smoke test of the submission flow with edu and emp entries is queued.
+
+**Files changed:**
+- `src/lib/candidate/submission/submitApplication.ts` (two string literals on lines 291–292)
+
+**Follow-ups:**
+- A Pass 2 regression test must fixture both edu and emp entries with `countryId`s, run `submitApplication` end-to-end, and assert `OrderItem` rows are created with the matching `serviceId` and `locationId`. Labelled `// REGRESSION TEST: proves bug fix for submission edu/emp data-key mismatch (TD-071)`.
 
 ---
-
-## Resolved Items
