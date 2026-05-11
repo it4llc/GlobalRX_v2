@@ -11,8 +11,8 @@ handled during a future pass on the affected area.
 
 - **Add an item** when a code review, standards check, or dev session identifies
   something that should be fixed but is being intentionally deferred.
-- **Remove an item** when it has been resolved — note the fix in the entry before
-  deleting it, or move it to the Resolved section at the bottom.
+- **Mark an item resolved** when the underlying issue has been addressed. Add `Resolved` (date) and `Branch` fields to the entry's metadata table, add a `**How it was resolved:**` section describing the fix, and include `**Files changed:**` listing the source files touched.
+- **Move the resolved entry to the Resolved Items section** at the bottom of the document once the resolution metadata is in place. Resolved entries are kept in the doc as audit history; they are not deleted.
 - **Reference this doc** at the start of any work on an affected area so the
   issue can be addressed at the right time.
 
