@@ -290,6 +290,8 @@ The bucket key is the `workflow_sections.id` UUID (matching the key in `formData
 
 `personal_info` and `idv` sections are always present in the response, even when the candidate has not saved any data — they appear with an empty `fields` array. The IDV section stores the candidate's selected country as a flat field row with `requirementId === 'idv_country'` inside the `fields` array (Phase 7 Stage 2). It is not a DSX requirement UUID; it is a synthetic marker written and read by `IdvSection.tsx` and by the submission orchestrator. Callers should not treat it as a DSX field.
 
+**Phase 7 Stage 3b behavior change:** When the candidate switches IDV country, `IdvSection.tsx` now removes all `formData` entries whose `requirementId` belongs to the previous country's DSX field set before loading the new country's fields (TD-072 fix). The next save's `pendingSaves` payload therefore contains only the new country's requirementIds and the updated `idv_country` marker. Saved data returned by this endpoint will reflect only the currently-selected country's field values.
+
 **Repeatable sections** (`education`, `employment`) return an `entries` array instead of a flat `fields` array:
 ```json
 {
@@ -333,6 +335,8 @@ Phase 7 Stage 1 extended the response to include visit tracking data as siblings
 ### POST /api/candidate/application/[token]/validate
 
 Phase 7 Stage 1. Runs the full validation engine for the candidate and returns per-section status and error lists. Called by the client whenever validation results are needed — after section departure, on Review & Submit page load, and after each auto-save. Results are never cached.
+
+**Phase 7 Stage 3b behavior change:** `fieldErrors` for the Address History, Education, and Employment sections is now non-empty when saved entries have missing required fields. Each entry is validated against its own country's required-field rules (not a single section-wide country). Address-block fields are validated piece-by-piece using `DSXRequirement.fieldData.addressConfig`. An entry with no saved country produces a `fieldErrors` entry with message key `candidate.validation.entryCountryRequired`. Before Stage 3b, `fieldErrors` for these three sections was always empty.
 
 **Authentication:** Valid `candidate_session` cookie with matching token.
 

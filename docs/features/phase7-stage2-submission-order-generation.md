@@ -182,6 +182,12 @@ These are TypeScript interfaces (not Zod schemas) because the endpoint takes no 
 | `candidate.validation.fieldRequired` | Generic required-field error (used by TD-062 path) |
 | `candidate.validation.idvCountryRequired` | IDV country selection required error |
 
+**Phase 7 Stage 3b addition:** One additional key was added to all five locale files by the TD-069 fix:
+
+| Key | Purpose |
+|-----|---------|
+| `candidate.validation.entryCountryRequired` | Error shown when a repeatable entry has no saved country; emitted by the per-entry walk in `repeatableEntryFieldChecks.ts` |
+
 ## OrderItem / ServicesFulfillment Invariant
 
 Per DATABASE_STANDARDS §2.2, every `OrderItem` must have a paired `ServicesFulfillment` row created in the same transaction. The submission orchestrator replicates the `OrderCoreService.addOrderItem` transactional pattern inline because the static helper opens its own transaction and cannot be nested (see TD-074). The invariant is preserved: for every key in `finalKeys`, one `OrderItem` and one `ServicesFulfillment` are created atomically before proceeding to Step 5. `ServicesFulfillment.assignedVendorId` is always `null` at creation — vendor assignment happens later in the fulfillment workflow.
@@ -205,7 +211,7 @@ The IDV section stores the selected country as a flat field row with `requiremen
 See TD-067 through TD-076 in `docs/TECH_DEBT.md`.
 
 Key items:
-- **TD-069**: Per-entry required-field validation is missing for Address History, Education, and Employment. A candidate can submit entries with empty required fields if scope/gap/count checks pass.
-- **TD-072**: IDV stale form-data leak on country switch. Residual field values from a previous country selection can appear in OrderData for the current country's IDV OrderItem.
+- **TD-069** — **Resolved in Phase 7 Stage 3b** (`feature/phase7-stage3b-per-entry-validation-and-idv-country-clear`). Per-entry required-field validation now runs for Address History, Education, and Employment. Each entry is validated against its own country's required-field rules. Address-block fields are walked piece-by-piece using `DSXRequirement.fieldData.addressConfig`. The `fieldErrors` array in `SectionValidationResult` is now non-empty when entries have missing required fields, and `summary.allComplete` blocks submission accordingly.
+- **TD-072** — **Resolved in Phase 7 Stage 3b** (`feature/phase7-stage3b-per-entry-validation-and-idv-country-clear`). IDV country-switch now clears stale per-country field data from `formData` before loading the new country's fields. The next save's `pendingSaves` payload contains only the new country's requirementIds. Follow-up automation for the race condition is tracked under TD-083.
 - **TD-073**: Education/Employment date extractor is locale-dependent; non-English requirement names fall back to alias sets and silently produce no date when aliases also miss.
 - **TD-074**: `submitApplication.ts` replicates `OrderCoreService.addOrderItem` inline due to transaction-nesting constraints. The replication must be kept in sync with any future changes to that service.
