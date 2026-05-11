@@ -1985,116 +1985,8 @@ Add brief comment blocks at each re-declaration site noting that the duplication
 - `src/lib/candidate/validation/personalInfoIdvFieldChecks.ts`
 
 
-
 ---
 
-### TD-070 — Alias-set approach to date field identification in dateExtractors.ts
-
-| Field         | Detail                                                                  |
-|---------------|-------------------------------------------------------------------------|
-| Area          | Candidate Application — Validation engine date extractors               |
-| Severity      | Warning (correctness — locale-fragile field identification)             |
-| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
-| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md`)        |
-| Resolved      | May 7, 2026                                                             |
-| Branch        | `feature/phase7-stage2-submission-order-generation`                     |
-
-**How it was resolved:**
-Originally logged for the alias-set approach to date field identification. Resolved by replacing alias sets with `dataType`-based field identification in `dateExtractors.ts`.
-
-**Files changed:**
-- `src/lib/candidate/validation/dateExtractors.ts`
-
----
-
-### TD-071 — Submission edu/emp data-key mismatch (silent dropping of education and employment OrderItems)
-
-| Field         | Detail                                                                  |
-|---------------|-------------------------------------------------------------------------|
-| Area          | Candidate Application — Submission orchestrator                         |
-| Severity      | Blocker (Correctness — no edu/emp OrderItems generated at submission)   |
-| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
-| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md` BL-01, BL-02) |
-| Resolved      | May 7, 2026                                                             |
-| Branch        | `feature/phase7-stage2-submission-order-generation`                     |
-
-**How it was resolved:**
-`submitApplication.ts` read `formData.sections` using the sidebar / `result.sectionId` keys (`'service_verification-edu'` and `'service_verification-emp'`) instead of the save endpoint's data keys (`'education'` and `'employment'`). Because `formData.sections['service_verification-edu' | '-emp']` does not exist, `readEduEmpSection` returned `entries: []` and `buildEduEmpOrderItemKeys` produced zero OrderItems. The failure was silent — validation passed, submission succeeded, the order was created with no education or employment items.
-
-The validation engine had the same bug fixed at the data-key level in commit `3aaf0d2` (TD-062 fix); the submission service was missed in that pass and was caught by the comprehensive Phase 7 Stage 2 data-flow audit (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md`).
-
-Two string-literal fixes in `submitApplication.ts:291–292`:
-- Line 291: `'service_verification-edu'` → `'education'`
-- Line 292: `'service_verification-emp'` → `'employment'`
-
-The validation engine's `result.sectionId` values (`'service_verification-edu'` and `'service_verification-emp'` in `validationEngine.ts:230, 249`) are intentionally unchanged — those are sidebar / structure section IDs used by `portal-layout.tsx`, the `sectionVisits` map, the Review error nav, and `SectionErrorBanner`. They live in a different directory and are not data keys.
-
-**Verification:**
-- `grep -rn "service_verification" src/lib/candidate/submission/` returns zero hits after the fix.
-- 72/72 Pass 1 tests in `src/lib/candidate/submission/__tests__/` pass (`buildOrderSubject.test.ts` 12, `orderDataPopulation.test.ts` 19, `orderItemGeneration.test.ts` 41).
-- A browser smoke test of the submission flow with edu and emp entries is queued.
-
-**Files changed:**
-- `src/lib/candidate/submission/submitApplication.ts` (two string literals on lines 291–292)
-
-**Follow-ups:**
-- A Pass 2 regression test must fixture both edu and emp entries with `countryId`s, run `submitApplication` end-to-end, and assert `OrderItem` rows are created with the matching `serviceId` and `locationId`. Labelled `// REGRESSION TEST: proves bug fix for submission edu/emp data-key mismatch (TD-071)`.
-
----
-
-### TD-059 — Sidebar status not reactively recomputed for unmounted sections
-
-| Field         | Detail                                                             |
-|---------------|--------------------------------------------------------------------|
-| Area          | Candidate Application — Portal layout / cross-section requirements |
-| Severity      | Warning (UX)                                                       |
-| Identified    | May 5, 2026 - Phase 6 Stage 4 smoke testing                        |
-| Identified by | Andy (smoke test)                                                  |
-| Resolved      | May 5, 2026                                                        |
-| Branch        | `fix/td059-td060-personal-info-required-fields-and-sidebar-reactivity` |
-| Commits       | `4a085ce`, `1ddc6bd`, `230b14c`, `19239de`                         |
-
-**How it was resolved:**
-Personal Info's progress derivation was lifted from `PersonalInfoSection` into `portal-layout.tsx` (the portal shell). The shell now fetches `/personal-info-fields` once on mount and extracts Personal Info saved values from its existing `/saved-data` fetch. A new `useEffect` in the shell calls `computePersonalInfoStatus` whenever `personalInfoFields`, `personalInfoSavedValues`, or `subjectCrossSectionRequirements` change and writes the result to `sectionStatuses` via `handleSectionProgressUpdate`. This effect runs regardless of which tab is active, so the sidebar indicator updates immediately when the cross-section registry changes even when `PersonalInfoSection` is unmounted.
-
-`PersonalInfoSection` retains its own local progress effect for live typing feedback, and pushes freshly saved values back up to the shell via the new `onSavedValuesChange` prop after each successful auto-save so the shell's effect always operates on current values.
-
-The unmount cleanup in `useRepeatableSectionStage4Wiring` that had been calling `onCrossSectionRequirementsRemovedForSource` on tab navigation was reverted (commit `1ddc6bd`) because it was clearing the registry on unmount, which prevented the lifted shell effect from seeing the contributions that should have triggered the Personal Info update.
-
-**Files changed:**
-- `src/components/candidate/portal-layout.tsx`
-- `src/components/candidate/form-engine/PersonalInfoSection.tsx`
-- `src/lib/candidate/useRepeatableSectionStage4Wiring.ts`
-- `src/types/candidate-portal.ts` (moved `PersonalInfoField` interface here from `PersonalInfoSection.tsx`)
-
----
-
-### TD-060 — `personal-info-fields` API ignores candidate context when computing `isRequired`
-
-| Field         | Detail                                                                                      |
-|---------------|---------------------------------------------------------------------------------------------|
-| Area          | Candidate Application — `/api/candidate/application/[token]/personal-info-fields`          |
-| Severity      | Warning (UX / spec mismatch)                                                                |
-| Identified    | May 5, 2026 - Phase 6 Stage 4 smoke testing                                                 |
-| Identified by | Andy (smoke test) + traced via DevTools console                                             |
-| Resolved      | May 5, 2026                                                                                 |
-| Branch        | `fix/td059-td060-personal-info-required-fields-and-sidebar-reactivity`                      |
-| Commits       | `4a085ce`, `230b14c`, `19239de`                                                             |
-
-**How it was resolved:**
-The `personal-info-fields` route now scopes its `isRequired` computation to the candidate's package context. The previous implementation used OR logic across every `dsx_mappings` row for a requirement, making any field globally required if it was required in even a single (service, location) mapping row anywhere in the database.
-
-The replacement logic:
-1. Queries `dsx_availability` filtered to the package's service IDs, `isAvailable = true`, and `country.disabled IS NOT TRUE` (handling the nullable `Country.disabled` column correctly).
-2. Uses the resulting (serviceId, locationId) pairs as an OR-of-pairs filter on the subsequent `dsx_mappings` query.
-3. AND-aggregates `isRequired` across the matching rows per requirement: a field is baseline-required only if every applicable mapping row has `isRequired = true`. Fields with no applicable mapping rows default to `isRequired: false`.
-
-The response shape is unchanged. An audit of the neighboring `saved-data` and `structure` routes confirmed neither contains the same bug pattern; neither was modified.
-
-**Files changed:**
-- `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
-
----
 ### TD-082 — `evaluateTimeBasedScope` does not flag entries with null dates inside a time-bounded scope
 
 | Field       | Detail                                      |
@@ -2176,3 +2068,113 @@ Note: This issue likely affects other repeatable sections (Address History, Educ
 ---
 
 ## Resolved Items
+
+---
+
+### TD-059 — Sidebar status not reactively recomputed for unmounted sections
+
+| Field         | Detail                                                             |
+|---------------|--------------------------------------------------------------------|
+| Area          | Candidate Application — Portal layout / cross-section requirements |
+| Severity      | Warning (UX)                                                       |
+| Identified    | May 5, 2026 - Phase 6 Stage 4 smoke testing                        |
+| Identified by | Andy (smoke test)                                                  |
+| Resolved      | May 5, 2026                                                        |
+| Branch        | `fix/td059-td060-personal-info-required-fields-and-sidebar-reactivity` |
+| Commits       | `4a085ce`, `1ddc6bd`, `230b14c`, `19239de`                         |
+
+**How it was resolved:**
+Personal Info's progress derivation was lifted from `PersonalInfoSection` into `portal-layout.tsx` (the portal shell). The shell now fetches `/personal-info-fields` once on mount and extracts Personal Info saved values from its existing `/saved-data` fetch. A new `useEffect` in the shell calls `computePersonalInfoStatus` whenever `personalInfoFields`, `personalInfoSavedValues`, or `subjectCrossSectionRequirements` change and writes the result to `sectionStatuses` via `handleSectionProgressUpdate`. This effect runs regardless of which tab is active, so the sidebar indicator updates immediately when the cross-section registry changes even when `PersonalInfoSection` is unmounted.
+
+`PersonalInfoSection` retains its own local progress effect for live typing feedback, and pushes freshly saved values back up to the shell via the new `onSavedValuesChange` prop after each successful auto-save so the shell's effect always operates on current values.
+
+The unmount cleanup in `useRepeatableSectionStage4Wiring` that had been calling `onCrossSectionRequirementsRemovedForSource` on tab navigation was reverted (commit `1ddc6bd`) because it was clearing the registry on unmount, which prevented the lifted shell effect from seeing the contributions that should have triggered the Personal Info update.
+
+**Files changed:**
+- `src/components/candidate/portal-layout.tsx`
+- `src/components/candidate/form-engine/PersonalInfoSection.tsx`
+- `src/lib/candidate/useRepeatableSectionStage4Wiring.ts`
+- `src/types/candidate-portal.ts` (moved `PersonalInfoField` interface here from `PersonalInfoSection.tsx`)
+
+---
+
+### TD-060 — `personal-info-fields` API ignores candidate context when computing `isRequired`
+
+| Field         | Detail                                                                                      |
+|---------------|---------------------------------------------------------------------------------------------|
+| Area          | Candidate Application — `/api/candidate/application/[token]/personal-info-fields`          |
+| Severity      | Warning (UX / spec mismatch)                                                                |
+| Identified    | May 5, 2026 - Phase 6 Stage 4 smoke testing                                                 |
+| Identified by | Andy (smoke test) + traced via DevTools console                                             |
+| Resolved      | May 5, 2026                                                                                 |
+| Branch        | `fix/td059-td060-personal-info-required-fields-and-sidebar-reactivity`                      |
+| Commits       | `4a085ce`, `230b14c`, `19239de`                                                             |
+
+**How it was resolved:**
+The `personal-info-fields` route now scopes its `isRequired` computation to the candidate's package context. The previous implementation used OR logic across every `dsx_mappings` row for a requirement, making any field globally required if it was required in even a single (service, location) mapping row anywhere in the database.
+
+The replacement logic:
+1. Queries `dsx_availability` filtered to the package's service IDs, `isAvailable = true`, and `country.disabled IS NOT TRUE` (handling the nullable `Country.disabled` column correctly).
+2. Uses the resulting (serviceId, locationId) pairs as an OR-of-pairs filter on the subsequent `dsx_mappings` query.
+3. AND-aggregates `isRequired` across the matching rows per requirement: a field is baseline-required only if every applicable mapping row has `isRequired = true`. Fields with no applicable mapping rows default to `isRequired: false`.
+
+The response shape is unchanged. An audit of the neighboring `saved-data` and `structure` routes confirmed neither contains the same bug pattern; neither was modified.
+
+**Files changed:**
+- `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
+
+---
+
+### TD-070 — Alias-set approach to date field identification in dateExtractors.ts
+
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Validation engine date extractors               |
+| Severity      | Warning (correctness — locale-fragile field identification)             |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
+| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md`)        |
+| Resolved      | May 7, 2026                                                             |
+| Branch        | `feature/phase7-stage2-submission-order-generation`                     |
+
+**How it was resolved:**
+Originally logged for the alias-set approach to date field identification. Resolved by replacing alias sets with `dataType`-based field identification in `dateExtractors.ts`.
+
+**Files changed:**
+- `src/lib/candidate/validation/dateExtractors.ts`
+
+---
+
+### TD-071 — Submission edu/emp data-key mismatch (silent dropping of education and employment OrderItems)
+
+| Field         | Detail                                                                  |
+|---------------|-------------------------------------------------------------------------|
+| Area          | Candidate Application — Submission orchestrator                         |
+| Severity      | Blocker (Correctness — no edu/emp OrderItems generated at submission)   |
+| Identified    | May 7, 2026 - Phase 7 Stage 2 data-flow audit                           |
+| Identified by | bug-investigator (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md` BL-01, BL-02) |
+| Resolved      | May 7, 2026                                                             |
+| Branch        | `feature/phase7-stage2-submission-order-generation`                     |
+
+**How it was resolved:**
+`submitApplication.ts` read `formData.sections` using the sidebar / `result.sectionId` keys (`'service_verification-edu'` and `'service_verification-emp'`) instead of the save endpoint's data keys (`'education'` and `'employment'`). Because `formData.sections['service_verification-edu' | '-emp']` does not exist, `readEduEmpSection` returned `entries: []` and `buildEduEmpOrderItemKeys` produced zero OrderItems. The failure was silent — validation passed, submission succeeded, the order was created with no education or employment items.
+
+The validation engine had the same bug fixed at the data-key level in commit `3aaf0d2` (TD-062 fix); the submission service was missed in that pass and was caught by the comprehensive Phase 7 Stage 2 data-flow audit (`docs/audits/PHASE7_STAGE2_DATAFLOW_AUDIT.md`).
+
+Two string-literal fixes in `submitApplication.ts:291–292`:
+- Line 291: `'service_verification-edu'` → `'education'`
+- Line 292: `'service_verification-emp'` → `'employment'`
+
+The validation engine's `result.sectionId` values (`'service_verification-edu'` and `'service_verification-emp'` in `validationEngine.ts:230, 249`) are intentionally unchanged — those are sidebar / structure section IDs used by `portal-layout.tsx`, the `sectionVisits` map, the Review error nav, and `SectionErrorBanner`. They live in a different directory and are not data keys.
+
+**Verification:**
+- `grep -rn "service_verification" src/lib/candidate/submission/` returns zero hits after the fix.
+- 72/72 Pass 1 tests in `src/lib/candidate/submission/__tests__/` pass (`buildOrderSubject.test.ts` 12, `orderDataPopulation.test.ts` 19, `orderItemGeneration.test.ts` 41).
+- A browser smoke test of the submission flow with edu and emp entries is queued.
+
+**Files changed:**
+- `src/lib/candidate/submission/submitApplication.ts` (two string literals on lines 291–292)
+
+**Follow-ups:**
+- A Pass 2 regression test must fixture both edu and emp entries with `countryId`s, run `submitApplication` end-to-end, and assert `OrderItem` rows are created with the matching `serviceId` and `locationId`. Labelled `// REGRESSION TEST: proves bug fix for submission edu/emp data-key mismatch (TD-071)`.
+
+---
