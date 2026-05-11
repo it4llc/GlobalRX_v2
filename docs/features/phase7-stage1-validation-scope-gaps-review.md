@@ -69,6 +69,8 @@ The top-level orchestrator. Exports `runValidation(invitationId: string): Promis
 
 **Phase 7 Stage 3a note:** Database loading, derived data shapes, and the `buildFindMappings` adapter were extracted from this file into `loadValidationInputs.ts` and `savedEntryShape.ts`. The engine's public API (`runValidation` signature and return type) is unchanged.
 
+**Phase 7 Stage 3b note:** The three repeatable-section validators (`validateAddressHistorySection`, `validateEducationSection`, `validateEmploymentSection`) now populate `fieldErrors` via a per-entry required-field walk. The walk is implemented in a new sibling module `repeatableEntryFieldChecks.ts` (TD-069 fix). `buildReviewSummary` was hoisted from this file into a new sibling module `buildReviewSummary.ts` to keep the engine below the 600-line hard stop. A new `requirementById` map is produced by `loadValidationInputs` and passed to the section validators. No change to `runValidation`'s public signature or return type.
+
 ## New Helper: Section Visit Tracking
 
 ### `src/lib/candidate/sectionVisitTracking.ts`

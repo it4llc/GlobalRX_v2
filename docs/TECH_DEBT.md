@@ -1969,7 +1969,9 @@ If a future stage adds a third section validator (beyond Personal Info and IDV) 
 | Identified by | documentation-writer                                                    |
 
 **Description:**
-Several files in `src/lib/candidate/validation/` re-declare the same TypeScript interface shapes rather than importing from a shared location. This is intentional architectural layering (see Phase 7 Stage 3a technical plan §3.1) but is undocumented in code, creating risk that a future engineer will "consolidate" the duplication and break the layering.
+Several files in `src/lib/candidate/validation/` re-declare the same TypeScript interface shapes rather than importing from a shared location. This is intentional architectural layering (see Phase 7 Stage 3a technical plan §3.1) but is undocumented in code, creating risk that a future engineer will "consolidate" the duplication and break the layering.  
+**Clarification (post Phase 7 Stage 3b):**
+The TD-077 prohibition applies to a shared types module that crosses the loader/validator boundary in `src/lib/candidate/validation/`. It does **not** prohibit type exports between sibling validator helpers on the same side of that boundary (for example, `repeatableEntryFieldChecks.ts` exporting a structural alias that `validationEngine.ts` imports). A single export between two co-equal sibling validators preserves the duplication count and keeps the loader/validator separation intact.
 
 **Affected sites:**
 - `CandidateFormDataShape` in `loadValidationInputs.ts`
@@ -1982,9 +1984,7 @@ Add brief comment blocks at each re-declaration site noting that the duplication
 - `src/lib/candidate/validation/loadValidationInputs.ts`
 - `src/lib/candidate/validation/personalInfoIdvFieldChecks.ts`
 
----
 
-## Resolved Items
 
 ---
 
@@ -2095,3 +2095,55 @@ The response shape is unchanged. An audit of the neighboring `saved-data` and `s
 - `src/app/api/candidate/application/[token]/personal-info-fields/route.ts`
 
 ---
+### TD-082 — `evaluateTimeBasedScope` does not flag entries with null dates inside a time-bounded scope
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate validation engine — scope checks  |
+| Severity    | Medium                                      |
+| Identified  | Phase 7 Stage 3b code review (2026-05-10)   |
+
+**Description:**
+When a repeatable section has a time-based scope (e.g., 5-year employment scope) and a saved entry has null `startDate` and/or `endDate` fields, `evaluateTimeBasedScope` returns zero scope errors. The expected behavior is for the function to emit a scope error indicating the entry cannot be evaluated against the time-based scope because it lacks the dates needed to compute coverage.
+
+Surfaced by the DoD 9 Pass 1 test in `validationEngine.test.ts:1219–1311`, which constructs a 5-year-scope employment with a single entry that has no date fields populated and expects a scope error to be produced. The test fails on Pass 1 and continues to fail after Stage 3b's implementation — the per-entry walk is unrelated.
+
+The DoD 9 test in validationEngine.test.ts is currently .skip'd with a pointer to this TD entry. When the underlying behavior is fixed (or the fixture is corrected), un-skip the test.
+
+**Why deferred:**
+Stage 3b scope was strictly TD-069 and TD-072. The scope-extractor's behavior with null-date entries is a pre-existing issue with its own implications and should be evaluated independently.
+
+**When to fix:**
+Either tighten `evaluateTimeBasedScope` to emit an error when an entry's dates are null inside a time-bounded scope, or fix the fixture in the DoD 9 test to populate dates. Decide which by inspecting how time-based scope is expected to behave when dates are missing — this may surface a broader product question about whether a candidate should be permitted to save an entry without dates.
+
+---
+
+### TD-083 — TD-072 country-switch cleanup race not under deterministic automated test
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | IdvSection candidate component — country switch |
+| Severity    | Low (behavior is verified by spec review + manual smoke) |
+| Identified  | Phase 7 Stage 3b test-writer Pass 1 (2026-05-10) |
+
+**Description:**
+The bug TD-072 fixes is a race condition: when a candidate types into a country-X-scoped IDV field and then switches to country Y *before* the user-typed save's debounced request has fired, the country-X requirementId stays in `pendingSaves` and gets included in the country-switch save body as if it belonged to country Y.
+
+The Stage 3b Pass 1 tests for TD-072 (`IdvSection.test.tsx:1472–1541` and `:1560–1664`) cannot deterministically reproduce this race because the fetch mock's `setupCountrySwitchFetchMock` returns immediately-resolving promises. Both tests pass on Pass 1 (before any cleanup logic exists) as well as after the implementation lands — they serve as forward regression guards on the save-body shape rather than as Pass-1-failure tests.
+
+The actual cleanup behavior is verified by spec review and by DoD 14's manual smoke test, both of which the implementer confirmed.
+
+**Why deferred:**
+Reproducing the race deterministically requires a deferred-promise fetch mock where the test can hold the country-X save's response in flight while the country switch fires, then resolve and re-assert. The existing test infrastructure does not expose this pattern, and orchestrating it is non-trivial work that should not block Stage 3b shipping.
+
+**When to fix:**
+When test infrastructure work permits, write a deferred-promise race test for the `pendingSaves` orphan window. The test should:
+1. Type into a country-X-scoped field.
+2. Hold the resulting save request unresolved.
+3. Switch to country Y.
+4. Resolve the country-X save.
+5. Assert that the country-switch save body does NOT contain the country-X requirementId.
+
+---
+
+## Resolved Items

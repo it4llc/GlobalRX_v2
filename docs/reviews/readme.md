@@ -1,0 +1,1 @@
+Code review and standards check reports produced during the multi-agent pipeline. One file per review type per stage; naming follows the spec/plan convention."
