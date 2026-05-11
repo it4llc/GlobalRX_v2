@@ -42,6 +42,15 @@ import {
   validatePersonalInfoSection,
 } from './personalInfoIdvFieldChecks';
 import { loadValidationInputs } from './loadValidationInputs';
+import type { RequirementRecord } from './loadValidationInputs';
+import {
+  validateAddressHistoryEntries,
+  validateEducationEntries,
+  validateEmploymentEntries,
+} from './repeatableEntryFieldChecks';
+import type { PackageServiceWithRequirements } from './repeatableEntryFieldChecks';
+import type { FindDsxMappings } from './personalInfoIdvFieldChecks';
+import { buildReviewSummary } from './buildReviewSummary';
 import {
   flattenEntry,
   inferAddressBlockRequirementId,
@@ -56,8 +65,6 @@ import type {
   DatedEntryLike,
   EntryLike,
   FullValidationResult,
-  ReviewError,
-  ReviewPageSummary,
   SectionValidationResult,
   ValidationStatus,
 } from './types';
@@ -101,6 +108,7 @@ export async function runValidation(
     gapToleranceDays,
     servicesByType,
     requirementMetadata,
+    requirementById,
     lockedValues,
     findMappings,
   } = inputs;
@@ -109,9 +117,10 @@ export async function runValidation(
 
   // Address History (record functionality)
   if (servicesByType.has('record')) {
-    const scope = resolveSectionScope(servicesByType.get('record') ?? [], 'record');
+    const recordServices = servicesByType.get('record') ?? [];
+    const scope = resolveSectionScope(recordServices, 'record');
     sectionResults.push(
-      validateAddressHistorySection({
+      await validateAddressHistorySection({
         sectionId: 'address_history',
         sectionData: sectionsData['address_history'],
         scope,
@@ -120,18 +129,19 @@ export async function runValidation(
         sectionVisits,
         reviewVisitedAt,
         requirementMetadata,
+        packageServicesForSection: recordServices,
+        findMappings,
+        requirementById,
       }),
     );
   }
 
   // Education (verification-edu)
   if (servicesByType.has('verification-edu')) {
-    const scope = resolveSectionScope(
-      servicesByType.get('verification-edu') ?? [],
-      'verification-edu',
-    );
+    const eduServices = servicesByType.get('verification-edu') ?? [];
+    const scope = resolveSectionScope(eduServices, 'verification-edu');
     sectionResults.push(
-      validateEducationSection({
+      await validateEducationSection({
         sectionId: 'service_verification-edu',
         sectionData: sectionsData['education'],
         scope,
@@ -139,18 +149,19 @@ export async function runValidation(
         sectionVisits,
         reviewVisitedAt,
         requirementMetadata,
+        packageServicesForSection: eduServices,
+        findMappings,
+        requirementById,
       }),
     );
   }
 
   // Employment (verification-emp)
   if (servicesByType.has('verification-emp')) {
-    const scope = resolveSectionScope(
-      servicesByType.get('verification-emp') ?? [],
-      'verification-emp',
-    );
+    const empServices = servicesByType.get('verification-emp') ?? [];
+    const scope = resolveSectionScope(empServices, 'verification-emp');
     sectionResults.push(
-      validateEmploymentSection({
+      await validateEmploymentSection({
         sectionId: 'service_verification-emp',
         sectionData: sectionsData['employment'],
         scope,
@@ -159,6 +170,9 @@ export async function runValidation(
         sectionVisits,
         reviewVisitedAt,
         requirementMetadata,
+        packageServicesForSection: empServices,
+        findMappings,
+        requirementById,
       }),
     );
   }
@@ -301,11 +315,18 @@ interface ScopedSectionInput {
   // fields by requirement metadata. Address-history and personal-info paths
   // ignore this; only employment and education time-based scope use it.
   requirementMetadata: Map<string, RequirementMetadata>;
+  // Phase 7 Stage 3b — TD-069. Threaded through to the per-entry walk in
+  // `repeatableEntryFieldChecks.ts`. The packageServicesForSection slice is
+  // pre-filtered to the section's functionalityType (e.g. 'record',
+  // 'verification-edu', 'verification-emp') by the orchestrator.
+  packageServicesForSection: PackageServiceWithRequirements[];
+  findMappings: FindDsxMappings;
+  requirementById: Map<string, RequirementRecord>;
 }
 
-function validateAddressHistorySection(
+async function validateAddressHistorySection(
   input: ScopedSectionInput,
-): SectionValidationResult {
+): Promise<SectionValidationResult> {
   const entries = input.sectionData?.entries ?? [];
   const countResult = emptySectionResult(input.sectionId, 'not_started');
 
@@ -345,6 +366,15 @@ function validateAddressHistorySection(
     );
   }
 
+  // Phase 7 Stage 3b — TD-069 per-entry required-field walk.
+  countResult.fieldErrors = await validateAddressHistoryEntries({
+    sectionId: input.sectionId,
+    entries,
+    packageServicesForSection: input.packageServicesForSection,
+    findMappings: input.findMappings,
+    requirementById: input.requirementById,
+  });
+
   countResult.status = deriveStatusWithErrors(
     input.sectionId,
     input.sectionData,
@@ -356,9 +386,9 @@ function validateAddressHistorySection(
   return countResult;
 }
 
-function validateEducationSection(
+async function validateEducationSection(
   input: Omit<ScopedSectionInput, 'gapToleranceDays'>,
-): SectionValidationResult {
+): Promise<SectionValidationResult> {
   // Education has scope but no gap detection (Rule 20).
   const entries = input.sectionData?.entries ?? [];
   const result = emptySectionResult(input.sectionId, 'not_started');
@@ -381,6 +411,15 @@ function validateEducationSection(
     result.scopeErrors = evaluateCountScope(input.scope, entryLikes);
   }
 
+  // Phase 7 Stage 3b — TD-069 per-entry required-field walk.
+  result.fieldErrors = await validateEducationEntries({
+    sectionId: input.sectionId,
+    entries,
+    packageServicesForSection: input.packageServicesForSection,
+    findMappings: input.findMappings,
+    requirementById: input.requirementById,
+  });
+
   result.status = deriveStatusWithErrors(
     input.sectionId,
     input.sectionData,
@@ -391,9 +430,9 @@ function validateEducationSection(
   return result;
 }
 
-function validateEmploymentSection(
+async function validateEmploymentSection(
   input: ScopedSectionInput,
-): SectionValidationResult {
+): Promise<SectionValidationResult> {
   const entries = input.sectionData?.entries ?? [];
   const result = emptySectionResult(input.sectionId, 'not_started');
 
@@ -428,6 +467,15 @@ function validateEmploymentSection(
       null,
     );
   }
+
+  // Phase 7 Stage 3b — TD-069 per-entry required-field walk.
+  result.fieldErrors = await validateEmploymentEntries({
+    sectionId: input.sectionId,
+    entries,
+    packageServicesForSection: input.packageServicesForSection,
+    findMappings: input.findMappings,
+    requirementById: input.requirementById,
+  });
 
   result.status = deriveStatusWithErrors(
     input.sectionId,
@@ -515,61 +563,6 @@ function computeScopeStart(scope: ResolvedScope, today: Date): Date | null {
   }
   const days = scope.scopeValue * DAYS_PER_YEAR;
   return new Date(today.getTime() - days * MS_PER_DAY);
-}
-
-function buildReviewSummary(
-  sectionResults: SectionValidationResult[],
-): ReviewPageSummary {
-  let totalErrors = 0;
-  const sections = sectionResults.map((sr) => {
-    const errors: ReviewError[] = [];
-    for (const fe of sr.fieldErrors) {
-      errors.push({
-        kind: 'field',
-        fieldName: fe.fieldName,
-        messageKey: fe.messageKey,
-        placeholders: fe.placeholders,
-      });
-    }
-    for (const se of sr.scopeErrors) {
-      errors.push({
-        kind: 'scope',
-        messageKey: se.messageKey,
-        placeholders: se.placeholders,
-      });
-    }
-    for (const ge of sr.gapErrors) {
-      errors.push({
-        kind: 'gap',
-        messageKey: ge.messageKey,
-        placeholders: ge.placeholders,
-        gapStart: ge.gapStart,
-        gapEnd: ge.gapEnd,
-      });
-    }
-    for (const de of sr.documentErrors) {
-      errors.push({
-        kind: 'document',
-        requirementId: de.requirementId,
-        documentNameKey: de.documentNameKey,
-      });
-    }
-    totalErrors += errors.length;
-    return {
-      sectionId: sr.sectionId,
-      // sectionName is filled in by the API route layer, which has access
-      // to the section title strings. The engine itself only knows IDs.
-      sectionName: sr.sectionId,
-      status: sr.status,
-      errors,
-    };
-  });
-
-  return {
-    sections,
-    allComplete: sectionResults.every((sr) => sr.status === 'complete'),
-    totalErrors,
-  };
 }
 
 function emptyResult(): FullValidationResult {
