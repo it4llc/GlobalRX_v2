@@ -2108,6 +2108,8 @@ When a repeatable section has a time-based scope (e.g., 5-year employment scope)
 
 Surfaced by the DoD 9 Pass 1 test in `validationEngine.test.ts:1219–1311`, which constructs a 5-year-scope employment with a single entry that has no date fields populated and expects a scope error to be produced. The test fails on Pass 1 and continues to fail after Stage 3b's implementation — the per-entry walk is unrelated.
 
+The DoD 9 test in validationEngine.test.ts is currently .skip'd with a pointer to this TD entry. When the underlying behavior is fixed (or the fixture is corrected), un-skip the test.
+
 **Why deferred:**
 Stage 3b scope was strictly TD-069 and TD-072. The scope-extractor's behavior with null-date entries is a pre-existing issue with its own implications and should be evaluated independently.
 
