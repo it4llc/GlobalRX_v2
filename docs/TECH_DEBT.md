@@ -2067,6 +2067,127 @@ Trace the source of the required-state decoration in the form-rendering code pat
 
 ---
 
+### TD-085 — DSX admin UI does not propagate required-state across geographic hierarchy
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | DSX administration UI / `dsx_mappings` data integrity |
+| Severity    | Medium (data inconsistency)                 |
+| Identified  | Phase 7 follow-up — TD-084 investigation (2026-05-11) |
+
+**Description:**
+The DSX admin interface allows per-mapping `isRequired` toggling at country, region, and subregion levels without enforcing consistency between levels. As a result, the `dsx_mappings` table can contain inconsistent geographic-hierarchy data: a parent country may be marked required while a subregion under it is marked optional, or vice versa.
+
+The intended product behavior is that geographic-hierarchy required-state propagates:
+- Marking a country required should mark all subregions under it required automatically.
+- Unchecking a single subregion should uncheck the parent country (and any other subregions that were implicitly required by the parent).
+- Required-state inheritance should be enforced at edit time, so the table cannot end up with inconsistent levels.
+
+Today this propagation is not implemented. The TD-084 investigation surfaced this when explaining the OR-merge logic in the `/fields` route: the route's merge behavior partly compensates for the table's inability to express consistent multi-level rules.
+
+**Why deferred:**
+This is a DSX admin-UI concern, not a candidate-portal concern. TD-084 will land the rendering / validation fixes assuming the table may contain inconsistent data and will use OR-merge to compensate. Once the admin UI enforces propagation, the OR-merge becomes a safety net rather than a workaround.
+
+**When to fix:**
+Implement required-state inheritance in the DSX admin UI: marking a parent location required propagates to children; unchecking a child propagates up to the parent. Add a data-integrity migration (or one-time cleanup script) to reconcile any existing inconsistent rows in `dsx_mappings`.
+
+---
+
+### TD-086 — `fromDate` / `toDate` asterisks hardcoded in AddressBlockInput.tsx
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate portal — AddressBlockInput component |
+| Severity    | Low (visual only — likely correct behavior already) |
+| Identified  | Phase 7 follow-up — TD-084 investigation (2026-05-11) |
+
+**Description:**
+`src/components/candidate/form-engine/AddressBlockInput.tsx:493` and `:537` render an unconditional red asterisk on the `fromDate` and `toDate` fields with no condition tied to `dsx_mappings` or any per-country logic:
+
+```tsx
+<span className="text-red-500 ml-1 required-indicator">*</span>
+```
+
+The asterisk is always rendered, regardless of which country the entry is for or whether the mapping data says required. Surfaced by the TD-084 investigation.
+
+The likely correct behavior is to leave these asterisks unconditional, because date coverage is required for any address-history entry to be useful (scope validation and gap detection both depend on dates being populated). However, this hasn't been explicitly verified as the intended behavior.
+
+**Why deferred:**
+The asterisks are outside `dsx_mappings`'s scope (mappings cover per-piece required-state for street / city / state / postal code, not dates). The behavior is probably intentional. TD-084's fix should NOT touch these — it's a scope-creep trap.
+
+**When to fix:**
+Confirm with product whether dates should remain unconditionally required for address-history entries. If yes, document the decision in code with a brief comment near the asterisks. If no, align the date asterisks with whatever per-country logic governs them (probably a separate mapping or config).
+
+---
+
+### TD-087 — Batched dSXMapping.findMany in /fields route aggregator
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | DSX field aggregation / API performance               |
+| Severity      | Minor (Performance optimization)                      |
+| Identified    | May 11, 2026 - TD-084 Implementation                  |
+| Identified by | Implementer                                           |
+
+**Description:**
+The `/fields` route (`src/app/api/candidate/application/[token]/fields/route.ts`) calls `dsx_mappings.findMany` once per `(serviceId, levelId)` combination when building the input to the new aggregator (`aggregateFieldsRequired.ts`, in the same directory) introduced by TD-084. For a candidate package with N services and M geographic levels, this issues N×M queries instead of a single batched query.
+
+**Why deferred:**
+The existing test fixtures in `route.test.ts` are structured around per-`(serviceId, levelId)` mocks. Collapsing to a single batched query would have required restructuring those fixtures, which expanded the scope of TD-084 beyond what was authorized. The current N×M pattern is correct — this is a performance optimization, not a correctness issue.
+
+**When to fix:**
+When `route.test.ts` fixtures are restructured for another reason, or if `/fields` route latency becomes a measurable issue under load. Likely a natural pairing with TD-089 (test-infrastructure cleanup in the same file).
+
+**Recommendation:**
+Collapse the per-`(serviceId, levelId)` `findMany` loop in `route.ts` (around lines 328-349) into a single `findMany` call with a compound `where` clause covering all `(serviceId, levelId)` pairs. The aggregator (`aggregateFieldsRequired.ts`) already takes a flat row list and does not need to change. Update `route.test.ts` mock fixtures to support the batched call shape.
+
+---
+
+### TD-088 — Pre-existing typecheck error in IdvSection.tsx:538
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | TypeScript strict mode / Candidate form components    |
+| Severity      | Low (Type safety, no runtime impact)                  |
+| Identified    | May 11, 2026 - TD-084 Implementation                  |
+| Identified by | Implementer                                           |
+
+**Description:**
+A pre-existing typecheck error at `src/components/candidate/form-engine/IdvSection.tsx:538`. The expression resolves to `FieldMetadata | null | undefined` where the downstream consumer's signature expects `FieldMetadata | undefined`. The mismatch does not cause runtime issues because `null` is coerced to `undefined` at the consumer boundary, but it fails strict typecheck.
+
+**Why deferred:**
+This error exists on `dev` and was not introduced by TD-084. Fixing it requires either narrowing the type at the source or adjusting the consumer's signature — both touch code outside TD-084's scope. The implementer flagged it during the Stage 3b pass and preserved scope discipline by not touching it.
+
+**When to fix:**
+During the next pass on `IdvSection.tsx`, or as part of a broader TypeScript strict-mode cleanup.
+
+**Recommendation:**
+Either narrow the upstream expression to exclude `null` at the source, or accept `FieldMetadata | null | undefined` at the consumer's signature and normalize there.
+
+---
+
+### TD-089 — Pre-existing typecheck error in route.test.ts:903 mock setup
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | TypeScript strict mode / Test infrastructure          |
+| Severity      | Low (Type safety in test code, no runtime impact)     |
+| Identified    | May 11, 2026 - TD-084 Implementation                  |
+| Identified by | Implementer                                           |
+
+**Description:**
+A pre-existing typecheck error at `src/app/api/candidate/application/[token]/fields/route.test.ts:903`. The argument passed to `dSXAvailability.findFirst.mockImplementation` is not assignable to the type expected by the Prisma client's generated `findFirst` signature. The implementer verified by targeted git stash that this error was inherited from an earlier commit on the TD-084 branch and was NOT introduced by Stage 3b's work.
+
+**Why deferred:**
+The mock works correctly at runtime — the type mismatch is between the simplified mock argument shape and the full Prisma type. Fixing it requires either matching the full Prisma argument shape in the mock or casting at the boundary. Both are test-infrastructure cleanup that was out of scope for TD-084.
+
+**When to fix:**
+When test fixtures for `route.test.ts` are next restructured — likely alongside TD-087's batched-query work, which will already require fixture changes in the same file.
+
+**Recommendation:**
+Either update the mock implementation to match the full Prisma `findFirst` argument type, or add a type assertion at the mock boundary. Consider pairing with TD-087's fixture restructure to address both at once.
+
+---
 ## Resolved Items
 
 ---

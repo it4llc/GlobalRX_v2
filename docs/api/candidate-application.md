@@ -66,11 +66,15 @@ Phase 7 Stage 1 appends a synthetic `review_submit` section entry at the end of 
 
 ### GET /api/candidate/application/[token]/fields
 
-Returns DSX field requirements for a specific service and country.
+Returns DSX field requirements for the candidate's package at a specific geographic location. Called by entry-based sections (Education, Employment, Address History) to determine which fields to display and which to mark required.
 
 **Query Parameters:**
-- `serviceId` (required) - The service ID to get fields for
-- `countryId` (required) - The country ID to get fields for
+- `serviceIds` (TD-084, optional, repeatable) - One or more service IDs packed as repeated query parameters (e.g., `serviceIds=<id1>&serviceIds=<id2>`). When present, the route OR-merges `isRequired` across every `(serviceId, locationId)` pair so the rendered required-state matches the validator's view. Preferred over the legacy `serviceId` parameter.
+- `serviceId` (legacy, optional) - A single service ID. Preserved for backwards compatibility. Ignored when `serviceIds` is present. At least one of `serviceId` or `serviceIds` must be provided.
+- `countryId` (required) - The country ID to get fields for.
+- `subregionId` (optional, UUID, Phase 6 Stage 3) - When provided, the route walks the `countries.parentId` chain upward from this ID and merges DSX mappings across all applicable geographic levels in a single call.
+
+**`isRequired` semantics (TD-084):** A field's `isRequired` value is `true` if ANY applicable `dsx_mappings` row across the candidate's full service package AND across all applicable geographic levels (country → subregion) says `true`. This is an OR-merge, not a per-service value. Fields that have no `dsx_mappings` row at any applicable level are not included in the response (except the `address_block` field, which is always returned for Address History rendering with `isRequired: false` when no mapping covers it).
 
 **Response:**
 ```json
@@ -89,6 +93,8 @@ Returns DSX field requirements for a specific service and country.
   }]
 }
 ```
+
+**Errors:** `400` if neither `serviceId` nor `serviceIds` is provided, if `countryId` is missing, or if `subregionId` is not a valid UUID.
 
 ### GET /api/candidate/application/[token]/countries
 
