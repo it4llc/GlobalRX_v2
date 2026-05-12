@@ -62,7 +62,7 @@ import {
   orMergeMappings,
   type DsxMappingWithRequirement,
   type MergedEntry,
-} from '../../../../app/api/candidate/application/[token]/fields/aggregateFieldsRequired';
+} from '@/app/api/candidate/application/[token]/fields/aggregateFieldsRequired';
 
 // IMPORT RESOLVES AFTER the implementer adds `export` to
 // `buildPerCountryRequiredMap` (today an internal function at
@@ -73,7 +73,7 @@ import {
 import {
   buildPerCountryRequiredMap,
   type DsxMappingRow,
-} from '../repeatableEntryFieldChecks';
+} from '@/lib/candidate/validation/repeatableEntryFieldChecks';
 
 describe('TD-084 — cross-path OR-merge consistency (BR 4, DoD 3, DoD 8)', () => {
   // Shared fixture: same shape used by DoD 1 (validator) and DoD 2 (route).
