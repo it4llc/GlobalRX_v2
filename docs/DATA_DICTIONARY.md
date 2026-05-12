@@ -218,7 +218,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `serviceId` (String, required): Service being mapped
 - `locationId` (String, required): Location being mapped
 - `requirementId` (String, required): Requirement being mapped
-- `isRequired` (Boolean, required): Whether this requirement is mandatory
+- `isRequired` (Boolean, required): Whether this requirement is mandatory for the given `(serviceId, locationId)` pair. **Candidate-portal consumption semantics (TD-084):** when surfaced through the `/fields` route, this value is OR-merged across the candidate's full package of services and across the geographic hierarchy (country / subregion). A field is marked required if any applicable mapping row says true — the raw per-row value is not exposed directly to the candidate form.
 - `createdAt` (DateTime, required): Creation timestamp
 - `updatedAt` (DateTime, required): Last modification timestamp
 
