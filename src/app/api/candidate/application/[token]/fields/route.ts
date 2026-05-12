@@ -207,30 +207,6 @@ export async function GET(
       levelIds.push(...ancestorChain);
     }
 
-    // TD-084 — batched lookups across every effective serviceId.
-    //
-    // Pre-TD-084 the route issued one `service.findUnique` and one
-    // `serviceRequirement.findMany` per call (always a single serviceId).
-    // Under the package-aware shape we batch both. The
-    // functionalityTypeById map is consulted only for logging context now
-    // (the record-service carve-out for `address_block` visibility no
-    // longer depends on functionalityType — see §1.4 / §3.2.1 point 8 of
-    // the technical plan).
-    // Defensive `?? []`: in test harnesses where prisma.service.findMany is
-    // not explicitly mocked (most existing route tests pre-date TD-084 and
-    // mocked service.findUnique only), the vi.fn() default return is
-    // `undefined`. Coercing to `[]` here lets the route still complete and
-    // pass through the empty functionalityType map without throwing —
-    // functionalityType is consulted only for debug logging context now.
-    const services = (await prisma.service.findMany({
-      where: { id: { in: effectiveServiceIds } },
-      select: { id: true, functionalityType: true },
-    })) ?? [];
-    const functionalityTypeById = new Map<string, string | null>();
-    for (const s of services) {
-      functionalityTypeById.set(s.id, s.functionalityType ?? null);
-    }
-
     // serviceRequirement.findMany batched across every effective serviceId.
     // We use this for:
     //   (a) the per-requirement displayOrder lookup,
@@ -373,8 +349,7 @@ export async function GET(
     // declares an address_block service-level requirement is harmless
     // (Education/Employment normally don't, and if they ever do, the
     // section's collectionTab filter still excludes subject-targeted fields
-    // before render). Logged from functionalityTypeById in case future
-    // debugging needs the per-service type breakdown.
+    // before render).
     for (const sid of effectiveServiceIds) {
       const serviceRequirementsForService = serviceRequirementsByServiceId.get(sid) ?? [];
       for (const serviceReq of serviceRequirementsForService) {

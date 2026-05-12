@@ -2130,7 +2130,7 @@ Confirm with product whether dates should remain unconditionally required for ad
 | Identified by | Implementer                                           |
 
 **Description:**
-The new `/fields` route aggregator (`src/lib/candidate/validation/aggregateFieldsRequired.ts`, introduced by TD-084) calls `dsx_mappings.findMany` once per `(serviceId, levelId)` combination when computing per-country required state. For a candidate package with N services and M geographic levels, this issues N×M queries instead of a single batched query.
+The `/fields` route (`src/app/api/candidate/application/[token]/fields/route.ts`) calls `dsx_mappings.findMany` once per `(serviceId, levelId)` combination when building the input to the new aggregator (`aggregateFieldsRequired.ts`, in the same directory) introduced by TD-084. For a candidate package with N services and M geographic levels, this issues N×M queries instead of a single batched query.
 
 **Why deferred:**
 The existing test fixtures in `route.test.ts` are structured around per-`(serviceId, levelId)` mocks. Collapsing to a single batched query would have required restructuring those fixtures, which expanded the scope of TD-084 beyond what was authorized. The current N×M pattern is correct — this is a performance optimization, not a correctness issue.
@@ -2139,7 +2139,7 @@ The existing test fixtures in `route.test.ts` are structured around per-`(servic
 When `route.test.ts` fixtures are restructured for another reason, or if `/fields` route latency becomes a measurable issue under load. Likely a natural pairing with TD-089 (test-infrastructure cleanup in the same file).
 
 **Recommendation:**
-Collapse the per-`(serviceId, levelId)` `findMany` loop in `aggregateFieldsRequired.ts` into a single `findMany` call with a compound `where` clause covering all `(serviceId, levelId)` pairs. Update `route.test.ts` mock fixtures to support the batched call shape.
+Collapse the per-`(serviceId, levelId)` `findMany` loop in `route.ts` (around lines 328-349) into a single `findMany` call with a compound `where` clause covering all `(serviceId, levelId)` pairs. The aggregator (`aggregateFieldsRequired.ts`) already takes a flat row list and does not need to change. Update `route.test.ts` mock fixtures to support the batched call shape.
 
 ---
 
