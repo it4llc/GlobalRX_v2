@@ -2119,6 +2119,75 @@ The asterisks are outside `dsx_mappings`'s scope (mappings cover per-piece requi
 Confirm with product whether dates should remain unconditionally required for address-history entries. If yes, document the decision in code with a brief comment near the asterisks. If no, align the date asterisks with whatever per-country logic governs them (probably a separate mapping or config).
 
 ---
+
+### TD-087 — Batched dSXMapping.findMany in /fields route aggregator
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | DSX field aggregation / API performance               |
+| Severity      | Minor (Performance optimization)                      |
+| Identified    | May 11, 2026 - TD-084 Implementation                  |
+| Identified by | Implementer                                           |
+
+**Description:**
+The new `/fields` route aggregator (`src/lib/candidate/validation/aggregateFieldsRequired.ts`, introduced by TD-084) calls `dsx_mappings.findMany` once per `(serviceId, levelId)` combination when computing per-country required state. For a candidate package with N services and M geographic levels, this issues N×M queries instead of a single batched query.
+
+**Why deferred:**
+The existing test fixtures in `route.test.ts` are structured around per-`(serviceId, levelId)` mocks. Collapsing to a single batched query would have required restructuring those fixtures, which expanded the scope of TD-084 beyond what was authorized. The current N×M pattern is correct — this is a performance optimization, not a correctness issue.
+
+**When to fix:**
+When `route.test.ts` fixtures are restructured for another reason, or if `/fields` route latency becomes a measurable issue under load. Likely a natural pairing with TD-089 (test-infrastructure cleanup in the same file).
+
+**Recommendation:**
+Collapse the per-`(serviceId, levelId)` `findMany` loop in `aggregateFieldsRequired.ts` into a single `findMany` call with a compound `where` clause covering all `(serviceId, levelId)` pairs. Update `route.test.ts` mock fixtures to support the batched call shape.
+
+---
+
+### TD-088 — Pre-existing typecheck error in IdvSection.tsx:538
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | TypeScript strict mode / Candidate form components    |
+| Severity      | Low (Type safety, no runtime impact)                  |
+| Identified    | May 11, 2026 - TD-084 Implementation                  |
+| Identified by | Implementer                                           |
+
+**Description:**
+A pre-existing typecheck error at `src/components/candidate/form-engine/IdvSection.tsx:538`. The expression resolves to `FieldMetadata | null | undefined` where the downstream consumer's signature expects `FieldMetadata | undefined`. The mismatch does not cause runtime issues because `null` is coerced to `undefined` at the consumer boundary, but it fails strict typecheck.
+
+**Why deferred:**
+This error exists on `dev` and was not introduced by TD-084. Fixing it requires either narrowing the type at the source or adjusting the consumer's signature — both touch code outside TD-084's scope. The implementer flagged it during the Stage 3b pass and preserved scope discipline by not touching it.
+
+**When to fix:**
+During the next pass on `IdvSection.tsx`, or as part of a broader TypeScript strict-mode cleanup.
+
+**Recommendation:**
+Either narrow the upstream expression to exclude `null` at the source, or accept `FieldMetadata | null | undefined` at the consumer's signature and normalize there.
+
+---
+
+### TD-089 — Pre-existing typecheck error in route.test.ts:903 mock setup
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | TypeScript strict mode / Test infrastructure          |
+| Severity      | Low (Type safety in test code, no runtime impact)     |
+| Identified    | May 11, 2026 - TD-084 Implementation                  |
+| Identified by | Implementer                                           |
+
+**Description:**
+A pre-existing typecheck error at `src/app/api/candidate/application/[token]/fields/route.test.ts:903`. The argument passed to `dSXAvailability.findFirst.mockImplementation` is not assignable to the type expected by the Prisma client's generated `findFirst` signature. The implementer verified by targeted git stash that this error was inherited from an earlier commit on the TD-084 branch and was NOT introduced by Stage 3b's work.
+
+**Why deferred:**
+The mock works correctly at runtime — the type mismatch is between the simplified mock argument shape and the full Prisma type. Fixing it requires either matching the full Prisma argument shape in the mock or casting at the boundary. Both are test-infrastructure cleanup that was out of scope for TD-084.
+
+**When to fix:**
+When test fixtures for `route.test.ts` are next restructured — likely alongside TD-087's batched-query work, which will already require fixture changes in the same file.
+
+**Recommendation:**
+Either update the mock implementation to match the full Prisma `findFirst` argument type, or add a type assertion at the mock boundary. Consider pairing with TD-087's fixture restructure to address both at once.
+
+---
 ## Resolved Items
 
 ---
