@@ -76,3 +76,4 @@ db-backups/
 uploads/draft-documents/
 uploads/
 logs/
+.claude/
