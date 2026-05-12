@@ -481,6 +481,17 @@ describe('GET /api/candidate/application/[token]/fields', () => {
     });
 
     it('should sort fields by displayOrder', async () => {
+      // TD-084 BR 3 — the route no longer applies a service-level fallback
+      // that forces non-address_block service-level requirements into the
+      // response. The previous fixture (service-level requirements with no
+      // dsx_mappings row) would yield zero fields under the new contract.
+      // The rewrite fixtures dsx_mappings-backed requirements at the
+      // candidate's country so the displayOrder sort is exercised against
+      // real per-country mappings — which is the only path that survives
+      // BR 3. The displayOrder values come from the matching
+      // service_requirements rows (per the route's displayOrderByRequirementId
+      // lookup), so each test row pairs a mapping with a sibling
+      // service_requirements row carrying the displayOrder.
       const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
       vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
         token: mockToken,
@@ -490,15 +501,38 @@ describe('GET /api/candidate/application/[token]/fields', () => {
         expiresAt: new Date(Date.now() + 1000000)
       });
 
-      const unorderedRequirements = [
-        { ...mockServiceRequirements[0], requirement: { ...mockServiceRequirements[0].requirement, id: 'req-1', name: 'Email Address' }, displayOrder: 5 },
-        { ...mockServiceRequirements[0], requirement: { ...mockServiceRequirements[0].requirement, id: 'req-2', name: 'Field 2' }, displayOrder: 1 },
-        { ...mockServiceRequirements[0], requirement: { ...mockServiceRequirements[0].requirement, id: 'req-3', name: 'Field 3' }, displayOrder: 3 }
+      const requirementShape = (id: string, name: string) => ({
+        id,
+        name,
+        fieldKey: id,
+        type: 'field',
+        disabled: false,
+        fieldData: { dataType: 'text' },
+        documentData: null,
+      });
+
+      // dsx_mappings rows — these drive whether each requirement appears in
+      // the response under BR 3. displayOrder is sourced from the parallel
+      // service_requirements rows below.
+      const mappings = [
+        { id: 'm-1', serviceId: 'service-1', locationId: 'US', isRequired: false, requirement: requirementShape('req-1', 'Email Address') },
+        { id: 'm-2', serviceId: 'service-1', locationId: 'US', isRequired: false, requirement: requirementShape('req-2', 'Field 2') },
+        { id: 'm-3', serviceId: 'service-1', locationId: 'US', isRequired: false, requirement: requirementShape('req-3', 'Field 3') },
+      ];
+
+      // service_requirements rows — supply the displayOrder for each
+      // requirement. The route's `displayOrderByRequirementId` lookup reads
+      // `serviceReq.requirementId` (the foreign-key column), so each fixture
+      // row carries it explicitly alongside the joined requirement object.
+      const serviceReqs = [
+        { id: 'sr-1', serviceId: 'service-1', requirementId: 'req-1', displayOrder: 5, requirement: requirementShape('req-1', 'Email Address') },
+        { id: 'sr-2', serviceId: 'service-1', requirementId: 'req-2', displayOrder: 1, requirement: requirementShape('req-2', 'Field 2') },
+        { id: 'sr-3', serviceId: 'service-1', requirementId: 'req-3', displayOrder: 3, requirement: requirementShape('req-3', 'Field 3') },
       ];
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
-      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([]);
-      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(unorderedRequirements as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce(mappings as any);
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(serviceReqs as any);
 
       const request = new NextRequest(
         `http://localhost/api/candidate/application/${mockToken}/fields?serviceId=service-1&countryId=US`

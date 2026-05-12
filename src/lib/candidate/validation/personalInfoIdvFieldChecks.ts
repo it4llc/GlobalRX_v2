@@ -388,11 +388,17 @@ export async function collectIdvFieldRequirements(
     flagsByRequirement.set(req.id, list);
   }
 
-  // Step 4 — AND-aggregate isRequired per requirement.
+  // Step 4 — OR-aggregate isRequired per requirement (TD-084 BR 1). A
+  // requirement is required if ANY in-scope (serviceId, countryId) mapping
+  // row says required; empty arrays are explicitly false (defensive guard
+  // preserved from the original AND form). Note: this changes IDV-side
+  // semantics ONLY — the module-internal `aggregateIsRequired` helper at the
+  // top of the file (used by `collectPersonalInfoFieldRequirements`) stays
+  // on AND per TD-060 / TD-052; Personal Info is out of scope for TD-084.
   const result: RequiredFieldDescriptor[] = [];
   for (const descriptor of candidates.values()) {
     const flags = flagsByRequirement.get(descriptor.requirementId) ?? [];
-    const isRequired = flags.length > 0 && flags.every(Boolean);
+    const isRequired = flags.length > 0 && flags.some(Boolean);
     result.push({ ...descriptor, isRequired });
   }
   return result;

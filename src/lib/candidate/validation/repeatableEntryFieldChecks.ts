@@ -19,7 +19,8 @@
 //      section's entries.
 //   2. Issue ONE batched dsx_mappings.findMany via the loader-supplied
 //      `findMappings` adapter.
-//   3. AND-aggregate the mapping rows into a Map<countryId, Map<reqId, bool>>.
+//   3. OR-aggregate the mapping rows into a Map<countryId, Map<reqId, bool>>
+//      (TD-084 BR 1 / BR 2 — cross-service and cross-geographic-level OR).
 //   4. Walk each entry. Null country → emit `entryCountryRequired`. Otherwise
 //      iterate the requirements perReq says are required, and for each one
 //      either descend into address_block pieces or apply the scalar empty-
@@ -29,10 +30,16 @@ import type { Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
 
 import type { FieldError } from './types';
-import type {
-  DsxMappingRow,
-  FindDsxMappings,
-} from './personalInfoIdvFieldChecks';
+import type { FindDsxMappings } from './personalInfoIdvFieldChecks';
+// TD-084: re-export DsxMappingRow so the Pass 1 test fixture
+// (`orMergeConsistency.test.ts`) can import it from this module's surface
+// alongside `buildPerCountryRequiredMap`. The original cross-module dependency
+// (`./personalInfoIdvFieldChecks`) is preserved — the re-export keeps callers
+// of this validator from having to know about the personal-info-side
+// re-declaration of the same row shape. Consistent with TD-077 Stage 3b
+// sibling-validator type-exports allowance.
+import type { DsxMappingRow } from './personalInfoIdvFieldChecks';
+export type { DsxMappingRow };
 import type { SavedRepeatableEntry } from './savedEntryShape';
 import type {
   AddressConfig,
@@ -221,9 +228,9 @@ async function walkSection(
       // skip).
       if (requirement.disabled) continue;
 
-      // Per-requirement isRequired comes from the AND-aggregated map.
-      // findApplicableRequirements only returned this requirement because
-      // perReq has an entry for it; we still re-check the boolean.
+      // Per-requirement isRequired comes from the OR-aggregated map (TD-084
+      // BR 1 / BR 2). findApplicableRequirements only returned this requirement
+      // because perReq has an entry for it; we still re-check the boolean.
       const isRequired = perReq.get(requirement.id);
       if (isRequired !== true) continue;
 
@@ -287,12 +294,17 @@ function collectSectionPairs(
 }
 
 /**
- * AND-aggregate the mapping rows into Map<countryId, Map<reqId, isRequired>>.
+ * OR-aggregate the mapping rows into Map<countryId, Map<reqId, isRequired>>.
  * Empty groups (no rows for a (country, requirement) combo) are simply
  * absent from the map; callers must treat absence as "not required" (Spec
  * Edge Case 4).
+ *
+ * Exported per TD-084 Stage 3b clarification so the Pass 1 cross-validator
+ * consistency tests can exercise it directly. Sibling-validator type/value
+ * exports inside `src/lib/candidate/validation/` are permitted under
+ * TD-077.
  */
-function buildPerCountryRequiredMap(
+export function buildPerCountryRequiredMap(
   rows: DsxMappingRow[],
 ): Map<string, Map<string, boolean>> {
   // Two-level intermediate: countryId → requirementId → flags[].
@@ -312,9 +324,11 @@ function buildPerCountryRequiredMap(
   for (const [countryId, perReq] of flagsByCountryReq.entries()) {
     const aggregated = new Map<string, boolean>();
     for (const [requirementId, flags] of perReq.entries()) {
-      // AND semantics matching `personalInfoIdvFieldChecks.aggregateIsRequired`
-      // — empty arrays are explicitly false (defensive guard).
-      aggregated.set(requirementId, flags.length > 0 && flags.every(Boolean));
+      // OR semantics matching TD-084 BR 1 / BR 2 — a requirement is required
+      // if ANY in-scope mapping row (across cross-service or cross-geographic-
+      // level dimensions) says required. Empty arrays are explicitly false
+      // (defensive guard preserved from the original AND form).
+      aggregated.set(requirementId, flags.length > 0 && flags.some(Boolean));
     }
     result.set(countryId, aggregated);
   }
