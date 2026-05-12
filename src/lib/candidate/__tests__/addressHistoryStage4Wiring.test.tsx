@@ -120,6 +120,12 @@ describe('addressHistoryStage4Wiring', () => {
   });
 
   describe('buildEntryFieldsBuckets', () => {
+    // TD-084 — the helper's signature changed from
+    // `(entries, fieldsByEntryService, serviceIds)` to `(entries, fieldsByEntry)`
+    // because the /fields route now OR-merges across all package services
+    // server-side. The four tests below preserve the original test intent
+    // (one bucket per entry; merge order; first-wins dedup; countryId
+    // preserved) while adapting to the new architecture.
     it('produces one bucket per entry, in entry order', () => {
       const buckets = buildEntryFieldsBuckets(
         [
@@ -127,27 +133,43 @@ describe('addressHistoryStage4Wiring', () => {
           { entryId: 'e2', countryId: 'c2' },
         ],
         {},
-        ['s1'],
       );
       expect(buckets.map((b) => b.entryId)).toEqual(['e1', 'e2']);
     });
-    it('walks every service id and merges fields per entry', () => {
+    it('merges fields per entry from the fetched list', () => {
+      // TD-084 — pre-flip this test verified that the helper walked every
+      // service id and merged the per-service lists. Under the new
+      // architecture the route returns one merged list per entry, so the
+      // surviving intent is "the helper produces a bucket containing every
+      // field from `fieldsByEntry[entryId]`, in the order they appear."
       const f1 = makeField({ requirementId: 'r1', fieldKey: 'a' });
       const f2 = makeField({ requirementId: 'r2', fieldKey: 'b' });
+      const f3 = makeField({ requirementId: 'r3', fieldKey: 'c' });
+      const f4 = makeField({ requirementId: 'r4', fieldKey: 'd' });
       const buckets = buildEntryFieldsBuckets(
-        [{ entryId: 'e1', countryId: 'c1' }],
-        { 'e1::s1': [f1], 'e1::s2': [f2] },
-        ['s1', 's2'],
+        [
+          { entryId: 'e1', countryId: 'c1' },
+          { entryId: 'e2', countryId: 'c2' },
+        ],
+        {
+          e1: [f1, f2],
+          e2: [f3, f4],
+        },
       );
       expect(buckets[0].fields.map((f) => f.requirementId)).toEqual(['r1', 'r2']);
+      expect(buckets[1].fields.map((f) => f.requirementId)).toEqual(['r3', 'r4']);
     });
-    it('dedupes fields with the same requirementId across services (first wins)', () => {
+    it("dedupes fields with the same requirementId within an entry's list (first wins)", () => {
+      // TD-084 — pre-flip this test verified cross-service dedup. The route
+      // now de-dups across services in its response, but the helper still
+      // dedupes defensively in case the input list contains duplicate
+      // requirementIds for any reason (a fixture, a future change, a
+      // hand-crafted response). This test exercises that defensive path.
       const f1 = makeField({ requirementId: 'r1', fieldKey: 'a', name: 'first' });
       const f1b = makeField({ requirementId: 'r1', fieldKey: 'a', name: 'second' });
       const buckets = buildEntryFieldsBuckets(
         [{ entryId: 'e1', countryId: 'c1' }],
-        { 'e1::s1': [f1], 'e1::s2': [f1b] },
-        ['s1', 's2'],
+        { e1: [f1, f1b] },
       );
       expect(buckets[0].fields).toHaveLength(1);
       expect(buckets[0].fields[0].name).toBe('first');
@@ -159,7 +181,6 @@ describe('addressHistoryStage4Wiring', () => {
           { entryId: 'e2', countryId: null },
         ],
         {},
-        ['s1'],
       );
       expect(buckets[0].countryId).toBe('c1');
       expect(buckets[1].countryId).toBeNull();

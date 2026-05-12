@@ -231,33 +231,39 @@ export function EducationSection({
       // know about them so Personal Info's progress check evaluates them.
       const subjectFieldMap = new Map<string, DsxField>();
 
-      for (const serviceId of serviceIds) {
-        const response = await fetch(
-          `/api/candidate/application/${token}/fields?serviceId=${serviceId}&countryId=${countryId}`
-        );
+      // TD-084: one batched /fields call so the route OR-merges isRequired (BR 17).
+      if (serviceIds.length === 0) {
+        setFieldsByCountry(prev => ({ ...prev, [countryId]: [] }));
+        setSubjectFieldsByCountry(prev => ({ ...prev, [countryId]: [] }));
+        return;
+      }
 
-        if (!response.ok) {
-          throw new Error('Failed to load fields');
-        }
+      const serviceIdsQuery = serviceIds.map((id) => `serviceIds=${encodeURIComponent(id)}`).join('&');
+      const response = await fetch(
+        `/api/candidate/application/${token}/fields?${serviceIdsQuery}&countryId=${countryId}`
+      );
 
-        const data = await response.json();
+      if (!response.ok) {
+        throw new Error('Failed to load fields');
+      }
 
-        // Split fields by collectionTab. The database value used to mark a
-        // field as belonging to the Personal Information section is "subject"
-        // (BR 17). Fields without a collectionTab (empty string) are kept
-        // and shown in this section locally.
-        for (const field of data.fields || []) {
-          const fieldData = field.fieldData || {};
-          const collectionTab = fieldData.collectionTab || fieldData.collection_tab || '';
+      const data = await response.json();
 
-          if (collectionTab.toLowerCase().includes('subject')) {
-            if (!subjectFieldMap.has(field.fieldKey)) {
-              subjectFieldMap.set(field.fieldKey, field);
-            }
-          } else {
-            if (!localFieldMap.has(field.fieldKey)) {
-              localFieldMap.set(field.fieldKey, field);
-            }
+      // Split fields by collectionTab. The database value used to mark a
+      // field as belonging to the Personal Information section is "subject"
+      // (BR 17). Fields without a collectionTab (empty string) are kept
+      // and shown in this section locally.
+      for (const field of data.fields || []) {
+        const fieldData = field.fieldData || {};
+        const collectionTab = fieldData.collectionTab || fieldData.collection_tab || '';
+
+        if (collectionTab.toLowerCase().includes('subject')) {
+          if (!subjectFieldMap.has(field.fieldKey)) {
+            subjectFieldMap.set(field.fieldKey, field);
+          }
+        } else {
+          if (!localFieldMap.has(field.fieldKey)) {
+            localFieldMap.set(field.fieldKey, field);
           }
         }
       }

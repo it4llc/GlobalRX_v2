@@ -34,7 +34,7 @@ Renders the Education History section. Props: `token`, `serviceIds` (the IDs of 
 On mount the section calls, in order:
 1. `GET /api/candidate/application/[token]/scope?functionalityType=verification-edu` to drive the `ScopeDisplay`.
 2. `GET /api/candidate/application/[token]/countries` to populate the per-entry country dropdown. There is no hardcoded country fallback — `Country.id` is a UUID, and any non-UUID stand-in would be rejected by the save endpoint's Zod schema.
-3. `GET /api/candidate/application/[token]/saved-data` to restore previously saved entries, then `GET /api/candidate/application/[token]/fields?serviceId=<id>&countryId=<id>` for each saved entry's selected country.
+3. `GET /api/candidate/application/[token]/saved-data` to restore previously saved entries, then `GET /api/candidate/application/[token]/fields?serviceIds=<id1>&serviceIds=<id2>&countryId=<id>` for each saved entry's selected country. **TD-084:** the call packs all package service IDs as repeated `serviceIds` params in a single request. The route OR-merges `isRequired` across all services so the displayed required-state matches the validator's view. The previous behavior issued one request per service and merged results client-side.
 
 If there are no saved entries the section starts with one empty entry. If the countries call fails the section displays an error banner and clears the list — the candidate cannot save without a valid country UUID.
 

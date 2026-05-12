@@ -105,8 +105,10 @@ export function AddressHistorySection({
   // the aggregated area so PI fields don't reappear here).
   const [personalInfoRequirementIds, setPersonalInfoRequirementIds] = useState<Set<string>>(new Set());
   // Per-entry field-loading state lives in useEntryFieldsLoader.
+  // TD-084 — the loader now returns `fieldsByEntry` (flat per-entry keying)
+  // because the /fields route OR-merges across services server-side.
   const {
-    fieldsByEntryService,
+    fieldsByEntry,
     loadFieldsForEntry,
     invalidateEntry,
     clearEntry,
@@ -382,8 +384,8 @@ export function AddressHistorySection({
   // Stage 4 derivations — pure helpers in addressHistoryStage4Wiring own the
   // transforms; memoizing keeps the wiring hook's effect deps stable.
   const entryFieldBuckets = useMemo(
-    () => buildEntryFieldsBuckets(entries, fieldsByEntryService, serviceIds),
-    [entries, fieldsByEntryService, serviceIds],
+    () => buildEntryFieldsBuckets(entries, fieldsByEntry),
+    [entries, fieldsByEntry],
   );
   const fieldsSplit = useMemo(() => splitFieldsByCollectionTab(entryFieldBuckets), [entryFieldBuckets]);
   const aggregatedItems = useMemo(
