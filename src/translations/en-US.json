@@ -677,6 +677,15 @@
   "candidate.workflowSection.openDocument": "Open document",
   "candidate.workflowSection.documentUnavailable": "Document not available.",
 
+  "admin.workflowSection.variable.heading": "Available template variables",
+  "admin.workflowSection.variable.intro": "Type any of these placeholders into the content. The candidate will see the real value when they view the page.",
+  "admin.workflowSection.variable.candidateFirstName.desc": "Candidate's first name",
+  "admin.workflowSection.variable.candidateLastName.desc": "Candidate's last name",
+  "admin.workflowSection.variable.candidateEmail.desc": "Candidate's email address",
+  "admin.workflowSection.variable.candidatePhone.desc": "Candidate's phone number",
+  "admin.workflowSection.variable.companyName.desc": "Customer's company name",
+  "admin.workflowSection.variable.expirationDate.desc": "When the invite link expires (formatted as dd MMM yyyy)",
+
   "candidate.documentUpload.required": "Required",
   "candidate.documentUpload.optional": "Optional",
   "candidate.documentUpload.upload": "Upload",

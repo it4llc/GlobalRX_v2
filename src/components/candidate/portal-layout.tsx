@@ -4,6 +4,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 import { useTranslation } from '@/contexts/TranslationContext';
 import PortalHeader from './portal-header';
 import PortalSidebar from './portal-sidebar';
@@ -50,6 +51,7 @@ import type {
   CrossSectionTarget,
   SectionStatus,
 } from '@/types/candidate-stage4';
+import type { TemplateVariableValues } from '@/types/templateVariables';
 
 interface PortalLayoutProps {
   invitation: CandidateInvitationInfo;
@@ -385,6 +387,25 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   const subjectCrossSectionRequirements = useMemo(
     () => getCrossSectionRequirements(crossSectionRegistry, 'subject'),
     [crossSectionRegistry],
+  );
+
+  // Task 8.1 — single source of values for replaceTemplateVariables when
+  // WorkflowSectionRenderer renders text-type sections. The expirationDate
+  // is formatted as `dd MMM yyyy` here (English-only per spec Resolved
+  // Question #3); when the candidate app gains locale support this is the
+  // one place that needs to change.
+  const templateVariableValues = useMemo<TemplateVariableValues>(
+    () => ({
+      candidateFirstName: invitation.firstName ?? null,
+      candidateLastName: invitation.lastName ?? null,
+      candidateEmail: invitation.email ?? null,
+      candidatePhone: invitation.phone ?? null,
+      companyName: invitation.companyName ?? null,
+      expirationDate: invitation.expiresAt
+        ? format(new Date(invitation.expiresAt), 'dd MMM yyyy')
+        : null,
+    }),
+    [invitation],
   );
 
   // TD-059 — lifted Personal Info progress derivation. This effect is the
@@ -794,6 +815,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onAcknowledge={(checked) => handleWorkflowAcknowledge(section, checked)}
             sectionValidation={sectionValidation}
             errorsVisible={errorsVisible}
+            variableValues={templateVariableValues}
           />
         </div>
       );

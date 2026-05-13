@@ -39,6 +39,17 @@ vi.mock('@/lib/candidate/sanitizeWorkflowContent', () => ({
   sanitizeWorkflowContent: vi.fn((html: string) => html),
 }));
 
+// Task 8.1 — replaceTemplateVariables is mocked with the same identity
+// pattern as the sanitizer above. The replacement function's behavior is
+// covered exhaustively by its own Pass 1 unit tests at
+// src/lib/templates/__tests__/replaceTemplateVariables.test.ts. Mocking it
+// here as identity lets us assert the renderer wires the call correctly
+// (and in the correct order relative to the sanitizer) without re-testing
+// the replacement logic itself.
+vi.mock('@/lib/templates/replaceTemplateVariables', () => ({
+  replaceTemplateVariables: vi.fn((content: string) => content),
+}));
+
 const baseTextSection: WorkflowSectionPayload = {
   id: 'ws-text-1',
   name: 'Notice of Processing',
@@ -118,6 +129,91 @@ describe('WorkflowSectionRenderer', () => {
 
       const content = screen.getByTestId('workflow-section-content');
       expect(content.innerHTML).toBe('');
+    });
+
+    // Task 8.1 — template variable system wiring. The renderer must call
+    // replaceTemplateVariables on the raw content BEFORE handing the
+    // result to sanitizeWorkflowContent (spec Business Rule 2). These
+    // tests assert the call order and the values flow through correctly.
+    describe('template variable wiring (Task 8.1)', () => {
+      it('calls replaceTemplateVariables before sanitizeWorkflowContent', async () => {
+        const { replaceTemplateVariables } = await import(
+          '@/lib/templates/replaceTemplateVariables'
+        );
+        const { sanitizeWorkflowContent } = await import(
+          '@/lib/candidate/sanitizeWorkflowContent'
+        );
+
+        // Reset both mocks so the invocation order captured below is the
+        // one from this render, not from earlier tests in the file.
+        vi.mocked(replaceTemplateVariables).mockClear();
+        vi.mocked(sanitizeWorkflowContent).mockClear();
+
+        render(
+          <WorkflowSectionRenderer
+            section={baseTextSection}
+            acknowledged={false}
+            onAcknowledge={vi.fn()}
+            variableValues={{ candidateFirstName: 'Sarah' }}
+          />,
+        );
+
+        expect(vi.mocked(replaceTemplateVariables)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(sanitizeWorkflowContent)).toHaveBeenCalledTimes(1);
+
+        const replaceOrder =
+          vi.mocked(replaceTemplateVariables).mock.invocationCallOrder[0];
+        const sanitizeOrder =
+          vi.mocked(sanitizeWorkflowContent).mock.invocationCallOrder[0];
+        expect(replaceOrder).toBeLessThan(sanitizeOrder);
+      });
+
+      it('passes section.content and the variableValues prop into replaceTemplateVariables', async () => {
+        const { replaceTemplateVariables } = await import(
+          '@/lib/templates/replaceTemplateVariables'
+        );
+
+        vi.mocked(replaceTemplateVariables).mockClear();
+
+        const values = { candidateFirstName: 'Sarah', companyName: 'Acme Corp' };
+        render(
+          <WorkflowSectionRenderer
+            section={baseTextSection}
+            acknowledged={false}
+            onAcknowledge={vi.fn()}
+            variableValues={values}
+          />,
+        );
+
+        expect(vi.mocked(replaceTemplateVariables)).toHaveBeenCalledWith(
+          baseTextSection.content,
+          values,
+        );
+      });
+
+      it('falls back to an empty values object when variableValues prop is omitted', async () => {
+        const { replaceTemplateVariables } = await import(
+          '@/lib/templates/replaceTemplateVariables'
+        );
+
+        vi.mocked(replaceTemplateVariables).mockClear();
+
+        expect(() =>
+          render(
+            <WorkflowSectionRenderer
+              section={baseTextSection}
+              acknowledged={false}
+              onAcknowledge={vi.fn()}
+            />,
+          ),
+        ).not.toThrow();
+
+        expect(vi.mocked(replaceTemplateVariables)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(replaceTemplateVariables)).toHaveBeenCalledWith(
+          baseTextSection.content,
+          {},
+        );
+      });
     });
   });
 

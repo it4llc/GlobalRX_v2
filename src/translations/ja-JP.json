@@ -509,5 +509,14 @@
   "candidate.submission.error.serverError": "Something went wrong while submitting your application. Please try again. If the problem continues, contact the company that sent you this link.",
   "candidate.validation.fieldRequired": "This field is required.",
   "candidate.validation.entryCountryRequired": "Country is required for this entry.",
-  "candidate.validation.idvCountryRequired": "Please select your country to continue identity verification."
+  "candidate.validation.idvCountryRequired": "Please select your country to continue identity verification.",
+
+  "admin.workflowSection.variable.heading": "Available template variables",
+  "admin.workflowSection.variable.intro": "Type any of these placeholders into the content. The candidate will see the real value when they view the page.",
+  "admin.workflowSection.variable.candidateFirstName.desc": "Candidate's first name",
+  "admin.workflowSection.variable.candidateLastName.desc": "Candidate's last name",
+  "admin.workflowSection.variable.candidateEmail.desc": "Candidate's email address",
+  "admin.workflowSection.variable.candidatePhone.desc": "Candidate's phone number",
+  "admin.workflowSection.variable.companyName.desc": "Customer's company name",
+  "admin.workflowSection.variable.expirationDate.desc": "When the invite link expires (formatted as dd MMM yyyy)"
 }

@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { PlacementEnum, SectionTypeEnum } from '@/types/workflow-section';
 import { useTranslation } from '@/contexts/TranslationContext';
+import WorkflowSectionVariableReference from '@/components/modules/workflows/sections/WorkflowSectionVariableReference';
 
 // Validation schema for workflow section
 const sectionSchema = z.object({
@@ -333,19 +334,25 @@ export function WorkflowSectionDialog({
           </FormRow>
 
           {watchedType === 'text' && (
-            <FormRow
-              label="Content"
-              error={errors.content?.message}
-              description={`${characterCount}/50000 characters`}
-            >
-              <Textarea
-                {...register('content')}
-                placeholder="Enter section content"
-                disabled={isSubmitting}
-                rows={8}
-                className="font-mono text-sm"
-              />
-            </FormRow>
+            <>
+              <FormRow
+                label="Content"
+                error={errors.content?.message}
+                description={`${characterCount}/50000 characters`}
+              >
+                <Textarea
+                  {...register('content')}
+                  placeholder="Enter section content"
+                  disabled={isSubmitting}
+                  rows={8}
+                  className="font-mono text-sm"
+                />
+              </FormRow>
+              {/* v1 of the template-variable system: render a read-only
+                  reference panel directly under the content textarea so
+                  admins know which {{placeholders}} are available. */}
+              <WorkflowSectionVariableReference />
+            </>
           )}
 
           {watchedType === 'document' && (

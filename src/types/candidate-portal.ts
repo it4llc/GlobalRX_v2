@@ -9,6 +9,14 @@ import type { WorkflowSectionPayload } from './candidate-stage4';
 export interface CandidateInvitationInfo {
   firstName: string;
   lastName: string;
+  // Task 8.1 (template variable system) — the structure endpoint now
+  // surfaces email + phone so the candidate shell can build the values
+  // object passed into replaceTemplateVariables. `email` is always present
+  // (non-nullable column on candidate_invitations); `phone` is the joined
+  // phoneCountryCode + phoneNumber display string, nullable when the
+  // invite did not collect phone.
+  email: string;
+  phone: string | null;
   status: string;
   expiresAt: Date;
   companyName: string;
