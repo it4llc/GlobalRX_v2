@@ -4,8 +4,19 @@ import logger from '@/lib/logger';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
+// Allow-list validation now applies on PUT and PATCH too — pre-rename
+// these handlers accepted any functionalityType string. See
+// verification-idv-conversion BR 3 / DoD 3.
+import { isValidFunctionalityType } from '@/constants/functionality-types';
 
-// GET: Fetch a single service by ID
+/**
+ * GET /api/services/[id]
+ *
+ * Returns a single service with createdBy/updatedBy details and a usage
+ * count of packages that reference it.
+ *
+ * Required permissions: authenticated session (no additional permission key)
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -67,7 +78,15 @@ export async function GET(
   }
 }
 
-// PUT: Update a service
+/**
+ * PUT /api/services/[id]
+ *
+ * Full update of a service. Requires name, category, and functionalityType.
+ * Rejects unknown functionalityType values with HTTP 400
+ * (verification-idv-conversion BR 3).
+ *
+ * Required permissions: authenticated session (no additional permission key)
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -89,6 +108,16 @@ export async function PUT(
     if (!name || !category || !functionalityType) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Validate functionalityType against the shared allow-list. Per
+    // verification-idv-conversion BR 3 / Decision 3, unknown values
+    // (including the legacy bare string "idv") are rejected with HTTP 400.
+    if (!isValidFunctionalityType(functionalityType)) {
+      return NextResponse.json(
+        { error: "Unknown functionality type" },
         { status: 400 }
       );
     }
@@ -124,7 +153,16 @@ export async function PUT(
   }
 }
 
-// PATCH: Typically used for partial updates, but we'll use it specifically for toggling disabled state
+/**
+ * PATCH /api/services/[id]
+ *
+ * Partial update of a service, or toggles the disabled flag when the body
+ * is `{ action: 'toggleDisabled' }`. When functionalityType is present it
+ * is validated against the allow-list (verification-idv-conversion BR 3);
+ * when absent the existing stored value is left untouched.
+ *
+ * Required permissions: authenticated session (no additional permission key)
+ */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -166,6 +204,17 @@ export async function PATCH(
 
     // If not toggling disabled state, treat as a partial update
     const { name, category, description, functionalityType } = body;
+
+    // Per verification-idv-conversion BR 3 / Decision 3, validate
+    // functionalityType when present on a partial update. Absent (undefined)
+    // means the caller is updating other fields and we leave the existing
+    // value alone.
+    if (functionalityType !== undefined && !isValidFunctionalityType(functionalityType)) {
+      return NextResponse.json(
+        { error: "Unknown functionality type" },
+        { status: 400 }
+      );
+    }
 
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;

@@ -1391,7 +1391,7 @@ describe('GET /api/candidate/application/[token]/fields', () => {
         });
 
         vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
-        vi.mocked(prisma.service.findUnique).mockResolvedValueOnce({ functionalityType: 'idv' } as any);
+        vi.mocked(prisma.service.findUnique).mockResolvedValueOnce({ functionalityType: 'verification-idv' } as any);
 
         const idvServiceRequirements = [
           {

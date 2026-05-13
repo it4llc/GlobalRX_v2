@@ -36,6 +36,20 @@ const packageSchema = z.object({
 
 type PackageFormValues = z.infer<typeof packageSchema>;
 
+// Returns the default package_services.scope shape to persist for a given
+// functionality type when the admin has not explicitly chosen one.
+//
+// verification-idv has no scope/count selector in the UI (BR 5 / DoD 8) —
+// scope is always exactly "one entry per candidate". This helper returns
+// the canonical `{ type: 'count_exact', quantity: 1 }` so the saved row
+// matches BR 5 even though the admin never touched a control.
+function getDefaultScopeFor(functionalityType: string): { type: string; quantity: number } | null {
+  if (functionalityType === 'verification-idv') {
+    return { type: 'count_exact', quantity: 1 };
+  }
+  return null;
+}
+
 interface Service {
   id: string;
   name: string;
@@ -250,14 +264,21 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
     setScopes(newScopes);
     setIsDirty(true);
     
-    // Update form directly
-    const formServices = newServiceIds.map((id: any) => ({
-      serviceId: id,
-      scope: newScopes[id] || null
-    }));
-    
+    // Update form directly. verification-idv falls back to the canonical
+    // count_exact:1 scope (BR 5) when the admin has not explicitly chosen
+    // one — the IDV row in package_services must never be saved with
+    // `scope: null`.
+    const formServices = newServiceIds.map((id: string) => {
+      const service = availableServices.find((s) => s.id === id);
+      const defaultScope = service ? getDefaultScopeFor(service.functionalityType) : null;
+      return {
+        serviceId: id,
+        scope: newScopes[id] ?? defaultScope ?? null,
+      };
+    });
+
     setValue('services', formServices, { shouldValidate: true, shouldDirty: true });
-  }, [selectedServiceIds, scopes, setValue]);
+  }, [selectedServiceIds, scopes, setValue, availableServices]);
   
   // BUG FIX: Stabilized callback to prevent infinite re-render loops
   //
@@ -291,14 +312,20 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
     setScopes(newScopes);
     setIsDirty(true);
 
-    // Update form directly using current ref values
-    const formServices = selectedServiceIdsRef.current.map((id: any) => ({
-      serviceId: id,
-      scope: newScopes[id] || null
-    }));
+    // Update form directly using current ref values. verification-idv
+    // falls back to the canonical count_exact:1 scope (BR 5) when the
+    // admin has not explicitly chosen one.
+    const formServices = selectedServiceIdsRef.current.map((id: string) => {
+      const service = availableServices.find((s) => s.id === id);
+      const defaultScope = service ? getDefaultScopeFor(service.functionalityType) : null;
+      return {
+        serviceId: id,
+        scope: newScopes[id] ?? defaultScope ?? null,
+      };
+    });
 
     setValue('services', formServices, { shouldValidate: true, shouldDirty: true });
-  }, [setValue]);
+  }, [setValue, availableServices]);
   
   // Form submission handler
   const onSubmit = useCallback(async (data: PackageFormValues) => {
@@ -595,9 +622,13 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
                                     </div>
                                   </div>
                                   
-                                  {/* Show scope selector for selected verification services */}
-                                  {selectedServiceIds.includes(service.id) && 
-                                   service.functionalityType.startsWith('verification') && (
+                                  {/* Show scope selector for selected verification services.
+                                      verification-idv is excluded — IDV has no scope picker
+                                      (BR 5 / DoD 8); its scope is auto-set via
+                                      getDefaultScopeFor. */}
+                                  {selectedServiceIds.includes(service.id) &&
+                                   service.functionalityType.startsWith('verification') &&
+                                   service.functionalityType !== 'verification-idv' && (
                                     <div className="ml-6 border-l-2 border-gray-200 pl-4">
                                       <ScopeSelector
                                         serviceType={service.functionalityType}

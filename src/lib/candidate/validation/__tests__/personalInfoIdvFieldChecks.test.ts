@@ -115,7 +115,7 @@ describe('collectIdvFieldRequirements — personal-info exclusion (TD-062 / Stag
     const packageServices = buildPackageServices([
       {
         id: SVC_IDV,
-        functionalityType: 'idv',
+        functionalityType: 'verification-idv',
         requirements: [
           {
             id: 'req-firstName',
@@ -171,7 +171,7 @@ describe('collectIdvFieldRequirements — personal-info exclusion (TD-062 / Stag
     const packageServices = buildPackageServices([
       {
         id: SVC_IDV,
-        functionalityType: 'idv',
+        functionalityType: 'verification-idv',
         requirements: [
           {
             id: 'req-ssn',
@@ -224,7 +224,7 @@ describe('collectIdvFieldRequirements — personal-info exclusion (TD-062 / Stag
     const packageServices = buildPackageServices([
       {
         id: SVC_IDV,
-        functionalityType: 'idv',
+        functionalityType: 'verification-idv',
         requirements: [
           ...personalKeys.map((k) => ({
             id: `req-${k}`,
@@ -281,7 +281,7 @@ describe('collectIdvFieldRequirements — personal-info exclusion (TD-062 / Stag
     const packageServices = buildPackageServices([
       {
         id: SVC_IDV,
-        functionalityType: 'idv',
+        functionalityType: 'verification-idv',
         requirements: [
           {
             id: 'req-idNumber',

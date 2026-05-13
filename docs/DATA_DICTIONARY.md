@@ -130,7 +130,7 @@ The GlobalRx fulfillment system processes service requests through a hierarchica
 - `updatedAt` (DateTime, required): Last modification timestamp
 - `createdById` (String, optional): User who created the service
 - `updatedById` (String, optional): User who last updated the service
-- `functionalityType` (String, required): Type of service functionality (valid values: `record`, `verification-edu`, `verification-emp`, `other`, `idv`)
+- `functionalityType` (String, required): Type of service functionality (valid values: `verification-idv`, `record`, `verification-edu`, `verification-emp`, `other`). Per `src/constants/functionality-types.ts` — the bare string `idv` is no longer accepted (see `docs/specs/verification-idv-conversion.md`).
 - `code` (String, required): Unique service code for referencing
 
 **Relationships:**

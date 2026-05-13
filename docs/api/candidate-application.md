@@ -58,7 +58,7 @@ Returns the list of sections the candidate needs to complete, assembled from wor
 
 `workflowSection` is only present when `type === "workflow_section"`. It carries the full content payload so the client can render the section without a second fetch.
 
-`scope` is only present on scoped sections: Address History (`type === "address_history"`), Education (`functionalityType === "verification-edu"`), and Employment (`functionalityType === "verification-emp"`). The scope reflects the most-demanding scope across all package services sharing that functionality type (spec Rule 19). `scopeDescriptionKey` is a translation key — not an English string — so the client can localize it.
+`scope` is only present on scoped sections: Address History (`type === "address_history"`), Education (`functionalityType === "verification-edu"`), and Employment (`functionalityType === "verification-emp"`). The scope reflects the most-demanding scope across all package services sharing that functionality type (spec Rule 19). `scopeDescriptionKey` is a translation key — not an English string — so the client can localize it. The Identity Verification section (`functionalityType === "verification-idv"`, `id === "service_verification-idv"`) does NOT receive a `scope` block in this response — IDV scope is fixed at `count_exact: 1` and is resolved server-side at validation and submission time; no scope picker is shown to the candidate (verification-idv-conversion BR 5 / BR 15).
 
 Phase 7 Stage 1 appends a synthetic `review_submit` section entry at the end of the list (after all after-services workflow sections). Its `id` is always `"review_submit"`, its `type` is `"review_submit"`, and its `placement` is `"after_services"`. It carries no `workflowSection` or `scope` payload.
 

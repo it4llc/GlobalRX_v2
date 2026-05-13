@@ -4,11 +4,23 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import logger from '@/lib/logger';
+// Single source of truth for the Service.functionalityType allow-list. The
+// silent-coerce-to-"other" behavior at line 174 is replaced with a 400
+// reject (see verification-idv-conversion BR 3 / Decision 3).
+import {
+  FUNCTIONALITY_TYPES,
+  isValidFunctionalityType,
+} from '@/constants/functionality-types';
 
-// Define valid functionality types in the desired order
-const VALID_FUNCTIONALITY_TYPES = ["record", "verification-edu", "verification-emp", "other"];
-
-// GET: Fetch services with filtering and pagination
+/**
+ * GET /api/services
+ *
+ * Returns a paginated list of services with optional search, category, and
+ * functionalityType filters, plus the canonical allow-list of functionality
+ * types for client dropdowns.
+ *
+ * Required permissions: authenticated session (no additional permission key)
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -112,7 +124,7 @@ export async function GET(request: NextRequest) {
       totalPages,
       currentPage: page,
       categories: categories.map((c) => c.category),
-      functionalityTypes: VALID_FUNCTIONALITY_TYPES, // Include valid functionality types in the response
+      functionalityTypes: FUNCTIONALITY_TYPES, // Include valid functionality types in the response
     });
   } catch (error: unknown) {
     // Properly handle error types
@@ -147,7 +159,15 @@ function generateServiceCode(name: string): string {
   return baseCode || 'SERVICE';
 }
 
-// POST: Create a new service
+/**
+ * POST /api/services
+ *
+ * Creates a new service. Auto-generates the unique `code` from the service
+ * name with collision-retry. Rejects unknown functionalityType values with
+ * HTTP 400 (verification-idv-conversion BR 3).
+ *
+ * Required permissions: authenticated session (no additional permission key)
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -170,10 +190,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate functionalityType
-    const validFunctionalityType = VALID_FUNCTIONALITY_TYPES.includes(functionalityType)
-      ? functionalityType
-      : "other"; // Default to "other" if invalid
+    // Validate functionalityType against the shared allow-list. Per
+    // verification-idv-conversion BR 3 / Decision 3, unknown values
+    // (including the legacy bare string "idv") are now rejected with
+    // HTTP 400 — there is no silent coercion to "other".
+    if (!isValidFunctionalityType(functionalityType)) {
+      return NextResponse.json(
+        { error: "Unknown functionality type" },
+        { status: 400 }
+      );
+    }
+    const validFunctionalityType = functionalityType;
 
     // Generate a unique code from the service name
     // BUG FIX: Auto-generate the required 'code' field to prevent 500 errors
