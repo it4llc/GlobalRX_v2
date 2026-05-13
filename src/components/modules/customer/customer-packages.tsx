@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { ActionDropdown } from '@/components/ui/action-dropdown';
@@ -48,6 +49,7 @@ interface CustomerPackagesProps {
 
 export default function CustomerPackages({ customerId }: CustomerPackagesProps) {
   const { canManageCustomers, fetchWithAuth } = useAuth();
+  const { t } = useTranslation();
   
   // State
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
@@ -295,13 +297,15 @@ export default function CustomerPackages({ customerId }: CustomerPackagesProps) 
   const formatFunctionalityType = (type: string): string => {
     switch (type) {
       case 'verification-edu':
-        return 'Educational Verifications';
+        return t('customer.packages.functionalityType.verification-edu');
       case 'verification-emp':
-        return 'Employment Verifications';
+        return t('customer.packages.functionalityType.verification-emp');
+      case 'verification-idv':
+        return t('candidate.portal.sections.identityVerification');
       case 'record':
-        return 'Records';
+        return t('customer.packages.functionalityType.record');
       case 'other':
-        return 'Other Services';
+        return t('customer.packages.functionalityType.other');
       default:
         return type.charAt(0).toUpperCase() + type.slice(1);
     }

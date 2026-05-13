@@ -203,13 +203,13 @@ describe('PortalLayout', () => {
       functionalityType: null
     },
     {
-      id: 'service_idv',
+      id: 'service_verification-idv',
       title: 'Identity Verification',
       type: 'service_section',
       placement: 'services',
       status: 'not_started',
       order: 2,
-      functionalityType: 'idv'
+      functionalityType: 'verification-idv'
     },
     {
       // Note: in production, the structure endpoint emits Address History

@@ -37,6 +37,24 @@ const packageSchema = z.object({
 
 type PackageFormValues = z.infer<typeof packageSchema>;
 
+// Returns the default package_services.scope shape to persist for a given
+// functionality type when the admin has not explicitly chosen one.
+//
+// verification-idv has no scope/count selector in the UI (BR 5 / DoD 8) —
+// scope is always exactly "one entry per candidate". This helper returns
+// the canonical `{ type: 'count_exact', quantity: 1 }` so the saved row
+// matches BR 5 even though the admin never touched a control.
+//
+// All other functionality types fall through to `null` (the pre-rename
+// behavior: edu/emp/record require the admin to pick a scope; `other`
+// has no scope).
+function getDefaultScopeFor(functionalityType: string): { type: string; quantity: number } | null {
+  if (functionalityType === 'verification-idv') {
+    return { type: 'count_exact', quantity: 1 };
+  }
+  return null;
+}
+
 interface Service {
   id: string;
   name: string;
@@ -253,14 +271,22 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
   
   // Update form value when selected services change
   useEffect(() => {
-    // Map selected services to form format
-    const servicesFormValue = selectedServiceIds.map((serviceId: any) => ({
-      serviceId,
-      scope: scopes[serviceId] || null
-    }));
-    
+    // Map selected services to form format. For verification-idv, fall back
+    // to the canonical { type: 'count_exact', quantity: 1 } default (BR 5)
+    // when the admin has not explicitly chosen a scope — the IDV row in
+    // package_services must never be saved with `scope: null`.
+    const servicesFormValue = selectedServiceIds.map((serviceId: string) => {
+      const service = availableServices.find((s) => s.id === serviceId);
+      const explicitScope = scopes[serviceId];
+      const defaultScope = service ? getDefaultScopeFor(service.functionalityType) : null;
+      return {
+        serviceId,
+        scope: explicitScope ?? defaultScope ?? null,
+      };
+    });
+
     setValue('services', servicesFormValue, { shouldValidate: true });
-  }, [selectedServiceIds, scopes, setValue]);
+  }, [selectedServiceIds, scopes, setValue, availableServices]);
   
   // Handle form submission
   const onSubmit = async (data: PackageFormValues) => {
@@ -276,8 +302,14 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
         const service = availableServices.find(s => s.id === svc.serviceId);
         if (!service) return false;
         
-        // Require scope for verification services
-        if (service.functionalityType.startsWith('verification') && !svc.scope) {
+        // Require scope for verification services, EXCEPT verification-idv —
+        // IDV has no user-facing scope picker and is auto-defaulted to
+        // count_exact:1 via getDefaultScopeFor (BR 5).
+        if (
+          service.functionalityType.startsWith('verification') &&
+          service.functionalityType !== 'verification-idv' &&
+          !svc.scope
+        ) {
           return true;
         }
         
@@ -490,9 +522,13 @@ export function PackageDialog({ customerId, packageId, onClose, open }: PackageD
                                     </div>
                                   </div>
                                   
-                                  {/* Show scope selector for selected verification services */}
-                                  {selectedServiceIds.includes(service.id) && 
-                                   service.functionalityType.startsWith('verification') && (
+                                  {/* Show scope selector for selected verification services.
+                                      verification-idv is excluded — IDV has no scope picker
+                                      (BR 5 / DoD 8); its scope is auto-set via
+                                      getDefaultScopeFor. */}
+                                  {selectedServiceIds.includes(service.id) &&
+                                   service.functionalityType.startsWith('verification') &&
+                                   service.functionalityType !== 'verification-idv' && (
                                     <div className="ml-6 border-l-2 border-gray-200 pl-4">
                                       <ScopeSelector
                                         serviceType={service.functionalityType}

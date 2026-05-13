@@ -336,7 +336,7 @@ describe('GET /api/candidate/application/[token]/saved-data', () => {
                 { requirementId: 'req-w-2', value: 'value2' }
               ]
             },
-            'service_idv': {
+            'service_verification-idv': {
               type: 'service_section',
               fields: [
                 { requirementId: 'req-s-1', value: 'value3' }
@@ -380,7 +380,7 @@ describe('GET /api/candidate/application/[token]/saved-data', () => {
       });
 
       // Service sections continue to use the legacy "grouped by section type"
-      // shape — both `service_idv` and `service_record` fall through to the
+      // shape — both `service_verification-idv` and `service_record` fall through to the
       // `service_section` bucket.
       expect(data.sections.service_section.fields).toHaveLength(2);
       expect(data.sections.service_section.fields).toContainEqual({ requirementId: 'req-s-1', value: 'value3' });

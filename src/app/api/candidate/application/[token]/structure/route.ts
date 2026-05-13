@@ -51,7 +51,7 @@ import {
  *                               // to recompute progress on every auto-save and override this value
  *                               // locally. The endpoint never returns a non-not_started status.
  *     order: number             // Sort position within its placement group
- *     functionalityType?: string // For service sections: idv, record, verification-edu, verification-emp
+ *     functionalityType?: string // For service sections: verification-idv, record, verification-edu, verification-emp
  *     workflowSection?: {       // Phase 6 Stage 4: full workflow-section payload, present when
  *       id, name, type,         // type === 'workflow_section'. Carries the content the renderer
  *       content, fileUrl,       // needs without a second fetch. Per Stage 4 spec Data Requirements.
@@ -160,7 +160,12 @@ export async function GET(
       for (const ps of orderedPackage.packageServices) {
         const funcType = ps.service?.functionalityType;
         if (!funcType) continue;
-        if (funcType !== 'record' && funcType !== 'verification-edu' && funcType !== 'verification-emp') continue;
+        if (
+          funcType !== 'record' &&
+          funcType !== 'verification-edu' &&
+          funcType !== 'verification-emp' &&
+          funcType !== 'verification-idv'
+        ) continue;
         const existing = grouped.get(funcType) ?? [];
         existing.push(ps.scope as RawPackageServiceScope | null ?? {});
         grouped.set(funcType, existing);
@@ -177,7 +182,7 @@ export async function GET(
     // Translation keys mirror the existing /scope endpoint's English wording
     // contract but stay as keys so the candidate UI can localize cleanly.
     const buildSectionScope = (
-      funcType: 'record' | 'verification-edu' | 'verification-emp',
+      funcType: 'record' | 'verification-edu' | 'verification-emp' | 'verification-idv',
     ): CandidatePortalSectionScope | undefined => {
       const resolved = scopeByFunctionalityType.get(funcType);
       if (!resolved) return undefined;
@@ -186,7 +191,9 @@ export async function GET(
           ? 'education'
           : funcType === 'verification-emp'
             ? 'employment'
-            : 'address';
+            : funcType === 'verification-idv'
+              ? 'identity'
+              : 'address';
       // Map normalized scopeType → existing portal-scope translation key. The
       // keys already exist in the translation files (see Phase 6 Stage 3 work).
       let scopeDescriptionKey = 'candidate.portal.scopeAll';
@@ -283,9 +290,9 @@ export async function GET(
     }
 
     // Add service sections in fixed order
-    const serviceTypeOrder = ['idv', 'record', 'verification-edu', 'verification-emp'];
+    const serviceTypeOrder = ['verification-idv', 'record', 'verification-edu', 'verification-emp'];
     const serviceTitleMap: Record<string, string> = {
-      'idv': 'candidate.portal.sections.identityVerification',
+      'verification-idv': 'candidate.portal.sections.identityVerification',
       'record': 'candidate.portal.sections.addressHistory',
       'verification-edu': 'candidate.portal.sections.educationHistory',
       'verification-emp': 'candidate.portal.sections.employmentHistory'
@@ -322,7 +329,12 @@ export async function GET(
           });
         } else {
           // Phase 7 Stage 1 §3.3 — attach the resolved scope block on the
-          // education and employment service sections.
+          // education and employment service sections. verification-idv
+          // intentionally does NOT receive a scope block on the structure
+          // response (the candidate portal does not render a scope picker
+          // for IDV; scope is fixed at count_exact:1 per BR 15 and resolved
+          // server-side at validation/submission time via
+          // packageScopeShape.normalizeRawScope).
           const sectionScope =
             funcType === 'verification-edu'
               ? buildSectionScope('verification-edu')

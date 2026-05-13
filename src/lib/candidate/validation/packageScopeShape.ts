@@ -55,10 +55,14 @@ export interface ResolvedScope {
 
 // The functionality types the candidate portal cares about. Education and
 // employment use degree-style scopes; record (address history) uses
-// count/time-based scopes only.
+// count/time-based scopes only. Identity verification (verification-idv)
+// joins the union as a fourth member after the verification-idv-conversion
+// (docs/specs/verification-idv-conversion.md BR 15 / Decision 4) — it has
+// no user-facing scope picker; scope is fixed at count_exact 1.
 export type ScopeFunctionalityType =
   | 'verification-edu'
   | 'verification-emp'
+  | 'verification-idv'
   | 'record';
 
 // ---------------------------------------------------------------------------
@@ -71,6 +75,9 @@ export type ScopeFunctionalityType =
  * endpoint.
  *
  * Defaults:
+ *   - verification-idv (any scope) → count_exact 1 (BR 15 — IDV always
+ *                                    means "exactly one entry,"
+ *                                    regardless of stored shape).
  *   - record + null scope         → count_exact 1 (current address)
  *   - non-record + null scope     → all
  *
@@ -78,11 +85,26 @@ export type ScopeFunctionalityType =
  *   Phase 6 Stage 3 ships a default scope-selector UI showing "Current
  *   address only" as the unsaved default. We mirror that effective default
  *   here so the candidate sees the same scope the customer admin saw.
+ *
+ * Rationale (verification-idv early-return):
+ *   IDV has no scope picker. The package builder UI auto-sets scope to
+ *   {type:'count_exact',quantity:1}, the data migration normalizes any
+ *   pre-existing rows to the same shape, and this defensive early-return
+ *   guarantees that even a migration-missed row resolves correctly. See
+ *   docs/specs/verification-idv-conversion.md BR 15 / Edge Case 2.
  */
 export function normalizeRawScope(
   raw: RawPackageServiceScope | null,
   functionalityType: ScopeFunctionalityType,
 ): ResolvedScope {
+  // Verification-idv always resolves to count_exact 1, regardless of the
+  // stored raw scope. This early-return is defensive (BR 15): even if a
+  // stale row somehow held an edu/emp/time-based shape, IDV must always
+  // mean "exactly one entry."
+  if (functionalityType === 'verification-idv') {
+    return { scopeType: 'count_exact', scopeValue: 1 };
+  }
+
   const isRecord = functionalityType === 'record';
 
   // Degree-specific scope types are only meaningful for verification-edu.
