@@ -99,7 +99,7 @@ export interface SubdivisionItem {
  * The `serviceTypeOrder` and `displayOrder` fields are sort keys only —
  * neither is shown to the candidate. `serviceTypeOrder` uses the same
  * fixed ordering as the structure endpoint
- * (['idv', 'record', 'verification-edu', 'verification-emp']).
+ * (['verification-idv', 'record', 'verification-edu', 'verification-emp']).
  */
 export interface AggregatedRequirementItem {
   requirementId: string;

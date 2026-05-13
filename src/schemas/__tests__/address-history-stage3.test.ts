@@ -752,6 +752,11 @@ describe('Phase 6 Stage 3 — Zod Schemas', () => {
         expect(result.success).toBe(false);
       });
 
+      it('should reject verification-idv (IDV has no scope endpoint — scope is fixed at count_exact:1; see verification-idv-conversion spec)', () => {
+        const result = scopeQuerySchema.safeParse({ functionalityType: 'verification-idv' });
+        expect(result.success).toBe(false);
+      });
+
       it('should reject empty string functionality type', () => {
         const result = scopeQuerySchema.safeParse({ functionalityType: '' });
         expect(result.success).toBe(false);

@@ -268,7 +268,7 @@ describe('runValidation', () => {
               {
                 id: 'ps-idv',
                 scope: null,
-                service: { id: 'svc-idv', functionalityType: 'idv' },
+                service: { id: 'svc-idv', functionalityType: 'verification-idv' },
               },
             ],
           },
@@ -277,7 +277,7 @@ describe('runValidation', () => {
       );
 
       const result = await runValidation('inv-123');
-      const idv = result.sections.find((s) => s.sectionId === 'service_idv');
+      const idv = result.sections.find((s) => s.sectionId === 'service_verification-idv');
 
       expect(idv).toBeDefined();
       expect(idv!.scopeErrors).toEqual([]);
@@ -290,7 +290,7 @@ describe('runValidation', () => {
       );
 
       const result = await runValidation('inv-123');
-      const idv = result.sections.find((s) => s.sectionId === 'service_idv');
+      const idv = result.sections.find((s) => s.sectionId === 'service_verification-idv');
 
       expect(idv).toBeUndefined();
     });
@@ -353,7 +353,7 @@ describe('runValidation', () => {
               {
                 id: 'ps-idv',
                 scope: null,
-                service: { id: 'svc-idv', functionalityType: 'idv' },
+                service: { id: 'svc-idv', functionalityType: 'verification-idv' },
               },
             ],
           },

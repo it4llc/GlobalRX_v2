@@ -377,7 +377,44 @@ describe('POST /api/services', () => {
       expect(prisma.service.create).not.toHaveBeenCalled();
     });
 
-    it('should default to "other" for invalid functionalityType', async () => {
+    it('should return 400 with "Unknown functionality type" when POST sends legacy `idv` value', async () => {
+      // After verification-idv-conversion (docs/specs/verification-idv-conversion.md
+      // BR 3 / Decision 3), the API no longer silently coerces unknown
+      // functionality types to "other" — it rejects with HTTP 400. The
+      // legacy bare string `'idv'` is now an unknown value (the supported
+      // string is `'verification-idv'`).
+
+      // Arrange
+      const mockSession = {
+        user: {
+          id: 'user-123',
+          email: 'test@example.com'
+        }
+      };
+      (getServerSession as any).mockResolvedValue(mockSession);
+
+      const serviceData = {
+        name: 'Stale-Client IDV',
+        category: 'IDV',
+        functionalityType: 'idv'
+      };
+
+      const mockRequest = new NextRequest('http://localhost:3000/api/services', {
+        method: 'POST',
+        body: JSON.stringify(serviceData)
+      });
+
+      // Act
+      const response = await POST(mockRequest);
+      const result = await response.json();
+
+      // Assert
+      expect(response.status).toBe(400);
+      expect(result.error).toBe('Unknown functionality type');
+      expect(prisma.service.create).not.toHaveBeenCalled();
+    });
+
+    it('should return 400 with "Unknown functionality type" when POST sends a random string', async () => {
       // Arrange
       const mockSession = {
         user: {
@@ -398,12 +435,47 @@ describe('POST /api/services', () => {
         body: JSON.stringify(serviceData)
       });
 
+      // Act
+      const response = await POST(mockRequest);
+      const result = await response.json();
+
+      // Assert
+      expect(response.status).toBe(400);
+      expect(result.error).toBe('Unknown functionality type');
+      expect(prisma.service.create).not.toHaveBeenCalled();
+    });
+
+    it('should accept POST with `verification-idv` and return 201', async () => {
+      // verification-idv is the new canonical IDV value (BR 1 / DoD 2).
+
+      // Arrange
+      const mockSession = {
+        user: {
+          id: 'user-123',
+          email: 'test@example.com'
+        }
+      };
+      (getServerSession as any).mockResolvedValue(mockSession);
+
+      const serviceData = {
+        name: 'Identity Verification',
+        category: 'IDV',
+        description: 'Identity verification service',
+        functionalityType: 'verification-idv'
+      };
+
+      const mockRequest = new NextRequest('http://localhost:3000/api/services', {
+        method: 'POST',
+        body: JSON.stringify(serviceData)
+      });
+
       (prisma.service.create as any).mockResolvedValue({
-        id: 'service-123',
+        id: 'service-vidv',
         name: serviceData.name,
         category: serviceData.category,
-        functionalityType: 'other',
-        code: 'TESTSERV',
+        description: serviceData.description,
+        functionalityType: 'verification-idv',
+        code: 'IDVER',
         disabled: false,
         createdById: mockSession.user.id,
         updatedById: mockSession.user.id,
@@ -417,11 +489,11 @@ describe('POST /api/services', () => {
 
       // Assert
       expect(response.status).toBe(201);
-      expect(result.functionalityType).toBe('other');
+      expect(result.functionalityType).toBe('verification-idv');
 
       expect(prisma.service.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          functionalityType: 'other'
+          functionalityType: 'verification-idv'
         })
       });
     });
@@ -562,6 +634,43 @@ describe('GET /api/services', () => {
 
       // Verify logger handles undefined gracefully
       expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('functionalityTypes response array (verification-idv-conversion BR 14)', () => {
+    it('GET response includes "verification-idv" in functionalityTypes array and does NOT include "idv"', async () => {
+      // After verification-idv-conversion (docs/specs/verification-idv-conversion.md
+      // BR 14 / DoD 1), the functionalityTypes array on the GET response
+      // is sourced from the shared FUNCTIONALITY_TYPES constants module.
+      // The legacy `'idv'` string is no longer present; `'verification-idv'`
+      // takes its place.
+
+      // Arrange
+      const mockSession = {
+        user: {
+          id: 'user-123',
+          email: 'test@example.com'
+        }
+      };
+      (getServerSession as any).mockResolvedValue(mockSession);
+
+      const mockRequest = new NextRequest('http://localhost:3000/api/services');
+
+      // Two findMany calls: services list, then distinct categories.
+      (prisma.service.findMany as any)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+      (prisma.service.count as any).mockResolvedValue(0);
+
+      // Act
+      const response = await GET(mockRequest);
+      const result = await response.json();
+
+      // Assert
+      expect(response.status).toBe(200);
+      expect(Array.isArray(result.functionalityTypes)).toBe(true);
+      expect(result.functionalityTypes).toContain('verification-idv');
+      expect(result.functionalityTypes).not.toContain('idv');
     });
   });
 });

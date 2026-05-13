@@ -199,18 +199,20 @@ export async function runValidation(
     }),
   );
 
-  // IDV — TD-062 fix. Section bucket is keyed `idv` in saved-data (the IDV
-  // section saves with sectionId: 'idv' — see IdvSection.tsx); we keep the
-  // SectionValidationResult.sectionId as `service_idv` so the rest of the
-  // engine and the Review page don't need a sectionId rename.
-  const hasIdv = orderedPackage.packageServices.some(
-    (ps) => ps.service?.functionalityType === 'idv',
-  );
-  if (hasIdv) {
+  // IDV (verification-idv) — symmetric with verification-edu / verification-emp
+  // dispatch above. Scope is fixed at count_exact:1 (see packageScopeShape —
+  // BR 15). After verification-idv-conversion, IDV flows through the same
+  // servicesByType grouping as edu/emp/record. The save-route bucket key
+  // stays `'idv'` (BR 8) — the Service.functionalityType rename does NOT
+  // touch save-route bucket keys, so `sectionsData['idv']` is unchanged.
+  // The SectionValidationResult.sectionId is `service_verification-idv` to
+  // match the structure endpoint's emitted section id post-rename.
+  if (servicesByType.has('verification-idv')) {
+    const idvServices = servicesByType.get('verification-idv') ?? [];
     const idvResult = await validateIdvSection({
-      sectionId: 'service_idv',
-      idvSectionData: sectionsData['idv'],
-      packageServices: orderedPackage.packageServices,
+      sectionId: 'service_verification-idv',
+      idvSectionData: sectionsData['idv'], // BR 8 — save-bucket key unchanged
+      packageServices: idvServices,
       findMappings,
       sectionVisits,
       reviewVisitedAt,

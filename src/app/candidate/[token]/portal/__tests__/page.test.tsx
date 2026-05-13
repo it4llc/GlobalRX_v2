@@ -86,13 +86,13 @@ describe('CandidatePortalPage', () => {
         functionalityType: null
       },
       {
-        id: 'service_idv',
+        id: 'service_verification-idv',
         title: 'Identity Verification',
         type: 'service_section',
         placement: 'services',
         status: 'not_started',
         order: 1,
-        functionalityType: 'idv'
+        functionalityType: 'verification-idv'
       }
     ]
   };
