@@ -4,19 +4,20 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 import { useTranslation } from '@/contexts/TranslationContext';
-import PortalHeader from './portal-header';
-import PortalSidebar from './portal-sidebar';
-import PortalWelcome from './portal-welcome';
-import SectionPlaceholder from './section-placeholder';
-import { PersonalInfoSection } from './form-engine/PersonalInfoSection';
-import { IdvSection } from './form-engine/IdvSection';
-import { EducationSection } from './form-engine/EducationSection';
-import { EmploymentSection } from './form-engine/EmploymentSection';
-import { AddressHistorySection } from './form-engine/AddressHistorySection';
-import WorkflowSectionRenderer from './form-engine/WorkflowSectionRenderer';
-import { ReviewSubmitPage } from './review-submit/ReviewSubmitPage';
-import { SectionErrorBanner } from './SectionErrorBanner';
+import PortalHeader from '@/components/candidate/portal-header';
+import PortalSidebar from '@/components/candidate/portal-sidebar';
+import PortalWelcome from '@/components/candidate/portal-welcome';
+import SectionPlaceholder from '@/components/candidate/section-placeholder';
+import { PersonalInfoSection } from '@/components/candidate/form-engine/PersonalInfoSection';
+import { IdvSection } from '@/components/candidate/form-engine/IdvSection';
+import { EducationSection } from '@/components/candidate/form-engine/EducationSection';
+import { EmploymentSection } from '@/components/candidate/form-engine/EmploymentSection';
+import { AddressHistorySection } from '@/components/candidate/form-engine/AddressHistorySection';
+import WorkflowSectionRenderer from '@/components/candidate/form-engine/WorkflowSectionRenderer';
+import { ReviewSubmitPage } from '@/components/candidate/review-submit/ReviewSubmitPage';
+import { SectionErrorBanner } from '@/components/candidate/SectionErrorBanner';
 import { clientLogger as logger } from '@/lib/client-logger';
 // Phase 7 Stage 1 — visit tracking + /validate-driven error display.
 // usePortalValidation owns sectionVisits, reviewPageVisitedAt, and the
@@ -50,6 +51,7 @@ import type {
   CrossSectionTarget,
   SectionStatus,
 } from '@/types/candidate-stage4';
+import type { TemplateVariableValues } from '@/types/templateVariables';
 
 interface PortalLayoutProps {
   invitation: CandidateInvitationInfo;
@@ -385,6 +387,25 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   const subjectCrossSectionRequirements = useMemo(
     () => getCrossSectionRequirements(crossSectionRegistry, 'subject'),
     [crossSectionRegistry],
+  );
+
+  // Task 8.1 — single source of values for replaceTemplateVariables when
+  // WorkflowSectionRenderer renders text-type sections. The expirationDate
+  // is formatted as `dd MMM yyyy` here (English-only per spec Resolved
+  // Question #3); when the candidate app gains locale support this is the
+  // one place that needs to change.
+  const templateVariableValues = useMemo<TemplateVariableValues>(
+    () => ({
+      candidateFirstName: invitation.firstName ?? null,
+      candidateLastName: invitation.lastName ?? null,
+      candidateEmail: invitation.email ?? null,
+      candidatePhone: invitation.phone ?? null,
+      companyName: invitation.companyName ?? null,
+      expirationDate: invitation.expiresAt
+        ? format(new Date(invitation.expiresAt), 'dd MMM yyyy')
+        : null,
+    }),
+    [invitation],
   );
 
   // TD-059 — lifted Personal Info progress derivation. This effect is the
@@ -794,6 +815,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onAcknowledge={(checked) => handleWorkflowAcknowledge(section, checked)}
             sectionValidation={sectionValidation}
             errorsVisible={errorsVisible}
+            variableValues={templateVariableValues}
           />
         </div>
       );
