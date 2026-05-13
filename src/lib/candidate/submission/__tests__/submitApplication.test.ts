@@ -283,7 +283,7 @@ describe('submitApplication (Pass 2 — orchestrator)', () => {
     it('creates a ServicesFulfillment row alongside every OrderItem with assignedVendorId: null', async () => {
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
         buildInvitation({
-          packageServices: [ps('svc-idv-1', 'idv')],
+          packageServices: [ps('svc-idv-1', 'verification-idv')],
           formData: {
             sections: {
               idv: {
@@ -655,7 +655,7 @@ describe('submitApplication (Pass 2 — orchestrator)', () => {
     it('creates one ServiceComment per OrderItem with the system template id and the documented finalText', async () => {
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
         buildInvitation({
-          packageServices: [ps('svc-idv-1', 'idv')],
+          packageServices: [ps('svc-idv-1', 'verification-idv')],
           formData: {
             sections: {
               idv: {
@@ -737,7 +737,7 @@ describe('submitApplication (Pass 2 — orchestrator)', () => {
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
         buildInvitation({
-          packageServices: [ps('svc-idv-1', 'idv')],
+          packageServices: [ps('svc-idv-1', 'verification-idv')],
           formData: {
             sections: {
               idv: {
@@ -773,7 +773,7 @@ describe('submitApplication (Pass 2 — orchestrator)', () => {
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
         buildInvitation({
-          packageServices: [ps('svc-idv-1', 'idv')],
+          packageServices: [ps('svc-idv-1', 'verification-idv')],
           formData: {
             sections: {
               idv: {
@@ -809,7 +809,7 @@ describe('submitApplication (Pass 2 — orchestrator)', () => {
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
         buildInvitation({
-          packageServices: [ps('svc-idv-1', 'idv')],
+          packageServices: [ps('svc-idv-1', 'verification-idv')],
           formData: {
             sections: {
               idv: {
@@ -927,7 +927,7 @@ describe('submitApplication (Pass 2 — orchestrator)', () => {
     it('returns { orderId, orderItemIds, orderDataRowCount } reflecting the writes performed', async () => {
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
         buildInvitation({
-          packageServices: [ps('svc-idv-1', 'idv')],
+          packageServices: [ps('svc-idv-1', 'verification-idv')],
           formData: {
             sections: {
               idv: {

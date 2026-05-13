@@ -26,13 +26,13 @@ describe('PortalSidebar', () => {
       functionalityType: null
     },
     {
-      id: 'service_idv',
+      id: 'service_verification-idv',
       title: 'Identity Verification',
       type: 'service_section',
       placement: 'services',
       status: 'incomplete',
       order: 1,
-      functionalityType: 'idv'
+      functionalityType: 'verification-idv'
     },
     {
       id: 'section-2',
@@ -99,7 +99,7 @@ describe('PortalSidebar', () => {
       render(
         <PortalSidebar
           sections={mockSections}
-          activeSection="service_idv"
+          activeSection="service_verification-idv"
           onSectionClick={mockOnSectionClick}
         />
       );
@@ -126,7 +126,7 @@ describe('PortalSidebar', () => {
       await user.click(screen.getByText('Identity Verification'));
 
       expect(mockOnSectionClick).toHaveBeenCalledTimes(1);
-      expect(mockOnSectionClick).toHaveBeenCalledWith('service_idv');
+      expect(mockOnSectionClick).toHaveBeenCalledWith('service_verification-idv');
     });
 
     it('should have correct desktop-specific classes', () => {
@@ -254,7 +254,7 @@ describe('PortalSidebar', () => {
 
       await user.click(mobileSection);
 
-      expect(mockOnSectionClick).toHaveBeenCalledWith('service_idv');
+      expect(mockOnSectionClick).toHaveBeenCalledWith('service_verification-idv');
       expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
@@ -361,7 +361,7 @@ describe('PortalSidebar', () => {
       render(
         <PortalSidebar
           sections={mockSections}
-          activeSection="service_idv"
+          activeSection="service_verification-idv"
           onSectionClick={mockOnSectionClick}
         />
       );
@@ -369,7 +369,7 @@ describe('PortalSidebar', () => {
       await user.click(screen.getByText('Identity Verification'));
 
       // Should still call the handler even if already active
-      expect(mockOnSectionClick).toHaveBeenCalledWith('service_idv');
+      expect(mockOnSectionClick).toHaveBeenCalledWith('service_verification-idv');
     });
 
     it('should handle null activeSection', () => {

@@ -345,7 +345,7 @@ export async function submitApplication(
     .filter((ps) => ps.service?.functionalityType === 'verification-emp')
     .map((ps) => ps.service.id);
   const idvServiceIds = packageServices
-    .filter((ps) => ps.service?.functionalityType === 'idv')
+    .filter((ps) => ps.service?.functionalityType === 'verification-idv')
     .map((ps) => ps.service.id);
 
   const eduKeys = buildEduEmpOrderItemKeys(

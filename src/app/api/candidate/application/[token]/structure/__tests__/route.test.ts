@@ -91,7 +91,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
           service: {
             id: 'service-1',
             name: 'Identity Verification Service',
-            functionalityType: 'idv'
+            functionalityType: 'verification-idv'
           }
         },
         {
@@ -235,13 +235,13 @@ describe('GET /api/candidate/application/[token]/structure', () => {
 
       // Check service sections are in correct order
       expect(data.sections[2]).toEqual({
-        id: 'service_idv',
+        id: 'service_verification-idv',
         title: 'candidate.portal.sections.identityVerification',
         type: 'service_section',
         placement: 'services',
         status: 'not_started',
         order: 2,
-        functionalityType: 'idv',
+        functionalityType: 'verification-idv',
         serviceIds: ['service-1']
       });
 
@@ -363,7 +363,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               service: {
                 id: 'service-1',
                 name: 'Identity Verification Service 1',
-                functionalityType: 'idv'
+                functionalityType: 'verification-idv'
               }
             },
             {
@@ -371,7 +371,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               service: {
                 id: 'service-2',
                 name: 'Identity Verification Service 2',
-                functionalityType: 'idv'
+                functionalityType: 'verification-idv'
               }
             },
             {
@@ -398,7 +398,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
 
       // Should have deduplicated IDV services
       const idvSections = data.sections.filter((s: any) =>
-        s.functionalityType === 'idv' && s.type === 'service_section'
+        s.functionalityType === 'verification-idv' && s.type === 'service_section'
       );
       expect(idvSections).toHaveLength(1);
       expect(idvSections[0].serviceIds).toEqual(['service-1', 'service-2']);
@@ -504,7 +504,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               service: {
                 id: 'service-2',
                 name: 'Identity Check',
-                functionalityType: 'idv'
+                functionalityType: 'verification-idv'
               }
             },
             {
@@ -539,7 +539,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
 
       // Check the fixed order (personal info first, then services in order): IDV, Records, Education, Employment
       expect(data.sections[0].type).toBe('personal_info');
-      expect(data.sections[1].functionalityType).toBe('idv');
+      expect(data.sections[1].functionalityType).toBe('verification-idv');
       expect(data.sections[2].functionalityType).toBe('record');
       expect(data.sections[3].functionalityType).toBe('verification-edu');
       expect(data.sections[4].functionalityType).toBe('verification-emp');
@@ -725,7 +725,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               service: {
                 id: 'service-2',
                 name: 'ID Check',
-                functionalityType: 'idv'
+                functionalityType: 'verification-idv'
               }
             }
           ]
@@ -747,7 +747,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // appended after the service sections, so the total is now 3.
       const sections = data.sections;
       expect(sections[0].type).toBe('personal_info');
-      expect(sections[1].functionalityType).toBe('idv');
+      expect(sections[1].functionalityType).toBe('verification-idv');
       // Service with null functionality type should NOT be included
       expect(sections.length).toBe(3); // personal_info + idv + review_submit
       expect(sections[2].type).toBe('review_submit');

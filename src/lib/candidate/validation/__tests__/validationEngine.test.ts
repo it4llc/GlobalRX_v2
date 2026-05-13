@@ -268,7 +268,7 @@ describe('runValidation', () => {
               {
                 id: 'ps-idv',
                 scope: null,
-                service: { id: 'svc-idv', functionalityType: 'idv' },
+                service: { id: 'svc-idv', functionalityType: 'verification-idv' },
               },
             ],
           },
@@ -277,7 +277,7 @@ describe('runValidation', () => {
       );
 
       const result = await runValidation('inv-123');
-      const idv = result.sections.find((s) => s.sectionId === 'service_idv');
+      const idv = result.sections.find((s) => s.sectionId === 'service_verification-idv');
 
       expect(idv).toBeDefined();
       expect(idv!.scopeErrors).toEqual([]);
@@ -290,7 +290,7 @@ describe('runValidation', () => {
       );
 
       const result = await runValidation('inv-123');
-      const idv = result.sections.find((s) => s.sectionId === 'service_idv');
+      const idv = result.sections.find((s) => s.sectionId === 'service_verification-idv');
 
       expect(idv).toBeUndefined();
     });
@@ -353,7 +353,7 @@ describe('runValidation', () => {
               {
                 id: 'ps-idv',
                 scope: null,
-                service: { id: 'svc-idv', functionalityType: 'idv' },
+                service: { id: 'svc-idv', functionalityType: 'verification-idv' },
               },
             ],
           },
@@ -1436,6 +1436,686 @@ describe('runValidation', () => {
       // Gap errors must still fire even after Stage 3b's per-entry walk is
       // wired in (Spec Rule 7 / DoD 10).
       expect(address!.gapErrors.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ===========================================================================
+  // TD-084 — Required-Indicator Per-Country Alignment
+  //
+  // Spec:           docs/specs/td-084-required-indicator-per-country-alignment.md
+  //                 (BR 1, BR 2, BR 3, BR 4, BR 5; DoD 1, 4, 6, 10, 11, 12)
+  // Technical plan: docs/plans/td-084-technical-plan.md §3.2.2, §3.2.3, §6
+  //
+  // These tests assert the OR-merge semantics for cross-service required-state
+  // aggregation on the VALIDATOR side. The new TD-084 cross-service tests
+  // FAIL on the current baseline (Stage 3b AND-merge at
+  // repeatableEntryFieldChecks.ts:317 and personalInfoIdvFieldChecks.ts:395)
+  // and PASS after the implementer flips `flags.every(Boolean)` →
+  // `flags.some(Boolean)` per the technical plan.
+  //
+  // Mocking discipline: identical to the Stage 3b tests above — reuse the
+  // local `buildStage3bPackageServices`, `stubDsxMappings`, `buildInvitation`
+  // helpers and the canonical `CANONICAL_ADDRESS_CONFIG`, `COUNTRY_*`, `SVC_*`,
+  // `REQ_*` constants. No new fixture utilities introduced (per test-writer
+  // Pass 1 hard constraints).
+  //
+  // Architecture note on DoD 4 (geographic-hierarchy OR on the validator):
+  // The validator's `buildPerCountryRequiredMap` queries dsx_mappings only at
+  // locationId === entry.countryId — it does NOT walk the geographic hierarchy
+  // (subregion → country). That walk lives only on the /fields route side
+  // (per architect's plan §3.2.2: the validator change is a one-line operator
+  // flip). On the validator side, the meaningful BR 2 surface is the OR-fold
+  // operator itself. Since the database's @@unique constraint forbids two rows
+  // at the same (serviceId, locationId, requirementId), the DoD 4 validator
+  // test exercises the operator change with a SYNTHETIC stub (two rows at the
+  // same key) — flagged in the hand-off summary as a scope ambiguity.
+  // ===========================================================================
+
+  // Local constants — a SECOND service per type in the candidate's package,
+  // used to exercise the cross-service merge contract (BR 1). Distinct from
+  // SVC_RECORD / SVC_EDU / SVC_EMP so that two services in the package can
+  // each own a dsx_mappings row for the same (requirementId, locationId).
+  const SVC_RECORD_2 = 'svc-record-002';
+  const SVC_EDU_2 = 'svc-edu-002';
+  const SVC_EMP_2 = 'svc-emp-002';
+
+  describe('TD-084 — Cross-service OR-merge on the validator (BR 1, DoD 1)', () => {
+    it('DoD 1 (Address History): TWO record services share the same address_block requirement at the same country; one mapping isRequired=true, the other false → validator reports the field as required (OR-merge wins). FAILS on the current AND-merge baseline; PASSES after the operator flip.', async () => {
+      // BR 1 fixture — two services in the package both map the same
+      // requirement at the same country. The OR-fold across the two rows
+      // must yield isRequired=true even though one row says false.
+      //
+      // Baseline behavior (Stage 3b, AND-merge at
+      // repeatableEntryFieldChecks.ts:317):
+      //   flags = [true, false]; every(Boolean) === false → not required →
+      //   the empty pieces produce NO fieldErrors → test FAILS.
+      //
+      // Post-fix behavior (TD-084, OR-merge):
+      //   flags = [true, false]; some(Boolean) === true → required → the
+      //   empty pieces produce fieldErrors → test PASSES.
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        buildInvitation({
+          package: {
+            id: 'pkg-123',
+            workflow: { id: 'wf-123', gapToleranceDays: null, sections: [] },
+            packageServices: buildStage3bPackageServices([
+              {
+                id: SVC_RECORD,
+                functionalityType: 'record',
+                requirements: [
+                  {
+                    id: REQ_ADDR_BLOCK,
+                    name: 'Address',
+                    fieldKey: 'address',
+                    type: 'field',
+                    fieldData: {
+                      dataType: 'address_block',
+                      addressConfig: CANONICAL_ADDRESS_CONFIG,
+                    },
+                  },
+                ],
+              },
+              {
+                id: SVC_RECORD_2,
+                functionalityType: 'record',
+                requirements: [
+                  {
+                    id: REQ_ADDR_BLOCK,
+                    name: 'Address',
+                    fieldKey: 'address',
+                    type: 'field',
+                    fieldData: {
+                      dataType: 'address_block',
+                      addressConfig: CANONICAL_ADDRESS_CONFIG,
+                    },
+                  },
+                ],
+              },
+            ]),
+          },
+          formData: {
+            sectionVisits: {
+              address_history: {
+                visitedAt: '2026-05-01T10:00:00Z',
+                departedAt: '2026-05-01T11:00:00Z',
+              },
+            },
+            sections: {
+              address_history: {
+                type: 'address_history',
+                entries: [
+                  {
+                    entryId: 'entry-td084-xs-1',
+                    countryId: COUNTRY_A,
+                    entryOrder: 1,
+                    fields: [
+                      {
+                        requirementId: REQ_ADDR_BLOCK,
+                        value: {
+                          // Empty pieces — the cross-service OR-merge decides
+                          // whether the validator flags them as missing.
+                          fromDate: '2024-01-01',
+                          toDate: '2025-01-01',
+                          isCurrent: false,
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        }) as never,
+      );
+
+      stubDsxMappings([
+        {
+          requirementId: REQ_ADDR_BLOCK,
+          serviceId: SVC_RECORD,
+          locationId: COUNTRY_A,
+          isRequired: true, // one service says required
+        },
+        {
+          requirementId: REQ_ADDR_BLOCK,
+          serviceId: SVC_RECORD_2,
+          locationId: COUNTRY_A,
+          isRequired: false, // the other says not required
+        },
+      ]);
+
+      const result = await runValidation('inv-123');
+      const address = result.sections.find(
+        (s) => s.sectionId === 'address_history',
+      );
+
+      expect(address).toBeDefined();
+      // Post-fix expectation: OR(true, false) = true → required → the empty
+      // address pieces produce fieldErrors. Status flips to incomplete.
+      expect(address!.status).toBe('incomplete');
+
+      // At least one piece-level fieldError must be produced (street1 / city
+      // / state / postalCode are all enabled+required in CANONICAL_ADDRESS_CONFIG
+      // and all empty in this fixture).
+      expect(address!.fieldErrors.length).toBeGreaterThan(0);
+      for (const fe of address!.fieldErrors) {
+        expect(fe.messageKey).toBe('candidate.validation.fieldRequired');
+      }
+    });
+
+    it('DoD 1 (Education): TWO Education services share the same Degree requirement at the same country; one row isRequired=true, the other false → validator reports the field as required (OR). FAILS today, PASSES after the fix.', async () => {
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        buildInvitation({
+          package: {
+            id: 'pkg-123',
+            workflow: { id: 'wf-123', gapToleranceDays: null, sections: [] },
+            packageServices: buildStage3bPackageServices([
+              {
+                id: SVC_EDU,
+                functionalityType: 'verification-edu',
+                requirements: [
+                  {
+                    id: REQ_DEGREE,
+                    name: 'Degree Awarded',
+                    fieldKey: 'degreeAwarded',
+                    type: 'field',
+                    fieldData: { dataType: 'text' },
+                  },
+                ],
+              },
+              {
+                id: SVC_EDU_2,
+                functionalityType: 'verification-edu',
+                requirements: [
+                  {
+                    id: REQ_DEGREE,
+                    name: 'Degree Awarded',
+                    fieldKey: 'degreeAwarded',
+                    type: 'field',
+                    fieldData: { dataType: 'text' },
+                  },
+                ],
+              },
+            ]),
+          },
+          formData: {
+            sectionVisits: {
+              education: {
+                visitedAt: '2026-05-01T10:00:00Z',
+                departedAt: '2026-05-01T11:00:00Z',
+              },
+            },
+            sections: {
+              education: {
+                type: 'education',
+                entries: [
+                  {
+                    entryId: 'entry-td084-edu-xs',
+                    countryId: COUNTRY_A,
+                    entryOrder: 1,
+                    fields: [{ requirementId: REQ_DEGREE, value: '' }],
+                  },
+                ],
+              },
+            },
+          },
+        }) as never,
+      );
+
+      stubDsxMappings([
+        {
+          requirementId: REQ_DEGREE,
+          serviceId: SVC_EDU,
+          locationId: COUNTRY_A,
+          isRequired: true,
+        },
+        {
+          requirementId: REQ_DEGREE,
+          serviceId: SVC_EDU_2,
+          locationId: COUNTRY_A,
+          isRequired: false,
+        },
+      ]);
+
+      const result = await runValidation('inv-123');
+      const edu = result.sections.find(
+        (s) => s.sectionId === 'service_verification-edu',
+      );
+
+      expect(edu).toBeDefined();
+      expect(edu!.status).toBe('incomplete');
+      const degreeError = edu!.fieldErrors.find(
+        (fe) => fe.fieldName === 'Degree Awarded',
+      );
+      expect(degreeError).toBeDefined();
+      expect(degreeError!.messageKey).toBe(
+        'candidate.validation.fieldRequired',
+      );
+    });
+  });
+
+  describe('TD-084 — Geographic-hierarchy OR-merge on the validator (BR 2, DoD 4)', () => {
+    it('DoD 4: When the validator receives two mapping rows for the same (requirementId, serviceId, locationId) with differing isRequired flags, the OR-fold reports required. FAILS today (AND-merge says false when any flag is false); PASSES after the operator flip. Architecture note: the validator does NOT walk the geographic hierarchy; this test exercises the OR-fold operator directly with a synthetic stub. See the head-of-block comment for context.', async () => {
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        buildInvitation({
+          package: {
+            id: 'pkg-123',
+            workflow: { id: 'wf-123', gapToleranceDays: null, sections: [] },
+            packageServices: buildStage3bPackageServices([
+              {
+                id: SVC_EDU,
+                functionalityType: 'verification-edu',
+                requirements: [
+                  {
+                    id: REQ_DEGREE,
+                    name: 'Degree Awarded',
+                    fieldKey: 'degreeAwarded',
+                    type: 'field',
+                    fieldData: { dataType: 'text' },
+                  },
+                ],
+              },
+            ]),
+          },
+          formData: {
+            sectionVisits: {
+              education: {
+                visitedAt: '2026-05-01T10:00:00Z',
+                departedAt: '2026-05-01T11:00:00Z',
+              },
+            },
+            sections: {
+              education: {
+                type: 'education',
+                entries: [
+                  {
+                    entryId: 'entry-td084-geo',
+                    countryId: COUNTRY_A,
+                    entryOrder: 1,
+                    fields: [{ requirementId: REQ_DEGREE, value: '' }],
+                  },
+                ],
+              },
+            },
+          },
+        }) as never,
+      );
+
+      // Two rows at the same (serviceId, locationId, requirementId) with
+      // differing isRequired flags. The OR-fold returns required iff any
+      // flag is true.
+      stubDsxMappings([
+        {
+          requirementId: REQ_DEGREE,
+          serviceId: SVC_EDU,
+          locationId: COUNTRY_A,
+          isRequired: false,
+        },
+        {
+          requirementId: REQ_DEGREE,
+          serviceId: SVC_EDU,
+          locationId: COUNTRY_A,
+          isRequired: true,
+        },
+      ]);
+
+      const result = await runValidation('inv-123');
+      const edu = result.sections.find(
+        (s) => s.sectionId === 'service_verification-edu',
+      );
+
+      expect(edu).toBeDefined();
+      // OR-fold: some(true) === true → required → field error for the empty
+      // degreeAwarded value.
+      const degreeError = edu!.fieldErrors.find(
+        (fe) => fe.fieldName === 'Degree Awarded',
+      );
+      expect(degreeError).toBeDefined();
+      expect(edu!.status).toBe('incomplete');
+    });
+  });
+
+  describe('TD-084 — No service-level fallback on the validator (BR 3, DoD 6)', () => {
+    it('DoD 6 (validator): a service has a service_requirements row for a requirement but NO dsx_mappings row at the entry country; the validator does NOT include the field in fieldErrors when empty. This guards the validator-side BR 3 contract — the validator already has no service-level fallback; the BR-3 fix lives on the route side. Should pass on the current baseline AND after the fix.', async () => {
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        buildInvitation({
+          package: {
+            id: 'pkg-123',
+            workflow: { id: 'wf-123', gapToleranceDays: null, sections: [] },
+            packageServices: buildStage3bPackageServices([
+              {
+                id: SVC_EDU,
+                functionalityType: 'verification-edu',
+                requirements: [
+                  {
+                    id: REQ_DEGREE,
+                    name: 'Degree Awarded',
+                    fieldKey: 'degreeAwarded',
+                    type: 'field',
+                    fieldData: { dataType: 'text' },
+                  },
+                ],
+              },
+            ]),
+          },
+          formData: {
+            sectionVisits: {
+              education: {
+                visitedAt: '2026-05-01T10:00:00Z',
+                departedAt: '2026-05-01T11:00:00Z',
+              },
+            },
+            sections: {
+              education: {
+                type: 'education',
+                entries: [
+                  {
+                    entryId: 'entry-td084-no-mapping',
+                    countryId: COUNTRY_A,
+                    entryOrder: 1,
+                    fields: [{ requirementId: REQ_DEGREE, value: '' }],
+                  },
+                ],
+              },
+            },
+          },
+        }) as never,
+      );
+
+      // Zero mapping rows — service_requirements covers the requirement (via
+      // buildStage3bPackageServices) but dsx_mappings is empty at COUNTRY_A.
+      stubDsxMappings([]);
+
+      const result = await runValidation('inv-123');
+      const edu = result.sections.find(
+        (s) => s.sectionId === 'service_verification-edu',
+      );
+
+      expect(edu).toBeDefined();
+      // BR 3: no mapping → not required → no field error for the empty value.
+      const degreeError = edu!.fieldErrors.find(
+        (fe) => fe.fieldName === 'Degree Awarded',
+      );
+      expect(degreeError).toBeUndefined();
+    });
+  });
+
+  describe('TD-084 — Per-section concrete fixtures (DoD 10, 11, 12)', () => {
+    it('DoD 10 (Address History, validator): TWO record services in the package map the same address_block requirement at the entry country with isRequired=false on both → validator does NOT flag any address piece as missing.', async () => {
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        buildInvitation({
+          package: {
+            id: 'pkg-123',
+            workflow: { id: 'wf-123', gapToleranceDays: null, sections: [] },
+            packageServices: buildStage3bPackageServices([
+              {
+                id: SVC_RECORD,
+                functionalityType: 'record',
+                requirements: [
+                  {
+                    id: REQ_ADDR_BLOCK,
+                    name: 'Address',
+                    fieldKey: 'address',
+                    type: 'field',
+                    fieldData: {
+                      dataType: 'address_block',
+                      addressConfig: CANONICAL_ADDRESS_CONFIG,
+                    },
+                  },
+                ],
+              },
+              {
+                id: SVC_RECORD_2,
+                functionalityType: 'record',
+                requirements: [
+                  {
+                    id: REQ_ADDR_BLOCK,
+                    name: 'Address',
+                    fieldKey: 'address',
+                    type: 'field',
+                    fieldData: {
+                      dataType: 'address_block',
+                      addressConfig: CANONICAL_ADDRESS_CONFIG,
+                    },
+                  },
+                ],
+              },
+            ]),
+          },
+          formData: {
+            sectionVisits: {
+              address_history: {
+                visitedAt: '2026-05-01T10:00:00Z',
+                departedAt: '2026-05-01T11:00:00Z',
+              },
+            },
+            sections: {
+              address_history: {
+                type: 'address_history',
+                entries: [
+                  {
+                    entryId: 'entry-td084-addr-dod10',
+                    countryId: COUNTRY_A,
+                    entryOrder: 1,
+                    fields: [
+                      {
+                        requirementId: REQ_ADDR_BLOCK,
+                        value: {
+                          fromDate: '2024-01-01',
+                          toDate: '2025-01-01',
+                          isCurrent: false,
+                          // pieces unfilled
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        }) as never,
+      );
+
+      stubDsxMappings([
+        {
+          requirementId: REQ_ADDR_BLOCK,
+          serviceId: SVC_RECORD,
+          locationId: COUNTRY_A,
+          isRequired: false,
+        },
+        {
+          requirementId: REQ_ADDR_BLOCK,
+          serviceId: SVC_RECORD_2,
+          locationId: COUNTRY_A,
+          isRequired: false,
+        },
+      ]);
+
+      const result = await runValidation('inv-123');
+      const address = result.sections.find(
+        (s) => s.sectionId === 'address_history',
+      );
+
+      expect(address).toBeDefined();
+      // OR(false, false) = false → not required → no per-piece field errors
+      // from the address_block walk.
+      const pieceErrors = address!.fieldErrors.filter(
+        (fe) => fe.messageKey === 'candidate.validation.fieldRequired',
+      );
+      expect(pieceErrors).toEqual([]);
+    });
+
+    it('DoD 11 (Education, validator): TWO Education services map the same Degree requirement at the entry country with isRequired=false on both → validator does NOT flag the field as missing.', async () => {
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        buildInvitation({
+          package: {
+            id: 'pkg-123',
+            workflow: { id: 'wf-123', gapToleranceDays: null, sections: [] },
+            packageServices: buildStage3bPackageServices([
+              {
+                id: SVC_EDU,
+                functionalityType: 'verification-edu',
+                requirements: [
+                  {
+                    id: REQ_DEGREE,
+                    name: 'Degree Awarded',
+                    fieldKey: 'degreeAwarded',
+                    type: 'field',
+                    fieldData: { dataType: 'text' },
+                  },
+                ],
+              },
+              {
+                id: SVC_EDU_2,
+                functionalityType: 'verification-edu',
+                requirements: [
+                  {
+                    id: REQ_DEGREE,
+                    name: 'Degree Awarded',
+                    fieldKey: 'degreeAwarded',
+                    type: 'field',
+                    fieldData: { dataType: 'text' },
+                  },
+                ],
+              },
+            ]),
+          },
+          formData: {
+            sectionVisits: {
+              education: {
+                visitedAt: '2026-05-01T10:00:00Z',
+                departedAt: '2026-05-01T11:00:00Z',
+              },
+            },
+            sections: {
+              education: {
+                type: 'education',
+                entries: [
+                  {
+                    entryId: 'entry-td084-edu-dod11',
+                    countryId: COUNTRY_A,
+                    entryOrder: 1,
+                    fields: [{ requirementId: REQ_DEGREE, value: '' }],
+                  },
+                ],
+              },
+            },
+          },
+        }) as never,
+      );
+
+      stubDsxMappings([
+        {
+          requirementId: REQ_DEGREE,
+          serviceId: SVC_EDU,
+          locationId: COUNTRY_A,
+          isRequired: false,
+        },
+        {
+          requirementId: REQ_DEGREE,
+          serviceId: SVC_EDU_2,
+          locationId: COUNTRY_A,
+          isRequired: false,
+        },
+      ]);
+
+      const result = await runValidation('inv-123');
+      const edu = result.sections.find(
+        (s) => s.sectionId === 'service_verification-edu',
+      );
+
+      expect(edu).toBeDefined();
+      const degreeError = edu!.fieldErrors.find(
+        (fe) => fe.fieldName === 'Degree Awarded',
+      );
+      // Under either AND or OR, the empty Degree value should NOT produce a
+      // fieldError because no in-scope mapping says required.
+      expect(degreeError).toBeUndefined();
+    });
+
+    it('DoD 12 (Employment, validator): TWO Employment services map the same Job Title requirement at the entry country with isRequired=false on both → validator does NOT flag the field as missing.', async () => {
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        buildInvitation({
+          package: {
+            id: 'pkg-123',
+            workflow: { id: 'wf-123', gapToleranceDays: null, sections: [] },
+            packageServices: buildStage3bPackageServices([
+              {
+                id: SVC_EMP,
+                functionalityType: 'verification-emp',
+                requirements: [
+                  {
+                    id: REQ_JOB_TITLE,
+                    name: 'Job Title',
+                    fieldKey: 'jobTitle',
+                    type: 'field',
+                    fieldData: { dataType: 'text' },
+                  },
+                ],
+              },
+              {
+                id: SVC_EMP_2,
+                functionalityType: 'verification-emp',
+                requirements: [
+                  {
+                    id: REQ_JOB_TITLE,
+                    name: 'Job Title',
+                    fieldKey: 'jobTitle',
+                    type: 'field',
+                    fieldData: { dataType: 'text' },
+                  },
+                ],
+              },
+            ]),
+          },
+          formData: {
+            sectionVisits: {
+              employment: {
+                visitedAt: '2026-05-01T10:00:00Z',
+                departedAt: '2026-05-01T11:00:00Z',
+              },
+            },
+            sections: {
+              employment: {
+                type: 'employment',
+                entries: [
+                  {
+                    entryId: 'entry-td084-emp-dod12',
+                    countryId: COUNTRY_A,
+                    entryOrder: 1,
+                    fields: [{ requirementId: REQ_JOB_TITLE, value: '' }],
+                  },
+                ],
+              },
+            },
+          },
+        }) as never,
+      );
+
+      stubDsxMappings([
+        {
+          requirementId: REQ_JOB_TITLE,
+          serviceId: SVC_EMP,
+          locationId: COUNTRY_A,
+          isRequired: false,
+        },
+        {
+          requirementId: REQ_JOB_TITLE,
+          serviceId: SVC_EMP_2,
+          locationId: COUNTRY_A,
+          isRequired: false,
+        },
+      ]);
+
+      const result = await runValidation('inv-123');
+      const emp = result.sections.find(
+        (s) => s.sectionId === 'service_verification-emp',
+      );
+
+      expect(emp).toBeDefined();
+      const jobTitleError = emp!.fieldErrors.find(
+        (fe) => fe.fieldName === 'Job Title',
+      );
+      expect(jobTitleError).toBeUndefined();
     });
   });
 });

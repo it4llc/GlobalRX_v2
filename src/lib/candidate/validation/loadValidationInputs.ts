@@ -199,6 +199,7 @@ export async function loadValidationInputs(
     if (
       ft === 'verification-edu' ||
       ft === 'verification-emp' ||
+      ft === 'verification-idv' ||
       ft === 'record'
     ) {
       const list = servicesByType.get(ft) ?? [];

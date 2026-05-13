@@ -231,16 +231,10 @@ describe('IdvSection', () => {
             json: async () => ({ sections: {} }),
           } as Response);
         }
-        if (url.includes('/fields?serviceId=service-1')) {
+        if (url.includes('/fields?')) {
           return Promise.resolve({
             ok: true,
-            json: async () => mockFieldsResponse,
-          } as Response);
-        }
-        if (url.includes('/fields?serviceId=service-2')) {
-          return Promise.resolve({
-            ok: true,
-            json: async () => ({ fields: [] }),
+            json: async () => ({ fields: [...mockFieldsResponse.fields] }),
           } as Response);
         }
         if (url.includes('/save')) {
@@ -589,16 +583,10 @@ describe('IdvSection', () => {
             json: async () => mockSavedDataResponse,
           } as Response);
         }
-        if (url.includes('/fields?serviceId=service-1')) {
+        if (url.includes('/fields?')) {
           return Promise.resolve({
             ok: true,
-            json: async () => mockFieldsResponse,
-          } as Response);
-        }
-        if (url.includes('/fields?serviceId=service-2')) {
-          return Promise.resolve({
-            ok: true,
-            json: async () => ({ fields: [] }),
+            json: async () => ({ fields: [...mockFieldsResponse.fields] }),
           } as Response);
         }
         if (url.includes('/save')) {
@@ -647,44 +635,28 @@ describe('IdvSection', () => {
           } as Response);
         }
         if (url.includes(`countryId=${COUNTRY_US_ID}`)) {
-          if (url.includes('serviceId=service-1')) {
-            return Promise.resolve({
-              ok: true,
-              json: async () => mockFieldsResponse,
-            } as Response);
-          }
-          if (url.includes('serviceId=service-2')) {
-            return Promise.resolve({
-              ok: true,
-              json: async () => ({ fields: [] }),
-            } as Response);
-          }
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ fields: [...mockFieldsResponse.fields] }),
+          } as Response);
         }
         if (url.includes(`countryId=${COUNTRY_CA_ID}`)) {
-          if (url.includes('serviceId=service-1')) {
-            return Promise.resolve({
-              ok: true,
-              json: async () => ({
-                fields: [
-                  {
-                    requirementId: 'req-ca-1',
-                    name: 'SIN Number',
-                    fieldKey: 'sinNumber',
-                    type: 'field',
-                    dataType: 'text',
-                    fieldData: {},
-                    displayOrder: 1,
-                  },
-                ],
-              }),
-            } as Response);
-          }
-          if (url.includes('serviceId=service-2')) {
-            return Promise.resolve({
-              ok: true,
-              json: async () => ({ fields: [] }),
-            } as Response);
-          }
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              fields: [
+                {
+                  requirementId: 'req-ca-1',
+                  name: 'SIN Number',
+                  fieldKey: 'sinNumber',
+                  type: 'field',
+                  dataType: 'text',
+                  fieldData: {},
+                  displayOrder: 1,
+                },
+              ],
+            }),
+          } as Response);
         }
         if (url.includes('/save')) {
           return Promise.resolve({
@@ -823,16 +795,10 @@ describe('IdvSection', () => {
             json: async () => ({ sections: {} }),
           } as Response);
         }
-        if (url.includes('/fields?serviceId=service-1')) {
+        if (url.includes('/fields?')) {
           return Promise.resolve({
             ok: true,
-            json: async () => mockFieldsResponse,
-          } as Response);
-        }
-        if (url.includes('/fields?serviceId=service-2')) {
-          return Promise.resolve({
-            ok: true,
-            json: async () => ({ fields: [] }),
+            json: async () => ({ fields: [...mockFieldsResponse.fields] }),
           } as Response);
         }
         if (url.includes('/save')) {
@@ -905,16 +871,10 @@ describe('IdvSection', () => {
             json: async () => ({ sections: {} }),
           } as Response);
         }
-        if (url.includes('/fields?serviceId=service-1')) {
+        if (url.includes('/fields?')) {
           return Promise.resolve({
             ok: true,
-            json: async () => mockFieldsResponse,
-          } as Response);
-        }
-        if (url.includes('/fields?serviceId=service-2')) {
-          return Promise.resolve({
-            ok: true,
-            json: async () => ({ fields: [] }),
+            json: async () => ({ fields: [...mockFieldsResponse.fields] }),
           } as Response);
         }
         if (url.includes('/save')) {
@@ -1084,16 +1044,15 @@ describe('IdvSection', () => {
             json: async () => ({ sections: {} }),
           } as Response);
         }
-        if (url.includes('/fields?serviceId=service-1')) {
+        if (url.includes('/fields?')) {
+          // TD-084: the package-aware route returns a single merged response
+          // for all requested serviceIds. Model that here by combining both
+          // service fixtures into one payload.
           return Promise.resolve({
             ok: true,
-            json: async () => service1Fields,
-          } as Response);
-        }
-        if (url.includes('/fields?serviceId=service-2')) {
-          return Promise.resolve({
-            ok: true,
-            json: async () => service2Fields,
+            json: async () => ({
+              fields: [...service1Fields.fields, ...service2Fields.fields],
+            }),
           } as Response);
         }
         if (url.includes('/save')) {
@@ -1132,13 +1091,15 @@ describe('IdvSection', () => {
       ).toBeInTheDocument();
       expect(screen.getByText('Field from Service 2')).toBeInTheDocument();
 
-      // Verify both services were called.
+      // TD-084: verify a single batched /fields call was issued and that
+      // every provided service id appears in the request URL (repeated
+      // serviceIds= query params).
       const fieldsCalls = mockFetch.mock.calls.filter((call: unknown[]) =>
         String(call[0]).includes('/fields'),
       );
-      expect(fieldsCalls.length).toBe(2);
-      expect(String(fieldsCalls[0][0])).toContain('serviceId=service-1');
-      expect(String(fieldsCalls[1][0])).toContain('serviceId=service-2');
+      expect(fieldsCalls.length).toBe(1);
+      expect(String(fieldsCalls[0][0])).toMatch(/serviceIds=service-1/);
+      expect(String(fieldsCalls[0][0])).toMatch(/serviceIds=service-2/);
     });
 
     it('should deduplicate fields from multiple services', async () => {
@@ -1407,45 +1368,29 @@ describe('IdvSection', () => {
           } as Response);
         }
         if (url.includes(`countryId=${COUNTRY_US_ID}`)) {
-          if (url.includes('serviceId=service-1')) {
-            return Promise.resolve({
-              ok: true,
-              json: async () => mockFieldsResponse,
-            } as Response);
-          }
-          if (url.includes('serviceId=service-2')) {
-            return Promise.resolve({
-              ok: true,
-              json: async () => ({ fields: [] }),
-            } as Response);
-          }
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ fields: [...mockFieldsResponse.fields] }),
+          } as Response);
         }
         if (url.includes(`countryId=${COUNTRY_CA_ID}`)) {
-          if (url.includes('serviceId=service-1')) {
-            return Promise.resolve({
-              ok: true,
-              json: async () => ({
-                fields: [
-                  {
-                    requirementId: 'req-ca-1',
-                    name: 'SIN Number',
-                    fieldKey: 'sinNumber',
-                    type: 'field',
-                    dataType: 'text',
-                    isRequired: true,
-                    fieldData: { collectionTab: 'idv' },
-                    displayOrder: 1,
-                  },
-                ],
-              }),
-            } as Response);
-          }
-          if (url.includes('serviceId=service-2')) {
-            return Promise.resolve({
-              ok: true,
-              json: async () => ({ fields: [] }),
-            } as Response);
-          }
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              fields: [
+                {
+                  requirementId: 'req-ca-1',
+                  name: 'SIN Number',
+                  fieldKey: 'sinNumber',
+                  type: 'field',
+                  dataType: 'text',
+                  isRequired: true,
+                  fieldData: { collectionTab: 'idv' },
+                  displayOrder: 1,
+                },
+              ],
+            }),
+          } as Response);
         }
         if (url.includes('/save')) {
           // Echo: just acknowledge the save so the component clears

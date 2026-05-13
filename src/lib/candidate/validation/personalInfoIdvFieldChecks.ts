@@ -322,7 +322,7 @@ export async function collectIdvFieldRequirements(
 
   for (const ps of packageServices) {
     if (!ps.service) continue;
-    if (ps.service.functionalityType === 'idv') {
+    if (ps.service.functionalityType === 'verification-idv') {
       idvServiceIds.push(ps.service.id);
     }
     for (const sr of ps.service.serviceRequirements ?? []) {
@@ -388,11 +388,17 @@ export async function collectIdvFieldRequirements(
     flagsByRequirement.set(req.id, list);
   }
 
-  // Step 4 — AND-aggregate isRequired per requirement.
+  // Step 4 — OR-aggregate isRequired per requirement (TD-084 BR 1). A
+  // requirement is required if ANY in-scope (serviceId, countryId) mapping
+  // row says required; empty arrays are explicitly false (defensive guard
+  // preserved from the original AND form). Note: this changes IDV-side
+  // semantics ONLY — the module-internal `aggregateIsRequired` helper at the
+  // top of the file (used by `collectPersonalInfoFieldRequirements`) stays
+  // on AND per TD-060 / TD-052; Personal Info is out of scope for TD-084.
   const result: RequiredFieldDescriptor[] = [];
   for (const descriptor of candidates.values()) {
     const flags = flagsByRequirement.get(descriptor.requirementId) ?? [];
-    const isRequired = flags.length > 0 && flags.every(Boolean);
+    const isRequired = flags.length > 0 && flags.some(Boolean);
     result.push({ ...descriptor, isRequired });
   }
   return result;
@@ -527,8 +533,9 @@ export function validatePersonalInfoSection(
 // validateIdvSection
 //
 // Drop-in replacement for the engine's old `validateNonScopedSection` call
-// for IDV. Reads from `sectionsData['idv']` (NOT `service_idv` — TD-062 bug
-// fix). When the country is missing, emits a single
+// for IDV. Reads from `sectionsData['idv']` (NOT `service_verification-idv`
+// — BR 8: save-route bucket key is a separate namespace from the
+// functionality-type rename). When the country is missing, emits a single
 // `candidate.validation.idvCountryRequired` field error and skips the
 // per-field check entirely.
 //
@@ -539,10 +546,10 @@ export function validatePersonalInfoSection(
 // ---------------------------------------------------------------------------
 
 export interface ValidateIdvInput {
-  // The engine continues to refer to the IDV section as `service_idv` for
-  // SectionValidationResult.sectionId (so the rest of the engine and Review
-  // page don't need a sectionId rename). The DATA, however, is read from
-  // `sectionsData['idv']` per TD-062.
+  // The engine refers to the IDV section as `service_verification-idv` for
+  // SectionValidationResult.sectionId, matching the structure endpoint's
+  // emitted section id post verification-idv-conversion. The DATA, however,
+  // is read from `sectionsData['idv']` (BR 8 — save-bucket key unchanged).
   sectionId: string;
   // The saved IDV data lives at `sectionsData['idv']`. Pass it in directly
   // — the engine knows the right key.

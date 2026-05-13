@@ -684,7 +684,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
       );
     }
 
-    if (section.type === 'service_section' && section.functionalityType === 'idv') {
+    if (section.type === 'service_section' && section.functionalityType === 'verification-idv') {
       return (
         <div className="p-6" data-testid="main-content">
           <IdvSection

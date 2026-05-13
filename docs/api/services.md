@@ -32,7 +32,7 @@ Retrieves a paginated list of services with filtering and search capabilities.
     name: string;
     category: string;
     description: string;
-    functionalityType: 'record' | 'verification-edu' | 'verification-emp' | 'other';
+    functionalityType: 'verification-idv' | 'record' | 'verification-edu' | 'verification-emp' | 'other';
     code: string; // Auto-generated alphanumeric code
     disabled: boolean;
     usage: number; // Placeholder, always 0 currently
@@ -53,7 +53,7 @@ Retrieves a paginated list of services with filtering and search capabilities.
   totalPages: number;
   currentPage: number;
   categories: string[]; // All available categories
-  functionalityTypes: string[]; // All valid functionality types
+  functionalityTypes: string[]; // All valid functionality types — ['verification-idv', 'record', 'verification-edu', 'verification-emp', 'other']
 }
 ```
 
@@ -95,7 +95,7 @@ GET /api/services?page=1&pageSize=10&search=background&category=Criminal&functio
   "totalPages": 1,
   "currentPage": 1,
   "categories": ["Criminal", "Employment", "Education"],
-  "functionalityTypes": ["record", "verification-edu", "verification-emp", "other"]
+  "functionalityTypes": ["verification-idv", "record", "verification-edu", "verification-emp", "other"]
 }
 ```
 
@@ -110,7 +110,7 @@ Creates a new service with auto-generated service code.
   name: string; // Required - Service display name
   category: string; // Required - Service category
   description?: string; // Optional - Service description
-  functionalityType?: 'record' | 'verification-edu' | 'verification-emp' | 'other'; // Optional, defaults to 'other'
+  functionalityType?: 'verification-idv' | 'record' | 'verification-edu' | 'verification-emp' | 'other'; // Optional, defaults to 'other'. Unknown values (including the legacy bare string 'idv') are rejected with HTTP 400.
 }
 ```
 
@@ -142,7 +142,7 @@ Creates a new service with auto-generated service code.
 
 2. **Required Fields**: `name` and `category` are required. Missing these fields returns 400 Bad Request.
 
-3. **Functionality Types**: Must be one of the valid types. Invalid types default to "other".
+3. **Functionality Types**: Must be one of the valid types (`verification-idv`, `record`, `verification-edu`, `verification-emp`, `other`), sourced from `src/constants/functionality-types.ts`. Unknown values — including the legacy bare string `'idv'` — are rejected with HTTP 400 `{ "error": "Unknown functionality type" }`. There is no silent coercion to `"other"`. This validation applies to POST, PUT, and PATCH (PATCH only when `functionalityType` is present in the request body).
 
 4. **Uniqueness**: Service codes must be unique. The API handles conflicts automatically with numeric suffixes.
 
@@ -178,6 +178,39 @@ Content-Type: application/json
 }
 ```
 
+## PUT /api/services/[id]
+
+Full update of an existing service.
+
+### Request Body Schema
+
+```typescript
+{
+  name: string;          // Required
+  category: string;      // Required
+  description?: string;  // Optional
+  functionalityType: 'verification-idv' | 'record' | 'verification-edu' | 'verification-emp' | 'other'; // Required. Unknown values are rejected with HTTP 400.
+}
+```
+
+### Business Rules
+
+- All the same `functionalityType` validation rules as POST apply. Unknown values — including the legacy bare string `'idv'` — return 400 `{ "error": "Unknown functionality type" }`.
+- Returns 404 if the service does not exist.
+
+## PATCH /api/services/[id]
+
+Partial update of an existing service, or toggles the disabled flag.
+
+**Toggle disabled:** send `{ "action": "toggleDisabled" }` — no other fields processed.
+
+**Partial field update:** send any combination of `name`, `category`, `description`, `functionalityType`. All omitted fields retain their current stored values.
+
+### Business Rules
+
+- When `functionalityType` is present in the request body it must be in the allow-list; unknown values return 400 `{ "error": "Unknown functionality type" }`.
+- When `functionalityType` is absent the existing stored value is left untouched — no validation is triggered.
+
 ## Error Responses
 
 ### 401 Unauthorized
@@ -193,6 +226,15 @@ Content-Type: application/json
   "error": "Missing required fields"
 }
 ```
+
+### 400 Bad Request - Unknown Functionality Type
+```json
+{
+  "error": "Unknown functionality type"
+}
+```
+
+Returned by POST, PUT, and PATCH (when `functionalityType` is present) when the submitted value is not in the allow-list defined by `src/constants/functionality-types.ts`. Prior to the `verification-idv-conversion` feature, unknown values were silently coerced to `"other"`. That behavior has been removed — callers that still send the legacy bare string `"idv"` will receive this error.
 
 ### 500 Internal Server Error
 ```json
