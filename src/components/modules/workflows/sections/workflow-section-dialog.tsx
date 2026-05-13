@@ -1,3 +1,4 @@
+// /GlobalRX_v2/src/components/modules/workflows/sections/workflow-section-dialog.tsx
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -276,13 +277,13 @@ export function WorkflowSectionDialog({
   return (
     <ModalDialog
       ref={dialogRef}
-      title={section ? 'Edit Workflow Section' : 'Add Workflow Section'}
+      title={section ? t('admin.workflowSection.dialog.titleEdit') : t('admin.workflowSection.dialog.titleAdd')}
       onClose={() => onClose(false)}
       footer={
         <DialogFooter
           onCancel={() => onClose(false)}
           onConfirm={handleSubmit(onSubmit)}
-          confirmText={section ? 'Update' : 'Create'}
+          confirmText={section ? t('admin.workflowSection.dialog.confirmUpdate') : t('admin.workflowSection.dialog.confirmCreate')}
           disabled={!isValid || isSubmitting || isUploading}
           loading={isSubmitting}
         />
@@ -293,15 +294,15 @@ export function WorkflowSectionDialog({
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <FormTable>
-          <FormRow label="Section Name" required error={errors.name?.message}>
+          <FormRow label={t('admin.workflowSection.dialog.nameLabel')} required error={errors.name?.message}>
             <Input
               {...register('name')}
-              placeholder="Enter section name"
+              placeholder={t('admin.workflowSection.dialog.namePlaceholder')}
               disabled={isSubmitting}
             />
           </FormRow>
 
-          <FormRow label="Placement" required error={errors.placement?.message}>
+          <FormRow label={t('admin.workflowSection.dialog.placementLabel')} required error={errors.placement?.message}>
             <Select
               value={watch('placement')}
               onValueChange={(value) => setValue('placement', value as 'before_services' | 'after_services', { shouldValidate: true })}
@@ -311,13 +312,13 @@ export function WorkflowSectionDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent container={selectPortalContainer}>
-                <SelectItem value="before_services">Before Services</SelectItem>
-                <SelectItem value="after_services">After Services</SelectItem>
+                <SelectItem value="before_services">{t('admin.workflowSection.dialog.placementBeforeServices')}</SelectItem>
+                <SelectItem value="after_services">{t('admin.workflowSection.dialog.placementAfterServices')}</SelectItem>
               </SelectContent>
             </Select>
           </FormRow>
 
-          <FormRow label="Section Type" required error={errors.type?.message}>
+          <FormRow label={t('admin.workflowSection.dialog.typeLabel')} required error={errors.type?.message}>
             <Select
               value={watch('type')}
               onValueChange={(value) => setValue('type', value as 'text' | 'document', { shouldValidate: true })}
@@ -327,8 +328,8 @@ export function WorkflowSectionDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent container={selectPortalContainer}>
-                <SelectItem value="text">Text Content</SelectItem>
-                <SelectItem value="document">Document Upload</SelectItem>
+                <SelectItem value="text">{t('admin.workflowSection.dialog.typeText')}</SelectItem>
+                <SelectItem value="document">{t('admin.workflowSection.dialog.typeDocument')}</SelectItem>
               </SelectContent>
             </Select>
           </FormRow>
@@ -336,13 +337,13 @@ export function WorkflowSectionDialog({
           {watchedType === 'text' && (
             <>
               <FormRow
-                label="Content"
+                label={t('admin.workflowSection.dialog.contentLabel')}
                 error={errors.content?.message}
                 description={`${characterCount}/50000 characters`}
               >
                 <Textarea
                   {...register('content')}
-                  placeholder="Enter section content"
+                  placeholder={t('admin.workflowSection.dialog.contentPlaceholder')}
                   disabled={isSubmitting}
                   rows={8}
                   className="font-mono text-sm"
@@ -357,8 +358,8 @@ export function WorkflowSectionDialog({
 
           {watchedType === 'document' && (
             <FormRow
-              label="Document"
-              description="Accepted formats: PDF, Word (.pdf, .docx, .doc)"
+              label={t('admin.workflowSection.dialog.documentLabel')}
+              description={t('admin.workflowSection.dialog.documentDescription')}
             >
               <div>
                 <input
@@ -369,17 +370,17 @@ export function WorkflowSectionDialog({
                   disabled={isSubmitting || isUploading}
                   className="mb-2"
                 />
-                {isUploading && <p className="text-sm text-muted-foreground">Uploading...</p>}
+                {isUploading && <p className="text-sm text-muted-foreground">{t('admin.workflowSection.dialog.uploading')}</p>}
                 {uploadedFile && (
                   <p className="text-sm text-muted-foreground">
-                    Current file: {uploadedFile.fileName}
+                    {t('admin.workflowSection.dialog.currentFile')}: {uploadedFile.fileName}
                   </p>
                 )}
               </div>
             </FormRow>
           )}
 
-          <FormRow label="Display Order" error={errors.displayOrder?.message}>
+          <FormRow label={t('admin.workflowSection.dialog.displayOrderLabel')} error={errors.displayOrder?.message}>
             <Input
               type="number"
               {...register('displayOrder')}
@@ -389,7 +390,7 @@ export function WorkflowSectionDialog({
             />
           </FormRow>
 
-          <FormRow label="Required">
+          <FormRow label={t('admin.workflowSection.dialog.requiredLabel')}>
             <Checkbox
               checked={watch('isRequired')}
               onCheckedChange={(checked) => setValue('isRequired', checked as boolean, { shouldValidate: true })}
