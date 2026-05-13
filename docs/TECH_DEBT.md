@@ -2188,6 +2188,86 @@ When test fixtures for `route.test.ts` are next restructured — likely alongsid
 Either update the mock implementation to match the full Prisma `findFirst` argument type, or add a type assertion at the mock boundary. Consider pairing with TD-087's fixture restructure to address both at once.
 
 ---
+
+### TD-090 — `portal-layout.tsx` file size exceeds 600-line hard stop
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Portal / Component Structure                |
+| Severity      | Warning                                               |
+| Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
+| Identified by | Standards Checker                                     |
+
+**Description:**
+`src/components/candidate/portal-layout.tsx` is 863 lines, well over the 600-line hard stop in `CODING_STANDARDS.md` Section 9.1. Task 8.1 added ~22 lines (authorized by the technical plan) bringing it from 841 to 863. The file handles layout, navigation, section rendering, form state, and template variable value construction — responsibilities that could be split into smaller focused modules.
+
+**Why deferred:**
+Per `CODING_STANDARDS.md` Section 9.4, splitting a large file reactively in the middle of unrelated work is how regressions happen. The Task 8.1 plan explicitly authorized the minimal addition. A dedicated split task is the correct approach.
+
+**When to fix:**
+Before the next task that needs to add code to this file. Split into smaller modules — e.g., extract the section rendering logic, the navigation/sidebar logic, and the form state management into separate files.
+
+---
+
+### TD-091 — Hardcoded `'not_started'` status strings in structure route
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Application API                             |
+| Severity      | Warning                                               |
+| Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
+| Identified by | Standards Checker                                     |
+
+**Description:**
+`src/app/api/candidate/application/[token]/structure/route.ts` uses the string literal `'not_started'` in 6 places. Per `DATABASE_STANDARDS.md` Section 5.1-5.2, status values must come from named constants, not hardcoded strings.
+
+**Why deferred:**
+The values are correct and match the database. This is a code quality issue, not a bug. No section status constants file exists yet — creating one and updating all references is a small dedicated task.
+
+**When to fix:**
+When working on the structure route for another reason, or during a constants standardization pass. Create a `SECTION_STATUSES` constant (similar to the existing order/service status constants) and replace all 6 occurrences.
+
+---
+
+### TD-092 — `workflow-dialog.tsx` email template hint list not using shared variable registry
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Admin Workflows / Email Templates                     |
+| Severity      | Low                                                   |
+| Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
+| Identified by | Architect                                             |
+
+**Description:**
+`src/components/modules/workflows/workflow-dialog.tsx` contains a hardcoded HTML list of email template variable hints including `candidateFirstName`, `candidateLastName`, `candidateEmail`, `candidatePhone`, `companyName`, `inviteLink`, and `expirationDate`. Task 8.1 created a shared variable registry at `src/lib/templates/variableRegistry.ts` but deliberately did not migrate this hint list because `inviteLink` is not in the v1 registry (it's only meaningful at email-send time, not workflow-section-render time).
+
+**Why deferred:**
+Migrating the hint list would drop `inviteLink` from the visible hints, which is a behavior change not authorized by the Task 8.1 spec. The email-send feature has not been built yet.
+
+**When to fix:**
+When the email-send feature is implemented. At that point, add `inviteLink` to the shared registry (category: `'invitation'`) and replace the hardcoded hint list in `workflow-dialog.tsx` with the `WorkflowSectionVariableReference` component (or a variant of it that includes invitation-only variables).
+
+---
+
+### TD-093 — E2e seed data missing for template variable Playwright tests
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Testing / E2e                                         |
+| Severity      | Low                                                   |
+| Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
+| Identified by | Code Reviewer                                         |
+
+**Description:**
+`e2e/tests/template-variable-system.spec.ts` expects a seeded candidate invitation with token `'test-template-variable-token'`, firstName `'Sarah'`, company `'Acme Corp'`, and a workflow section containing template variable placeholders. No matching seed data exists in the e2e seed scripts. The tests will skip or fail in CI until the seed is created.
+
+**Why deferred:**
+The e2e seed infrastructure was not in scope for Task 8.1. The unit and component tests (93 tests) provide full coverage of the feature logic.
+
+**When to fix:**
+When setting up or expanding the e2e seed data for the candidate portal flow. Add a seeded invitation matching the test's expectations to the e2e seed script.
+
+---
 ## Resolved Items
 
 ---
