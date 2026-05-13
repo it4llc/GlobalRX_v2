@@ -23,6 +23,23 @@ vi.mock('@/lib/services/candidateSession.service', () => ({
   }
 }));
 
+// Prisma return-type alias for the `candidateInvitation.findUnique` shape the
+// route loads (the same include tree assembled inline in the original success
+// case test). Defined once so the phone-combining fixtures below can be typed
+// without an `as any` cast each. Adding a field to the route's include block
+// will surface as a type error here, which is the desired safety.
+type MockInvitationPayload = Prisma.CandidateInvitationGetPayload<{
+  include: {
+    order: { include: { customer: true } };
+    package: {
+      include: {
+        workflow: { include: { sections: true } };
+        packageServices: { include: { service: true } };
+      };
+    };
+  };
+}>;
+
 describe('GET /api/candidate/application/[token]/structure', () => {
   const mockToken = 'test-token-123';
 
@@ -569,7 +586,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         };
 
         vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-          invitationWithBothPhoneFields as any
+          invitationWithBothPhoneFields as MockInvitationPayload
         );
 
         const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -594,7 +611,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         };
 
         vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-          invitationWithOnlyPhoneNumber as any
+          invitationWithOnlyPhoneNumber as MockInvitationPayload
         );
 
         const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -619,7 +636,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         };
 
         vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-          invitationWithNoPhone as any
+          invitationWithNoPhone as MockInvitationPayload
         );
 
         const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -638,7 +655,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         });
 
         vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-          mockInvitation as any
+          mockInvitation as MockInvitationPayload
         );
 
         const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);

@@ -25,15 +25,48 @@
 //     for utility functions called with real arguments — and the registry is
 //     a `const` array, so an inline mock implementation is not applicable.
 //     Letting the real registry render through is the correct discipline.
-//   - The component has no translation context dependency (its strings are
-//     hardcoded English, matching the surrounding admin-dialog convention),
-//     no hooks, no async work, no external fetches.
+//   - The component reads its display text from TranslationContext using the
+//     registry's `descriptionKey` plus heading/intro keys. The test mocks
+//     `useTranslation` with a key→English map drawn from `en-US.json` so the
+//     assertions remain readable; any drift between the keys the component
+//     requests and the keys this mock knows will surface as a missing-text
+//     failure (which is the behavior we want — it pins the component to the
+//     locale file contract).
 //   - The component renders as a <tr>, so the test wraps it in a real
 //     <table><tbody> in jsdom to avoid React table-nesting warnings.
 
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+
+// Mock the translation context with the exact English strings that live in
+// `src/translations/en-US.json` under `admin.workflowSection.variable.*`.
+// If any key the component requests is not in this map, `t` returns the key
+// itself, which will cause the visible-text assertions below to fail with a
+// clear diff — surfacing the contract break loudly.
+const EN_US_TRANSLATIONS: Record<string, string> = {
+  'admin.workflowSection.variable.heading': 'Available template variables',
+  'admin.workflowSection.variable.intro':
+    'Type any of these placeholders into the content. The candidate will see the real value when they view the page.',
+  'admin.workflowSection.variable.candidateFirstName.desc':
+    "Candidate's first name",
+  'admin.workflowSection.variable.candidateLastName.desc':
+    "Candidate's last name",
+  'admin.workflowSection.variable.candidateEmail.desc':
+    "Candidate's email address",
+  'admin.workflowSection.variable.candidatePhone.desc':
+    "Candidate's phone number",
+  'admin.workflowSection.variable.companyName.desc':
+    "Customer's company name",
+  'admin.workflowSection.variable.expirationDate.desc':
+    'When the invite link expires (formatted as dd MMM yyyy)',
+};
+
+vi.mock('@/contexts/TranslationContext', () => ({
+  useTranslation: () => ({
+    t: (key: string) => EN_US_TRANSLATIONS[key] ?? key,
+  }),
+}));
 
 import WorkflowSectionVariableReference from '../WorkflowSectionVariableReference';
 import { TEMPLATE_VARIABLE_REGISTRY } from '@/lib/templates/variableRegistry';
@@ -53,16 +86,23 @@ function renderInsideTable(): ReturnType<typeof render> {
   );
 }
 
-// English descriptions live as a local constant in the component file. We
-// keep a copy here purely for assertion strings. If the component's
-// description text drifts from the spec, BOTH copies must be updated.
+// Expected description per registry name, derived from the en-US translation
+// strings the mock above resolves the registry's `descriptionKey` values to.
+// Kept indexed by variable name (rather than translation key) so the
+// assertions below read clearly.
 const EXPECTED_DESCRIPTIONS: Record<string, string> = {
-  candidateFirstName: "Candidate's first name",
-  candidateLastName: "Candidate's last name",
-  candidateEmail: "Candidate's email address",
-  candidatePhone: "Candidate's phone number",
-  companyName: "Customer's company name",
-  expirationDate: 'When the invite link expires (formatted as dd MMM yyyy)',
+  candidateFirstName:
+    EN_US_TRANSLATIONS['admin.workflowSection.variable.candidateFirstName.desc'],
+  candidateLastName:
+    EN_US_TRANSLATIONS['admin.workflowSection.variable.candidateLastName.desc'],
+  candidateEmail:
+    EN_US_TRANSLATIONS['admin.workflowSection.variable.candidateEmail.desc'],
+  candidatePhone:
+    EN_US_TRANSLATIONS['admin.workflowSection.variable.candidatePhone.desc'],
+  companyName:
+    EN_US_TRANSLATIONS['admin.workflowSection.variable.companyName.desc'],
+  expirationDate:
+    EN_US_TRANSLATIONS['admin.workflowSection.variable.expirationDate.desc'],
 };
 
 describe('WorkflowSectionVariableReference', () => {
