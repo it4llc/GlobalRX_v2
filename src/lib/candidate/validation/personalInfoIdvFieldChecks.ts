@@ -10,6 +10,15 @@
 // Technical plan: docs/specs/phase7-stage2-submission-order-generation-technical-plan.md
 //                 §3.1 (Andy's Option 1 — sibling-file path), §10
 //
+// Task 8.3 update — `collectPersonalInfoFieldRequirements` now excludes the
+// four locked invitation fieldKeys (firstName, lastName, email, phone,
+// phoneNumber) so the validator no longer expects them and Review & Submit
+// cannot flag them as missing. See docs/specs/personal-info-dynamic.md
+// Business Rule 6 / DoD item 7. The wider `PERSONAL_INFO_FIELD_KEYS` set is
+// unchanged — it is still consumed by `isPersonalInfoField` (used by
+// `collectIdvFieldRequirements` to exclude personal-info-claimed requirements
+// from IDV).
+//
 // What lives here:
 //   - collectPersonalInfoFieldRequirements: walk the package's serviceRequirements,
 //     filter to personal-info collectionTab, AND-aggregate isRequired across
@@ -206,7 +215,24 @@ async function aggregateIsRequired(
 // personal-info collectionTab heuristic, then resolve isRequired against
 // the candidate's available (service, location) pairs using the same
 // AND-aggregation logic as personal-info-fields/route.ts.
+//
+// Task 8.3 — these fieldKeys are sourced from the invitation columns (and
+// shown on the Welcome page per Task 8.1). Per spec Business Rule 6, Personal
+// Info validation must not expect or check for these fields any more; they
+// are excluded from the requirement walk so Review & Submit cannot flag them
+// as missing. The wider PERSONAL_INFO_FIELD_KEYS set above is intentionally
+// left alone — `isPersonalInfoField` is also used by `collectIdvFieldRequire-
+// ments` to exclude personal-info-claimed requirements from IDV (TD-084),
+// which still needs to see the full set including middleName/dateOfBirth/ssn.
 // ---------------------------------------------------------------------------
+
+const LOCKED_INVITATION_FIELD_KEYS = new Set<string>([
+  'firstName',
+  'lastName',
+  'email',
+  'phone',
+  'phoneNumber',
+]);
 
 export async function collectPersonalInfoFieldRequirements(
   packageServices: PackageServiceWithRequirements[],
@@ -230,6 +256,12 @@ export async function collectPersonalInfoFieldRequirements(
 
       const fieldData = (req.fieldData as unknown as FieldDataShape | null) ?? null;
       if (!isPersonalInfoField(req.fieldKey, fieldData)) continue;
+
+      // Task 8.3 — locked invitation fieldKeys are no longer rendered on
+      // Personal Info (spec Business Rule 1), so the validator must not
+      // require them either. This guard makes Review & Submit's per-section
+      // error list stop including these keys (spec Business Rule 7).
+      if (LOCKED_INVITATION_FIELD_KEYS.has(req.fieldKey)) continue;
 
       if (!candidates.has(req.id)) {
         candidates.set(req.id, {

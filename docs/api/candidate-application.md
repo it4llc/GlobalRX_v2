@@ -168,6 +168,8 @@ The endpoint reads the `scope` JSON column on `package_services` for the matchin
 
 Returns personal information fields from across all package services where the DSX collectionTab indicates they belong on the personal info tab.
 
+**Task 8.3 behavior change:** The five locked invitation fieldKeys — `firstName`, `lastName`, `email`, `phone`, and `phoneNumber` — are excluded from the response. These values are sourced from the invitation columns and are shown to the candidate on the Welcome page via template variables (Task 8.1). Every field returned by this endpoint has `locked: false` and `prefilledValue: null`. The `locked` and `prefilledValue` response fields are retained for backward compatibility with the section's hydration path but are always false/null.
+
 **Response:**
 ```json
 {
@@ -180,8 +182,8 @@ Returns personal information fields from across all package services where the D
     "instructions": "string | null",
     "fieldData": "object",
     "displayOrder": "number",
-    "locked": "boolean",
-    "prefilledValue": "string | null"
+    "locked": "boolean (always false — see Task 8.3 note above)",
+    "prefilledValue": "string | null (always null — see Task 8.3 note above)"
   }]
 }
 ```
@@ -511,7 +513,7 @@ All endpoints return standard HTTP status codes:
 
 ## Field Locking
 
-Fields that are pre-filled from the invitation (firstName, lastName, email, phone) are locked and cannot be modified by the candidate. The save endpoint filters out any attempts to modify locked fields to ensure data integrity.
+**Task 8.3:** The Personal Info section no longer renders invitation-derived fields (firstName, lastName, email, phone, phoneNumber). These fields are shown on the Welcome page via template variables (Task 8.1) and are excluded from the `personal-info-fields` API response. The save endpoint retains a defense-in-depth filter for these fieldKeys, but in normal flow no save payload for Personal Info will contain them.
 
 ## Auto-Save Behavior
 
