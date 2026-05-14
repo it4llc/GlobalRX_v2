@@ -245,47 +245,37 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       });
 
-      // Check Personal Information section comes after before_services
+      // Task 8.2 (Linear Step Navigation) — service sections come first
+      // (IDV → Address History → Education → Employment) and Personal
+      // Information now appears AFTER them at index 4. The IDV service
+      // section is now index 1 with order 1.
       expect(data.sections[1]).toEqual({
-        id: 'personal_info',
-        title: 'candidate.portal.sections.personalInformation',
-        type: 'personal_info',
-        placement: 'services',
-        status: 'not_started',
-        order: 1,
-        functionalityType: null
-      });
-
-      // Check service sections are in correct order
-      expect(data.sections[2]).toEqual({
         id: 'service_verification-idv',
         title: 'candidate.portal.sections.identityVerification',
         type: 'service_section',
         placement: 'services',
         status: 'not_started',
-        order: 2,
+        order: 1,
         functionalityType: 'verification-idv',
         serviceIds: ['service-1']
       });
 
       // Phase 6 Stage 3: record-functionality services now emit a dedicated
       // `address_history` section (id: 'address_history', type: 'address_history')
-      // instead of a generic service_section. Position remains index 2 of the
-      // service section ordering (after IDV, before Education) per the spec
-      // "Section Position in the Candidate Application" and Definition of Done
-      // items #10 and #11.
+      // instead of a generic service_section.
       // Phase 7 Stage 1 §3.3 — Address History now carries a resolved
       // `scope` block. With null/missing scope on the underlying record
       // service, normalizeRawScope returns count_exact 1 (current address
       // default per packageScopeShape's record default). The frontend uses
       // scopeDescriptionKey + scopeDescriptionPlaceholders to localize.
-      expect(data.sections[3]).toEqual({
+      // Task 8.2 (Linear Step Navigation) — Address History is index 2.
+      expect(data.sections[2]).toEqual({
         id: 'address_history',
         title: 'candidate.portal.sections.addressHistory',
         type: 'address_history',
         placement: 'services',
         status: 'not_started',
-        order: 3,
+        order: 2,
         functionalityType: 'record',
         serviceIds: ['service-2'],
         scope: {
@@ -299,13 +289,14 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // Phase 7 Stage 1 §3.3 — Education service section also carries the
       // resolved scope. The mock service has no explicit scope JSON so the
       // normalized scope is `all` (the non-record default).
-      expect(data.sections[4]).toEqual({
+      // Task 8.2 (Linear Step Navigation) — Education is index 3.
+      expect(data.sections[3]).toEqual({
         id: 'service_verification-edu',
         title: 'candidate.portal.sections.educationHistory',
         type: 'service_section',
         placement: 'services',
         status: 'not_started',
-        order: 4,
+        order: 3,
         functionalityType: 'verification-edu',
         serviceIds: ['service-3', 'service-4'],
         scope: {
@@ -314,6 +305,20 @@ describe('GET /api/candidate/application/[token]/structure', () => {
           scopeDescriptionKey: 'candidate.portal.scopeAll',
           scopeDescriptionPlaceholders: { type: 'education' },
         },
+      });
+
+      // Task 8.2 (Linear Step Navigation) — Personal Information now appears
+      // AFTER the service sections at index 4 with order 4. Previously this
+      // section was emitted before the service sections; spec Business Rule 1
+      // places it at Step 6 in the new flow.
+      expect(data.sections[4]).toEqual({
+        id: 'personal_info',
+        title: 'candidate.portal.sections.personalInformation',
+        type: 'personal_info',
+        placement: 'services',
+        status: 'not_started',
+        order: 4,
+        functionalityType: null
       });
 
       // Check after_services sections
@@ -452,17 +457,25 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Should have personal info and service sections only (no workflow sections).
+      // Task 8.2 (Linear Step Navigation) — with no workflow sections the
+      // first section is now a service section (IDV), and personal_info is
+      // emitted AFTER the service sections (followed by the synthetic
+      // review_submit). Spec Business Rule 1 moves Personal Info to Step 6.
       // Phase 6 Stage 3: record-functionality services emit a dedicated
-      // `address_history` section type, so the set of valid types after
-      // personal_info now includes 'service_section' AND 'address_history'.
-      // Phase 7 Stage 1 §3.3: the synthetic 'review_submit' entry is appended
-      // last and must also be accepted in the post-personal-info slice.
-      expect(data.sections[0].type).toBe('personal_info');
-      const validServiceSectionTypes = ['service_section', 'address_history', 'review_submit'];
+      // `address_history` section type.
+      // Phase 7 Stage 1 §3.3: the synthetic 'review_submit' entry is
+      // appended last.
+      expect(data.sections[0].type).toBe('service_section');
+      const validSectionTypes = ['service_section', 'address_history', 'personal_info', 'review_submit'];
       expect(
-        data.sections.slice(1).every((s: any) => validServiceSectionTypes.includes(s.type))
+        data.sections.every((s: any) => validSectionTypes.includes(s.type))
       ).toBe(true);
+      // Personal Info comes after the service sections and right before
+      // review_submit (which is always last).
+      const personalInfoIndex = data.sections.findIndex((s: any) => s.type === 'personal_info');
+      const reviewIndex = data.sections.findIndex((s: any) => s.type === 'review_submit');
+      expect(personalInfoIndex).toBeGreaterThan(0);
+      expect(personalInfoIndex).toBe(reviewIndex - 1);
     });
 
     it('should handle package with no services', async () => {
@@ -560,12 +573,15 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Check the fixed order (personal info first, then services in order): IDV, Records, Education, Employment
-      expect(data.sections[0].type).toBe('personal_info');
-      expect(data.sections[1].functionalityType).toBe('verification-idv');
-      expect(data.sections[2].functionalityType).toBe('record');
-      expect(data.sections[3].functionalityType).toBe('verification-edu');
-      expect(data.sections[4].functionalityType).toBe('verification-emp');
+      // Task 8.2 (Linear Step Navigation) — services come first in the
+      // fixed order (IDV, Records, Education, Employment) and Personal
+      // Information now appears AFTER them. Spec Business Rule 1 places
+      // Personal Info at Step 6, after the service sections.
+      expect(data.sections[0].functionalityType).toBe('verification-idv');
+      expect(data.sections[1].functionalityType).toBe('record');
+      expect(data.sections[2].functionalityType).toBe('verification-edu');
+      expect(data.sections[3].functionalityType).toBe('verification-emp');
+      expect(data.sections[4].type).toBe('personal_info');
     });
 
     // Task 8.1 — phone display string is combined server-side so the
@@ -867,11 +883,14 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // Services with null functionality type are NOT included.
       // Phase 7 Stage 1 §3.3 — the synthetic Review & Submit entry is
       // appended after the service sections, so the total is now 3.
+      // Task 8.2 (Linear Step Navigation) — Personal Information now
+      // appears AFTER the service sections (IDV first, personal_info next,
+      // review_submit last). Spec Business Rule 1.
       const sections = data.sections;
-      expect(sections[0].type).toBe('personal_info');
-      expect(sections[1].functionalityType).toBe('verification-idv');
+      expect(sections[0].functionalityType).toBe('verification-idv');
+      expect(sections[1].type).toBe('personal_info');
       // Service with null functionality type should NOT be included
-      expect(sections.length).toBe(3); // personal_info + idv + review_submit
+      expect(sections.length).toBe(3); // idv + personal_info + review_submit
       expect(sections[2].type).toBe('review_submit');
     });
   });

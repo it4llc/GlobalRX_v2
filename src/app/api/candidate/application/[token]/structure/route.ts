@@ -74,6 +74,16 @@ import {
  *   The list always ends with a synthetic Review & Submit section
  *   (id: 'review_submit', type: 'review_submit', placement: 'after_services')
  *   so the sidebar can show it as the last entry (Rule 29).
+ *
+ *   Task 8.2 (Linear Step Navigation) — sections are returned in this order:
+ *     before_services workflow sections
+ *       -> service sections (IDV, address_history, education, employment)
+ *       -> personal_info
+ *       -> after_services workflow sections
+ *       -> review_submit
+ *   Sections that don't apply to the candidate's package (no IDV service, no
+ *   education service, etc.) are omitted entirely — there is no separate
+ *   "skip" indicator on the response.
  * }
  *
  * Errors:
@@ -265,21 +275,12 @@ export async function GET(
       }
     }
 
-    // Add Personal Information section - first of the data collection sections
-    // (after workflow "before" sections, before service-specific sections)
-    // Check if there are any personal info fields configured for this package
+    // Task 8.2 (Linear Step Navigation) — Personal Information is emitted
+    // AFTER the service section loop, not before. See the matching push below.
+    // The hasPersonalInfoFields flag is preserved here so the section can be
+    // suppressed in the future when DSX configuration calls for it; today the
+    // check is a no-op (always true).
     const hasPersonalInfoFields = true; // For now, always show it. Later we can check DSX config
-    if (hasPersonalInfoFields) {
-      sections.push({
-        id: 'personal_info',
-        title: 'candidate.portal.sections.personalInformation',
-        type: 'personal_info',
-        placement: 'services',
-        status: 'not_started',
-        order: sectionOrder++,
-        functionalityType: null
-      });
-    }
 
     // Add service sections from package services (deduplicated by functionality type)
     const servicesByType = new Map<string, typeof orderedPackage.packageServices[0][]>();
@@ -359,6 +360,27 @@ export async function GET(
           });
         }
       }
+    }
+
+    // Task 8.2 (Linear Step Navigation) — Personal Information is now emitted
+    // AFTER the service section loop. Spec Business Rule 1 places Personal Info
+    // at Step 6 (after IDV / address_history / education / employment, before
+    // after_services workflow sections). The id, title, type, placement, status,
+    // and functionalityType fields are unchanged from the previous emission —
+    // only the position in the array (and consequently the `order` value)
+    // changes. Downstream consumers (portal-layout, portal-sidebar) drive their
+    // rendering off array order, not the `placement` field, so the placement
+    // value stays 'services' as before.
+    if (hasPersonalInfoFields) {
+      sections.push({
+        id: 'personal_info',
+        title: 'candidate.portal.sections.personalInformation',
+        type: 'personal_info',
+        placement: 'services',
+        status: 'not_started',
+        order: sectionOrder++,
+        functionalityType: null
+      });
     }
 
     // Add after_services workflow sections
