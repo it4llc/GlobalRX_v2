@@ -35,7 +35,15 @@ import { ReviewSectionBlock } from '@/components/candidate/review-submit/ReviewS
  * Review & Submit page renders sections in the canonical sidebar order
  * (Bug 3) with their localized titles (Bug 1b) instead of the raw section
  * IDs the validation engine returns as `sectionName`.
+ *
+ * Task 8.5 — the shell now passes a FILTERED list to this component:
+ * dynamic steps (`personal_info`, `record_search`) that have been skipped
+ * by the cross-section / aggregated-items visibility check are absent from
+ * the descriptor list, so the Review & Submit page does not list them.
  */
+// Consumed only by ReviewSubmitPage itself; portal-layout.tsx constructs
+// conforming objects inline without importing this type. Kept colocated
+// (see plan §10.1) rather than moved to /src/types/.
 export interface ReviewPageSectionDescriptor {
   /** Section identifier — matches FullValidationResult.summary.sections[i].sectionId. */
   id: string;
@@ -98,6 +106,17 @@ interface ReviewSubmitPageProps {
    * the same row as Submit per the spec.
    */
   onBack?: () => void;
+  /**
+   * Task 8.5 (Silent Recalculation and Step Skipping) — when `true`, the
+   * Submit button is forced disabled regardless of
+   * `validationResult.summary.allComplete`. Used by the shell to enforce
+   * client-side dynamic-step skipping (Spec Business Rule 9 d): when a
+   * previously-skipped step has just come back into scope and is locally
+   * incomplete, the shell sets this `true` so the candidate cannot submit
+   * until they fill the new fields. Optional and default-false so existing
+   * tests / fixtures keep their current behavior.
+   */
+  disableSubmit?: boolean;
 }
 
 export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
@@ -110,6 +129,7 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
     submitting = false,
     submitError = null,
     onBack,
+    disableSubmit = false,
   } = props;
 
   // Build the renderable list. Two paths so existing tests that only pass
@@ -151,7 +171,7 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="mx-auto w-full max-w-3xl" data-testid="review-submit-page">
       <header className="mb-6">
         <h2 className="text-xl font-semibold text-gray-900">
           {t('candidate.reviewSubmit.title')}
@@ -217,18 +237,22 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
             //   1. validation reports allComplete=true (Spec Rule 1), AND
             //   2. the host wired an onSubmit handler, AND
             //   3. no submission is currently in flight.
-            // The legacy disabled-only path is preserved for any caller that
-            // forgets to pass onSubmit, so the test suite's Stage 1 fixtures
-            // continue to behave as before.
+            // Task 8.5 adds a fourth condition: the host's `disableSubmit`
+            // flag overrides the engine's verdict so a previously-skipped
+            // dynamic step that has come back into scope locally (and is
+            // not yet complete) blocks submission even if the server's
+            // validate response has not yet caught up. Spec Business Rule 9 d.
             disabled={
               !onSubmit ||
               !validationResult?.summary.allComplete ||
-              submitting
+              submitting ||
+              disableSubmit
             }
             aria-disabled={
               !onSubmit ||
               !validationResult?.summary.allComplete ||
-              submitting
+              submitting ||
+              disableSubmit
             }
             aria-busy={submitting ? 'true' : undefined}
             onClick={onSubmit ? () => void onSubmit() : undefined}
@@ -239,7 +263,8 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
             className={
               !onSubmit ||
               !validationResult?.summary.allComplete ||
-              submitting
+              submitting ||
+              disableSubmit
                 ? 'inline-flex min-h-[44px] items-center justify-center rounded-md bg-gray-300 px-6 py-2 text-sm font-medium text-gray-600 opacity-60 cursor-not-allowed w-full sm:w-auto'
                 : 'inline-flex min-h-[44px] items-center justify-center rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer w-full sm:w-auto'
             }

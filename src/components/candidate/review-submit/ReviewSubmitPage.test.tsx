@@ -510,4 +510,239 @@ describe('ReviewSubmitPage', () => {
       expect(enUS['candidate.navigation.back']).toBe('Back');
     });
   });
+
+  // ===========================================================================
+  // Task 8.5 (Silent Recalculation and Step Skipping) — Pass 2 tests for the
+  // optional `disableSubmit` prop. ReviewSubmitPage is the SUBJECT (Rule M1
+  // — NOT mocked). The child blocks (ReviewSectionBlock / ReviewErrorListItem
+  // / SectionProgressIndicator) are NOT mocked per Rule M2; only the
+  // TranslationContext is mocked at the file's module-scope above.
+  //
+  // Spec:  docs/specs/silent-recalculation-step-skipping.md
+  //        Business Rule 9 d (newly-visible-but-incomplete step blocks Submit)
+  // Plan:  docs/plans/silent-recalculation-step-skipping-technical-plan.md §5.3
+  // ===========================================================================
+  describe('disableSubmit prop (Task 8.5 — Silent Recalculation and Step Skipping)', () => {
+    // Validation result where the engine reports allComplete=true. Without
+    // `disableSubmit` and with `onSubmit` wired, the Submit button is
+    // enabled. With `disableSubmit={true}` the button is forced disabled.
+    const buildAllCompleteResult = (): FullValidationResult => ({
+      sections: [],
+      summary: {
+        sections: [
+          {
+            sectionId: 'personal_info',
+            sectionName: 'Personal Information',
+            status: 'complete',
+            errors: [],
+          },
+        ],
+        allComplete: true,
+        totalErrors: 0,
+      },
+    });
+
+    it('BR 9d: disableSubmit={true} forces the Submit button DISABLED even when allComplete is true and onSubmit is wired', () => {
+      render(
+        <ReviewSubmitPage
+          validationResult={buildAllCompleteResult()}
+          onErrorNavigate={vi.fn()}
+          onSubmit={vi.fn()}
+          disableSubmit={true}
+        />,
+      );
+
+      const submitBtn = screen.getByRole('button', {
+        name: 'candidate.reviewSubmit.submit',
+      });
+      expect(submitBtn).toBeDisabled();
+    });
+
+    it('BR 9d: disableSubmit={true} sets aria-disabled="true" on the Submit button', () => {
+      render(
+        <ReviewSubmitPage
+          validationResult={buildAllCompleteResult()}
+          onErrorNavigate={vi.fn()}
+          onSubmit={vi.fn()}
+          disableSubmit={true}
+        />,
+      );
+
+      const submitBtn = screen.getByRole('button', {
+        name: 'candidate.reviewSubmit.submit',
+      });
+      expect(submitBtn.getAttribute('aria-disabled')).toBe('true');
+    });
+
+    it('BR 9d: clicking the Submit button while disableSubmit={true} does NOT invoke onSubmit', () => {
+      const onSubmit = vi.fn();
+      render(
+        <ReviewSubmitPage
+          validationResult={buildAllCompleteResult()}
+          onErrorNavigate={vi.fn()}
+          onSubmit={onSubmit}
+          disableSubmit={true}
+        />,
+      );
+
+      const submitBtn = screen.getByRole('button', {
+        name: 'candidate.reviewSubmit.submit',
+      });
+      // Native disabled buttons don't fire click events in browsers; jsdom
+      // mirrors that behavior. A fire-and-check confirms that no handler
+      // runs when the button is disabled via the `disableSubmit` path.
+      fireEvent.click(submitBtn);
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('disableSubmit defaults to false — when omitted, the button is ENABLED if everything else allows it (backwards compatible)', () => {
+      render(
+        <ReviewSubmitPage
+          validationResult={buildAllCompleteResult()}
+          onErrorNavigate={vi.fn()}
+          onSubmit={vi.fn()}
+          // disableSubmit intentionally omitted
+        />,
+      );
+
+      const submitBtn = screen.getByRole('button', {
+        name: 'candidate.reviewSubmit.submit',
+      });
+      expect(submitBtn).not.toBeDisabled();
+      expect(submitBtn.getAttribute('aria-disabled')).toBe('false');
+    });
+
+    it('disableSubmit={false} explicitly — the button is ENABLED if everything else allows it', () => {
+      render(
+        <ReviewSubmitPage
+          validationResult={buildAllCompleteResult()}
+          onErrorNavigate={vi.fn()}
+          onSubmit={vi.fn()}
+          disableSubmit={false}
+        />,
+      );
+
+      const submitBtn = screen.getByRole('button', {
+        name: 'candidate.reviewSubmit.submit',
+      });
+      expect(submitBtn).not.toBeDisabled();
+    });
+
+    it('disableSubmit composes with the existing disabled conditions — both allComplete=false AND disableSubmit=true keep the button disabled', () => {
+      // The result has allComplete=false; the button would already be
+      // disabled. disableSubmit=true must NOT relax that — it stays
+      // disabled. (Most-restrictive wins.)
+      const incompleteResult: FullValidationResult = {
+        sections: [],
+        summary: {
+          sections: [
+            {
+              sectionId: 'personal_info',
+              sectionName: 'Personal Information',
+              status: 'incomplete',
+              errors: [],
+            },
+          ],
+          allComplete: false,
+          totalErrors: 0,
+        },
+      };
+
+      render(
+        <ReviewSubmitPage
+          validationResult={incompleteResult}
+          onErrorNavigate={vi.fn()}
+          onSubmit={vi.fn()}
+          disableSubmit={true}
+        />,
+      );
+
+      const submitBtn = screen.getByRole('button', {
+        name: 'candidate.reviewSubmit.submit',
+      });
+      expect(submitBtn).toBeDisabled();
+    });
+
+    it('disableSubmit={true} applies the disabled class palette (muted gray)', () => {
+      render(
+        <ReviewSubmitPage
+          validationResult={buildAllCompleteResult()}
+          onErrorNavigate={vi.fn()}
+          onSubmit={vi.fn()}
+          disableSubmit={true}
+        />,
+      );
+
+      const submitBtn = screen.getByRole('button', {
+        name: 'candidate.reviewSubmit.submit',
+      });
+      expect(submitBtn).toHaveClass('bg-gray-300');
+      expect(submitBtn).toHaveClass('cursor-not-allowed');
+      expect(submitBtn).not.toHaveClass('bg-blue-600');
+    });
+
+    it('disableSubmit={true} does NOT affect the Back button — it is still rendered and clickable', () => {
+      const onBack = vi.fn();
+
+      render(
+        <ReviewSubmitPage
+          validationResult={buildAllCompleteResult()}
+          onErrorNavigate={vi.fn()}
+          onSubmit={vi.fn()}
+          onBack={onBack}
+          disableSubmit={true}
+        />,
+      );
+
+      const backButton = screen.getByTestId('review-back-button');
+      expect(backButton).toBeInTheDocument();
+      expect(backButton).not.toBeDisabled();
+
+      fireEvent.click(backButton);
+      expect(onBack).toHaveBeenCalledTimes(1);
+    });
+
+    it('disableSubmit={true} does NOT affect the section list rendering', () => {
+      const validationResult: FullValidationResult = {
+        sections: [],
+        summary: {
+          sections: [
+            {
+              sectionId: 'personal_info',
+              sectionName: 'Personal Information',
+              status: 'complete',
+              errors: [],
+            },
+            {
+              sectionId: 'address_history',
+              sectionName: 'Address History',
+              status: 'complete',
+              errors: [],
+            },
+          ],
+          allComplete: true,
+          totalErrors: 0,
+        },
+      };
+
+      render(
+        <ReviewSubmitPage
+          validationResult={validationResult}
+          onErrorNavigate={vi.fn()}
+          onSubmit={vi.fn()}
+          disableSubmit={true}
+        />,
+      );
+
+      // Section blocks render via real ReviewSectionBlock (Rule M2 — NOT
+      // mocked). Both section headings still appear regardless of the
+      // disableSubmit prop.
+      expect(
+        screen.getByRole('heading', { name: 'Personal Information' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'Address History' }),
+      ).toBeInTheDocument();
+    });
+  });
 });
