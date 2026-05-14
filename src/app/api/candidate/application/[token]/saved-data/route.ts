@@ -50,6 +50,18 @@ interface FormattedAddressHistorySection {
   aggregatedFields: Record<string, SavedFieldData['value']>;
 }
 
+// Shape of the record_search section in the formatted response (Task 8.4).
+// Stores deduplicated additional fields and aggregated documents collected
+// from the union of countries selected in the candidate's Address History
+// entries. The bucket key on disk is `formData.sections.record_search` and
+// values are written via the new save shape `sectionType: 'record_search'`.
+// This section does NOT read from `address_history.aggregatedFields` — see
+// plan §11.1.
+interface FormattedRecordSearchSection {
+  type: 'record_search';
+  fieldValues: Record<string, SavedFieldData['value']>;
+}
+
 // Shape of a workflow section in the formatted response (Phase 6 Stage 4).
 // Per spec DoD #3 and Business Rule 8, workflow-section saved data is
 // presented to the client as a per-section bucket of the form
@@ -66,6 +78,7 @@ type FormattedSection =
   | FormattedFlatSection
   | FormattedRepeatableSection
   | FormattedAddressHistorySection
+  | FormattedRecordSearchSection
   | FormattedWorkflowSection;
 
 // Shape of an entry as stored in CandidateInvitation.formData. We narrow the
@@ -126,8 +139,11 @@ type StoredEntry = NonNullable<FormSectionData['entries']>[number];
  *
  * Address-history section (Phase 6 Stage 3) returns the same per-entry shape
  * as the repeatable sections, PLUS a top-level aggregatedFields object
- * keyed by dsx_requirements.id with the values entered in the deduplicated
- * AggregatedRequirements area:
+ * keyed by dsx_requirements.id. After Task 8.4 the AggregatedRequirements
+ * UI moved to the standalone record_search section, so aggregatedFields is
+ * always `{}` for newly-saved rows; it remains in the response for
+ * additive-contract back-compat with legacy rows (which the new client
+ * ignores):
  * {
  *   sections: {
  *     "address_history": {
@@ -137,9 +153,23 @@ type StoredEntry = NonNullable<FormSectionData['entries']>[number];
  *   }
  * }
  *
+ * Record-search section (Task 8.4) — standalone bucket carrying the
+ * deduplicated additional fields and aggregated document metadata. Always
+ * defaulted to `{ fieldValues: {} }` when no save has happened yet, so the
+ * client has a stable hydration shape (same pattern as personal_info / idv):
+ * {
+ *   sections: {
+ *     "record_search": {
+ *       type: "record_search",
+ *       fieldValues: { [requirementId: string]: <value> }
+ *     }
+ *   }
+ * }
+ *
  * The address_history section is NOT auto-created on first load — unlike
- * personal_info / idv, it is conditional on the package containing
- * record-type services. The structure endpoint controls whether it appears.
+ * personal_info / idv / record_search, it is conditional on the package
+ * containing record-type services. The structure endpoint controls whether
+ * it appears.
  *
  * Phase 7 Stage 1 also surfaces visit tracking and the Review & Submit visit
  * flag at the top level of the response (sibling to `sections`):
@@ -251,6 +281,27 @@ export async function GET(
         continue;
       }
 
+      // Task 8.4: the record_search bucket carries a fieldValues map keyed by
+      // dsx_requirements.id. Returned verbatim with a defensive fallback to
+      // {} when the stored shape is missing or malformed. This branch does
+      // NOT touch address_history.aggregatedFields — see plan §11.1.
+      if (sectionType === 'record_search') {
+        const rawFieldValues = (data as FormSectionData & {
+          fieldValues?: unknown;
+        }).fieldValues;
+        const fieldValues: Record<string, SavedFieldData['value']> =
+          rawFieldValues && typeof rawFieldValues === 'object' && !Array.isArray(rawFieldValues)
+            ? (rawFieldValues as Record<string, SavedFieldData['value']>)
+            : {};
+
+        const recordSearchSection: FormattedRecordSearchSection = {
+          type: 'record_search',
+          fieldValues,
+        };
+        formattedSections[sectionType] = recordSearchSection;
+        continue;
+      }
+
       // Check if this is the address_history section (Phase 6 Stage 3).
       // Returns entries (same shape as education/employment) plus an
       // aggregatedFields object for the deduplicated additional fields.
@@ -341,6 +392,17 @@ export async function GET(
 
     if (!formattedSections.idv) {
       formattedSections.idv = { fields: [] };
+    }
+
+    // Task 8.4: ensure record_search section is always present with empty
+    // fieldValues if no save has happened yet. The component depends on a
+    // stable hydration shape (matches the personal_info / idv defaults
+    // above).
+    if (!formattedSections.record_search) {
+      formattedSections.record_search = {
+        type: 'record_search',
+        fieldValues: {},
+      };
     }
 
     return NextResponse.json({

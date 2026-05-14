@@ -1,20 +1,28 @@
 // /GlobalRX_v2/src/components/candidate/form-engine/__tests__/AddressHistorySection.test.tsx
 // Pass 2 tests for Phase 6 Stage 3: AddressHistorySection component
 //
-// Coverage focus:
+// Task 8.4 updates: the AggregatedRequirements block was split out of
+// AddressHistorySection into its own RecordSearchSection. AddressHistory is now
+// entries-only. Tests in this file have been updated to assert the new
+// behavior: no AggregatedRequirements is rendered here, the save body no
+// longer carries aggregatedFields, and the section never fetches
+// /personal-info-fields.
+//
+// Coverage focus (post-Task-8.4):
 //   - deriveMaxEntries behavior surfaces through the RepeatableEntryManager's
 //     Add button visibility
 //   - minimum-one-entry rule (remove control hidden on the only entry)
-//   - computeAggregatedItems behavior surfaces through the AggregatedRequirements
-//     area: dedup by requirementId, OR-merge of isRequired, exclusion of
-//     personal-info requirementIds, exclusion of address_block fields
+//   - inline rendering of address_block and per_entry document fields
 //   - save body shape includes sectionType: 'address_history', entries with
-//     entryOrder, and aggregatedFields object
+//     entryOrder, and NO aggregatedFields key (Task 8.4)
+//   - AggregatedRequirements is NOT rendered by AddressHistorySection
+//     (Task 8.4 split)
+//   - personal-info-fields endpoint is NOT fetched by AddressHistorySection
+//     (Task 8.4 — dedup source moved to RecordSearchSection)
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { AddressHistorySection } from '../AddressHistorySection';
 
 // Stage-2 EducationSection.test.tsx pattern: short-circuit useDebounce so save
@@ -62,18 +70,6 @@ vi.mock('@/lib/client-logger', () => ({
   }
 }));
 
-// Inline DynamicFieldRenderer stub. The Stage 3 inline render path inside
-// AddressHistorySection.renderEntry deliberately returns null for non-address,
-// non-document fields (it routes them through the aggregated area instead),
-// so this stub is exercised only by AggregatedRequirements (a child) when the
-// aggregated area renders inline data fields. The tests do not assert on its
-// internal DOM — this is acceptable per Mocking Rule M2.
-vi.mock('../DynamicFieldRenderer', () => ({
-  DynamicFieldRenderer: vi.fn(({ requirementId, name }: { requirementId: string; name: string }) => (
-    <div data-testid={`dfr-stub-${requirementId}`}>{name}</div>
-  ))
-}));
-
 // AutoSaveIndicator is a tiny visual element — not under test here.
 vi.mock('../AutoSaveIndicator', () => ({
   AutoSaveIndicator: ({ status }: { status: string }) => (
@@ -91,7 +87,7 @@ const stableUuid = () => {
 // Helper to install a fresh fetch mock for each test. This returns a function
 // that lets the test queue ordered responses by URL pattern.
 function installFetchMock(responseMap: Record<string, unknown>) {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input.toString();
     // Find the first key in responseMap that matches a substring of the URL
     // AND, if a save POST, make sure init.method === 'POST'.
@@ -308,12 +304,13 @@ describe('AddressHistorySection', () => {
     });
   });
 
-  describe('aggregated requirements — dedup and Personal Info exclusion', () => {
-    it('excludes requirements whose IDs match personalInfoRequirementIds (DoD via spec dedup)', async () => {
-      // Personal Info has First Name (req-PI-1). The same requirement is also
-      // returned by /fields for an entry's record service. The aggregated area
-      // should NOT show First Name because it is collected on the Personal
-      // Info tab.
+  // Task 8.4 — AggregatedRequirements moved out of AddressHistorySection.
+  // The "aggregated requirements" assertions on this section now verify the
+  // OPPOSITE behavior: the aggregated heading/area MUST NOT be rendered here
+  // even when /fields returns aggregatable items. The dedup-and-render path
+  // lives on RecordSearchSection now and is tested there.
+  describe('Task 8.4 — AggregatedRequirements no longer rendered by AddressHistorySection', () => {
+    it('does NOT render an aggregated-requirements heading when /fields returns non-address fields', async () => {
       installFetchMock({
         '/scope': {
           functionalityType: 'record',
@@ -322,9 +319,7 @@ describe('AddressHistorySection', () => {
           scopeValue: 7,
           scopeDescription: 'past 7 years'
         },
-        '/personal-info-fields': {
-          fields: [{ requirementId: 'req-PI-1' }]
-        },
+        '/personal-info-fields': { fields: [] },
         '/countries': [{ id: 'country-us', name: 'United States' }],
         '/saved-data': {
           sections: {
@@ -332,13 +327,12 @@ describe('AddressHistorySection', () => {
               entries: [
                 { entryId: 'e-1', countryId: 'country-us', entryOrder: 0, fields: [] }
               ],
-              aggregatedFields: {}
             }
           }
         },
         '/fields': {
           fields: [
-            // Address block — must render inline, not in aggregated area.
+            // Address block — must render inline (still allowed on this section).
             {
               requirementId: 'req-AB-1',
               name: 'Residence Address',
@@ -351,20 +345,8 @@ describe('AddressHistorySection', () => {
               documentData: null,
               displayOrder: 0
             },
-            // First Name — should be EXCLUDED because it's in personalInfoRequirementIds.
-            {
-              requirementId: 'req-PI-1',
-              name: 'First Name (excluded)',
-              fieldKey: 'firstName',
-              type: 'field',
-              dataType: 'text',
-              isRequired: true,
-              instructions: null,
-              fieldData: {},
-              documentData: null,
-              displayOrder: 1
-            },
-            // Local Reference Number — should appear in aggregated area.
+            // Local Reference Number — would have appeared in the aggregated area
+            // pre-Task-8.4. After the split it must NOT appear on Address History.
             {
               requirementId: 'req-EXTRA-1',
               name: 'Local Reference Number',
@@ -387,22 +369,25 @@ describe('AddressHistorySection', () => {
         expect(screen.getByText('Address 1')).toBeInTheDocument();
       });
 
-      // Wait until fields are loaded for the entry — DynamicFieldRenderer stub
-      // will mount for the aggregated extra field.
+      // Wait for the inline address block (real DOM, not a stub) to render so
+      // we know the /fields fetch completed and the section has settled.
       await waitFor(() => {
-        expect(screen.getByTestId('dfr-stub-req-EXTRA-1')).toBeInTheDocument();
+        expect(screen.getByTestId('address-req-AB-1-street1')).toBeInTheDocument();
       });
 
-      // First Name is excluded (no DynamicFieldRenderer stub for req-PI-1).
-      expect(screen.queryByTestId('dfr-stub-req-PI-1')).not.toBeInTheDocument();
-      expect(screen.queryByText('First Name (excluded)')).not.toBeInTheDocument();
+      // The aggregated heading from AggregatedRequirements must NOT be on the
+      // page. Task 8.4 moved that block to RecordSearchSection.
+      expect(
+        screen.queryByText('Based on your address history, we need the following additional information:')
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText('Additional Information')).not.toBeInTheDocument();
+      expect(screen.queryByText('Required Documents')).not.toBeInTheDocument();
 
-      // Address block is rendered inline (not in aggregated area). The address
-      // block renders with test ids prefixed by its requirementId.
-      expect(screen.getByTestId('address-req-AB-1-street1')).toBeInTheDocument();
+      // The aggregated-only field must not appear either.
+      expect(screen.queryByText('Local Reference Number')).not.toBeInTheDocument();
     });
 
-    it('renders document requirements in the aggregated area with name + instructions', async () => {
+    it('does NOT render any aggregated document upload UI when /fields returns a document requirement', async () => {
       installFetchMock({
         '/scope': {
           functionalityType: 'record',
@@ -419,12 +404,14 @@ describe('AddressHistorySection', () => {
               entries: [
                 { entryId: 'e-1', countryId: 'country-us', entryOrder: 0, fields: [] }
               ],
-              aggregatedFields: {}
             }
           }
         },
         '/fields': {
           fields: [
+            // Aggregated (per_search) document — would have rendered in the
+            // AggregatedRequirements block pre-Task-8.4. After the split it
+            // must not appear on Address History.
             {
               requirementId: 'req-DOC-1',
               name: 'AFP Form',
@@ -434,7 +421,7 @@ describe('AddressHistorySection', () => {
               isRequired: true,
               instructions: 'Download and complete the AFP form',
               fieldData: {},
-              documentData: { instructions: 'Download and complete the AFP form' },
+              documentData: { scope: 'per_search', instructions: 'Download and complete the AFP form' },
               displayOrder: 5
             }
           ]
@@ -447,21 +434,52 @@ describe('AddressHistorySection', () => {
         expect(screen.getByText('Address 1')).toBeInTheDocument();
       });
 
-      // Wait for the field load to complete and the aggregated area to render
-      // the document.
+      // Allow enough cycles for any /fields settle. The aggregated document
+      // testid would only exist via AggregatedRequirements, which is no
+      // longer instantiated here.
       await waitFor(() => {
-        expect(screen.getByTestId('aggregated-document-req-DOC-1')).toBeInTheDocument();
+        // The section finished rendering (heading present).
+        expect(screen.getByText('Address History')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('AFP Form')).toBeInTheDocument();
-      expect(screen.getByText('Download and complete the AFP form')).toBeInTheDocument();
-      // Stage 4 spec: aggregated upload UI renders via <CandidateDocumentUpload>.
-      expect(document.querySelectorAll('input[type="file"]').length).toBe(1);
+      // The aggregated upload UI (via CandidateDocumentUpload in the
+      // AggregatedRequirements block) must NOT exist on this section.
+      expect(screen.queryByText('AFP Form')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('aggregated-document-req-DOC-1')).not.toBeInTheDocument();
+    });
+
+    it('does NOT fetch /personal-info-fields (dedup source moved to RecordSearchSection)', async () => {
+      const fetchMock = installFetchMock({
+        '/scope': {
+          functionalityType: 'record',
+          serviceId: 'srv-record-1',
+          scopeType: 'time_based',
+          scopeValue: 7,
+          scopeDescription: 'past 7 years'
+        },
+        '/countries': [{ id: 'country-us', name: 'United States' }],
+        '/saved-data': { sections: {} }
+      });
+
+      render(<AddressHistorySection token={mockToken} serviceIds={mockServiceIds} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Address 1')).toBeInTheDocument();
+      });
+
+      // Task 8.4 §4.4 step 5: AddressHistorySection no longer needs the
+      // personal-info-fields dedup source. The new RecordSearchSection owns
+      // it. This section MUST NOT call that endpoint on mount.
+      const personalInfoCall = fetchMock.mock.calls.find((c) => {
+        const url = typeof c[0] === 'string' ? c[0] : (c[0] as URL).toString();
+        return url.includes('/personal-info-fields');
+      });
+      expect(personalInfoCall).toBeUndefined();
     });
   });
 
-  describe('save body shape — sectionType, entries, aggregatedFields', () => {
-    it('POSTs to /save with sectionType="address_history", entries with entryOrder, and aggregatedFields object on field blur', async () => {
+  describe('save body shape — sectionType, entries (Task 8.4: NO aggregatedFields)', () => {
+    it('POSTs to /save with sectionType="address_history" and entries-only body (no aggregatedFields key)', async () => {
       const fetchMock = installFetchMock({
         '/scope': {
           functionalityType: 'record',
@@ -478,7 +496,6 @@ describe('AddressHistorySection', () => {
               entries: [
                 { entryId: 'e-1', countryId: 'country-us', entryOrder: 0, fields: [] }
               ],
-              aggregatedFields: {}
             }
           }
         },
@@ -535,7 +552,10 @@ describe('AddressHistorySection', () => {
       expect(body.sectionType).toBe('address_history');
       expect(body.sectionId).toBe('address_history');
       expect(Array.isArray(body.entries)).toBe(true);
-      expect(typeof body.aggregatedFields).toBe('object');
+      // Task 8.4: AddressHistorySection no longer sends aggregatedFields. The
+      // key must NOT be present on the save body — record-search values are
+      // posted separately via sectionType: 'record_search'.
+      expect(body).not.toHaveProperty('aggregatedFields');
       // Entry 0 should still carry entryOrder=0 (index reflects position).
       expect(body.entries[0].entryOrder).toBe(0);
     });

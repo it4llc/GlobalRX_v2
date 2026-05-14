@@ -115,6 +115,10 @@ interface RawSectionData {
     fields: Array<{ requirementId: string; value: unknown }>;
   }>;
   aggregatedFields?: Record<string, unknown>;
+  // Task 8.4: the record_search bucket stores its values under `fieldValues`
+  // (whole-object replacement) and is the post-split source of truth for
+  // what `aggregatedFields` used to mean at submission time.
+  fieldValues?: Record<string, unknown>;
 }
 
 function readPersonalInfoFields(
@@ -131,6 +135,18 @@ function readAddressHistorySection(
   formData: CandidateFormDataShape,
 ): SavedAddressHistorySection {
   const section = formData.sections?.['address_history'];
+  // Task 8.4 — Record Search Requirements submission read (split out of
+  // Address History's aggregated block). Pre-authorized for submitApplication
+  // edit despite the file being over the 600-LOC hard stop; see plan §4.10.
+  // Task 8.4: Record Search Requirements is the post-split source of truth
+  // for the deduplicated additional fields and aggregated documents that
+  // used to live at the bottom of Address History. submitApplication
+  // populates the existing `aggregatedFields` output field — which the
+  // orderDataPopulation contract still expects — from
+  // `formData.sections.record_search.fieldValues`. The legacy
+  // `address_history.aggregatedFields` bucket is intentionally ignored
+  // (plan §11.1 — no backward-compatibility reads).
+  const recordSearch = formData.sections?.['record_search'];
   return {
     entries: (section?.entries ?? []).map((e) => ({
       entryId: e.entryId,
@@ -141,7 +157,7 @@ function readAddressHistorySection(
         value: f.value,
       })),
     })),
-    aggregatedFields: section?.aggregatedFields ?? undefined,
+    aggregatedFields: recordSearch?.fieldValues ?? undefined,
   };
 }
 
