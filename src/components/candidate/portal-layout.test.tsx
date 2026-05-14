@@ -38,7 +38,7 @@ vi.mock('@/contexts/TranslationContext', () => ({
 
 // Mock useDebounce hook for the form sections
 vi.mock('@/hooks/useDebounce', () => ({
-  useDebounce: (value: any) => value
+  useDebounce: <T,>(value: T): T => value
 }));
 
 // Mock fetch for the form sections
@@ -101,6 +101,17 @@ interface RepeatableSectionStubProps {
   onCrossSectionRequirementsRemovedForSource?: (triggeredBy: string) => void;
 }
 
+// Subset of the real section props the mocked stubs care about. The real
+// section components (AddressHistorySection / EducationSection /
+// EmploymentSection) accept more props than this, but the stubs only forward
+// the two cross-section callbacks. Using a Pick keeps this in lockstep with
+// RepeatableSectionStubProps so a callback signature change here would
+// surface as a type error in the stub component below.
+type MockedSectionCallbackProps = Pick<
+  RepeatableSectionStubProps,
+  'onCrossSectionRequirementsChanged' | 'onCrossSectionRequirementsRemovedForSource'
+>;
+
 function RepeatableSectionStub({
   triggeredBy,
   testId,
@@ -132,7 +143,7 @@ function RepeatableSectionStub({
 }
 
 vi.mock('./form-engine/AddressHistorySection', () => ({
-  AddressHistorySection: (props: any) => (
+  AddressHistorySection: (props: MockedSectionCallbackProps) => (
     <RepeatableSectionStub
       triggeredBy="address_history"
       testId="address-history-stub"
@@ -145,7 +156,7 @@ vi.mock('./form-engine/AddressHistorySection', () => ({
 }));
 
 vi.mock('./form-engine/EducationSection', () => ({
-  EducationSection: (props: any) => (
+  EducationSection: (props: MockedSectionCallbackProps) => (
     <RepeatableSectionStub
       triggeredBy="education_history"
       testId="education-stub"
@@ -158,7 +169,7 @@ vi.mock('./form-engine/EducationSection', () => ({
 }));
 
 vi.mock('./form-engine/EmploymentSection', () => ({
-  EmploymentSection: (props: any) => (
+  EmploymentSection: (props: MockedSectionCallbackProps) => (
     <RepeatableSectionStub
       triggeredBy="employment_history"
       testId="employment-stub"
@@ -1145,6 +1156,491 @@ describe('PortalLayout', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(getPersonalInfoSidebarStatus()).toBe('incomplete');
+    });
+  });
+
+  // ===========================================================================
+  // Task 8.2 (Linear Step Navigation) — Pass 2 tests for the Next/Back
+  // navigation buttons rendered at the bottom of every non-`review_submit`
+  // section. The buttons are produced by the new StepNavigationButtons
+  // component but the SHELL (this file's subject) owns the navigation
+  // logic — which section is "next", which is "prev", scroll-to-top
+  // wiring, and the suppression of the shared component on the
+  // Review & Submit branch (which renders its own Back button next to
+  // Submit per spec rule 5).
+  //
+  // Per Mocking Rule M1, PortalLayout is NOT mocked — it is the subject.
+  // Per Mocking Rule M2, StepNavigationButtons / PortalSidebar /
+  // ReviewSubmitPage are NOT mocked because the assertions in this block
+  // depend on their real rendered DOM (step-navigation container, real
+  // sidebar buttons, real review-back-button).
+  // ===========================================================================
+  describe('step navigation buttons (Task 8.2)', () => {
+    // Linear-flow fixture (matches the spec's new 9-step order). Personal
+    // Info moved to step 6 (after Employment) per Business Rule 1; the
+    // synthetic Review & Submit entry is always last.
+    const linearSections: CandidatePortalSection[] = [
+      {
+        id: 'welcome',
+        title: 'Welcome',
+        type: 'workflow_section',
+        placement: 'before_services',
+        status: 'not_started',
+        order: 0,
+        functionalityType: null,
+        workflowSection: {
+          id: 'welcome',
+          name: 'Welcome',
+          type: 'text',
+          content: 'Welcome to the application.',
+          placement: 'before_services',
+          displayOrder: 1,
+          isRequired: false,
+        },
+      },
+      {
+        id: 'service_verification-idv',
+        title: 'Identity Verification',
+        type: 'service_section',
+        placement: 'services',
+        status: 'not_started',
+        order: 1,
+        functionalityType: 'verification-idv',
+      },
+      {
+        id: 'address_history',
+        title: 'Address History',
+        type: 'address_history',
+        placement: 'services',
+        status: 'not_started',
+        order: 2,
+        functionalityType: null,
+      },
+      {
+        id: 'service_verification-edu',
+        title: 'Education',
+        type: 'service_section',
+        placement: 'services',
+        status: 'not_started',
+        order: 3,
+        functionalityType: 'verification-edu',
+      },
+      {
+        id: 'service_verification-emp',
+        title: 'Employment',
+        type: 'service_section',
+        placement: 'services',
+        status: 'not_started',
+        order: 4,
+        functionalityType: 'verification-emp',
+      },
+      {
+        id: 'personal_info',
+        title: 'Personal Information',
+        type: 'personal_info',
+        placement: 'services',
+        status: 'not_started',
+        order: 5,
+        functionalityType: null,
+      },
+      {
+        id: 'after-1',
+        title: 'Consent Form',
+        type: 'workflow_section',
+        placement: 'after_services',
+        status: 'not_started',
+        order: 6,
+        functionalityType: null,
+        workflowSection: {
+          id: 'after-1',
+          name: 'Consent Form',
+          type: 'text',
+          content: 'I acknowledge.',
+          placement: 'after_services',
+          displayOrder: 1,
+          isRequired: false,
+        },
+      },
+      {
+        id: 'review_submit',
+        title: 'Review & Submit',
+        type: 'review_submit',
+        placement: 'after_services',
+        status: 'not_started',
+        order: 7,
+        functionalityType: null,
+      },
+    ];
+
+    // -------------------------------------------------------------------------
+    // Business Rule 4 / DoD 4 — First step has no Back button, only Next.
+    //
+    // The default active section is sections[0] (the Welcome workflow
+    // section). The shared StepNavigationButtons must render the Next
+    // button but suppress the Back button.
+    // -------------------------------------------------------------------------
+    it('Business Rule 4: first step renders Next but NOT Back', async () => {
+      render(
+        <PortalLayout
+          invitation={mockInvitation}
+          sections={linearSections}
+          token={mockToken}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('main-content')).toBeInTheDocument();
+      });
+
+      // Next is rendered.
+      expect(screen.getByTestId('step-nav-next')).toBeInTheDocument();
+      // Back is NOT rendered on the first step.
+      expect(screen.queryByTestId('step-nav-back')).not.toBeInTheDocument();
+    });
+
+    // -------------------------------------------------------------------------
+    // Business Rule 2 / DoD 2 — Middle steps render both Back and Next.
+    //
+    // Click into the Address History section (index 2). The shared
+    // StepNavigationButtons must render both buttons because the section
+    // is neither the first nor the Review & Submit branch.
+    // -------------------------------------------------------------------------
+    it('Business Rule 2: a middle step renders both Back and Next', async () => {
+      const user = userEvent.setup();
+      render(
+        <PortalLayout
+          invitation={mockInvitation}
+          sections={linearSections}
+          token={mockToken}
+        />,
+      );
+
+      // Navigate to Address History via the sidebar.
+      const addressButton = screen
+        .getAllByText('Address History')[0]
+        .closest('button');
+      await user.click(addressButton!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('step-nav-back')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('step-nav-next')).toBeInTheDocument();
+    });
+
+    // -------------------------------------------------------------------------
+    // Business Rule 4 / 5 / DoD 5 — Review & Submit branch suppresses the
+    // shared StepNavigationButtons row entirely, and ReviewSubmitPage
+    // renders its OWN Back button (data-testid="review-back-button")
+    // alongside Submit. There must NOT be two Back buttons on this page.
+    // -------------------------------------------------------------------------
+    it('Business Rule 5: Review & Submit branch does NOT render the shared step-navigation row', async () => {
+      const user = userEvent.setup();
+      render(
+        <PortalLayout
+          invitation={mockInvitation}
+          sections={linearSections}
+          token={mockToken}
+        />,
+      );
+
+      // Navigate to Review & Submit via the sidebar.
+      const reviewButton = screen
+        .getAllByText('Review & Submit')[0]
+        .closest('button');
+      await user.click(reviewButton!);
+
+      await waitFor(() => {
+        // The Review page's own Back button is rendered.
+        expect(screen.getByTestId('review-back-button')).toBeInTheDocument();
+      });
+
+      // The shared component is suppressed entirely on this branch — no
+      // step-navigation container, and neither of its inner buttons.
+      expect(screen.queryByTestId('step-navigation')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('step-nav-back')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('step-nav-next')).not.toBeInTheDocument();
+    });
+
+    // -------------------------------------------------------------------------
+    // Business Rule 5 — Review & Submit page's own Back button navigates to
+    // the previous section. The portal-layout passes handleBackClick as
+    // ReviewSubmitPage.onBack; clicking it must change the active section
+    // to the section immediately before Review & Submit (Consent Form in
+    // the fixture).
+    // -------------------------------------------------------------------------
+    it('Business Rule 5: clicking the Review page Back button navigates to the previous section', async () => {
+      const user = userEvent.setup();
+      render(
+        <PortalLayout
+          invitation={mockInvitation}
+          sections={linearSections}
+          token={mockToken}
+        />,
+      );
+
+      // Go to Review & Submit first.
+      const reviewSidebarButton = screen
+        .getAllByText('Review & Submit')[0]
+        .closest('button');
+      await user.click(reviewSidebarButton!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('review-back-button')).toBeInTheDocument();
+      });
+
+      // Click the Review page's own Back button.
+      await user.click(screen.getByTestId('review-back-button'));
+
+      // Active section must change to the Consent Form (index 6 in the
+      // linear fixture — the section immediately before Review & Submit).
+      // The active-section highlight uses the bg-blue-50 + text-blue-700
+      // classes (see "should highlight active section in sidebar" above).
+      await waitFor(() => {
+        const consentButton = screen
+          .getAllByText('Consent Form')[0]
+          .closest('button');
+        expect(consentButton).toHaveClass('bg-blue-50', 'text-blue-700');
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Business Rule 6 / DoD 6 — Next button advances to the next section.
+    //
+    // Starting from the first section, clicking Next must change the
+    // active section to index 1 (Identity Verification in this fixture).
+    // The active-section highlight in the sidebar is the only DOM signal
+    // available without mocking child components, so we assert on that.
+    // -------------------------------------------------------------------------
+    it('Business Rule 6: clicking Next advances the active section by one', async () => {
+      const user = userEvent.setup();
+      render(
+        <PortalLayout
+          invitation={mockInvitation}
+          sections={linearSections}
+          token={mockToken}
+        />,
+      );
+
+      // Wait for initial render to settle (the first section is active).
+      await waitFor(() => {
+        expect(screen.getByTestId('step-nav-next')).toBeInTheDocument();
+      });
+
+      // Click Next — should move from Welcome (index 0) to Identity
+      // Verification (index 1).
+      await user.click(screen.getByTestId('step-nav-next'));
+
+      // The new active section is highlighted in the sidebar.
+      await waitFor(() => {
+        const idvButton = screen
+          .getAllByText('Identity Verification')[0]
+          .closest('button');
+        expect(idvButton).toHaveClass('bg-blue-50', 'text-blue-700');
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Business Rule 6 / DoD 6 — Back button retreats to the previous
+    // section. Navigate forward to Address History via the sidebar, then
+    // press Back. The active section must move to Identity Verification.
+    // -------------------------------------------------------------------------
+    it('Business Rule 6: clicking Back retreats the active section by one', async () => {
+      const user = userEvent.setup();
+      render(
+        <PortalLayout
+          invitation={mockInvitation}
+          sections={linearSections}
+          token={mockToken}
+        />,
+      );
+
+      // Jump to Address History via the sidebar so a Back button is
+      // present (the first step has no Back).
+      const addressButton = screen
+        .getAllByText('Address History')[0]
+        .closest('button');
+      await user.click(addressButton!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('step-nav-back')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('step-nav-back'));
+
+      // Active section moves to Identity Verification (the previous one).
+      await waitFor(() => {
+        const idvButton = screen
+          .getAllByText('Identity Verification')[0]
+          .closest('button');
+        expect(idvButton).toHaveClass('bg-blue-50', 'text-blue-700');
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Business Rule 6 (skip) / DoD 6 — When a section type is NOT included
+    // in the package (e.g., no IDV service), the structure endpoint omits
+    // it from `sections`. The shell's navigableSections list is simply
+    // `sectionsWithStatus`, so Next/Back already skips by virtue of the
+    // missing entry. Starting from Welcome with no IDV present, clicking
+    // Next must land on Address History (the second remaining entry).
+    // -------------------------------------------------------------------------
+    it('Business Rule 6: Next skips sections that are not present in the package (no IDV → Address History is next)', async () => {
+      const user = userEvent.setup();
+      const noIdvSections: CandidatePortalSection[] = linearSections.filter(
+        (s) => s.id !== 'service_verification-idv',
+      );
+
+      render(
+        <PortalLayout
+          invitation={mockInvitation}
+          sections={noIdvSections}
+          token={mockToken}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('step-nav-next')).toBeInTheDocument();
+      });
+
+      // Click Next from Welcome — IDV is absent, so the next section in
+      // the navigable list is Address History.
+      await user.click(screen.getByTestId('step-nav-next'));
+
+      await waitFor(() => {
+        const addressButton = screen
+          .getAllByText('Address History')[0]
+          .closest('button');
+        expect(addressButton).toHaveClass('bg-blue-50', 'text-blue-700');
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Business Rule 8 / 9 / Edge Case 5 / DoD 9 — Sidebar and Next/Back
+    // navigate together. After using the sidebar to jump to Address
+    // History, pressing Next must move to the NEXT section relative to
+    // Address History (Education), not relative to where the user was
+    // before.
+    // -------------------------------------------------------------------------
+    it('Edge case 5: after sidebar-jumping, Next/Back is relative to the new position', async () => {
+      const user = userEvent.setup();
+      render(
+        <PortalLayout
+          invitation={mockInvitation}
+          sections={linearSections}
+          token={mockToken}
+        />,
+      );
+
+      // Sidebar-jump to Address History.
+      const addressButton = screen
+        .getAllByText('Address History')[0]
+        .closest('button');
+      await user.click(addressButton!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('step-nav-next')).toBeInTheDocument();
+      });
+
+      // Now press Next — relative to Address History, the next is
+      // Education.
+      await user.click(screen.getByTestId('step-nav-next'));
+
+      await waitFor(() => {
+        const educationButton = screen
+          .getAllByText('Education')[0]
+          .closest('button');
+        expect(educationButton).toHaveClass('bg-blue-50', 'text-blue-700');
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Business Rule 11 / DoD 7 — Pressing Next scrolls the page to the top
+    // of the new section. The shell calls window.scrollTo({ top: 0,
+    // behavior: 'smooth' }) inside scrollNewSectionIntoView. We mock
+    // window.scrollTo on the global window object so we can observe the
+    // call without mocking the component (Rule M1).
+    // -------------------------------------------------------------------------
+    it('Business Rule 11: clicking Next calls window.scrollTo to scroll the page back to the top', async () => {
+      const user = userEvent.setup();
+      // vi.spyOn returns a properly typed spy that wraps window.scrollTo
+      // without the need to widen the global type with `any`. The spy is
+      // restored in the finally block so it does not leak between tests.
+      const scrollToSpy = vi
+        .spyOn(window, 'scrollTo')
+        .mockImplementation(() => {});
+
+      try {
+        render(
+          <PortalLayout
+            invitation={mockInvitation}
+            sections={linearSections}
+            token={mockToken}
+          />,
+        );
+
+        await waitFor(() => {
+          expect(screen.getByTestId('step-nav-next')).toBeInTheDocument();
+        });
+
+        await user.click(screen.getByTestId('step-nav-next'));
+
+        // window.scrollTo must have been called with the spec-required
+        // arguments. The shell calls it inside a try/catch but jsdom
+        // tolerates the options-object form, so the spy should record it.
+        await waitFor(() => {
+          expect(scrollToSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ top: 0, behavior: 'smooth' }),
+          );
+        });
+      } finally {
+        scrollToSpy.mockRestore();
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // Edge case 4 — Only one step exists. Neither Back nor Next is shown.
+    //
+    // With a single-section package (just a Welcome workflow section),
+    // the shared StepNavigationButtons must render nothing at all
+    // (returns null when both onBack and onNext are null).
+    // -------------------------------------------------------------------------
+    it('Edge case 4: when only one section exists, neither Back nor Next is rendered', async () => {
+      const singleSection: CandidatePortalSection[] = [
+        {
+          id: 'welcome',
+          title: 'Welcome',
+          type: 'workflow_section',
+          placement: 'before_services',
+          status: 'not_started',
+          order: 0,
+          functionalityType: null,
+          workflowSection: {
+            id: 'welcome',
+            name: 'Welcome',
+            type: 'text',
+            content: 'Welcome to the application.',
+            placement: 'before_services',
+            displayOrder: 1,
+            isRequired: false,
+          },
+        },
+      ];
+
+      render(
+        <PortalLayout
+          invitation={mockInvitation}
+          sections={singleSection}
+          token={mockToken}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('main-content')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('step-navigation')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('step-nav-back')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('step-nav-next')).not.toBeInTheDocument();
     });
   });
 });
