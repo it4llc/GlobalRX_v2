@@ -228,7 +228,11 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // Phase 7 Stage 1 §3.3 — the structure response now appends a synthetic
       // `review_submit` entry after all after_services workflow sections, so
       // the total length grows by 1 (Rule 29).
-      expect(data.sections).toHaveLength(8); // 1 personal + 1 before + 3 services (edu deduplicated) + 2 after + 1 review_submit
+      // Task 8.4 — Record Search Requirements is emitted as a new section
+      // between Personal Info and the after-services workflow sections when
+      // the package has at least one record-type service. With the record
+      // service in the fixture, the total grows by 1 to 9.
+      expect(data.sections).toHaveLength(9); // 1 personal + 1 before + 3 services (edu deduplicated) + 1 record_search + 2 after + 1 review_submit
 
       // Check before_services section comes first
       // Phase 6 Stage 4: workflow_section sections now carry a workflowSection
@@ -330,17 +334,33 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         functionalityType: null
       });
 
+      // Task 8.4 — Record Search Requirements is the new Step 7. It sits
+      // between Personal Info and any after-services workflow sections, and
+      // is emitted only when the package has at least one record-type
+      // service (the fixture's `record` service triggers it here). The
+      // section carries no scope block (scope lives on Address History).
+      expect(data.sections[5]).toEqual({
+        id: 'record_search',
+        title: 'candidate.portal.sections.recordSearchRequirements',
+        type: 'record_search',
+        placement: 'services',
+        status: 'not_started',
+        order: 5,
+        functionalityType: 'record',
+        serviceIds: ['service-2'],
+      });
+
       // Check after_services sections
       // Phase 6 Stage 4: workflow_section sections in the after_services zone
       // also carry the workflowSection payload — same shape as before_services,
       // different placement value.
-      expect(data.sections[5]).toEqual({
+      expect(data.sections[6]).toEqual({
         id: 'section-2',
         title: 'Consent Form',
         type: 'workflow_section',
         placement: 'after_services',
         status: 'not_started',
-        order: 5,
+        order: 6,
         functionalityType: null,
         workflowSection: {
           id: 'section-2',
@@ -352,13 +372,13 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       });
 
-      expect(data.sections[6]).toEqual({
+      expect(data.sections[7]).toEqual({
         id: 'section-3',
         title: 'Authorization',
         type: 'workflow_section',
         placement: 'after_services',
         status: 'not_started',
-        order: 6,
+        order: 7,
         functionalityType: null,
         workflowSection: {
           id: 'section-3',
@@ -372,13 +392,13 @@ describe('GET /api/candidate/application/[token]/structure', () => {
 
       // Phase 7 Stage 1 §3.3 — synthetic Review & Submit section as the
       // last entry, after every after_services workflow section (Rule 29).
-      expect(data.sections[7]).toEqual({
+      expect(data.sections[8]).toEqual({
         id: 'review_submit',
         title: 'candidate.portal.sections.reviewSubmit',
         type: 'review_submit',
         placement: 'after_services',
         status: 'not_started',
-        order: 7,
+        order: 8,
         functionalityType: null,
       });
     });
@@ -474,17 +494,28 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // `address_history` section type.
       // Phase 7 Stage 1 §3.3: the synthetic 'review_submit' entry is
       // appended last.
+      // Task 8.4: when a record service is in the package, a `record_search`
+      // section is also emitted between personal_info and review_submit.
       expect(data.sections[0].type).toBe('service_section');
-      const validSectionTypes = ['service_section', 'address_history', 'personal_info', 'review_submit'];
+      const validSectionTypes = [
+        'service_section',
+        'address_history',
+        'personal_info',
+        'record_search',
+        'review_submit',
+      ];
       expect(
         data.sections.every((s: CandidatePortalSection) => validSectionTypes.includes(s.type))
       ).toBe(true);
-      // Personal Info comes after the service sections and right before
-      // review_submit (which is always last).
+      // Personal Info comes after the service sections. With the record
+      // service in the fixture, record_search is emitted after personal_info,
+      // and review_submit is always last.
       const personalInfoIndex = data.sections.findIndex((s: CandidatePortalSection) => s.type === 'personal_info');
+      const recordSearchIndex = data.sections.findIndex((s: CandidatePortalSection) => s.type === 'record_search');
       const reviewIndex = data.sections.findIndex((s: CandidatePortalSection) => s.type === 'review_submit');
       expect(personalInfoIndex).toBeGreaterThan(0);
-      expect(personalInfoIndex).toBe(reviewIndex - 1);
+      expect(recordSearchIndex).toBe(personalInfoIndex + 1);
+      expect(reviewIndex).toBe(recordSearchIndex + 1);
     });
 
     it('should handle package with no services', async () => {
@@ -519,12 +550,18 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // Should have workflow sections first, then personal info
       // With no services, should have: 1 before_services + 1 personal_info + 2 after_services
       // + 1 review_submit (Phase 7 Stage 1 §3.3) = 5 sections
+      // Task 8.4: no record service in this fixture → record_search is NOT
+      // emitted. The total remains 5.
       expect(data.sections).toHaveLength(5);
       expect(data.sections[0].type).toBe('workflow_section'); // before_services
       expect(data.sections[1].type).toBe('personal_info');
       expect(data.sections[2].type).toBe('workflow_section'); // after_services
       expect(data.sections[3].type).toBe('workflow_section'); // after_services
       expect(data.sections[4].type).toBe('review_submit');     // synthetic Review & Submit
+      // Confirm record_search is NOT in the array when no record service.
+      expect(
+        data.sections.find((s: CandidatePortalSection) => s.type === 'record_search')
+      ).toBeUndefined();
     });
 
     it('should maintain correct order for service sections', async () => {

@@ -47,11 +47,15 @@ export interface CandidatePortalSection {
   // Phase 7 Stage 1 added 'review_submit' for the synthetic Review & Submit
   // entry the structure endpoint appends after all after_services workflow
   // sections.
+  // Task 8.4 added 'record_search' for the Record Search Requirements section
+  // that holds aggregated additional fields/documents split out of Address
+  // History.
   type:
     | 'workflow_section'
     | 'service_section'
     | 'personal_info'
     | 'address_history'
+    | 'record_search'
     | 'review_submit';
   placement: 'before_services' | 'services' | 'after_services';
   // Status union narrowed in Phase 6 Stage 4 (BR 22) — `in_progress` was

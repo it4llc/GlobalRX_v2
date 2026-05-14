@@ -252,6 +252,28 @@ function findMetadataByDocumentId(
       }
     }
 
+    // Task 8.4: the record_search section stores its values (including
+    // uploaded document metadata) under `fieldValues` rather than
+    // `aggregatedFields`. Inspecting it here keeps the DELETE handler
+    // generic across both storage shapes.
+    const rawFieldValues = (
+      sectionData as { fieldValues?: unknown }
+    ).fieldValues;
+    if (
+      rawFieldValues &&
+      typeof rawFieldValues === 'object' &&
+      !Array.isArray(rawFieldValues)
+    ) {
+      for (const value of Object.values(
+        rawFieldValues as Record<string, unknown>,
+      )) {
+        const candidate = readMetadata(value);
+        if (candidate && candidate.documentId === documentId) {
+          return candidate;
+        }
+      }
+    }
+
     // Flat-fields workflow-section / personal-info structures don't carry
     // document metadata in Stage 4 — they hold acknowledgments and primitive
     // field values. We skip them here.

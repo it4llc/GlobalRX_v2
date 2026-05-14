@@ -7,7 +7,7 @@ import logger from '@/lib/logger';
 import { z } from 'zod';
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
 
-import type { CandidateFormData, SavedFieldData } from '@/types/candidate-portal';
+import type { CandidateFormData, FormSectionData, SavedFieldData } from '@/types/candidate-portal';
 // Phase 7 Stage 1: visit-tracking save shape merges into formData using the
 // pure helpers in sectionVisitTracking.ts. The handler dispatches new
 // `section_visit_tracking` requests through the helpers below; existing four
@@ -17,6 +17,9 @@ import {
   mergeSectionVisits,
   type SectionVisitsMap,
 } from '@/lib/candidate/sectionVisitTracking';
+// Task 8.4: record_search section uses a co-located helper to keep this
+// route file from growing past the file-size hard stop.
+import { handleRecordSearchSave } from '@/app/api/candidate/application/[token]/save/recordSearchSave';
 
 // Schema for save request body (flat fields structure).
 // Phase 6 Stage 4 widened the per-field `value` union to also accept JSON
@@ -109,13 +112,16 @@ const addressHistorySaveRequestSchema = z.object({
       ])
     }))
   })),
+  // Task 8.4: aggregatedFields is now optional. After the split, the Address
+  // History client posts entries-only payloads. Legacy clients that still
+  // send aggregatedFields are accepted for backward tolerance.
   aggregatedFields: z.record(z.union([
     z.string(),
     z.number(),
     z.boolean(),
     z.null(),
     z.array(z.string())
-  ]))
+  ])).optional()
 });
 
 // Phase 7 Stage 1: visit-tracking save shape. `section_visit_tracking`
@@ -193,19 +199,36 @@ type AddressHistoryEntryField = AddressHistoryEntry['fields'][number];
  *   entries: [...same shape as education/employment, with address_block
  *             values stored as JSON objects per the spec's Auto-Save Data
  *             Shape section...]
- *   aggregatedFields: {
- *     // Keyed by dsx_requirements.id. Stores values for non-document
- *     // additional fields rendered in the AggregatedRequirements area
- *     // below the entries. Document requirements have NO entries here in
- *     // Stage 3 — they are tracked only as "which are required" until
- *     // Stage 4 delivers the upload UI.
+ *   aggregatedFields?: {
+ *     // OPTIONAL after Task 8.4 — the AggregatedRequirements UI moved to the
+ *     // standalone record_search section, so the canonical address_history
+ *     // body no longer carries this key. The schema still accepts it for
+ *     // backward tolerance with legacy clients; new clients omit it.
  *     [requirementId: string]: string | number | boolean | null | string[]
  *   }
  * }
  *
- * For repeatable and address-history sections the entire entries array (and,
- * for address_history, the entire aggregatedFields object) replaces the saved
- * section. Sending an empty entries array clears the section's saved data.
+ * Record-search format (sectionType: "record_search" — Task 8.4):
+ * {
+ *   sectionType: "record_search"
+ *   sectionId: "record_search"   // pinned by Zod literal
+ *   fieldValues: {
+ *     // Keyed by dsx_requirements.id. Stores values for the deduplicated
+ *     // additional fields and aggregated document metadata previously
+ *     // rendered at the bottom of AddressHistorySection. Whole-object
+ *     // replacement on each save, same convention as the legacy
+ *     // aggregatedFields write path.
+ *     [requirementId: string]:
+ *       | string | number | boolean | null
+ *       | string[]
+ *       | Record<string, string | number | boolean | null>
+ *   }
+ * }
+ *
+ * For repeatable and address-history sections the entire entries array
+ * replaces the saved section. Sending an empty entries array clears the
+ * section's saved data. For record_search saves the entire fieldValues
+ * object replaces the saved bucket.
  *
  * Response:
  * {
@@ -300,6 +323,11 @@ export async function POST(
       return NextResponse.json({ success: true, savedAt: new Date().toISOString() });
     }
 
+    // Task 8.4: record_search dispatches to its own helper module.
+    if (body?.sectionType === 'record_search') {
+      return handleRecordSearchSave(body, token);
+    }
+
     // Address history (Phase 6 Stage 3) uses entries + aggregatedFields.
     // Education/employment use entries only. Personal info/IDV/etc. use flat
     // fields. Each shape has its own Zod schema; the right one is chosen by
@@ -337,18 +365,8 @@ export async function POST(
         { status: 400 }
       );
     }
-    if (isAddressHistory && !('aggregatedFields' in body)) {
-      return NextResponse.json(
-        {
-          error: 'Invalid request body',
-          details: [{
-            message: `Section type 'address_history' requires aggregatedFields object`,
-            path: ['aggregatedFields']
-          }]
-        },
-        { status: 400 }
-      );
-    }
+    // Task 8.4: aggregatedFields is no longer required on address_history
+    // payloads. The Address History client posts entries-only after the split.
 
     // Determine which schema to use. The branches are mutually exclusive —
     // address_history is its own shape, repeatable covers education/employment,
@@ -529,12 +547,15 @@ export async function POST(
     }
 
     // Handle the address_history section (Phase 6 Stage 3) — same per-entry
-    // shape as Education/Employment, plus a top-level aggregatedFields object.
-    // Whole-section replacement: the entire entries array AND the entire
-    // aggregatedFields object replace any previous values.
+    // shape as Education/Employment, plus an optional top-level aggregatedFields
+    // object (Task 8.4: aggregatedFields is no longer written by the new
+    // Address History client; legacy clients that still send it continue to
+    // round-trip for backward tolerance). Whole-section replacement: the
+    // entire entries array (and aggregatedFields object, when supplied)
+    // replace any previous values.
     if (isAddressHistory && entries !== null) {
       const savedAtTimestamp = new Date().toISOString();
-      currentFormData.sections[sectionId] = {
+      const addressHistorySection: FormSectionData = {
         type: sectionType,
         entries: (entries as AddressHistoryEntry[]).map((entry) => ({
           entryId: entry.entryId,
@@ -546,11 +567,14 @@ export async function POST(
             savedAt: savedAtTimestamp
           }))
         })),
-        // The shared CandidateFormData/FormSectionData types use an index
-        // signature for unknown extras, so we attach aggregatedFields
-        // directly. The saved-data endpoint reads it the same way.
-        aggregatedFields: aggregatedFields ?? {}
       };
+      // Only attach aggregatedFields when the legacy client supplied it.
+      // After Task 8.4 the new Address History client omits this key
+      // entirely; record-search values live in the record_search bucket.
+      if (aggregatedFields !== null && aggregatedFields !== undefined) {
+        (addressHistorySection as Record<string, unknown>).aggregatedFields = aggregatedFields;
+      }
+      currentFormData.sections[sectionId] = addressHistorySection;
     } else if (isRepeatableSection && entries !== null) {
       // For education/employment, replace entire section with the provided entries
       currentFormData.sections[sectionId] = {

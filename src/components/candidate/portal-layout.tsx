@@ -17,6 +17,7 @@ import { IdvSection } from '@/components/candidate/form-engine/IdvSection';
 import { EducationSection } from '@/components/candidate/form-engine/EducationSection';
 import { EmploymentSection } from '@/components/candidate/form-engine/EmploymentSection';
 import { AddressHistorySection } from '@/components/candidate/form-engine/AddressHistorySection';
+import { RecordSearchSection } from '@/components/candidate/form-engine/RecordSearchSection';
 import WorkflowSectionRenderer from '@/components/candidate/form-engine/WorkflowSectionRenderer';
 import { ReviewSubmitPage } from '@/components/candidate/review-submit/ReviewSubmitPage';
 import { SectionErrorBanner } from '@/components/candidate/SectionErrorBanner';
@@ -868,6 +869,32 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onCrossSectionRequirementsChanged={handleCrossSectionRequirementsChanged}
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
             onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={refreshValidation}
+          />
+          {stepNavigation}
+        </div>
+      );
+    }
+
+    // Task 8.4 — Record Search Requirements section (split out of Address
+    // History's aggregated block). Pre-authorized for portal-layout edit
+    // despite the file being over the 600-LOC hard stop; see plan §4.6.
+    if (section.type === 'record_search') {
+      return (
+        <div className="p-6" data-testid="main-content">
+          {errorsVisible && sectionValidation && (
+            <SectionErrorBanner sectionId={section.id}
+              scopeErrors={sectionValidation.scopeErrors}
+              gapErrors={sectionValidation.gapErrors}
+              documentErrors={sectionValidation.documentErrors}
+            />
+          )}
+          <RecordSearchSection
+            token={token}
+            serviceIds={section.serviceIds || []}
+            onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
+            onSaveSuccess={refreshValidation}
+            sectionValidation={sectionValidation}
+            errorsVisible={errorsVisible}
           />
           {stepNavigation}
         </div>
