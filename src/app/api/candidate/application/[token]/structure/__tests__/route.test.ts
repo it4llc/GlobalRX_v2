@@ -23,6 +23,23 @@ vi.mock('@/lib/services/candidateSession.service', () => ({
   }
 }));
 
+// Prisma return-type alias for the `candidateInvitation.findUnique` shape the
+// route loads (the same include tree assembled inline in the original success
+// case test). Defined once so the phone-combining fixtures below can be typed
+// without an `as any` cast each. Adding a field to the route's include block
+// will surface as a type error here, which is the desired safety.
+type MockInvitationPayload = Prisma.CandidateInvitationGetPayload<{
+  include: {
+    order: { include: { customer: true } };
+    package: {
+      include: {
+        workflow: { include: { sections: true } };
+        packageServices: { include: { service: true } };
+      };
+    };
+  };
+}>;
+
 describe('GET /api/candidate/application/[token]/structure', () => {
   const mockToken = 'test-token-123';
 
@@ -184,9 +201,15 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       const data = await response.json();
 
       // Check invitation info
+      // Task 8.1 — the structure response now returns `email` and `phone`
+      // in the invitation block so the candidate shell can populate
+      // template variable values. The mock invitation has phoneCountryCode
+      // and phoneNumber both null, so the derived `phone` is null here.
       expect(data.invitation).toEqual({
         firstName: 'Sarah',
         lastName: 'Johnson',
+        email: 'sarah@example.com',
+        phone: null,
         status: 'accessed',
         expiresAt: mockInvitation.expiresAt.toISOString(),
         companyName: 'Acme Corp'
@@ -543,6 +566,105 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(data.sections[2].functionalityType).toBe('record');
       expect(data.sections[3].functionalityType).toBe('verification-edu');
       expect(data.sections[4].functionalityType).toBe('verification-emp');
+    });
+
+    // Task 8.1 — phone display string is combined server-side so the
+    // candidate UI does not have to know the storage shape. Cover all
+    // three branches the route now implements.
+    describe('phone combining (Task 8.1)', () => {
+      it('should combine phoneCountryCode and phoneNumber with a single space when both are present', async () => {
+        const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+        vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+          token: mockToken,
+          invitationId: 'inv-123'
+        });
+
+        const invitationWithBothPhoneFields = {
+          ...mockInvitation,
+          phoneCountryCode: '+1',
+          phoneNumber: '5551234567'
+        };
+
+        vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+          invitationWithBothPhoneFields as MockInvitationPayload
+        );
+
+        const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
+        const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.invitation.phone).toBe('+1 5551234567');
+      });
+
+      it('should return just phoneNumber when phoneCountryCode is null but phoneNumber is present', async () => {
+        const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+        vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+          token: mockToken,
+          invitationId: 'inv-123'
+        });
+
+        const invitationWithOnlyPhoneNumber = {
+          ...mockInvitation,
+          phoneCountryCode: null,
+          phoneNumber: '5551234567'
+        };
+
+        vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+          invitationWithOnlyPhoneNumber as MockInvitationPayload
+        );
+
+        const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
+        const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.invitation.phone).toBe('5551234567');
+      });
+
+      it('should return null when both phoneCountryCode and phoneNumber are null', async () => {
+        const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+        vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+          token: mockToken,
+          invitationId: 'inv-123'
+        });
+
+        const invitationWithNoPhone = {
+          ...mockInvitation,
+          phoneCountryCode: null,
+          phoneNumber: null
+        };
+
+        vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+          invitationWithNoPhone as MockInvitationPayload
+        );
+
+        const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
+        const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.invitation.phone).toBeNull();
+      });
+
+      it('should expose email from the invitation row on the response', async () => {
+        const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+        vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+          token: mockToken,
+          invitationId: 'inv-123'
+        });
+
+        vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+          mockInvitation as MockInvitationPayload
+        );
+
+        const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
+        const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.invitation.email).toBe('sarah@example.com');
+      });
     });
   });
 

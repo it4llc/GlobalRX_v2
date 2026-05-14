@@ -178,6 +178,8 @@ describe('PortalLayout', () => {
   const mockInvitation: CandidateInvitationInfo = {
     firstName: 'Sarah',
     lastName: 'Johnson',
+    email: 'sarah@example.com',
+    phone: null,
     status: 'accessed',
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     companyName: 'Acme Corp'

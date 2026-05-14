@@ -22,6 +22,8 @@ Returns the list of sections the candidate needs to complete, assembled from wor
   "invitation": {
     "firstName": "string",
     "lastName": "string",
+    "email": "string",
+    "phone": "string | null",
     "status": "string",
     "expiresAt": "ISO date",
     "companyName": "string"
@@ -55,6 +57,8 @@ Returns the list of sections the candidate needs to complete, assembled from wor
   }]
 }
 ```
+
+`email` is always present (non-nullable column on `candidate_invitations`). `phone` is a combined display string: `phoneCountryCode + ' ' + phoneNumber` when both are present, `phoneNumber` alone when only that is present, or `null` when neither was collected at invitation time. These fields are used by the candidate shell to build the `TemplateVariableValues` object passed into `WorkflowSectionRenderer` for template variable substitution (Task 8.1).
 
 `workflowSection` is only present when `type === "workflow_section"`. It carries the full content payload so the client can render the section without a second fetch.
 
