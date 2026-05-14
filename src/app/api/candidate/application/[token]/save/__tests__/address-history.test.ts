@@ -1,5 +1,10 @@
 // /GlobalRX_v2/src/app/api/candidate/application/[token]/save/__tests__/address-history.test.ts
 // Pass 2 tests for Phase 6 Stage 3: Save API extensions for address_history
+//
+// Task 8.4 update: aggregatedFields is now optional on address_history bodies
+// (plan §4.3, §6.2). Tests in this file have been updated to reflect that
+// behavior change. The legacy with-aggregatedFields path is preserved for
+// backward tolerance.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
@@ -78,7 +83,13 @@ describe('POST /api/candidate/application/[token]/save - Address History', () =>
       expect(data.details[0].path).toEqual(['entries']);
     });
 
-    it('returns 400 with detail message when address_history body lacks aggregatedFields', async () => {
+    // Task 8.4 — aggregatedFields is now OPTIONAL on address_history bodies
+    // (plan §4.3, §6.2). The new Address History client posts entries-only
+    // after the split. This test asserts the new behavior: a body without
+    // aggregatedFields is accepted with 200 and persists entries, and the
+    // saved address_history row does NOT have an aggregatedFields key
+    // implicitly created.
+    it('accepts an address_history body that omits aggregatedFields (Task 8.4)', async () => {
       const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
       vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
         token: mockToken,
@@ -88,11 +99,24 @@ describe('POST /api/candidate/application/[token]/save - Address History', () =>
         expiresAt: new Date(Date.now() + 1000000)
       });
 
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as never);
+      vi.mocked(prisma.candidateInvitation.update).mockImplementation(async (args: { data: { formData: unknown } }) => ({
+        ...mockInvitation,
+        formData: args.data.formData
+      } as never));
+
       const body = {
         sectionType: 'address_history',
         sectionId: 'address_history',
-        entries: []
-        // aggregatedFields deliberately omitted
+        entries: [
+          {
+            entryId: entryUuid1,
+            countryId: countryUuid,
+            entryOrder: 0,
+            fields: []
+          }
+        ]
+        // aggregatedFields deliberately omitted — Task 8.4 makes it optional.
       };
 
       const request = new NextRequest(
@@ -102,10 +126,23 @@ describe('POST /api/candidate/application/[token]/save - Address History', () =>
 
       const response = await POST(request, { params: Promise.resolve({ token: mockToken }) });
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.error).toBe('Invalid request body');
-      expect(data.details[0].path).toEqual(['aggregatedFields']);
+      expect(data.success).toBe(true);
+
+      // Persisted shape: entries present, NO aggregatedFields key was added
+      // implicitly. The save route only writes aggregatedFields when the body
+      // supplied it (plan §4.3).
+      const updateCall = vi.mocked(prisma.candidateInvitation.update).mock.calls[0];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const formData = (updateCall[0] as any).data.formData;
+      expect(formData.sections.address_history).toBeDefined();
+      expect(formData.sections.address_history.entries).toHaveLength(1);
+      expect(formData.sections.address_history.entries[0].entryId).toBe(entryUuid1);
+      // Critical: aggregatedFields must NOT be added when the body did not
+      // include it — the post-split Address History client does not write to
+      // this key.
+      expect(formData.sections.address_history).not.toHaveProperty('aggregatedFields');
     });
   });
 
@@ -120,7 +157,7 @@ describe('POST /api/candidate/application/[token]/save - Address History', () =>
         expiresAt: new Date(Date.now() + 1000000)
       });
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as never);
       vi.mocked(prisma.candidateInvitation.update).mockImplementation(async (args: { data: { formData: unknown } }) => ({
         ...mockInvitation,
         formData: args.data.formData
@@ -186,7 +223,8 @@ describe('POST /api/candidate/application/[token]/save - Address History', () =>
         toDate: null,
         isCurrent: true
       });
-      // aggregatedFields object is persisted at the top of the section.
+      // aggregatedFields object is persisted at the top of the section
+      // (backward tolerance — legacy clients that still send it round-trip).
       expect(formData.sections.address_history.aggregatedFields).toEqual({
         [reqAggField]: 'AB12345'
       });
@@ -202,7 +240,7 @@ describe('POST /api/candidate/application/[token]/save - Address History', () =>
         expiresAt: new Date(Date.now() + 1000000)
       });
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as never);
       vi.mocked(prisma.candidateInvitation.update).mockImplementation(async (args: { data: { formData: unknown } }) => ({
         ...mockInvitation,
         formData: args.data.formData
@@ -241,7 +279,7 @@ describe('POST /api/candidate/application/[token]/save - Address History', () =>
         expiresAt: new Date(Date.now() + 1000000)
       });
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as never);
       vi.mocked(prisma.candidateInvitation.update).mockImplementation(async (args: { data: { formData: unknown } }) => ({
         ...mockInvitation,
         formData: args.data.formData
@@ -326,7 +364,7 @@ describe('POST /api/candidate/application/[token]/save - Address History', () =>
         }
       };
 
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(invitationWithAddressHistory as any);
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(invitationWithAddressHistory as never);
       vi.mocked(prisma.candidateInvitation.update).mockImplementation(async (args: { data: { formData: unknown } }) => ({
         ...invitationWithAddressHistory,
         formData: args.data.formData
@@ -403,7 +441,7 @@ describe('POST /api/candidate/application/[token]/save - Address History', () =>
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce({
         ...mockInvitation,
         expiresAt: new Date(Date.now() - 1000)
-      } as any);
+      } as never);
 
       const body = {
         sectionType: 'address_history',

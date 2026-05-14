@@ -31,7 +31,7 @@ Returns the list of sections the candidate needs to complete, assembled from wor
   "sections": [{
     "id": "string",
     "title": "string",
-    "type": "workflow_section | service_section | personal_info | address_history | review_submit",
+    "type": "workflow_section | service_section | personal_info | address_history | record_search | review_submit",
     "placement": "before_services | services | after_services",
     "status": "not_started | incomplete | complete",
     "order": "number",
@@ -76,10 +76,27 @@ Phase 7 Stage 1 appends a synthetic `review_submit` section entry at the end of 
 4. Education (`functionalityType: "verification-edu"`) — only if the package includes an education service
 5. Employment (`functionalityType: "verification-emp"`) — only if the package includes an employment service
 6. Personal Information (`type: "personal_info"`) — always present
-7. `after_services` workflow sections, in `displayOrder` order
-8. Review & Submit (synthetic, `id: "review_submit"`, `type: "review_submit"`)
+7. Record Search Requirements (`type: "record_search"`) — only if the package includes a record-type service (Task 8.4)
+8. `after_services` workflow sections, in `displayOrder` order
+9. Review & Submit (synthetic, `id: "review_submit"`, `type: "review_submit"`)
 
 Prior to Task 8.2, Personal Information appeared second (immediately after `before_services` workflow sections and before service sections). It now appears sixth. The `placement` field on the Personal Information entry remains `"services"` — downstream consumers must drive rendering order from array position, not from `placement`.
+
+The `record_search` section entry (Task 8.4) appears only when the package has at least one service with `functionalityType: "record"` — the same guard that controls `address_history`. Its shape in the `sections` array is:
+```json
+{
+  "id": "record_search",
+  "title": "candidate.portal.sections.recordSearchRequirements",
+  "type": "record_search",
+  "placement": "services",
+  "status": "not_started",
+  "order": "number",
+  "functionalityType": "record",
+  "serviceIds": ["string (UUID)"]
+}
+```
+
+`title` is a translation key. No `scope` block is attached to the `record_search` section — scope for record-type services is carried by the sibling `address_history` section entry. `serviceIds` lists the UUIDs of every `record`-functionality package service, matching the same list used by `address_history`.
 
 ### GET /api/candidate/application/[token]/fields
 
@@ -194,7 +211,7 @@ Returns personal information fields from across all package services where the D
 
 Auto-saves the candidate's in-progress form data. Called automatically when the candidate moves between fields, adds an entry, or removes an entry.
 
-The endpoint accepts five distinct request shapes, dispatched by `sectionType`:
+The endpoint accepts six distinct request shapes, dispatched by `sectionType`:
 
 **Visit-tracking format** — Phase 7 Stage 1. Used to persist section visit records and the Review & Submit visit flag without touching `formData.sections`:
 ```json
@@ -265,6 +282,41 @@ Repeatable-entry saves use **whole-section replacement**: the entire `entries` a
 
 If `sectionType` is `education` or `employment` but the request body does not contain an `entries` field, the endpoint returns `400`.
 
+**Address-history format** — used for `address_history` (Phase 6 Stage 3):
+```json
+{
+  "sectionType": "address_history",
+  "sectionId": "string",
+  "entries": [{
+    "entryId": "string (UUID)",
+    "countryId": "string (UUID) | null",
+    "entryOrder": "number (>= 0)",
+    "fields": [{
+      "requirementId": "string (UUID)",
+      "value": "string | number | boolean | null | string[] | object"
+    }]
+  }],
+  "aggregatedFields": {
+    "<requirementId>": "string | number | boolean | null | string[]"
+  }
+}
+```
+
+`aggregatedFields` was required prior to Task 8.4. As of Task 8.4, `aggregatedFields` is **optional** on address_history payloads. Aggregated record-search field values are now saved through the dedicated `record_search` shape below. The schema continues to accept `aggregatedFields` from legacy clients for backward tolerance; new clients omit it. Address-history saves use whole-section replacement: the entire `entries` array (and `aggregatedFields` map, when supplied) replace any previously stored values for the section.
+
+**Record-search format** — used for `record_search` (Task 8.4):
+```json
+{
+  "sectionType": "record_search",
+  "sectionId": "record_search",
+  "fieldValues": {
+    "<requirementId>": "string | number | boolean | null | string[] | object"
+  }
+}
+```
+
+`sectionId` is pinned to the literal `"record_search"` — the Zod schema rejects any other value. `fieldValues` is keyed by `dsx_requirements.id` and stores values for the deduplicated additional fields and aggregated document metadata collected from the union of countries the candidate selected in their Address History entries. The `object` variant of the value type carries document-upload metadata (same shape as the flat-fields format above). Each save is a **whole-object replacement**: the entire `fieldValues` map replaces the previously stored bucket. This section does not read from or write to `formData.sections.address_history.aggregatedFields`.
+
 **Response:**
 ```json
 {
@@ -277,7 +329,7 @@ If `sectionType` is `education` or `employment` but the request body does not co
 
 Loads the candidate's previously saved form data for pre-populating the form when they return.
 
-The response contains three section shapes, depending on the section type.
+The response contains multiple section shapes, depending on the section type.
 
 **Workflow sections** (`workflow_section`) — Phase 6 Stage 4:
 ```json
@@ -342,6 +394,46 @@ The bucket key is the `workflow_sections.id` UUID (matching the key in `formData
 ```
 
 Repeatable sections are only present in the response when the candidate has previously saved at least one entry — they are not auto-created.
+
+**Address-history section** (`address_history`) — Phase 6 Stage 3. Returns the same per-entry shape as repeatable sections, plus a top-level `aggregatedFields` object keyed by `dsx_requirements.id`. After Task 8.4, the AggregatedRequirements UI moved to the standalone `record_search` section, so `aggregatedFields` is always `{}` for newly-saved rows; it is retained in the response for backward compatibility with rows saved before Task 8.4 (the new client ignores it):
+```json
+{
+  "sections": {
+    "address_history": {
+      "entries": [{
+        "entryId": "string (UUID)",
+        "countryId": "string (UUID) | null",
+        "entryOrder": "number",
+        "fields": [{
+          "requirementId": "string (UUID)",
+          "value": "string | number | boolean | null | string[] | object"
+        }]
+      }],
+      "aggregatedFields": {
+        "<requirementId>": "any"
+      }
+    }
+  }
+}
+```
+
+The `address_history` section is not auto-created — it is only present in the response when the candidate has previously saved at least one address entry.
+
+**Record-search section** (`record_search`) — Task 8.4. Carries the deduplicated additional fields and aggregated document metadata collected from the union of countries the candidate selected in their Address History entries. This section is **always present** in the response, even when no record-search data has been saved yet — it defaults to `{ type: "record_search", fieldValues: {} }` (same always-present pattern as `personal_info` and `idv`):
+```json
+{
+  "sections": {
+    "record_search": {
+      "type": "record_search",
+      "fieldValues": {
+        "<requirementId>": "string | number | boolean | null | string[] | object"
+      }
+    }
+  }
+}
+```
+
+`fieldValues` is an empty object `{}` when no record-search data has been saved. When data is present, keys are `dsx_requirements.id` values and values mirror the full value union accepted by the save endpoint. This section does not read from `formData.sections.address_history.aggregatedFields`.
 
 Phase 7 Stage 1 extended the response to include visit tracking data as siblings of `sections`:
 
@@ -560,6 +652,10 @@ Form data is stored in the `formData` JSON column on the `CandidateInvitation` t
     "employment": {
       "type": "employment",
       "entries": [ /* same shape as education */ ]
+    },
+    "record_search": {
+      "type": "record_search",
+      "fieldValues": {}
     }
   }
 }
