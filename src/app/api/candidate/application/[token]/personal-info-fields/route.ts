@@ -1,10 +1,12 @@
 // /GlobalRX_v2/src/app/api/candidate/application/[token]/personal-info-fields/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+
 import { Prisma } from '@prisma/client';
-import logger from '@/lib/logger';
+
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
+import logger from '@/lib/logger';
+import { prisma } from '@/lib/prisma';
 
 import type { FieldMetadata } from '@/types/candidate-portal';
 
@@ -223,6 +225,13 @@ export async function GET(
             country: { NOT: { disabled: true } },
           },
           select: { serviceId: true, locationId: true },
+          // Explicit orderBy per API_STANDARDS Section 7.4 — Prisma's
+          // implicit ordering is undefined and would let pair ordering
+          // drift between environments. `id: 'asc'` is a stable,
+          // deterministic key for an internal aggregation query whose
+          // result is consumed as a Set of pairs (no user-facing list
+          // order to preserve).
+          orderBy: { id: 'asc' },
         })) ?? []
       : [];
 
@@ -250,6 +259,12 @@ export async function GET(
           locationId: true,
           isRequired: true,
         },
+        // Explicit orderBy per API_STANDARDS Section 7.4 — the result is
+        // grouped by requirementId and AND-aggregated into a boolean, so
+        // there is no user-facing ordering to preserve. `id: 'asc'`
+        // gives a deterministic order across environments without
+        // affecting the aggregation result.
+        orderBy: { id: 'asc' },
       });
 
       // Group mapping rows by requirementId, then AND-aggregate isRequired
