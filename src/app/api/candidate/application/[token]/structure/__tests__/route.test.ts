@@ -5,6 +5,7 @@ import { NextRequest } from 'next/server';
 import { GET } from '../route';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import type { CandidatePortalSection } from '@/types/candidate-portal';
 
 // Mock logger
 vi.mock('@/lib/logger', () => ({
@@ -162,6 +163,14 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         token: 'different-token',
         invitationId: 'inv-123'
       });
+
+      // The route follows API S2 ordering (401 → 400 → 404 → 403): the
+      // invitation existence check now runs before the session-token
+      // authorization check, so we must seed findUnique with the URL-token
+      // invitation in order for the 403 branch to be reached.
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        mockInvitation as MockInvitationPayload
+      );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
@@ -415,7 +424,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationWithDuplicates as any
+        invitationWithDuplicates as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -425,7 +434,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       const data = await response.json();
 
       // Should have deduplicated IDV services
-      const idvSections = data.sections.filter((s: any) =>
+      const idvSections = data.sections.filter((s: CandidatePortalSection) =>
         s.functionalityType === 'verification-idv' && s.type === 'service_section'
       );
       expect(idvSections).toHaveLength(1);
@@ -448,7 +457,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoWorkflow as any
+        invitationNoWorkflow as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -468,12 +477,12 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(data.sections[0].type).toBe('service_section');
       const validSectionTypes = ['service_section', 'address_history', 'personal_info', 'review_submit'];
       expect(
-        data.sections.every((s: any) => validSectionTypes.includes(s.type))
+        data.sections.every((s: CandidatePortalSection) => validSectionTypes.includes(s.type))
       ).toBe(true);
       // Personal Info comes after the service sections and right before
       // review_submit (which is always last).
-      const personalInfoIndex = data.sections.findIndex((s: any) => s.type === 'personal_info');
-      const reviewIndex = data.sections.findIndex((s: any) => s.type === 'review_submit');
+      const personalInfoIndex = data.sections.findIndex((s: CandidatePortalSection) => s.type === 'personal_info');
+      const reviewIndex = data.sections.findIndex((s: CandidatePortalSection) => s.type === 'review_submit');
       expect(personalInfoIndex).toBeGreaterThan(0);
       expect(personalInfoIndex).toBe(reviewIndex - 1);
     });
@@ -494,7 +503,11 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoServices as any
+        // Empty packageServices array narrows to `never[]`, which TS rightly
+        // flags as not overlapping the strict MockInvitationPayload union.
+        // Cast through `unknown` so the intentional override (no services)
+        // is allowed while still keeping the target type explicit.
+        invitationNoServices as unknown as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -564,7 +577,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationWithServices as any
+        invitationWithServices as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -715,7 +728,11 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoPackage as any
+        // `package: null` is the intentional missing-package scenario the
+        // route's 500 branch handles. MockInvitationPayload includes the
+        // package relation so the shape doesn't overlap; cast via `unknown`
+        // to preserve the test's deliberate divergence.
+        invitationNoPackage as unknown as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -778,7 +795,10 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationEmpty as any
+        // Empty package (no workflow, no services) — same shape-narrowing
+        // issue as invitationNoServices. Cast through `unknown` so the
+        // empty-package scenario is allowed.
+        invitationEmpty as unknown as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -826,7 +846,10 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoCustomer as any
+        // `order.customer: null` is the intentional missing-customer scenario.
+        // The Prisma type includes `customer` as a non-null relation in this
+        // payload, so a cast through `unknown` is required.
+        invitationNoCustomer as unknown as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -871,7 +894,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationWithNullType as any
+        invitationWithNullType as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);

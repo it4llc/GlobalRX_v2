@@ -15,7 +15,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-import { ReviewSubmitPage } from './ReviewSubmitPage';
+import { ReviewSubmitPage } from '@/components/candidate/review-submit/ReviewSubmitPage';
 import type { FullValidationResult } from '@/lib/candidate/validation/types';
 
 vi.mock('@/contexts/TranslationContext', () => ({

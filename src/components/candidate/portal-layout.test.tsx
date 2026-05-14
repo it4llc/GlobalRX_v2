@@ -38,7 +38,7 @@ vi.mock('@/contexts/TranslationContext', () => ({
 
 // Mock useDebounce hook for the form sections
 vi.mock('@/hooks/useDebounce', () => ({
-  useDebounce: (value: any) => value
+  useDebounce: <T,>(value: T): T => value
 }));
 
 // Mock fetch for the form sections
@@ -101,6 +101,17 @@ interface RepeatableSectionStubProps {
   onCrossSectionRequirementsRemovedForSource?: (triggeredBy: string) => void;
 }
 
+// Subset of the real section props the mocked stubs care about. The real
+// section components (AddressHistorySection / EducationSection /
+// EmploymentSection) accept more props than this, but the stubs only forward
+// the two cross-section callbacks. Using a Pick keeps this in lockstep with
+// RepeatableSectionStubProps so a callback signature change here would
+// surface as a type error in the stub component below.
+type MockedSectionCallbackProps = Pick<
+  RepeatableSectionStubProps,
+  'onCrossSectionRequirementsChanged' | 'onCrossSectionRequirementsRemovedForSource'
+>;
+
 function RepeatableSectionStub({
   triggeredBy,
   testId,
@@ -132,7 +143,7 @@ function RepeatableSectionStub({
 }
 
 vi.mock('./form-engine/AddressHistorySection', () => ({
-  AddressHistorySection: (props: any) => (
+  AddressHistorySection: (props: MockedSectionCallbackProps) => (
     <RepeatableSectionStub
       triggeredBy="address_history"
       testId="address-history-stub"
@@ -145,7 +156,7 @@ vi.mock('./form-engine/AddressHistorySection', () => ({
 }));
 
 vi.mock('./form-engine/EducationSection', () => ({
-  EducationSection: (props: any) => (
+  EducationSection: (props: MockedSectionCallbackProps) => (
     <RepeatableSectionStub
       triggeredBy="education_history"
       testId="education-stub"
@@ -158,7 +169,7 @@ vi.mock('./form-engine/EducationSection', () => ({
 }));
 
 vi.mock('./form-engine/EmploymentSection', () => ({
-  EmploymentSection: (props: any) => (
+  EmploymentSection: (props: MockedSectionCallbackProps) => (
     <RepeatableSectionStub
       triggeredBy="employment_history"
       testId="employment-stub"

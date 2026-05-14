@@ -1,6 +1,7 @@
 // /GlobalRX_v2/src/app/api/candidate/application/[token]/structure/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import type {
@@ -19,6 +20,15 @@ import {
   type ResolvedScope,
   type ScopeFunctionalityType,
 } from '@/lib/candidate/validation/packageScopeShape';
+
+// Zod schema for the token path parameter. We validate the path param up
+// front (before any business logic) so malformed tokens fail with a clear
+// 400 rather than falling through to a 404 from the Prisma lookup below.
+// Pattern matches the sibling /scope route (z-based safeParse + 400 on
+// failure), keeping our candidate API surface consistent.
+const tokenParamSchema = z.object({
+  token: z.string().min(1),
+});
 
 /**
  * GET /api/candidate/application/[token]/structure
@@ -108,19 +118,24 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Step 2: Input validation - validate token format
-    if (!token || typeof token !== 'string' || token.length === 0) {
-      return NextResponse.json({ error: 'Invalid token parameter' }, { status: 400 });
+    // Step 2: Input validation — validate token path parameter via Zod.
+    // Replaces the prior manual `!token || typeof token !== 'string'` guard
+    // so the route follows the same Zod-driven validation pattern as the
+    // sibling /scope and /save endpoints (standards-checker fix).
+    const tokenValidation = tokenParamSchema.safeParse({ token });
+    if (!tokenValidation.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: tokenValidation.error.errors },
+        { status: 400 }
+      );
     }
+    const { token: validatedToken } = tokenValidation.data;
 
-    // Step 3: Verify token matches session
-    if (sessionData.token !== token) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Step 4: Load invitation with all related data including package
+    // Step 3: Load invitation with all related data including package.
+    // Per API S2, the 404 existence check runs BEFORE the 403 authorization
+    // check so callers see a consistent ordering (401 → 400 → 404 → 403).
     const invitation = await prisma.candidateInvitation.findUnique({
-      where: { token },
+      where: { token: validatedToken },
       include: {
         order: {
           include: {
@@ -146,6 +161,12 @@ export async function GET(
 
     if (!invitation) {
       return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
+    }
+
+    // Step 4: Verify session token matches the URL token. Runs after the
+    // 404 so a missing invitation never gets masked behind a 403.
+    if (sessionData.token !== validatedToken) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Step 4: Get the package directly from the invitation

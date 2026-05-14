@@ -660,8 +660,12 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
         if (document?.documentElement) {
           document.documentElement.scrollTop = 0;
         }
-      } catch {
-        // Swallow — scroll failure is non-fatal for navigation.
+      } catch (scrollError) {
+        // Scroll failure is non-fatal for navigation, but we still log it
+        // so the failure isn't silently swallowed (standards-checker fix).
+        logger.debug('portal-layout: scrollTop fallback failed', {
+          error: scrollError instanceof Error ? scrollError.message : 'Unknown error',
+        });
       }
     }
     // Also reset the inner overflow container in case the portal's main

@@ -26,7 +26,7 @@ import type {
   ValidationStatus,
 } from '@/lib/candidate/validation/types';
 
-import { ReviewSectionBlock } from './ReviewSectionBlock';
+import { ReviewSectionBlock } from '@/components/candidate/review-submit/ReviewSectionBlock';
 
 /**
  * Minimal section descriptor consumed by ReviewSubmitPage to drive both the
