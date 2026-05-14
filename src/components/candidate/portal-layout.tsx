@@ -4,7 +4,9 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
 import { format } from 'date-fns';
+
 import { useTranslation } from '@/contexts/TranslationContext';
 import PortalHeader from '@/components/candidate/portal-header';
 import PortalSidebar from '@/components/candidate/portal-sidebar';
@@ -18,6 +20,11 @@ import { AddressHistorySection } from '@/components/candidate/form-engine/Addres
 import WorkflowSectionRenderer from '@/components/candidate/form-engine/WorkflowSectionRenderer';
 import { ReviewSubmitPage } from '@/components/candidate/review-submit/ReviewSubmitPage';
 import { SectionErrorBanner } from '@/components/candidate/SectionErrorBanner';
+// Task 8.2 (Linear Step Navigation) — shared Next/Back button row rendered
+// at the bottom of every non-`review_submit` section. The component is
+// purely presentational; navigation logic lives here in the shell so it
+// can reuse the existing `handleSectionClick` (spec rule 7).
+import StepNavigationButtons from '@/components/candidate/StepNavigationButtons';
 import { clientLogger as logger } from '@/lib/client-logger';
 // Phase 7 Stage 1 — visit tracking + /validate-driven error display.
 // usePortalValidation owns sectionVisits, reviewPageVisitedAt, and the
@@ -25,11 +32,6 @@ import { clientLogger as logger } from '@/lib/client-logger';
 // and to gate the Review & Submit page.
 import { usePortalValidation } from '@/lib/candidate/usePortalValidation';
 import { mergeSectionStatus } from '@/lib/candidate/validation/mergeSectionStatus';
-import type { SectionVisitsMap } from '@/lib/candidate/sectionVisitTracking';
-import type {
-  ReviewError,
-  SectionValidationResult,
-} from '@/lib/candidate/validation/types';
 import {
   addCrossSectionRequirements,
   getCrossSectionRequirements,
@@ -40,6 +42,12 @@ import {
   computePersonalInfoStatus,
   computeWorkflowSectionStatus,
 } from '@/lib/candidate/sectionProgress';
+
+import type { SectionVisitsMap } from '@/lib/candidate/sectionVisitTracking';
+import type {
+  ReviewError,
+  SectionValidationResult,
+} from '@/lib/candidate/validation/types';
 import type {
   CandidateInvitationInfo,
   CandidatePortalSection,
@@ -623,6 +631,105 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     [token, handleSectionProgressUpdate, refreshValidation],
   );
 
+  // Task 8.2 (Linear Step Navigation) — derived navigable section list and
+  // the index of the currently-active section. The structure endpoint
+  // already returns sections in the linear flow order, and sections that
+  // do not apply to the candidate's package are omitted entirely, so the
+  // navigable list is simply `sectionsWithStatus` as-is (spec rule 6 /
+  // edge case 1). The shell does not maintain a separate "skip" map.
+  const navigableSections = useMemo(() => sectionsWithStatus, [sectionsWithStatus]);
+
+  const activeSectionIndex = useMemo(() => {
+    if (!activeSection) return -1;
+    return navigableSections.findIndex((s) => s.id === activeSection);
+  }, [navigableSections, activeSection]);
+
+  // Task 8.2 (Linear Step Navigation) — Next/Back click handlers. Both
+  // delegate to the existing `handleSectionClick` so visit tracking and
+  // validation gating continue to flow through a single code path (spec
+  // rule 7). After navigating we scroll the candidate back to the top of
+  // the new section so they aren't stranded at the bottom (spec rule 11).
+  // We scroll BOTH the window AND the `<main>` overflow container because
+  // the candidate portal puts its scroll inside an overflow-y-auto main
+  // element on desktop and uses window scroll on smaller viewports.
+  const scrollNewSectionIntoView = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // jsdom and some older browsers throw when behavior is unsupported.
+      // Fall back to setting scrollTop on the document element.
+      try {
+        if (document?.documentElement) {
+          document.documentElement.scrollTop = 0;
+        }
+      } catch (scrollError) {
+        // Scroll failure is non-fatal for navigation, but we still log it
+        // so the failure isn't silently swallowed (standards-checker fix).
+        logger.debug('portal-layout: scrollTop fallback failed', {
+          error: scrollError instanceof Error ? scrollError.message : 'Unknown error',
+        });
+      }
+    }
+    // Also reset the inner overflow container in case the portal's main
+    // element is the actual scroll surface (desktop layout uses
+    // `<main className="flex-1 bg-white overflow-y-auto">`). We target the
+    // `<main>` element directly because the `data-testid="main-content"`
+    // attribute is attached to inner content wrappers (`<div className="p-6">`)
+    // that are not scrollable — setting scrollTop on those is a silent no-op.
+    if (typeof document !== 'undefined') {
+      const main = document.querySelector('main') as HTMLElement | null;
+      if (main) {
+        main.scrollTop = 0;
+      }
+    }
+  }, []);
+
+  const handleNextClick = useCallback(() => {
+    if (activeSectionIndex < 0) return;
+    const next = navigableSections[activeSectionIndex + 1];
+    if (!next) return;
+    handleSectionClick(next.id);
+    scrollNewSectionIntoView();
+    // handleSectionClick is defined inline above (not a useCallback) and
+    // closes over the latest activeSection / mark* hooks. We intentionally
+    // omit it from deps to avoid recreating this callback on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSectionIndex, navigableSections, scrollNewSectionIntoView]);
+
+  const handleBackClick = useCallback(() => {
+    if (activeSectionIndex < 0) return;
+    const prev = navigableSections[activeSectionIndex - 1];
+    if (!prev) return;
+    handleSectionClick(prev.id);
+    scrollNewSectionIntoView();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSectionIndex, navigableSections, scrollNewSectionIntoView]);
+
+  // Task 8.2 — visibility of the shared Next/Back row. The Review &
+  // Submit page intentionally renders its OWN Back button next to Submit
+  // (spec rule 5), so the shared component is suppressed entirely on
+  // that branch to avoid duplicating the Back action.
+  const activeSectionForNav = activeSectionIndex >= 0 ? navigableSections[activeSectionIndex] : null;
+  const isReviewActive = activeSectionForNav?.type === 'review_submit';
+  const showNext =
+    !isReviewActive &&
+    activeSectionIndex >= 0 &&
+    activeSectionIndex < navigableSections.length - 1;
+  const showBack =
+    !isReviewActive &&
+    activeSectionIndex > 0;
+
+  // Single shared instance of the navigation row so each dispatch branch
+  // below renders the same element. Memoised against the derived flags so
+  // children only re-render when navigation state actually changes.
+  const stepNavigation = (
+    <StepNavigationButtons
+      onBack={showBack ? handleBackClick : null}
+      onNext={showNext ? handleNextClick : null}
+    />
+  );
+
   const getActiveContent = () => {
     if (!activeSection) {
       return (
@@ -667,6 +774,11 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onSubmit={handleSubmit}
             submitting={submitting}
             submitError={submitError}
+            // Task 8.2 (Linear Step Navigation) — Back button next to
+            // Submit on the Review & Submit page (spec rule 5). We always
+            // wire `handleBackClick` here (no `showBack` gate) because
+            // Review & Submit always has at least one prior section.
+            onBack={handleBackClick}
           />
         </div>
       );
@@ -701,6 +813,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             errorsVisible={errorsVisible}
             onSaveSuccess={refreshValidation}
           />
+          {stepNavigation}
         </div>
       );
     }
@@ -716,6 +829,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             errorsVisible={errorsVisible}
             onSaveSuccess={refreshValidation}
           />
+          {stepNavigation}
         </div>
       );
     }
@@ -755,6 +869,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
             onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={refreshValidation}
           />
+          {stepNavigation}
         </div>
       );
     }
@@ -777,6 +892,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
             onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={refreshValidation}
           />
+          {stepNavigation}
         </div>
       );
     }
@@ -799,6 +915,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
             onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={refreshValidation}
           />
+          {stepNavigation}
         </div>
       );
     }
@@ -817,12 +934,23 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             errorsVisible={errorsVisible}
             variableValues={templateVariableValues}
           />
+          {stepNavigation}
         </div>
       );
     }
 
-    // For other sections, show placeholder
-    return <SectionPlaceholder title={section.title} />;
+    // For other sections, show placeholder. We wrap the fallback in the same
+    // `<div className="p-6" data-testid="main-content">` shell + step
+    // navigation row used by every other dispatch branch. This branch is
+    // unreachable today (every section.type above is handled), but if a new
+    // section type is added in the future and forgotten in the dispatch, the
+    // fallback still renders Next/Back so the candidate is not stranded.
+    return (
+      <div className="p-6" data-testid="main-content">
+        <SectionPlaceholder title={section.title} />
+        {stepNavigation}
+      </div>
+    );
   };
 
   return (

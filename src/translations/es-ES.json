@@ -534,5 +534,7 @@
 
   "candidate.workflowSection.acknowledgmentLabel": "I have read and agree to the above",
   "candidate.workflowSection.openDocument": "Open document",
-  "candidate.workflowSection.documentUnavailable": "Document not available."
+  "candidate.workflowSection.documentUnavailable": "Document not available.",
+  "candidate.navigation.next": "Siguiente",
+  "candidate.navigation.back": "Atrás"
 }

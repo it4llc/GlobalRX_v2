@@ -1,6 +1,7 @@
 // /GlobalRX_v2/src/app/api/candidate/application/[token]/structure/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import type {
@@ -19,6 +20,15 @@ import {
   type ResolvedScope,
   type ScopeFunctionalityType,
 } from '@/lib/candidate/validation/packageScopeShape';
+
+// Zod schema for the token path parameter. We validate the path param up
+// front (before any business logic) so malformed tokens fail with a clear
+// 400 rather than falling through to a 404 from the Prisma lookup below.
+// Pattern matches the sibling /scope route (z-based safeParse + 400 on
+// failure), keeping our candidate API surface consistent.
+const tokenParamSchema = z.object({
+  token: z.string().min(1),
+});
 
 /**
  * GET /api/candidate/application/[token]/structure
@@ -74,6 +84,16 @@ import {
  *   The list always ends with a synthetic Review & Submit section
  *   (id: 'review_submit', type: 'review_submit', placement: 'after_services')
  *   so the sidebar can show it as the last entry (Rule 29).
+ *
+ *   Task 8.2 (Linear Step Navigation) — sections are returned in this order:
+ *     before_services workflow sections
+ *       -> service sections (IDV, address_history, education, employment)
+ *       -> personal_info
+ *       -> after_services workflow sections
+ *       -> review_submit
+ *   Sections that don't apply to the candidate's package (no IDV service, no
+ *   education service, etc.) are omitted entirely — there is no separate
+ *   "skip" indicator on the response.
  * }
  *
  * Errors:
@@ -98,19 +118,24 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Step 2: Input validation - validate token format
-    if (!token || typeof token !== 'string' || token.length === 0) {
-      return NextResponse.json({ error: 'Invalid token parameter' }, { status: 400 });
+    // Step 2: Input validation — validate token path parameter via Zod.
+    // Replaces the prior manual `!token || typeof token !== 'string'` guard
+    // so the route follows the same Zod-driven validation pattern as the
+    // sibling /scope and /save endpoints (standards-checker fix).
+    const tokenValidation = tokenParamSchema.safeParse({ token });
+    if (!tokenValidation.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: tokenValidation.error.errors },
+        { status: 400 }
+      );
     }
+    const { token: validatedToken } = tokenValidation.data;
 
-    // Step 3: Verify token matches session
-    if (sessionData.token !== token) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Step 4: Load invitation with all related data including package
+    // Step 3: Load invitation with all related data including package.
+    // Per API S2, the 404 existence check runs BEFORE the 403 authorization
+    // check so callers see a consistent ordering (401 → 400 → 404 → 403).
     const invitation = await prisma.candidateInvitation.findUnique({
-      where: { token },
+      where: { token: validatedToken },
       include: {
         order: {
           include: {
@@ -136,6 +161,12 @@ export async function GET(
 
     if (!invitation) {
       return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
+    }
+
+    // Step 4: Verify session token matches the URL token. Runs after the
+    // 404 so a missing invitation never gets masked behind a 403.
+    if (sessionData.token !== validatedToken) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Step 4: Get the package directly from the invitation
@@ -265,21 +296,12 @@ export async function GET(
       }
     }
 
-    // Add Personal Information section - first of the data collection sections
-    // (after workflow "before" sections, before service-specific sections)
-    // Check if there are any personal info fields configured for this package
+    // Task 8.2 (Linear Step Navigation) — Personal Information is emitted
+    // AFTER the service section loop, not before. See the matching push below.
+    // The hasPersonalInfoFields flag is preserved here so the section can be
+    // suppressed in the future when DSX configuration calls for it; today the
+    // check is a no-op (always true).
     const hasPersonalInfoFields = true; // For now, always show it. Later we can check DSX config
-    if (hasPersonalInfoFields) {
-      sections.push({
-        id: 'personal_info',
-        title: 'candidate.portal.sections.personalInformation',
-        type: 'personal_info',
-        placement: 'services',
-        status: 'not_started',
-        order: sectionOrder++,
-        functionalityType: null
-      });
-    }
 
     // Add service sections from package services (deduplicated by functionality type)
     const servicesByType = new Map<string, typeof orderedPackage.packageServices[0][]>();
@@ -359,6 +381,27 @@ export async function GET(
           });
         }
       }
+    }
+
+    // Task 8.2 (Linear Step Navigation) — Personal Information is now emitted
+    // AFTER the service section loop. Spec Business Rule 1 places Personal Info
+    // at Step 6 (after IDV / address_history / education / employment, before
+    // after_services workflow sections). The id, title, type, placement, status,
+    // and functionalityType fields are unchanged from the previous emission —
+    // only the position in the array (and consequently the `order` value)
+    // changes. Downstream consumers (portal-layout, portal-sidebar) drive their
+    // rendering off array order, not the `placement` field, so the placement
+    // value stays 'services' as before.
+    if (hasPersonalInfoFields) {
+      sections.push({
+        id: 'personal_info',
+        title: 'candidate.portal.sections.personalInformation',
+        type: 'personal_info',
+        placement: 'services',
+        status: 'not_started',
+        order: sectionOrder++,
+        functionalityType: null
+      });
     }
 
     // Add after_services workflow sections
