@@ -59,7 +59,8 @@ const tokenParamSchema = z.object({
  *     id: string                // Unique identifier for this section
  *     title: string             // Display name shown to the candidate
  *     type: string              // One of: workflow_section, service_section, personal_info,
- *                               //   address_history, review_submit (Phase 7 Stage 1)
+ *                               //   address_history, record_search (Task 8.4),
+ *                               //   review_submit (Phase 7 Stage 1)
  *     placement: string         // One of: before_services, services, after_services
  *     status: string            // One of: not_started, incomplete, complete (lowercase per BR 22)
  *                               // INITIAL value only — Phase 6 Stage 4 BR 15 requires the client
@@ -401,6 +402,28 @@ export async function GET(
         status: 'not_started',
         order: sectionOrder++,
         functionalityType: null
+      });
+    }
+
+    // Task 8.4 — Record Search Requirements appears at Step 7 in the
+    // post-Task-8.2 nine-step flow, sitting between Personal Info and any
+    // after-services workflow sections. It is emitted only when the package
+    // contains at least one record-type service (same guard as the
+    // address_history section above). No scope block is attached here —
+    // scope lives on Address History; this section is downstream of that
+    // and reuses the same scope context.
+    if (servicesByType.has('record')) {
+      const recordServices = servicesByType.get('record')!;
+      const serviceIds = recordServices.map(ps => ps.service.id);
+      sections.push({
+        id: 'record_search',
+        title: 'candidate.portal.sections.recordSearchRequirements',
+        type: 'record_search',
+        placement: 'services',
+        status: 'not_started',
+        order: sectionOrder++,
+        functionalityType: 'record',
+        serviceIds,
       });
     }
 

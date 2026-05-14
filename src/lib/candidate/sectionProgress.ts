@@ -254,6 +254,79 @@ export function computeRepeatableSectionStatus(
 }
 
 // ---------------------------------------------------------------------------
+// computeRecordSearchStatus (Task 8.4)
+// ---------------------------------------------------------------------------
+
+/** Inputs to computeRecordSearchStatus. */
+interface RecordSearchProgressInput {
+  fieldValues: Record<string, unknown>;
+  fieldRequirements: FieldLike[];
+  documentRequirements: DocumentRequirementLike[];
+  uploadedDocuments: Record<string, UploadedDocumentMetadata | undefined>;
+}
+
+/**
+ * Compute progress for the Record Search Requirements section (Task 8.4).
+ *
+ * Rules (mirrors Personal Info logic adapted for the record-search context):
+ *   - No required fields AND no required documents → `complete` (the
+ *     section's empty-state branch renders the "no fields required" message
+ *     and immediately reports `complete`).
+ *   - When some required items are satisfied and others are not →
+ *     `incomplete`.
+ *   - When nothing is satisfied AND nothing has been typed → `not_started`.
+ *   - When all required fields have values AND all required documents have
+ *     uploaded metadata → `complete`.
+ *
+ * Field requirements use `id` (the DSXRequirement UUID) as the key into
+ * `fieldValues`. Document requirements use the same `hasAggregatedDocument`
+ * helper that the repeatable-section progress function uses, so per_search
+ * and per_order documents are matched consistently.
+ */
+export function computeRecordSearchStatus(
+  input: RecordSearchProgressInput,
+): SectionStatus {
+  const requiredFieldIds: string[] = [];
+  for (const field of input.fieldRequirements) {
+    if (field.isRequired) {
+      requiredFieldIds.push(field.id);
+    }
+  }
+  const requiredDocs = input.documentRequirements.filter((d) => d.isRequired);
+
+  // Empty-state: nothing required at all.
+  if (requiredFieldIds.length === 0 && requiredDocs.length === 0) {
+    return 'complete';
+  }
+
+  let satisfied = 0;
+  const total = requiredFieldIds.length + requiredDocs.length;
+
+  for (const id of requiredFieldIds) {
+    if (hasValue(input.fieldValues[id])) {
+      satisfied += 1;
+    }
+  }
+  for (const doc of requiredDocs) {
+    if (hasAggregatedDocument(doc, input.uploadedDocuments)) {
+      satisfied += 1;
+    }
+  }
+
+  // Detect "typed but not in required set" so a typed value (e.g., into an
+  // optional field) still moves the section past `not_started`.
+  const hasAnyTypedValue = Object.values(input.fieldValues).some(hasValue);
+
+  if (satisfied === total) {
+    return 'complete';
+  }
+  if (satisfied === 0 && !hasAnyTypedValue) {
+    return 'not_started';
+  }
+  return 'incomplete';
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
