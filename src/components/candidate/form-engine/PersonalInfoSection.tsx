@@ -67,8 +67,15 @@ interface PersonalInfoSectionProps {
 /**
  * Personal Information Section
  *
- * A section that appears first in the candidate's application.
- * It collects basic information about the candidate that isn't tied to any specific service.
+ * Sits at Step 6 of the candidate flow (Task 8.2 reorder). As of Task 8.3 the
+ * section is 100% driven by the cross-section subject-targeted field registry
+ * plus the (non-locked) DSX field requirements pushed in via the `fields`
+ * prop — name, email, and phone are now shown on the Welcome page (Task 8.1)
+ * and are no longer rendered here (spec docs/specs/personal-info-dynamic.md
+ * Business Rule 1). When the candidate's country selections do not require
+ * any subject-targeted fields, the empty-state branch renders the
+ * `candidate.portal.personalInfo.noFieldsRequired` message and the section is
+ * considered complete (DoD items 3 + 4).
  */
 export function PersonalInfoSection({
   token,
@@ -142,7 +149,11 @@ export function PersonalInfoSection({
 
   // Handle field blur - trigger save
   const handleFieldBlur = useCallback((requirementId: string) => {
-    // Don't save locked fields
+    // Don't save locked fields. As of Task 8.3 the API filters the locked
+    // invitation fieldKeys out before they reach this component, so in normal
+    // flow no field arriving here has `locked=true`. The guard is retained as
+    // defense in depth: a future regression in the API filter would otherwise
+    // re-introduce the dropped-on-save behavior silently.
     const field = fields.find(f => f.requirementId === requirementId);
     if (field?.locked) {
       return;
@@ -311,6 +322,11 @@ export function PersonalInfoSection({
   }
 
   if (fields.length === 0) {
+    // Task 8.3 — this empty-state branch now also covers the case where the
+    // candidate's country selections don't trigger any subject-targeted
+    // fields (spec User Flow paragraph 3 / Edge Case 1). The translation key
+    // value was updated to the spec-mandated wording "No additional
+    // information is required." in all 5 languages.
     return (
       <div className="p-8 text-center text-gray-600">
         {/* Even when no local fields exist, we still render the cross-section

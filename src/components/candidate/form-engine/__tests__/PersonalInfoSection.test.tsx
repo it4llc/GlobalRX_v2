@@ -1,29 +1,36 @@
 // /GlobalRX_v2/src/components/candidate/form-engine/__tests__/PersonalInfoSection.test.tsx
 //
-// Pass 2 tests for PersonalInfoSection — rewritten in the TD-059 fix to use
-// the new shell-driven prop contract. The shell (portal-layout.tsx) now owns:
-//   - `/personal-info-fields` fetching
-//   - `/saved-data` reading (Personal Info bucket extraction)
-//   - the lifted Personal Info status derivation (so the sidebar updates even
-//     when this section is unmounted — the whole point of TD-059)
+// Pass 2 tests for PersonalInfoSection.
 //
-// PersonalInfoSection therefore no longer fetches `/personal-info-fields` or
-// `/saved-data`. It receives `fields` and `initialSavedValues` as props,
-// pushes saved values back via `onSavedValuesChange`, and pushes progress
-// updates via `onProgressUpdate` for live local edits. Auto-save still
-// POSTs to `/save`; that remains the only fetch the section makes.
+// Task 8.3 update — Personal Info — 100% Dynamic.
+// Spec:  docs/specs/personal-info-dynamic.md (Business Rules 1, 2, 4; DoD 1-4)
+// Plan:  docs/plans/personal-info-dynamic-technical-plan.md (Section 3 + 11)
 //
-// Tests in this file:
-//   - All previously-existing tests that mocked `/personal-info-fields` and
-//     `/saved-data` are rewritten to pass props instead. Behavioral
-//     assertions are unchanged.
-//   - One new test (Bug 2 from smoke testing of the TD-059 fix) verifies the
-//     cross-section overlay: a field with baseline isRequired=false renders
-//     a red required-indicator when it appears in the shell-supplied
-//     crossSectionRequirements list with isRequired=true.
-//   - One new test (Spec Test Case 12) verifies that filling a required
-//     field calls `onProgressUpdate('incomplete')` immediately (i.e., before
-//     the next auto-save round-trip).
+// As of Task 8.3 the shell never passes the four LOCKED_INVITATION_FIELD_KEYS
+// (firstName, lastName, email, phone, phoneNumber) into the section because
+// the API filters them out before they reach the shell. Pre-existing tests
+// that asserted on the readonly/disabled rendering of locked invitation
+// fields are replaced with tests for the new contract:
+//   - locked invitation fields are not rendered when not passed
+//   - non-locked dynamic fields still render normally
+//   - the empty-state branch shows the noFieldsRequired translation key
+//   - the section reports onProgressUpdate('complete') when there are no
+//     fields AND no cross-section requirements (spec DoD item 4)
+//
+// Earlier TD-059 plumbing tests (shell-driven prop contract, auto-save flows,
+// onSavedValuesChange push-up, the cross-section overlay regression for
+// Bug 2, Spec Test Case 12 for instant progress reporting) are preserved
+// verbatim and continue to validate behavior that is orthogonal to Task 8.3.
+//
+// Mocking discipline (Pass 2):
+//   - Rule M1: PersonalInfoSection is the subject — NOT mocked.
+//   - Rule M2: DynamicFieldRenderer, CrossSectionRequirementBanner,
+//     SectionErrorBanner, FieldErrorMessage all render DOM that the tests
+//     query — NOT mocked.
+//   - Rule M3: useDebounce and useTranslation use inline implementations
+//     that read their arguments. global.fetch uses an inline implementation
+//     that reads the URL.
+//   - Rule M4: No invented exceptions.
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -52,58 +59,13 @@ global.fetch = mockFetch;
 describe('PersonalInfoSection', () => {
   const mockToken = 'test-token-123';
 
-  // Field defs in the new shape (PersonalInfoField from @/types/candidate-portal).
-  // These are the same fields the previous tests expected from `/personal-info-fields`,
-  // now passed directly as props.
+  // Task 8.3 — the section's `fields` prop now only contains non-locked
+  // dynamic fields. The shell filters the locked invitation fieldKeys
+  // (firstName, lastName, email, phone, phoneNumber) out at the API layer
+  // before passing them in. The fixture below matches that contract:
+  // dateOfBirth + middleName + (a few non-locked extras used in ordering /
+  // empty-state tests).
   const mockFields: PersonalInfoField[] = [
-    {
-      requirementId: 'req-1',
-      name: 'First Name',
-      fieldKey: 'firstName',
-      dataType: 'text',
-      isRequired: true,
-      instructions: null,
-      fieldData: {},
-      displayOrder: 1,
-      locked: true,
-      prefilledValue: 'Sarah'
-    },
-    {
-      requirementId: 'req-2',
-      name: 'Last Name',
-      fieldKey: 'lastName',
-      dataType: 'text',
-      isRequired: true,
-      instructions: null,
-      fieldData: {},
-      displayOrder: 2,
-      locked: true,
-      prefilledValue: 'Johnson'
-    },
-    {
-      requirementId: 'req-3',
-      name: 'Email',
-      fieldKey: 'email',
-      dataType: 'email',
-      isRequired: true,
-      instructions: null,
-      fieldData: {},
-      displayOrder: 3,
-      locked: true,
-      prefilledValue: 'sarah@example.com'
-    },
-    {
-      requirementId: 'req-4',
-      name: 'Phone Number',
-      fieldKey: 'phone',
-      dataType: 'phone',
-      isRequired: false,
-      instructions: null,
-      fieldData: {},
-      displayOrder: 4,
-      locked: true,
-      prefilledValue: '+1234567890'
-    },
     {
       requirementId: 'req-5',
       name: 'Date of Birth',
@@ -112,7 +74,7 @@ describe('PersonalInfoSection', () => {
       isRequired: true,
       instructions: 'Enter your date of birth',
       fieldData: {},
-      displayOrder: 5,
+      displayOrder: 1,
       locked: false,
       prefilledValue: null
     },
@@ -124,7 +86,31 @@ describe('PersonalInfoSection', () => {
       isRequired: false,
       instructions: null,
       fieldData: {},
-      displayOrder: 6,
+      displayOrder: 2,
+      locked: false,
+      prefilledValue: null
+    },
+    {
+      requirementId: 'req-7',
+      name: 'Mother’s Maiden Name',
+      fieldKey: 'mothersMaidenName',
+      dataType: 'text',
+      isRequired: false,
+      instructions: null,
+      fieldData: {},
+      displayOrder: 3,
+      locked: false,
+      prefilledValue: null
+    },
+    {
+      requirementId: 'req-8',
+      name: 'SSN',
+      fieldKey: 'ssn',
+      dataType: 'text',
+      isRequired: true,
+      instructions: null,
+      fieldData: {},
+      displayOrder: 4,
       locked: false,
       prefilledValue: null
     }
@@ -159,8 +145,7 @@ describe('PersonalInfoSection', () => {
       // the hydration effect. With no fields supplied yet (the shell hasn't
       // returned data), the section shows the loading translation key on
       // first render, then transitions to the empty state once the effect
-      // runs. We assert the loading branch by querying immediately, before
-      // any state update flushes via effects.
+      // runs.
       render(<PersonalInfoSection token={mockToken} fields={[]} />);
 
       // The hydration effect fires synchronously after the first render in
@@ -179,15 +164,15 @@ describe('PersonalInfoSection', () => {
       expect(await screen.findByText('candidate.portal.sections.personalInformation')).toBeInTheDocument();
 
       // Check that fields are rendered
-      expect(screen.getByText('First Name')).toBeInTheDocument();
-      expect(screen.getByText('Last Name')).toBeInTheDocument();
-      expect(screen.getByText('Email')).toBeInTheDocument();
-      expect(screen.getByText('Phone Number')).toBeInTheDocument();
       expect(screen.getByText('Date of Birth')).toBeInTheDocument();
       expect(screen.getByText('Middle Name')).toBeInTheDocument();
+      expect(screen.getByText('Mother’s Maiden Name')).toBeInTheDocument();
+      expect(screen.getByText('SSN')).toBeInTheDocument();
     });
 
-    it('should show empty state when no fields are configured', async () => {
+    it('should show empty state when no fields are configured (Task 8.3 DoD 3)', async () => {
+      // Spec DoD item 3: when no subject-targeted fields exist, Personal Info
+      // shows the noFieldsRequired translation key.
       render(<PersonalInfoSection token={mockToken} fields={[]} />);
 
       await waitFor(() => {
@@ -213,39 +198,74 @@ describe('PersonalInfoSection', () => {
     });
   });
 
-  describe('pre-filled and locked fields', () => {
-    it('should display pre-filled values for locked fields', async () => {
+  // ---------------------------------------------------------------------------
+  // Task 8.3 — locked invitation fieldKeys are no longer rendered.
+  //
+  // Per spec Business Rule 1 / DoD 1, the API now filters firstName, lastName,
+  // email, phone, and phoneNumber out before they reach the shell. The shell
+  // passes a fields prop that never contains them, and this section must
+  // render only the dynamic non-locked fields. We verify that the four locked
+  // labels and field-* test IDs are absent from the rendered DOM when the
+  // section is given a typical Task 8.3-shaped fields prop.
+  // ---------------------------------------------------------------------------
+  describe('Task 8.3 — locked invitation fields are not rendered', () => {
+    it('does not render firstName, lastName, email, phone, or phoneNumber when they are not in the fields prop', async () => {
       render(<PersonalInfoSection token={mockToken} fields={mockFields} />);
 
-      await waitFor(() => {
-        const firstNameInput = screen.getByTestId('field-firstName') as HTMLInputElement;
-        expect(firstNameInput.value).toBe('Sarah');
-        expect(firstNameInput).toHaveAttribute('readonly');
-        expect(firstNameInput).toHaveAttribute('disabled');
-      });
+      // Wait for the section to finish hydrating.
+      expect(await screen.findByText('candidate.portal.sections.personalInformation')).toBeInTheDocument();
 
-      const lastNameInput = screen.getByTestId('field-lastName') as HTMLInputElement;
-      expect(lastNameInput.value).toBe('Johnson');
-      expect(lastNameInput).toHaveAttribute('readonly');
+      // None of the locked fields' labels appear in the DOM.
+      expect(screen.queryByText('First Name')).not.toBeInTheDocument();
+      expect(screen.queryByText('Last Name')).not.toBeInTheDocument();
+      expect(screen.queryByText('Email')).not.toBeInTheDocument();
+      expect(screen.queryByText('Phone Number')).not.toBeInTheDocument();
 
-      const emailInput = screen.getByTestId('field-email') as HTMLInputElement;
-      expect(emailInput.value).toBe('sarah@example.com');
-      expect(emailInput).toHaveAttribute('readonly');
-
-      const phoneInput = screen.getByTestId('field-phone') as HTMLInputElement;
-      expect(phoneInput.value).toBe('+1234567890');
-      expect(phoneInput).toHaveAttribute('readonly');
+      // None of the locked field-* test IDs appear in the DOM either.
+      expect(screen.queryByTestId('field-firstName')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('field-lastName')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('field-email')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('field-phone')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('field-phoneNumber')).not.toBeInTheDocument();
     });
 
-    it('should show required indicator for locked required fields', async () => {
+    it('renders only the dynamic non-locked fields supplied by the shell', async () => {
       render(<PersonalInfoSection token={mockToken} fields={mockFields} />);
 
-      expect(await screen.findByText('First Name')).toBeInTheDocument();
+      // Every non-locked field in mockFields renders as an input with the
+      // expected data-testid.
+      expect(await screen.findByTestId('field-dateOfBirth')).toBeInTheDocument();
+      expect(screen.getByTestId('field-middleName')).toBeInTheDocument();
+      expect(screen.getByTestId('field-mothersMaidenName')).toBeInTheDocument();
+      expect(screen.getByTestId('field-ssn')).toBeInTheDocument();
+    });
+  });
 
-      // Find the label container for the locked First Name field
-      const labels = screen.getAllByText('First Name')[0].parentElement;
-      // The required indicator (*) should be shown on locked required fields
-      expect(labels?.querySelector('.required-indicator')).toBeInTheDocument();
+  // ---------------------------------------------------------------------------
+  // Task 8.3 — empty-state branch reports `complete` to the shell so the
+  // sidebar shows the green check (spec DoD item 4).
+  //
+  // The section's local progress effect calls computePersonalInfoStatus
+  // whenever fields/values/cross-section requirements change. When fields=[]
+  // and crossSectionRequirements=[], the helper returns `complete` because
+  // there are zero required keys.
+  // ---------------------------------------------------------------------------
+  describe('Task 8.3 — empty-state progress reporting (DoD 4)', () => {
+    it('reports onProgressUpdate(‘complete’) when there are no fields AND no cross-section requirements', async () => {
+      const onProgressUpdate = vi.fn();
+
+      render(
+        <PersonalInfoSection
+          token={mockToken}
+          fields={[]}
+          crossSectionRequirements={[]}
+          onProgressUpdate={onProgressUpdate}
+        />
+      );
+
+      await waitFor(() => {
+        expect(onProgressUpdate).toHaveBeenCalledWith('complete');
+      });
     });
   });
 
@@ -267,30 +287,9 @@ describe('PersonalInfoSection', () => {
       const middleNameInput = screen.getByTestId('field-middleName') as HTMLInputElement;
       expect(middleNameInput.value).toBe('Marie');
     });
-
-    it('should not overwrite locked pre-filled values with saved data', async () => {
-      const savedDataWithLockedFields: Record<string, unknown> = {
-        'req-1': 'DifferentName', // First Name - locked field
-        'req-5': '1990-05-15'
-      };
-
-      render(
-        <PersonalInfoSection
-          token={mockToken}
-          fields={mockFields}
-          initialSavedValues={savedDataWithLockedFields}
-        />
-      );
-
-      await waitFor(() => {
-        const firstNameInput = screen.getByTestId('field-firstName') as HTMLInputElement;
-        // Should still show the pre-filled value, not the saved data
-        expect(firstNameInput.value).toBe('Sarah');
-      });
-    });
   });
 
-  describe('auto-save functionality', () => {
+  describe('auto-save functionality (Task 8.3 — only dynamic fields)', () => {
     it('should trigger auto-save when field value changes and blur occurs', async () => {
       const user = userEvent.setup();
 
@@ -323,32 +322,6 @@ describe('PersonalInfoSection', () => {
           value: '1985-03-20'
         });
       });
-    });
-
-    it('should not trigger auto-save for locked fields', async () => {
-      const user = userEvent.setup();
-
-      render(<PersonalInfoSection token={mockToken} fields={mockFields} />);
-
-      // Wait for field to be rendered and component to be fully loaded
-      const firstNameInput = await screen.findByTestId('field-firstName');
-      expect(firstNameInput).toBeInTheDocument();
-
-      // Clear any mock calls that happened during rendering
-      mockFetch.mockClear();
-
-      // Try to interact with a locked field
-      await user.click(firstNameInput);
-      await user.tab(); // Trigger blur
-
-      // Wait a bit to ensure any debounced saves would have fired
-      await new Promise(resolve => setTimeout(resolve, 400));
-
-      // No save should be triggered for locked fields
-      const saveCalls = mockFetch.mock.calls.filter(
-        call => call[0]?.toString().includes('/save')
-      );
-      expect(saveCalls.length).toBe(0);
     });
 
     it('should show save status indicator', async () => {
@@ -452,28 +425,28 @@ describe('PersonalInfoSection', () => {
   describe('field ordering', () => {
     it('should display fields in correct order based on displayOrder', async () => {
       const unorderedFields: PersonalInfoField[] = [
-        { ...mockFields[2], displayOrder: 3 }, // Email
-        { ...mockFields[0], displayOrder: 1 }, // First Name
-        { ...mockFields[4], displayOrder: 5 }, // DOB
-        { ...mockFields[1], displayOrder: 2 }, // Last Name
+        { ...mockFields[2], displayOrder: 3 }, // mothersMaidenName
+        { ...mockFields[0], displayOrder: 1 }, // dateOfBirth
+        { ...mockFields[3], displayOrder: 4 }, // ssn
+        { ...mockFields[1], displayOrder: 2 }, // middleName
       ];
 
       render(<PersonalInfoSection token={mockToken} fields={unorderedFields} />);
 
-      expect(await screen.findByText('First Name')).toBeInTheDocument();
+      expect(await screen.findByText('Date of Birth')).toBeInTheDocument();
 
       // Get all field inputs in order
-      const firstNameInput = screen.getByTestId('field-firstName') as HTMLInputElement;
-      const lastNameInput = screen.getByTestId('field-lastName') as HTMLInputElement;
-      const emailInput = screen.getByTestId('field-email') as HTMLInputElement;
       const dobInput = screen.getByTestId('field-dateOfBirth') as HTMLInputElement;
+      const middleNameInput = screen.getByTestId('field-middleName') as HTMLInputElement;
+      const mmnInput = screen.getByTestId('field-mothersMaidenName') as HTMLInputElement;
+      const ssnInput = screen.getByTestId('field-ssn') as HTMLInputElement;
 
       // Should be ordered by displayOrder in the DOM
       const allInputs = screen.getAllByTestId(/^field-/);
-      expect(allInputs[0]).toBe(firstNameInput);
-      expect(allInputs[1]).toBe(lastNameInput);
-      expect(allInputs[2]).toBe(emailInput);
-      expect(allInputs[3]).toBe(dobInput);
+      expect(allInputs[0]).toBe(dobInput);
+      expect(allInputs[1]).toBe(middleNameInput);
+      expect(allInputs[2]).toBe(mmnInput);
+      expect(allInputs[3]).toBe(ssnInput);
     });
   });
 
