@@ -36,6 +36,11 @@ import {
  *   invitation: {
  *     firstName: string         // Candidate's first name
  *     lastName: string          // Candidate's last name
+ *     email: string             // Candidate's email address (Task 8.1)
+ *     phone: string | null      // Candidate's phone number — phoneCountryCode +
+ *                               //   ' ' + phoneNumber when both present; just
+ *                               //   phoneNumber when only that is present; null
+ *                               //   when neither was collected (Task 8.1)
  *     status: string            // One of: pending, in_progress, completed, expired
  *     expiresAt: string         // ISO date when invitation expires
  *     companyName: string       // Name of the customer who sent the invitation
@@ -402,11 +407,27 @@ export async function GET(
       functionalityType: null,
     });
 
+    // Task 8.1 — derive a single phone display string. Combined into a single
+    // string here so the candidate UI does not have to know the storage shape
+    // (phoneCountryCode + phoneNumber are stored as two columns). When both
+    // are present we join with a single space; when only phoneNumber is
+    // present we use it as-is; when neither is present phone is null.
+    const combinedPhone: string | null = invitation.phoneNumber
+      ? invitation.phoneCountryCode
+        ? `${invitation.phoneCountryCode} ${invitation.phoneNumber}`
+        : invitation.phoneNumber
+      : null;
+
     // Step 6: Build response
     const response: CandidatePortalStructureResponse = {
       invitation: {
         firstName: invitation.firstName,
         lastName: invitation.lastName,
+        // Task 8.1 — email and phone are exposed so the candidate shell can
+        // build the template-variable values object. Email is non-nullable on
+        // the row; phone is the joined display string above (nullable).
+        email: invitation.email,
+        phone: combinedPhone,
         status: invitation.status,
         expiresAt: invitation.expiresAt,
         companyName: invitation.order.customer?.name || 'Unknown Company'
