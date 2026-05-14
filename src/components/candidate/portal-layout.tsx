@@ -4,7 +4,9 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
 import { format } from 'date-fns';
+
 import { useTranslation } from '@/contexts/TranslationContext';
 import PortalHeader from '@/components/candidate/portal-header';
 import PortalSidebar from '@/components/candidate/portal-sidebar';
@@ -30,11 +32,6 @@ import { clientLogger as logger } from '@/lib/client-logger';
 // and to gate the Review & Submit page.
 import { usePortalValidation } from '@/lib/candidate/usePortalValidation';
 import { mergeSectionStatus } from '@/lib/candidate/validation/mergeSectionStatus';
-import type { SectionVisitsMap } from '@/lib/candidate/sectionVisitTracking';
-import type {
-  ReviewError,
-  SectionValidationResult,
-} from '@/lib/candidate/validation/types';
 import {
   addCrossSectionRequirements,
   getCrossSectionRequirements,
@@ -45,6 +42,12 @@ import {
   computePersonalInfoStatus,
   computeWorkflowSectionStatus,
 } from '@/lib/candidate/sectionProgress';
+
+import type { SectionVisitsMap } from '@/lib/candidate/sectionVisitTracking';
+import type {
+  ReviewError,
+  SectionValidationResult,
+} from '@/lib/candidate/validation/types';
 import type {
   CandidateInvitationInfo,
   CandidatePortalSection,

@@ -2196,16 +2196,22 @@ Either update the mock implementation to match the full Prisma `findFirst` argum
 | Area          | Candidate Portal / Component Structure                |
 | Severity      | Warning                                               |
 | Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
+| Updated       | May 13, 2026 - Task 8.2 Linear Step Navigation        |
 | Identified by | Standards Checker                                     |
 
 **Description:**
-`src/components/candidate/portal-layout.tsx` is 863 lines, well over the 600-line hard stop in `CODING_STANDARDS.md` Section 9.1. Task 8.1 added ~22 lines (authorized by the technical plan) bringing it from 841 to 863. The file handles layout, navigation, section rendering, form state, and template variable value construction — responsibilities that could be split into smaller focused modules.
+`src/components/candidate/portal-layout.tsx` is 991 lines, well over the 600-line hard stop in `CODING_STANDARDS.md` Section 9.1. The file handles layout, navigation, section rendering, form state, template variable value construction, and (after Task 8.2) the linear step navigation callbacks and derived navigation state — responsibilities that should be split into smaller focused modules.
+
+Growth history:
+- Pre-Task 8.1: 841 lines
+- Post-Task 8.1: 863 lines (+22, authorized by the Task 8.1 technical plan)
+- Post-Task 8.2: 991 lines (+128, including the new navigation callbacks, derived memos, and a small additional bump from the import-grouping cleanup pass)
 
 **Why deferred:**
-Per `CODING_STANDARDS.md` Section 9.4, splitting a large file reactively in the middle of unrelated work is how regressions happen. The Task 8.1 plan explicitly authorized the minimal addition. A dedicated split task is the correct approach.
+Per `CODING_STANDARDS.md` Section 9.4, splitting a large file reactively in the middle of unrelated work is how regressions happen. Andy explicitly approved the Task 8.2 addition as a conscious-decision override of the 600-line hard stop, on the grounds that the new code is small, the visual rendering was extracted into the new `StepNavigationButtons` component, and a full split is the correct standalone task.
 
 **When to fix:**
-Before the next task that needs to add code to this file. Split into smaller modules — e.g., extract the section rendering logic, the navigation/sidebar logic, and the form state management into separate files.
+As a dedicated follow-up task before any further additions to this file. Split into smaller modules — for example, extract the section rendering logic, the navigation/sidebar logic, and the form state management into separate files.
 
 ---
 

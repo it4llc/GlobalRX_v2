@@ -1562,15 +1562,12 @@ describe('PortalLayout', () => {
     // -------------------------------------------------------------------------
     it('Business Rule 11: clicking Next calls window.scrollTo to scroll the page back to the top', async () => {
       const user = userEvent.setup();
-      const scrollToSpy = vi.fn();
-      // Replace window.scrollTo for this test only.
-      const originalScrollTo = window.scrollTo;
-      // window.scrollTo's real signature is overloaded; the production
-      // call uses the options-object form. We mock against `any` once at
-      // the assignment boundary because the global type is complex and
-      // not worth replicating here.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).scrollTo = scrollToSpy;
+      // vi.spyOn returns a properly typed spy that wraps window.scrollTo
+      // without the need to widen the global type with `any`. The spy is
+      // restored in the finally block so it does not leak between tests.
+      const scrollToSpy = vi
+        .spyOn(window, 'scrollTo')
+        .mockImplementation(() => {});
 
       try {
         render(
@@ -1596,8 +1593,7 @@ describe('PortalLayout', () => {
           );
         });
       } finally {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (window as any).scrollTo = originalScrollTo;
+        scrollToSpy.mockRestore();
       }
     });
 

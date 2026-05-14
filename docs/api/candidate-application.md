@@ -68,6 +68,19 @@ Phase 7 Stage 1 appends a synthetic `review_submit` section entry at the end of 
 
 `status` always returns `"not_started"` from this endpoint (Phase 6 Stage 4, Business Rule 15). Clients are responsible for recomputing progress locally after each auto-save and overriding this initial value. The status value space changed from Stage 3: `"in_progress"` has been replaced by `"incomplete"` (Business Rule 22).
 
+**Section ordering (Task 8.2 — Linear Step Navigation):** The `sections` array is returned in the following order. Sections whose service type is not present in the candidate's package are omitted entirely — there is no placeholder or skip indicator.
+
+1. `before_services` workflow sections (e.g., Welcome page), in `displayOrder` order
+2. IDV (`functionalityType: "verification-idv"`) — only if the package includes an IDV service
+3. Address History (`type: "address_history"`) — only if the package includes an address history service
+4. Education (`functionalityType: "verification-edu"`) — only if the package includes an education service
+5. Employment (`functionalityType: "verification-emp"`) — only if the package includes an employment service
+6. Personal Information (`type: "personal_info"`) — always present
+7. `after_services` workflow sections, in `displayOrder` order
+8. Review & Submit (synthetic, `id: "review_submit"`, `type: "review_submit"`)
+
+Prior to Task 8.2, Personal Information appeared second (immediately after `before_services` workflow sections and before service sections). It now appears sixth. The `placement` field on the Personal Information entry remains `"services"` — downstream consumers must drive rendering order from array position, not from `placement`.
+
 ### GET /api/candidate/application/[token]/fields
 
 Returns DSX field requirements for the candidate's package at a specific geographic location. Called by entry-based sections (Education, Employment, Address History) to determine which fields to display and which to mark required.
