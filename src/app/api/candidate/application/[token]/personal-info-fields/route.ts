@@ -1,10 +1,12 @@
 // /GlobalRX_v2/src/app/api/candidate/application/[token]/personal-info-fields/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+
 import { Prisma } from '@prisma/client';
-import logger from '@/lib/logger';
+
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
+import logger from '@/lib/logger';
+import { prisma } from '@/lib/prisma';
 
 import type { FieldMetadata } from '@/types/candidate-portal';
 
@@ -37,8 +39,15 @@ import type { FieldMetadata } from '@/types/candidate-portal';
  *     instructions: string | null
  *     fieldData: object        // Complete fieldData from DSX
  *     displayOrder: number
- *     locked: boolean          // Whether field is pre-filled and locked
- *     prefilledValue: string | null // Pre-filled value from invitation
+ *     locked: boolean          // Always false in Task 8.3+ — retained for
+ *                              // backward compatibility with the section's
+ *                              // existing hydration path. Locked invitation
+ *                              // fields (firstName, lastName, email, phone,
+ *                              // phoneNumber) are surfaced on the Welcome
+ *                              // page (Task 8.1) and are no longer rendered
+ *                              // on Personal Info per Task 8.3 spec Rule 1.
+ *     prefilledValue: string | null // Always null in Task 8.3+ for the same
+ *                              // reason as `locked` above.
  *   }]
  * }
  *
@@ -48,6 +57,20 @@ import type { FieldMetadata } from '@/types/candidate-portal';
  *   - 404: Invitation not found
  *   - 410: Invitation expired or already completed
  */
+
+// Task 8.3 — these fieldKeys are sourced from the invitation columns and are
+// shown to the candidate on the Welcome page (Task 8.1). Per the spec for
+// `docs/specs/personal-info-dynamic.md` Business Rule 1, they must not be
+// rendered on Personal Info any more. We drop them here in the API layer so
+// the section component never sees them and the existing render loop natu-
+// rally produces a dynamic-only field list.
+const LOCKED_INVITATION_FIELD_KEYS = new Set<string>([
+  'firstName',
+  'lastName',
+  'email',
+  'phone',
+  'phoneNumber',
+]);
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
@@ -151,7 +174,17 @@ export async function GET(
         ['firstName', 'lastName', 'middleName', 'email', 'phone', 'phoneNumber',
          'dateOfBirth', 'birthDate', 'dob', 'ssn', 'socialSecurityNumber'].includes(serviceReq.requirement.fieldKey);
 
-      if (isPersonalInfoField && !personalInfoFields.has(serviceReq.requirement.id)) {
+      if (!isPersonalInfoField) continue;
+
+      // Task 8.3 — exclude locked invitation fieldKeys from the Personal Info
+      // response. These are shown on the Welcome page (Task 8.1) so per spec
+      // Business Rule 1 they no longer render on Personal Info. The save and
+      // saved-data routes still tolerate any historical values for these
+      // requirementIds because they remain in `formData.sections.personal_info`
+      // (spec Edge Case "previously saved data is left untouched").
+      if (LOCKED_INVITATION_FIELD_KEYS.has(serviceReq.requirement.fieldKey)) continue;
+
+      if (!personalInfoFields.has(serviceReq.requirement.id)) {
         personalInfoFields.set(serviceReq.requirement.id, {
           requirement: serviceReq.requirement,
           displayOrder: serviceReq.displayOrder
@@ -192,6 +225,13 @@ export async function GET(
             country: { NOT: { disabled: true } },
           },
           select: { serviceId: true, locationId: true },
+          // Explicit orderBy per API_STANDARDS Section 7.4 — Prisma's
+          // implicit ordering is undefined and would let pair ordering
+          // drift between environments. `id: 'asc'` is a stable,
+          // deterministic key for an internal aggregation query whose
+          // result is consumed as a Set of pairs (no user-facing list
+          // order to preserve).
+          orderBy: { id: 'asc' },
         })) ?? []
       : [];
 
@@ -219,6 +259,12 @@ export async function GET(
           locationId: true,
           isRequired: true,
         },
+        // Explicit orderBy per API_STANDARDS Section 7.4 — the result is
+        // grouped by requirementId and AND-aggregated into a boolean, so
+        // there is no user-facing ordering to preserve. `id: 'asc'`
+        // gives a deterministic order across environments without
+        // affecting the aggregation result.
+        orderBy: { id: 'asc' },
       });
 
       // Group mapping rows by requirementId, then AND-aggregate isRequired
@@ -246,40 +292,17 @@ export async function GET(
     // field falls back to isRequired=false via the default lookup at line
     // ~262 below — matching spec Edge Cases 1, 2.
 
-    // Step 7: Build response with pre-fill and lock information
+    // Step 7: Build the response. After Task 8.3 every returned field is a
+    // dynamic, non-locked requirement: the LOCKED_INVITATION_FIELD_KEYS guard
+    // in Step 6 drops the four invitation-sourced fieldKeys before they reach
+    // here, so the old `switch (fieldKey)` block that populated `locked` /
+    // `prefilledValue` from invitation columns is no longer reachable in
+    // normal flow. We keep `locked: false` and `prefilledValue: null` on the
+    // response shape so the section's existing hydration path (which checks
+    // `field.locked` defensively) continues to compile without changes.
     const fields = Array.from(personalInfoFields.values())
       .map(({ requirement, displayOrder }) => {
         const fieldData: FieldMetadata = (requirement.fieldData as unknown as FieldMetadata) || {};
-        const fieldKey = requirement.fieldKey;
-
-        // Determine if this field is pre-filled from invitation
-        let locked = false;
-        let prefilledValue = null;
-
-        // Map invitation fields to DSX fields by fieldKey
-        switch (fieldKey) {
-          case 'firstName':
-            locked = true;
-            prefilledValue = invitation.firstName;
-            break;
-          case 'lastName':
-            locked = true;
-            prefilledValue = invitation.lastName;
-            break;
-          case 'email':
-            locked = true;
-            prefilledValue = invitation.email;
-            break;
-          case 'phone':
-          case 'phoneNumber':
-            if (invitation.phoneNumber) {
-              locked = true;
-              prefilledValue = invitation.phoneCountryCode
-                ? `${invitation.phoneCountryCode}${invitation.phoneNumber}`
-                : invitation.phoneNumber;
-            }
-            break;
-        }
 
         const isRequired = requiredByRequirementId.get(requirement.id) ?? false;
 
@@ -292,8 +315,8 @@ export async function GET(
           instructions: fieldData.instructions || null,
           fieldData: requirement.fieldData, // Return complete fieldData as-is
           displayOrder,
-          locked,
-          prefilledValue
+          locked: false,
+          prefilledValue: null,
         };
       })
       .sort((a, b) => a.displayOrder - b.displayOrder);

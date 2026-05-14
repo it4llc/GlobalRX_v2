@@ -1,4 +1,28 @@
 // /GlobalRX_v2/src/app/api/candidate/application/[token]/personal-info-fields/__tests__/route.test.ts
+//
+// Task 8.3 update — Personal Info — 100% Dynamic.
+// Spec: docs/specs/personal-info-dynamic.md
+// Plan: docs/plans/personal-info-dynamic-technical-plan.md
+//
+// The route now excludes the four LOCKED_INVITATION_FIELD_KEYS
+// (firstName, lastName, email, phone, phoneNumber) from the response so the
+// section component never renders them (spec Business Rule 1). Every returned
+// field has locked=false and prefilledValue=null. The existing tests below
+// were rewritten in-place to assert the new contract; the existing test
+// scaffolding (auth/invitation/error-handling cases, TD-060 AND-aggregation
+// cases) is preserved with the locked fieldKeys swapped for non-locked
+// personal-info fieldKeys (middleName, dateOfBirth) where field returns are
+// expected.
+//
+// Mocking discipline (Pass 2):
+//   - Rule M1: The GET handler is NOT mocked (subject of test).
+//   - Rule M2: N/A — API route, no rendering.
+//   - Rule M3: Prisma methods are mocked via the global mock from
+//     src/test/setup.ts. These are module-level state (per the rules' explicit
+//     carve-out for module-level values), and the project's entire test suite
+//     uses the vi.mocked(prisma.X.method).mockResolvedValueOnce pattern.
+//   - Rule M4: No invented exceptions — the changes here are confined to
+//     re-asserting the new contract.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
@@ -57,6 +81,11 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
     }
   };
 
+  // Task 8.3 — the requirements fixture now mixes locked fieldKeys (firstName,
+  // lastName) that MUST be filtered out and non-locked personal-info fieldKeys
+  // (middleName, dateOfBirth) that MUST still be returned. The non-personal
+  // idNumber requirement is unchanged and continues to be excluded by the
+  // collectionTab heuristic.
   const mockServiceRequirements = [
     {
       id: 'sr-1',
@@ -65,7 +94,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       requirement: {
         id: 'req-1',
         name: 'First Name',
-        fieldKey: 'firstName',
+        fieldKey: 'firstName', // LOCKED — must be filtered out (Task 8.3)
         type: 'field',
         disabled: false,
         fieldData: {
@@ -82,7 +111,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       requirement: {
         id: 'req-2',
         name: 'Last Name',
-        fieldKey: 'lastName',
+        fieldKey: 'lastName', // LOCKED — must be filtered out (Task 8.3)
         type: 'field',
         disabled: false,
         fieldData: {
@@ -99,7 +128,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       requirement: {
         id: 'req-3',
         name: 'Date of Birth',
-        fieldKey: 'dateOfBirth',
+        fieldKey: 'dateOfBirth', // NOT locked — must be returned
         type: 'field',
         disabled: false,
         fieldData: {
@@ -121,7 +150,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
         disabled: false,
         fieldData: {
           dataType: 'text',
-          collectionTab: 'idv' // Not personal info
+          collectionTab: 'idv' // Not personal info — must be excluded
         },
         documentData: null
       }
@@ -142,11 +171,38 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
         },
         documentData: null
       }
+    },
+    {
+      id: 'sr-6',
+      serviceId: 'service-1',
+      displayOrder: 5,
+      requirement: {
+        id: 'req-6',
+        name: 'Middle Name',
+        fieldKey: 'middleName', // NOT locked — must be returned
+        type: 'field',
+        disabled: false,
+        fieldData: {
+          dataType: 'text',
+          collectionTab: 'personal_info'
+        },
+        documentData: null
+      }
     }
   ];
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // mockResolvedValueOnce queues persist across tests because
+    // vi.clearAllMocks() only clears .calls/.results, not implementations.
+    // The neighboring src/app/api/candidate/application/[token]/fields/__tests__/route.test.ts
+    // file documents this and applies explicit mockReset() per Prisma method.
+    // We follow the same pattern here so test-ordering pollution can't leak
+    // empty-array mocks into TD-060 Case 1's AND-aggregation assertion.
+    vi.mocked(prisma.candidateInvitation.findUnique).mockReset();
+    vi.mocked(prisma.serviceRequirement.findMany).mockReset();
+    vi.mocked(prisma.dSXAvailability.findMany).mockReset();
+    vi.mocked(prisma.dSXMapping.findMany).mockReset();
   });
 
   describe('authentication', () => {
@@ -265,7 +321,12 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
   });
 
   describe('field retrieval', () => {
-    it('should return personal info fields from all services', async () => {
+    it('should return non-locked personal info fields from all services and exclude locked invitation fieldKeys', async () => {
+      // Task 8.3 spec Business Rule 1 / DoD 1 — firstName and lastName are
+      // locked invitation fieldKeys and must NOT appear in the response.
+      // dateOfBirth and middleName are non-locked personal-info fields and
+      // must appear. idNumber has collectionTab='idv' and continues to be
+      // excluded by the non-personal heuristic.
       const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
       vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
         token: mockToken,
@@ -277,6 +338,8 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
       vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(mockServiceRequirements as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
 
       const request = new NextRequest(
         `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
@@ -287,15 +350,171 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Should return 3 unique personal info fields
-      expect(data.fields).toHaveLength(3);
-
-      // Check that only personal info fields are included
       const fieldKeys = data.fields.map((f: any) => f.fieldKey);
-      expect(fieldKeys).toContain('firstName');
-      expect(fieldKeys).toContain('lastName');
+      // Non-locked personal-info fields are returned.
       expect(fieldKeys).toContain('dateOfBirth');
-      expect(fieldKeys).not.toContain('idNumber'); // IDV field excluded
+      expect(fieldKeys).toContain('middleName');
+      // Locked invitation fieldKeys are NOT returned (Task 8.3 Business Rule 1).
+      expect(fieldKeys).not.toContain('firstName');
+      expect(fieldKeys).not.toContain('lastName');
+      // Non-personal-info fields are still excluded by the collectionTab heuristic.
+      expect(fieldKeys).not.toContain('idNumber');
+
+      // The response should have exactly the two non-locked personal-info fields.
+      expect(data.fields).toHaveLength(2);
+    });
+
+    it('should exclude the locked invitation fieldKey "firstName" even when it has collectionTab=personal_info and a service mapping', async () => {
+      // Spec Business Rule 1 / DoD 1.
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce([
+        mockServiceRequirements[0] // firstName, collectionTab: 'personal_info'
+      ] as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.fields).toHaveLength(0);
+      expect(data.fields.find((f: any) => f.fieldKey === 'firstName')).toBeUndefined();
+    });
+
+    it('should exclude each of the locked invitation fieldKeys (lastName, email, phone, phoneNumber)', async () => {
+      // Spec Business Rule 1 / DoD 1 — all four remaining locked fieldKeys.
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      const lockedKeyRequirements = ['lastName', 'email', 'phone', 'phoneNumber'].map((key, idx) => ({
+        id: `sr-locked-${idx}`,
+        serviceId: 'service-1',
+        displayOrder: idx + 1,
+        requirement: {
+          id: `req-locked-${idx}`,
+          name: key,
+          fieldKey: key,
+          type: 'field',
+          disabled: false,
+          fieldData: {
+            dataType: 'text',
+            collectionTab: 'personal_info'
+          },
+          documentData: null
+        }
+      }));
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(lockedKeyRequirements as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.fields).toHaveLength(0);
+
+      const fieldKeys = data.fields.map((f: any) => f.fieldKey);
+      expect(fieldKeys).not.toContain('lastName');
+      expect(fieldKeys).not.toContain('email');
+      expect(fieldKeys).not.toContain('phone');
+      expect(fieldKeys).not.toContain('phoneNumber');
+    });
+
+    it('should still return non-locked personal-info fields (middleName, dateOfBirth) — not over-filtering', async () => {
+      // Spec Business Rule 2 / DoD 2 — non-locked personal-info fields are
+      // unaffected by the new filter and still appear in the response.
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce([
+        mockServiceRequirements[2], // dateOfBirth
+        mockServiceRequirements[5]  // middleName
+      ] as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.fields).toHaveLength(2);
+
+      const fieldKeys = data.fields.map((f: any) => f.fieldKey);
+      expect(fieldKeys).toContain('dateOfBirth');
+      expect(fieldKeys).toContain('middleName');
+    });
+
+    it('should set locked=false and prefilledValue=null on every returned field (Task 8.3)', async () => {
+      // Spec Business Rule 1 / DoD 1 — after Task 8.3 no returned field is
+      // locked and no returned field carries a prefilledValue. The response
+      // shape retains the two fields for backward compatibility with the
+      // section's existing hydration path (see route.ts JSDoc lines 40-48).
+      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+        token: mockToken,
+        invitationId: 'inv-123',
+        firstName: 'Test',
+        status: 'accessed',
+        expiresAt: new Date(Date.now() + 1000000)
+      });
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce([
+        mockServiceRequirements[2], // dateOfBirth
+        mockServiceRequirements[5]  // middleName
+      ] as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
+
+      const request = new NextRequest(
+        `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+
+      for (const field of data.fields) {
+        expect(field.locked).toBe(false);
+        expect(field.prefilledValue).toBe(null);
+      }
     });
 
     it('should deduplicate fields across services', async () => {
@@ -308,8 +527,21 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
         expiresAt: new Date(Date.now() + 1000000)
       });
 
+      // Two services map the same non-locked dateOfBirth requirement.
+      const duplicatedDateOfBirth = [
+        { ...mockServiceRequirements[2] }, // service-1 / req-3 dateOfBirth
+        {
+          id: 'sr-dob-2',
+          serviceId: 'service-2',
+          displayOrder: 2,
+          requirement: { ...mockServiceRequirements[2].requirement } // same req id
+        }
+      ];
+
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
-      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(mockServiceRequirements as any);
+      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(duplicatedDateOfBirth as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
 
       const request = new NextRequest(
         `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
@@ -320,92 +552,9 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // First name appears in both services but should only be returned once
-      const firstNameFields = data.fields.filter((f: any) => f.fieldKey === 'firstName');
-      expect(firstNameFields).toHaveLength(1);
-    });
-
-    it('should mark invitation fields as locked with prefilled values', async () => {
-      const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
-      vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
-        token: mockToken,
-        invitationId: 'inv-123',
-        firstName: 'Test',
-        status: 'accessed',
-        expiresAt: new Date(Date.now() + 1000000)
-      });
-
-      const emailRequirement = {
-        id: 'sr-email',
-        serviceId: 'service-1',
-        displayOrder: 5,
-        requirement: {
-          id: 'req-email',
-          name: 'Email Address',
-          fieldKey: 'email',
-          type: 'field',
-          disabled: false,
-          fieldData: {
-            dataType: 'email',
-            collectionTab: 'personal_info'
-          },
-          documentData: null
-        }
-      };
-
-      const phoneRequirement = {
-        id: 'sr-phone',
-        serviceId: 'service-1',
-        displayOrder: 6,
-        requirement: {
-          id: 'req-phone',
-          name: 'Phone Number',
-          fieldKey: 'phone',
-          type: 'field',
-          disabled: false,
-          fieldData: {
-            dataType: 'phone',
-            collectionTab: 'personal_info'
-          },
-          documentData: null
-        }
-      };
-
-      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
-      vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce([
-        ...mockServiceRequirements,
-        emailRequirement,
-        phoneRequirement
-      ] as any);
-
-      const request = new NextRequest(
-        `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
-      );
-
-      const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      // Find specific fields
-      const firstNameField = data.fields.find((f: any) => f.fieldKey === 'firstName');
-      const emailField = data.fields.find((f: any) => f.fieldKey === 'email');
-      const phoneField = data.fields.find((f: any) => f.fieldKey === 'phone');
-      const dobField = data.fields.find((f: any) => f.fieldKey === 'dateOfBirth');
-
-      // Locked fields with prefilled values
-      expect(firstNameField.locked).toBe(true);
-      expect(firstNameField.prefilledValue).toBe('Sarah');
-
-      expect(emailField.locked).toBe(true);
-      expect(emailField.prefilledValue).toBe('sarah@example.com');
-
-      expect(phoneField.locked).toBe(true);
-      expect(phoneField.prefilledValue).toBe('+15551234567');
-
-      // Non-invitation fields should not be locked
-      expect(dobField.locked).toBe(false);
-      expect(dobField.prefilledValue).toBe(null);
+      // dateOfBirth appears in both services but should only be returned once.
+      const dobFields = data.fields.filter((f: any) => f.fieldKey === 'dateOfBirth');
+      expect(dobFields).toHaveLength(1);
     });
 
     it('should filter out disabled requirements', async () => {
@@ -418,11 +567,16 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
         expiresAt: new Date(Date.now() + 1000000)
       });
 
-      // Since the query filters out disabled requirements, we should only return enabled ones
-      const onlyEnabledRequirements = [mockServiceRequirements[0]];
+      // Since the query filters out disabled requirements (at the DB level
+      // via `where: { requirement: { disabled: false } }`), we only return
+      // enabled ones in the mock. Use a non-locked personal-info field so
+      // the Task 8.3 filter does not also strip it.
+      const onlyEnabledRequirements = [mockServiceRequirements[2]]; // dateOfBirth
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
       vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(onlyEnabledRequirements as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
 
       const request = new NextRequest(
         `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
@@ -433,9 +587,9 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Should only have the non-disabled requirement
+      // Should only have the non-disabled requirement.
       expect(data.fields).toHaveLength(1);
-      expect(data.fields[0].fieldKey).toBe('firstName');
+      expect(data.fields[0].fieldKey).toBe('dateOfBirth');
     });
 
     it('should filter out document type requirements', async () => {
@@ -448,29 +602,15 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
         expiresAt: new Date(Date.now() + 1000000)
       });
 
-      const documentRequirement = {
-        id: 'sr-doc',
-        serviceId: 'service-1',
-        displayOrder: 7,
-        requirement: {
-          id: 'req-doc',
-          name: 'ID Document',
-          fieldKey: 'idDoc',
-          type: 'document', // Document type, not field
-          disabled: false,
-          fieldData: {
-            dataType: 'file',
-            collectionTab: 'personal_info'
-          },
-          documentData: {}
-        }
-      };
-
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
-      // Since the query filters out document type requirements, we should only return field types
+      // Since the query filters out document type requirements (at the DB
+      // level via `where: { requirement: { type: 'field' } }`), we only return
+      // field types in the mock. Use a non-locked personal-info field.
       vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce([
-        mockServiceRequirements[0]
+        mockServiceRequirements[2] // dateOfBirth (field type, non-locked)
       ] as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
 
       const request = new NextRequest(
         `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
@@ -481,13 +621,13 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Should only have the field type requirement
+      // Should only have the field type requirement.
       expect(data.fields).toHaveLength(1);
-      expect(data.fields[0].fieldKey).toBe('firstName');
+      expect(data.fields[0].fieldKey).toBe('dateOfBirth');
       expect(data.fields.find((f: any) => f.fieldKey === 'idDoc')).toBeUndefined();
     });
 
-    it('should identify fields by collectionTab variations', async () => {
+    it('should identify fields by collectionTab variations (excluding locked invitation fieldKeys)', async () => {
       const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
       vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
         token: mockToken,
@@ -497,24 +637,65 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
         expiresAt: new Date(Date.now() + 1000000)
       });
 
+      // Mix collectionTab variations on NON-locked fieldKeys — the four
+      // collectionTab forms (`personal_info`, `personal`, `subject`,
+      // `Personal Info`) must all be recognized. The locked-invitation
+      // fieldKeys are tested separately above so this case stays focused on
+      // the collectionTab heuristic.
       const requirementsWithVariedTabs = [
-        { ...mockServiceRequirements[0] }, // collectionTab: 'personal_info'
-        { ...mockServiceRequirements[1] }, // collectionTab: 'personal'
-        { ...mockServiceRequirements[2] }, // collectionTab: 'subject'
+        {
+          id: 'sr-dob',
+          serviceId: 'service-1',
+          displayOrder: 1,
+          requirement: {
+            id: 'req-dob',
+            name: 'Date of Birth',
+            fieldKey: 'dateOfBirth',
+            type: 'field',
+            disabled: false,
+            fieldData: { dataType: 'date', collectionTab: 'personal_info' },
+            documentData: null
+          }
+        },
+        {
+          id: 'sr-mn',
+          serviceId: 'service-1',
+          displayOrder: 2,
+          requirement: {
+            id: 'req-mn',
+            name: 'Middle Name',
+            fieldKey: 'middleName',
+            type: 'field',
+            disabled: false,
+            fieldData: { dataType: 'text', collectionTab: 'personal' },
+            documentData: null
+          }
+        },
+        {
+          id: 'sr-subj',
+          serviceId: 'service-1',
+          displayOrder: 3,
+          requirement: {
+            id: 'req-subj',
+            name: 'Mother Maiden Name',
+            fieldKey: 'mothersMaidenName',
+            type: 'field',
+            disabled: false,
+            fieldData: { dataType: 'text', collectionTab: 'subject' },
+            documentData: null
+          }
+        },
         {
           id: 'sr-mixed',
           serviceId: 'service-1',
-          displayOrder: 8,
+          displayOrder: 4,
           requirement: {
             id: 'req-mixed',
             name: 'Mixed Field',
             fieldKey: 'mixedField',
             type: 'field',
             disabled: false,
-            fieldData: {
-              dataType: 'text',
-              collection_tab: 'Personal Info' // Different case and format
-            },
+            fieldData: { dataType: 'text', collection_tab: 'Personal Info' },
             documentData: null
           }
         }
@@ -522,6 +703,8 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
       vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(requirementsWithVariedTabs as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
 
       const request = new NextRequest(
         `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
@@ -532,16 +715,20 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // All should be recognized as personal info fields
+      // All should be recognized as personal info fields.
       expect(data.fields).toHaveLength(4);
       const fieldKeys = data.fields.map((f: any) => f.fieldKey);
-      expect(fieldKeys).toContain('firstName');
-      expect(fieldKeys).toContain('lastName');
       expect(fieldKeys).toContain('dateOfBirth');
+      expect(fieldKeys).toContain('middleName');
+      expect(fieldKeys).toContain('mothersMaidenName');
       expect(fieldKeys).toContain('mixedField');
     });
 
-    it('should identify common personal fields by fieldKey when no collectionTab', async () => {
+    it('should identify common personal fields by fieldKey when no collectionTab — but still exclude locked invitation fieldKeys', async () => {
+      // Task 8.3: ssn is in PERSONAL_INFO_FIELD_KEYS so it is captured by the
+      // fieldKey-based fallback. It is NOT in LOCKED_INVITATION_FIELD_KEYS so
+      // it must still be returned. customField is not in either set and is
+      // excluded.
       const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
       vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
         token: mockToken,
@@ -562,10 +749,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
             fieldKey: 'ssn',
             type: 'field',
             disabled: false,
-            fieldData: {
-              dataType: 'text'
-              // No collectionTab
-            },
+            fieldData: { dataType: 'text' /* no collectionTab */ },
             documentData: null
           }
         },
@@ -579,10 +763,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
             fieldKey: 'customField',
             type: 'field',
             disabled: false,
-            fieldData: {
-              dataType: 'text'
-              // No collectionTab
-            },
+            fieldData: { dataType: 'text' /* no collectionTab */ },
             documentData: null
           }
         }
@@ -590,6 +771,8 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
       vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(requirementsWithoutTab as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
 
       const request = new NextRequest(
         `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
@@ -600,8 +783,8 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // SSN is a common personal field, should be included
-      // Custom field is not recognized, should be excluded
+      // SSN is a common personal field and not in the locked set — should be
+      // included. customField is not recognized at all — excluded.
       expect(data.fields).toHaveLength(1);
       expect(data.fields[0].fieldKey).toBe('ssn');
     });
@@ -638,6 +821,8 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
     });
 
     it('should preserve complete fieldData', async () => {
+      // Use a NON-locked fieldKey so the Task 8.3 filter doesn't strip the
+      // requirement before the response builder gets to it.
       const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
       vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
         token: mockToken,
@@ -652,7 +837,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
         collectionTab: 'personal_info',
         retentionHandling: 'delete_at_customer_rule',
         requiresVerification: true,
-        shortName: 'FN',
+        shortName: 'MN',
         instructions: 'Legal name only',
         customProperty: 'should be preserved'
       };
@@ -664,7 +849,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
         requirement: {
           id: 'req-complex',
           name: 'Complex Field',
-          fieldKey: 'complexField',
+          fieldKey: 'middleName', // non-locked
           type: 'field',
           disabled: false,
           fieldData: complexFieldData,
@@ -674,6 +859,8 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(mockInvitation as any);
       vi.mocked(prisma.serviceRequirement.findMany).mockResolvedValueOnce(requirementWithComplexData as any);
+      vi.mocked(prisma.dSXAvailability.findMany).mockResolvedValueOnce([] as any);
+      vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([] as any);
 
       const request = new NextRequest(
         `http://localhost/api/candidate/application/${mockToken}/personal-info-fields`
@@ -684,7 +871,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // All fieldData should be preserved
+      // All fieldData should be preserved.
       expect(data.fields[0].fieldData).toEqual(complexFieldData);
       expect(data.fields[0].instructions).toBe('Legal name only');
     });
@@ -747,10 +934,10 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
   //      is baseline-required ONLY when every applicable mapping row says so.
   //   4. Defaults to isRequired: false when no applicable mapping rows exist.
   //
-  // The test fixture in this section uses a single invitation with two
-  // package services (service-1, service-2) and a single personal-info
-  // requirement (req-firstName) so every assertion focuses on the new
-  // AND-aggregation logic rather than on field discovery.
+  // Task 8.3 update — the original fixture used `firstName`, which is now a
+  // locked invitation fieldKey and gets filtered out before the response
+  // builder runs. We swap to `middleName` (non-locked, personal-info) so the
+  // AND-aggregation contract is still exercised on a returned field.
   // ===========================================================================
   describe('TD-060: required-field accuracy', () => {
     const baselineSession = {
@@ -761,17 +948,18 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expiresAt: new Date(Date.now() + 1000000),
     };
 
-    // Single personal-info requirement so the AND-aggregation result is
-    // unambiguous in each test case.
+    // Single non-locked personal-info requirement so the AND-aggregation
+    // result is unambiguous in each test case AND the Task 8.3 filter does
+    // not strip the field before the response builder sees it.
     const singleRequirement = [
       {
-        id: 'sr-firstName',
+        id: 'sr-middleName',
         serviceId: 'service-1',
         displayOrder: 1,
         requirement: {
-          id: 'req-firstName',
-          name: 'First Name',
-          fieldKey: 'firstName',
+          id: 'req-middleName',
+          name: 'Middle Name',
+          fieldKey: 'middleName',
           type: 'field',
           disabled: false,
           fieldData: {
@@ -798,12 +986,12 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
         { serviceId: 'service-2', locationId: 'loc-B' },
       ] as any);
 
-      // 4 mapping rows for req-firstName, ALL isRequired:true → baseline required
+      // 4 mapping rows for req-middleName, ALL isRequired:true → baseline required
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
-        { requirementId: 'req-firstName', serviceId: 'service-1', locationId: 'loc-A', isRequired: true },
-        { requirementId: 'req-firstName', serviceId: 'service-1', locationId: 'loc-B', isRequired: true },
-        { requirementId: 'req-firstName', serviceId: 'service-2', locationId: 'loc-A', isRequired: true },
-        { requirementId: 'req-firstName', serviceId: 'service-2', locationId: 'loc-B', isRequired: true },
+        { requirementId: 'req-middleName', serviceId: 'service-1', locationId: 'loc-A', isRequired: true },
+        { requirementId: 'req-middleName', serviceId: 'service-1', locationId: 'loc-B', isRequired: true },
+        { requirementId: 'req-middleName', serviceId: 'service-2', locationId: 'loc-A', isRequired: true },
+        { requirementId: 'req-middleName', serviceId: 'service-2', locationId: 'loc-B', isRequired: true },
       ] as any);
 
       const request = new NextRequest(
@@ -814,7 +1002,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data.fields).toHaveLength(1);
-      expect(data.fields[0].fieldKey).toBe('firstName');
+      expect(data.fields[0].fieldKey).toBe('middleName');
       expect(data.fields[0].isRequired).toBe(true);
     });
 
@@ -834,10 +1022,10 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
 
       // 4 rows but one has isRequired:false → not baseline required
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
-        { requirementId: 'req-firstName', serviceId: 'service-1', locationId: 'loc-A', isRequired: true },
-        { requirementId: 'req-firstName', serviceId: 'service-1', locationId: 'loc-B', isRequired: true },
-        { requirementId: 'req-firstName', serviceId: 'service-2', locationId: 'loc-A', isRequired: false },
-        { requirementId: 'req-firstName', serviceId: 'service-2', locationId: 'loc-B', isRequired: true },
+        { requirementId: 'req-middleName', serviceId: 'service-1', locationId: 'loc-A', isRequired: true },
+        { requirementId: 'req-middleName', serviceId: 'service-1', locationId: 'loc-B', isRequired: true },
+        { requirementId: 'req-middleName', serviceId: 'service-2', locationId: 'loc-A', isRequired: false },
+        { requirementId: 'req-middleName', serviceId: 'service-2', locationId: 'loc-B', isRequired: true },
       ] as any);
 
       const request = new NextRequest(
@@ -848,7 +1036,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data.fields).toHaveLength(1);
-      expect(data.fields[0].fieldKey).toBe('firstName');
+      expect(data.fields[0].fieldKey).toBe('middleName');
       // Cross-section registry handles the conditional case at runtime — baseline
       // returned by the API is false.
       expect(data.fields[0].isRequired).toBe(false);
@@ -876,7 +1064,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       // dsx_availability). So the route's mapping query returns only what
       // matches the package filter.
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
-        { requirementId: 'req-firstName', serviceId: 'service-1', locationId: 'loc-A', isRequired: false },
+        { requirementId: 'req-middleName', serviceId: 'service-1', locationId: 'loc-A', isRequired: false },
       ] as any);
 
       const request = new NextRequest(
@@ -919,7 +1107,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       // because (service-1, loc-Z) isn't in the OR-pair filter. The mapping
       // query result includes only the available pair, marked NOT required.
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
-        { requirementId: 'req-firstName', serviceId: 'service-1', locationId: 'loc-A', isRequired: false },
+        { requirementId: 'req-middleName', serviceId: 'service-1', locationId: 'loc-A', isRequired: false },
       ] as any);
 
       const request = new NextRequest(
@@ -958,7 +1146,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       // The mapping for the disabled location is never queried because its
       // pair isn't in the OR-pair list. The remaining row says NOT required.
       vi.mocked(prisma.dSXMapping.findMany).mockResolvedValueOnce([
-        { requirementId: 'req-firstName', serviceId: 'service-1', locationId: 'loc-A', isRequired: false },
+        { requirementId: 'req-middleName', serviceId: 'service-1', locationId: 'loc-A', isRequired: false },
       ] as any);
 
       const request = new NextRequest(
@@ -1035,7 +1223,7 @@ describe('GET /api/candidate/application/[token]/personal-info-fields', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data.fields).toHaveLength(1);
-      expect(data.fields[0].fieldKey).toBe('firstName');
+      expect(data.fields[0].fieldKey).toBe('middleName');
       expect(data.fields[0].isRequired).toBe(false);
     });
   });
