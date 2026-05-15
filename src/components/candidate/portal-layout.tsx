@@ -97,16 +97,19 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   // sectionStatuses is keyed by section.id (the structure-endpoint identifier),
   // and each section pushes its own computed status here through
   // onSectionProgressUpdate. The sidebar consumes this map to drive the
-  // SectionProgressIndicator next to each section name. Initial value is the
-  // status the structure endpoint returned (currently always 'not_started').
+  // SectionProgressIndicator next to each section name.
+  //
+  // Initialize EMPTY — not with `section.status` from the structure endpoint.
+  // The structure endpoint always returns `not_started`, and pre-populating
+  // with that value collides with `mergeSectionStatus` Rule 2 after a
+  // logout/login: a returning candidate's section that the server validates
+  // as `complete` would land at (local=`not_started`, validation=`complete`)
+  // and Rule 2 reports `incomplete` — turning the sidebar red until the
+  // section component mounts and reports its real local status. Leaving the
+  // entry undefined lets the merge fall through to validation on the first
+  // render and only consult local once the section has actually computed it.
   const [sectionStatuses, setSectionStatuses] = useState<Record<string, SectionStatus>>(
-    () => {
-      const initial: Record<string, SectionStatus> = {};
-      for (const section of sections) {
-        initial[section.id] = section.status;
-      }
-      return initial;
-    },
+    {},
   );
 
   // Phase 6 Stage 4 — cross-section requirement registry. Currently the only
@@ -766,6 +769,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
           const visit = sectionVisits[section.id];
           const departed = !!visit && visit.departedAt !== null;
           if (departed || reviewPageVisitedAt !== null) {
+            // SectionStatus union literal, not DB status.
             return { ...section, status: 'incomplete' as const };
           }
         }
@@ -805,6 +809,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     ]);
     const patchedSummarySections = validationResult.summary.sections.map((s) => {
       if (dynamicIds.has(s.sectionId) && !visibleIds.has(s.sectionId)) {
+        // SectionStatus union literal, not DB status.
         return { ...s, status: 'complete' as const, errors: [] };
       }
       return s;
@@ -813,6 +818,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
       if (dynamicIds.has(s.sectionId) && !visibleIds.has(s.sectionId)) {
         return {
           ...s,
+          // SectionStatus union literal, not DB status.
           status: 'complete' as const,
           fieldErrors: [],
           scopeErrors: [],
@@ -1264,9 +1270,16 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
       // engine "incomplete" verdict for those skipped sections (Rule 9 c),
       // and `disableSubmitForDynamicGaps` blocks Submit when a visible
       // dynamic step is locally incomplete (Rule 9 d).
+      // Cross-section-validation-filtering bug fix Issue 2 — pass each
+      // section's already-merged status (the same value the sidebar
+      // SectionProgressIndicator renders) through the descriptor. Without
+      // this, ReviewSubmitPage falls back to the validation summary alone
+      // and reports `not_started` for sections that have no server-side
+      // validator entry (record_search post-Task-8.4) even when the sidebar
+      // is correctly showing them as complete/incomplete.
       const reviewPageSections = visibleSectionsWithStatus
         .filter((s) => s.type !== 'review_submit')
-        .map((s) => ({ id: s.id, title: s.title }));
+        .map((s) => ({ id: s.id, title: s.title, status: s.status }));
       return (
         <div className="p-6" data-testid="main-content">
           <ReviewSubmitPage

@@ -31,6 +31,7 @@ import logger from '@/lib/logger';
 
 import type { FieldError } from './types';
 import type { FindDsxMappings } from './personalInfoIdvFieldChecks';
+import { isPersonalInfoFieldKey } from '@/lib/candidate/lockedInvitationFieldKeys';
 // TD-084: re-export DsxMappingRow so the Pass 1 test fixture
 // (`orMergeConsistency.test.ts`) can import it from this module's surface
 // alongside `buildPerCountryRequiredMap`. The original cross-module dependency
@@ -63,7 +64,15 @@ export interface RequirementRecord {
   fieldKey: string;
   type: string;
   disabled: boolean;
-  fieldData: { dataType?: string; addressConfig?: unknown } | null;
+  fieldData: {
+    dataType?: string;
+    addressConfig?: unknown;
+    // Cross-section-validation-filtering bug fix: the per-entry walk drops
+    // requirements whose collectionTab indicates the field is collected on
+    // Personal Info, not on this entry section. Carried through by the
+    // loader's narrowing loop in `loadValidationInputs.ts`.
+    collectionTab?: string;
+  } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -340,6 +349,16 @@ export function buildPerCountryRequiredMap(
  * Today this is simply the requirements that perReq has an entry for —
  * `requirementById` is consulted only to look up the requirement record.
  *
+ * Cross-section-validation-filtering bug fix: requirements that are
+ * Personal-Info-owned — either via `fieldData.collectionTab` containing
+ * 'subject'/'personal' OR via a PI-style `fieldKey` (firstName, middleName,
+ * dateOfBirth, ssn, etc.) — are filtered OUT. Those are collected on
+ * Personal Info, not on this entry section. Without this filter, the
+ * per-entry walk reports them as missing because the entry has no value
+ * for them (the value lives on Personal Info's saved bucket under a
+ * different storage path). See
+ * `docs/specs/cross-section-validation-filtering-bugfix.md` Bug A.
+ *
  * The architect's plan §1.3 carve-out for service-level address_block
  * requirements is implicitly satisfied by the loader's existing include:
  * service-level address_block requirements appear in `serviceRequirements`
@@ -356,9 +375,52 @@ function findApplicableRequirements(
   const out: RequirementRecord[] = [];
   for (const requirementId of perReq.keys()) {
     const record = requirementById.get(requirementId);
-    if (record) out.push(record);
+    if (!record) continue;
+    if (isPersonalInfoOwnedRequirement(record)) continue;
+    // Skip document-type requirements. The per-entry walk validates FIELD
+    // requirements only — documents have their own validation path
+    // (per_entry documents are checked by the client-side
+    // computeRepeatableSectionStatus against `uploadedDocumentsByEntry`;
+    // per_search / per_order documents live in `aggregatedFields` and are
+    // owned by Record Search Section after Task 8.4). Without this filter,
+    // any document mapped to an entry's country was reported as a missing
+    // FieldError on every entry because its uploaded metadata isn't stored
+    // in `entry.fields`. This was the root cause of "Address History stays
+    // red even when all entry fields are filled in" in smoke testing.
+    if (record.type === 'document') continue;
+    out.push(record);
   }
   return out;
+}
+
+/**
+ * Cross-section-validation-filtering bug fix — true when a requirement is
+ * collected on Personal Info (and therefore must not be walked as a per-
+ * entry field on an address / education / employment entry).
+ *
+ * A requirement is treated as Personal-Info-owned when EITHER:
+ *   1. Its `fieldData.collectionTab` (lowercased) contains 'subject' or
+ *      'personal' — the canonical signal package authors set on PI fields.
+ *   2. Its `fieldKey` lives in `PERSONAL_INFO_FIELD_KEYS` — the same fieldKey
+ *      heuristic used by `personal-info-fields/route.ts` and
+ *      `personalInfoIdvFieldChecks.ts` to surface PI requirements that lack
+ *      an explicit `collectionTab` (legacy/imported rows, locked invitation
+ *      keys like `firstName`/`lastName`, or PI-style keys like `middleName`/
+ *      `dateOfBirth`/`ssn`).
+ *
+ * Without rule 2 the walker reported every PI-fieldKey requirement as a
+ * missing FieldError on every entry, because the candidate fills those
+ * fields in on Personal Info, not on the entry — so they never appear in
+ * `entry.fields[]`. That mismatch is documented as Bug A in
+ * docs/specs/cross-section-validation-filtering-bugfix.md.
+ */
+function isPersonalInfoOwnedRequirement(record: RequirementRecord): boolean {
+  const tab = record.fieldData?.collectionTab;
+  if (typeof tab === 'string' && tab.length > 0) {
+    const lower = tab.toLowerCase();
+    if (lower.includes('subject') || lower.includes('personal')) return true;
+  }
+  return isPersonalInfoFieldKey(record.fieldKey);
 }
 
 /**

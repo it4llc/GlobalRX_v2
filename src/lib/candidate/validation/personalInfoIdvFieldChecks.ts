@@ -41,6 +41,10 @@
 // Rule 1 — every status string is lowercase (project standard).
 
 import type { Prisma } from '@prisma/client';
+import {
+  LOCKED_INVITATION_FIELD_KEYS,
+  PERSONAL_INFO_FIELD_KEYS,
+} from '@/lib/candidate/lockedInvitationFieldKeys';
 import logger from '@/lib/logger';
 
 import type {
@@ -111,20 +115,6 @@ interface FieldDataShape {
   collection_tab?: unknown;
   // dataType / instructions also live here but aren't read in this module.
 }
-
-const PERSONAL_INFO_FIELD_KEYS = new Set([
-  'firstName',
-  'lastName',
-  'middleName',
-  'email',
-  'phone',
-  'phoneNumber',
-  'dateOfBirth',
-  'birthDate',
-  'dob',
-  'ssn',
-  'socialSecurityNumber',
-]);
 
 // IDV synthetic marker — the IDV section saves the candidate's selected
 // country at this requirementId. It is NOT a DSX requirement, so it is
@@ -220,19 +210,17 @@ async function aggregateIsRequired(
 // shown on the Welcome page per Task 8.1). Per spec Business Rule 6, Personal
 // Info validation must not expect or check for these fields any more; they
 // are excluded from the requirement walk so Review & Submit cannot flag them
-// as missing. The wider PERSONAL_INFO_FIELD_KEYS set above is intentionally
-// left alone — `isPersonalInfoField` is also used by `collectIdvFieldRequire-
-// ments` to exclude personal-info-claimed requirements from IDV (TD-084),
-// which still needs to see the full set including middleName/dateOfBirth/ssn.
+// as missing. The wider PERSONAL_INFO_FIELD_KEYS set (imported from
+// `lockedInvitationFieldKeys`) is intentionally kept distinct —
+// `isPersonalInfoField` is also used by `collectIdvFieldRequirements` to
+// exclude personal-info-claimed requirements from IDV (TD-084), which still
+// needs to see the full set including middleName/dateOfBirth/ssn.
 // ---------------------------------------------------------------------------
 
-const LOCKED_INVITATION_FIELD_KEYS = new Set<string>([
-  'firstName',
-  'lastName',
-  'email',
-  'phone',
-  'phoneNumber',
-]);
+// LOCKED_INVITATION_FIELD_KEYS and PERSONAL_INFO_FIELD_KEYS are imported from
+// `@/lib/candidate/lockedInvitationFieldKeys` so the same Sets drive the API
+// route, this validator, and the cross-section registry (cross-section-
+// validation-filtering bug fix).
 
 export async function collectPersonalInfoFieldRequirements(
   packageServices: PackageServiceWithRequirements[],
@@ -537,6 +525,8 @@ export function validatePersonalInfoSection(
 ): SectionValidationResult {
   const result: SectionValidationResult = {
     sectionId: input.sectionId,
+    // ValidationStatus union literal, not DB status — initial value before the
+    // engine resolves a verdict for this section.
     status: 'not_started',
     fieldErrors: [],
     scopeErrors: [],
@@ -612,6 +602,8 @@ export async function validateIdvSection(
 ): Promise<SectionValidationResult> {
   const result: SectionValidationResult = {
     sectionId: input.sectionId,
+    // ValidationStatus union literal, not DB status — initial value before the
+    // engine resolves a verdict for this section.
     status: 'not_started',
     fieldErrors: [],
     scopeErrors: [],

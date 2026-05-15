@@ -702,6 +702,113 @@ describe('ReviewSubmitPage', () => {
       expect(onBack).toHaveBeenCalledTimes(1);
     });
 
+    it('REGRESSION TEST: descriptor `status` overrides the validation summary (Bug fix Issue 2)', () => {
+      // Cross-section-validation-filtering bug fix Issue 2 — Record Search has
+      // no server-side validator (Task 8.4 plan §4.8), so its entry is absent
+      // from `validationResult.summary.sections`. Before the fix, ReviewSubmit
+      // fell back to 'not_started' and rendered grey for record_search even
+      // though the sidebar — driven by the shell's merged `sectionsWithStatus`
+      // — was correctly showing it complete. Passing the merged status through
+      // the descriptor makes Review & Submit consume the same authoritative
+      // signal.
+      const validationResult: FullValidationResult = {
+        sections: [],
+        summary: {
+          sections: [
+            // address_history present, record_search ABSENT (matches the
+            // engine's real behavior post-Task-8.4).
+            {
+              sectionId: 'address_history',
+              sectionName: 'address_history',
+              status: 'complete',
+              errors: [],
+            },
+          ],
+          allComplete: true,
+          totalErrors: 0,
+        },
+      };
+
+      render(
+        <ReviewSubmitPage
+          validationResult={validationResult}
+          sections={[
+            { id: 'address_history', title: 'Address History', status: 'complete' },
+            { id: 'record_search', title: 'Record Search', status: 'complete' },
+          ]}
+          onErrorNavigate={vi.fn()}
+          onSubmit={vi.fn()}
+        />,
+      );
+
+      const indicators = screen.getAllByTestId('section-progress-indicator');
+      // address_history — complete from summary
+      expect(indicators[0].getAttribute('data-status')).toBe('complete');
+      // record_search — complete from the descriptor's pre-merged status,
+      // NOT 'not_started' from the absent summary entry.
+      expect(indicators[1].getAttribute('data-status')).toBe('complete');
+    });
+
+    it('REGRESSION TEST: descriptor `status` propagates "incomplete" for sections without validator entries', () => {
+      // The post-merge override in portal-layout flags Record Search as
+      // `incomplete` when the candidate visits and departs without filling
+      // anything. The descriptor must carry that signal to Review & Submit
+      // so the icon matches the sidebar.
+      const validationResult: FullValidationResult = {
+        sections: [],
+        summary: {
+          sections: [],
+          allComplete: false,
+          totalErrors: 0,
+        },
+      };
+
+      render(
+        <ReviewSubmitPage
+          validationResult={validationResult}
+          sections={[
+            { id: 'record_search', title: 'Record Search', status: 'incomplete' },
+          ]}
+          onErrorNavigate={vi.fn()}
+        />,
+      );
+
+      const indicators = screen.getAllByTestId('section-progress-indicator');
+      expect(indicators[0].getAttribute('data-status')).toBe('incomplete');
+    });
+
+    it('falls back to the validation summary status when descriptor.status is omitted', () => {
+      const validationResult: FullValidationResult = {
+        sections: [],
+        summary: {
+          sections: [
+            {
+              sectionId: 'personal_info',
+              sectionName: 'Personal Information',
+              status: 'incomplete',
+              errors: [],
+            },
+          ],
+          allComplete: false,
+          totalErrors: 0,
+        },
+      };
+
+      render(
+        <ReviewSubmitPage
+          validationResult={validationResult}
+          sections={[
+            // No `status` provided on the descriptor.
+            { id: 'personal_info', title: 'Personal Information' },
+          ]}
+          onErrorNavigate={vi.fn()}
+        />,
+      );
+
+      const indicators = screen.getAllByTestId('section-progress-indicator');
+      expect(indicators[0].getAttribute('data-status')).toBe('incomplete');
+    });
+
     it('disableSubmit={true} does NOT affect the section list rendering', () => {
       const validationResult: FullValidationResult = {
         sections: [],

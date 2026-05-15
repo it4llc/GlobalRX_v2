@@ -54,6 +54,20 @@ export interface ReviewPageSectionDescriptor {
    * so passing a raw label here is safe.
    */
   title: string;
+  /**
+   * Optional pre-merged status from the shell's `visibleSectionsWithStatus`
+   * (the same value the sidebar SectionProgressIndicator renders). When
+   * present, it takes precedence over the validation summary's status —
+   * needed for sections that have no server-side validator entry (e.g.
+   * Record Search post-Task-8.4, where the shell's local computation +
+   * visited/departed override is the only authoritative signal). Without
+   * this, ReviewSubmitPage falls back to `not_started` and shows grey for
+   * sections the sidebar is correctly showing as green or red.
+   *
+   * Cross-section-validation-filtering bug fix Issue 2 — see
+   * docs/specs/cross-section-validation-filtering-bugfix.md.
+   */
+  status?: ValidationStatus;
 }
 
 interface ReviewSubmitPageProps {
@@ -154,10 +168,18 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
     );
     renderableSections = sections.map((sec) => {
       const fromSummary = summaryById.get(sec.id);
+      // Prefer the descriptor's pre-merged status when supplied by the shell
+      // (it already reflects local + validation merging plus the
+      // record_search visited+departed override). Falling through to the
+      // summary status alone would show grey for sections the sidebar is
+      // correctly showing as green/red. See descriptor `status` doc and
+      // docs/specs/cross-section-validation-filtering-bugfix.md Issue 2.
+      const status: ValidationStatus =
+        sec.status ?? fromSummary?.status ?? 'not_started';
       return {
         sectionId: sec.id,
         sectionName: t(sec.title),
-        status: fromSummary?.status ?? 'not_started',
+        status,
         errors: fromSummary?.errors ?? [],
       };
     });
