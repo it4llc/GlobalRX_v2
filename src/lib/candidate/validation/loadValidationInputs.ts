@@ -75,7 +75,17 @@ export interface RequirementRecord {
   fieldKey: string;
   type: string;
   disabled: boolean;
-  fieldData: { dataType?: string; addressConfig?: unknown } | null;
+  fieldData: {
+    dataType?: string;
+    addressConfig?: unknown;
+    // Cross-section-validation-filtering bug fix: the per-entry walk in
+    // `repeatableEntryFieldChecks.ts` needs `collectionTab` so it can drop
+    // subject-targeted requirements (which are collected on Personal Info,
+    // not on the entry section). The narrowing loop below reads the raw
+    // value from either the camelCase or snake_case key and carries the
+    // lowercased string through.
+    collectionTab?: string;
+  } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -227,11 +237,28 @@ export async function loadValidationInputs(
       const fieldKey = typeof r.fieldKey === 'string' ? r.fieldKey : '';
       const name = typeof r.name === 'string' ? r.name : '';
       const fieldDataRaw =
-        (r.fieldData as { dataType?: unknown; addressConfig?: unknown } | null) ?? null;
+        (r.fieldData as {
+          dataType?: unknown;
+          addressConfig?: unknown;
+          collectionTab?: unknown;
+          collection_tab?: unknown;
+        } | null) ?? null;
       const fieldDataObj = fieldDataRaw ?? {};
       const dataType =
         typeof fieldDataObj.dataType === 'string' ? fieldDataObj.dataType : '';
       requirementMetadata.set(sr.requirementId, { fieldKey, name, dataType });
+
+      // Read collectionTab with camelCase preferred and snake_case fallback —
+      // same heuristic used in personalInfoIdvFieldChecks.ts and the route
+      // /personal-info-fields. Carrying this through here is what enables
+      // `repeatableEntryFieldChecks.ts` to drop subject-targeted requirements
+      // from the per-entry walk (cross-section-validation-filtering bug fix).
+      const collectionTabRaw =
+        typeof fieldDataRaw?.collectionTab === 'string'
+          ? fieldDataRaw.collectionTab
+          : typeof fieldDataRaw?.collection_tab === 'string'
+            ? fieldDataRaw.collection_tab
+            : undefined;
 
       // requirementById may receive multiple writes for the same requirement
       // when the package maps it to multiple services; the record is
@@ -251,6 +278,7 @@ export async function loadValidationInputs(
                   ? fieldDataRaw.dataType
                   : undefined,
               addressConfig: fieldDataRaw.addressConfig,
+              collectionTab: collectionTabRaw,
             },
       });
     }

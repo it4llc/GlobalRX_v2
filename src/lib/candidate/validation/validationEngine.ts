@@ -564,7 +564,18 @@ function computeScopeStart(scope: ResolvedScope, today: Date): Date | null {
     return null;
   }
   const days = scope.scopeValue * DAYS_PER_YEAR;
-  return new Date(today.getTime() - days * MS_PER_DAY);
+  // Mirror evaluateTimeBasedScope's inclusive-end semantics: today is
+  // inclusive, so the scope window stretches up to the start of tomorrow
+  // (UTC). Without this, the scope boundary used by gap detection drifts by
+  // one day relative to the scope check, causing spurious start-of-timeline
+  // gaps when a candidate's earliest entry is at the boundary.
+  const todayUtcMidnightMs = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  const todayInclusiveMs = todayUtcMidnightMs + MS_PER_DAY;
+  return new Date(todayInclusiveMs - days * MS_PER_DAY);
 }
 
 function emptyResult(): FullValidationResult {

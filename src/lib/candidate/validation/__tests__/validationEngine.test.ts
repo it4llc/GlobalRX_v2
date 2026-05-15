@@ -2118,4 +2118,303 @@ describe('runValidation', () => {
       expect(jobTitleError).toBeUndefined();
     });
   });
+
+  // ===========================================================================
+  // BUG C regression tests — cross-section validation filtering bug fix
+  //
+  // Spec: docs/specs/cross-section-validation-filtering-bugfix.md
+  //       (Bug C — Personal Info won't go green even when all visible fields
+  //        are filled; Bug A — Address History stays red even when all
+  //        entries are complete)
+  //
+  // These tests run through the full runValidation orchestrator so the
+  // loader, the per-entry walk, and the personal-info collector are
+  // exercised together. Pre-fix, the per-entry walk in
+  // repeatableEntryFieldChecks.ts does not filter subject-targeted
+  // requirements; a package that maps a subject-targeted middleName at the
+  // entry's country forces Address History to incomplete even when
+  // middleName is correctly stored on Personal Info.
+  //
+  // Post-fix, the per-entry walk drops subject-targeted requirements from
+  // findApplicableRequirements, the Personal Info collector continues to
+  // collect them, and BOTH sections report complete when the candidate has
+  // filled in the editable Personal Info fields and the entry's inline
+  // fields.
+  // ===========================================================================
+
+  describe('Bug C — Personal Info reaches complete when editable fields are filled', () => {
+    const PI_SVC = 'svc-personal-info';
+    const PI_REQ_MIDDLE = 'req-middleName';
+    const PI_REQ_DOB = 'req-dateOfBirth';
+
+    /**
+     * Build a package-services fixture that DOES populate availability so
+     * collectPersonalInfoFieldRequirements finds applicable pairs and runs
+     * the AND-aggregation. The existing buildStage3bPackageServices helper
+     * hardcodes availability: [], which short-circuits the collector.
+     */
+    function buildPiPackageServices(args: {
+      serviceId: string;
+      countryId: string;
+      requirements: Array<{
+        id: string;
+        name: string;
+        fieldKey: string;
+        collectionTab?: string;
+      }>;
+    }): unknown[] {
+      return [
+        {
+          id: `ps-${args.serviceId}`,
+          packageId: 'pkg-123',
+          serviceId: args.serviceId,
+          scope: null,
+          service: {
+            id: args.serviceId,
+            functionalityType: 'record',
+            serviceRequirements: args.requirements.map((r) => ({
+              serviceId: args.serviceId,
+              requirementId: r.id,
+              displayOrder: 0,
+              requirement: {
+                id: r.id,
+                name: r.name,
+                fieldKey: r.fieldKey,
+                type: 'field',
+                disabled: false,
+                fieldData: r.collectionTab
+                  ? { dataType: 'text', collectionTab: r.collectionTab }
+                  : { dataType: 'text' },
+              },
+            })),
+            availability: [
+              {
+                serviceId: args.serviceId,
+                locationId: args.countryId,
+                isAvailable: true,
+              },
+            ],
+          },
+        },
+      ];
+    }
+
+    it('BASELINE (passes today and after the fix): Personal Info reaches `complete` when only unlocked editable fields (middleName + dateOfBirth) are required and they are filled', async () => {
+      // Two Personal Info requirements — middleName and dateOfBirth — are
+      // mapped at COUNTRY_A and required. The candidate has filled both.
+      // Status must be `complete`.
+      const findManyMock = prisma.dSXMapping.findMany as unknown as ReturnType<
+        typeof vi.fn
+      >;
+      findManyMock.mockResolvedValue([
+        {
+          requirementId: PI_REQ_MIDDLE,
+          serviceId: PI_SVC,
+          locationId: COUNTRY_A,
+          isRequired: true,
+        },
+        {
+          requirementId: PI_REQ_DOB,
+          serviceId: PI_SVC,
+          locationId: COUNTRY_A,
+          isRequired: true,
+        },
+      ]);
+
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        buildInvitation({
+          package: {
+            id: 'pkg-123',
+            workflow: { id: 'wf-123', gapToleranceDays: null, sections: [] },
+            packageServices: buildPiPackageServices({
+              serviceId: PI_SVC,
+              countryId: COUNTRY_A,
+              requirements: [
+                {
+                  id: PI_REQ_MIDDLE,
+                  name: 'Middle Name',
+                  fieldKey: 'middleName',
+                  collectionTab: 'subject',
+                },
+                {
+                  id: PI_REQ_DOB,
+                  name: 'Date of Birth',
+                  fieldKey: 'dateOfBirth',
+                  collectionTab: 'subject',
+                },
+              ],
+            }),
+          },
+          formData: {
+            sectionVisits: {
+              personal_info: {
+                visitedAt: '2026-05-01T10:00:00Z',
+                departedAt: '2026-05-01T11:00:00Z',
+              },
+            },
+            sections: {
+              personal_info: {
+                type: 'personal_info',
+                fields: [
+                  { requirementId: PI_REQ_MIDDLE, value: 'Alex' },
+                  { requirementId: PI_REQ_DOB, value: '1990-01-01' },
+                ],
+              },
+            },
+          },
+        }) as never,
+      );
+
+      const result = await runValidation('inv-123');
+      const personalInfo = result.sections.find(
+        (s) => s.sectionId === 'personal_info',
+      );
+
+      expect(personalInfo).toBeDefined();
+      expect(personalInfo!.fieldErrors).toEqual([]);
+      expect(personalInfo!.status).toBe('complete');
+    });
+  });
+
+  describe('Bug A integration — Address History reaches complete when its inline fields are filled and subject-targeted requirements are present', () => {
+    const SVC_REC = 'svc-rec-bugC';
+    const REQ_ADDR = 'req-address-block-bugC';
+    const REQ_MID_SUBJECT = 'req-middleName-subject-bugC';
+
+    it('REGRESSION TEST: Address History entry with all inline fields filled reaches `complete` even when the country has a subject-targeted middleName requirement satisfied via Personal Info', async () => {
+      // The package has a record service whose country (COUNTRY_A) has TWO
+      // required mappings: the address_block (inline, collected on the
+      // entry) and middleName with collectionTab='subject' (collected on
+      // Personal Info). The candidate has filled both:
+      //   - The entry's address_block has all canonical pieces
+      //   - Personal Info has middleName saved
+      //
+      // Pre-fix: the per-entry walk on Address History sees req-middleName
+      //   in findApplicableRequirements (because it is mapped at COUNTRY_A)
+      //   and emits a FieldError for it because the entry has no value.
+      //   Status: incomplete.
+      //
+      // Post-fix: findApplicableRequirements drops req-middleName because
+      //   its fieldData.collectionTab === 'subject'. No error emitted.
+      //   Status: complete.
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        buildInvitation({
+          package: {
+            id: 'pkg-123',
+            workflow: { id: 'wf-123', gapToleranceDays: null, sections: [] },
+            packageServices: buildStage3bPackageServices([
+              {
+                id: SVC_REC,
+                functionalityType: 'record',
+                requirements: [
+                  {
+                    id: REQ_ADDR,
+                    name: 'Address',
+                    fieldKey: 'address',
+                    type: 'field',
+                    fieldData: {
+                      dataType: 'address_block',
+                      addressConfig: CANONICAL_ADDRESS_CONFIG,
+                    },
+                  },
+                  {
+                    id: REQ_MID_SUBJECT,
+                    name: 'Middle Name',
+                    fieldKey: 'middleName',
+                    type: 'field',
+                    fieldData: {
+                      dataType: 'text',
+                      collectionTab: 'subject',
+                    },
+                  },
+                ],
+              },
+            ]),
+          },
+          formData: {
+            sectionVisits: {
+              address_history: {
+                visitedAt: '2026-05-01T10:00:00Z',
+                departedAt: '2026-05-01T11:00:00Z',
+              },
+              personal_info: {
+                visitedAt: '2026-05-01T10:00:00Z',
+                departedAt: '2026-05-01T11:00:00Z',
+              },
+            },
+            sections: {
+              address_history: {
+                type: 'address_history',
+                entries: [
+                  {
+                    entryId: 'entry-bugC-1',
+                    countryId: COUNTRY_A,
+                    entryOrder: 1,
+                    fields: [
+                      {
+                        requirementId: REQ_ADDR,
+                        value: {
+                          street1: '1 Main St',
+                          city: 'Anytown',
+                          state: 'CA',
+                          postalCode: '90000',
+                          fromDate: '2024-01-01',
+                          toDate: '2025-01-01',
+                          isCurrent: false,
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+              personal_info: {
+                type: 'personal_info',
+                fields: [
+                  { requirementId: REQ_MID_SUBJECT, value: 'Alex' },
+                ],
+              },
+            },
+          },
+        }) as never,
+      );
+
+      stubDsxMappings([
+        {
+          requirementId: REQ_ADDR,
+          serviceId: SVC_REC,
+          locationId: COUNTRY_A,
+          isRequired: true,
+        },
+        {
+          requirementId: REQ_MID_SUBJECT,
+          serviceId: SVC_REC,
+          locationId: COUNTRY_A,
+          isRequired: true,
+        },
+      ]);
+
+      const result = await runValidation('inv-123');
+      const address = result.sections.find(
+        (s) => s.sectionId === 'address_history',
+      );
+      const personalInfo = result.sections.find(
+        (s) => s.sectionId === 'personal_info',
+      );
+
+      // Bug A core assertion — Address History does NOT report the
+      // subject-targeted middleName as missing.
+      expect(address).toBeDefined();
+      const middleNameError = address!.fieldErrors.find(
+        (fe) => fe.fieldName === 'Middle Name',
+      );
+      expect(middleNameError).toBeUndefined();
+      expect(address!.fieldErrors).toEqual([]);
+      expect(address!.status).toBe('complete');
+
+      // Personal Info also complete — middleName saved, no other required
+      // fields not covered by lockedValues.
+      expect(personalInfo).toBeDefined();
+      expect(personalInfo!.status).toBe('complete');
+    });
+  });
 });

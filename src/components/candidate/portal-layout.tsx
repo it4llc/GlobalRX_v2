@@ -32,18 +32,18 @@ import { clientLogger as logger } from '@/lib/client-logger';
 // FullValidationResult; the layout consumes it to render error banners
 // and to gate the Review & Submit page.
 import { usePortalValidation } from '@/lib/candidate/usePortalValidation';
-import { mergeSectionStatus } from '@/lib/candidate/validation/mergeSectionStatus';
+import { useDynamicStepVisibility } from '@/lib/candidate/useDynamicStepVisibility';
+import { useSectionStatusMerge } from '@/lib/candidate/useSectionStatusMerge';
+import { useStepNavigation } from '@/lib/candidate/useStepNavigation';
 import {
   addCrossSectionRequirements,
   getCrossSectionRequirements,
   removeCrossSectionRequirementsForEntry,
   removeCrossSectionRequirementsForSource,
 } from '@/lib/candidate/crossSectionRegistry';
-import {
-  computePersonalInfoStatus,
-  computeWorkflowSectionStatus,
-} from '@/lib/candidate/sectionProgress';
+import { computeWorkflowSectionStatus } from '@/lib/candidate/sectionProgress';
 
+import type { EntryData } from '@/types/candidate-repeatable-form';
 import type { SectionVisitsMap } from '@/lib/candidate/sectionVisitTracking';
 import type {
   ReviewError,
@@ -52,7 +52,6 @@ import type {
 import type {
   CandidateInvitationInfo,
   CandidatePortalSection,
-  PersonalInfoField,
 } from '@/types/candidate-portal';
 import type {
   CrossSectionRegistry,
@@ -71,24 +70,7 @@ interface PortalLayoutProps {
 export default function PortalLayout({ invitation, sections, token }: PortalLayoutProps) {
   // Default to first section (Personal Information) if it exists
   const defaultSection = sections.length > 0 ? sections[0].id : null;
-  const [activeSection, setActiveSection] = useState<string | null>(defaultSection);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Phase 6 Stage 4 — shell-level state lifted per the technical plan.
-  // sectionStatuses is keyed by section.id (the structure-endpoint identifier),
-  // and each section pushes its own computed status here through
-  // onSectionProgressUpdate. The sidebar consumes this map to drive the
-  // SectionProgressIndicator next to each section name. Initial value is the
-  // status the structure endpoint returned (currently always 'not_started').
-  const [sectionStatuses, setSectionStatuses] = useState<Record<string, SectionStatus>>(
-    () => {
-      const initial: Record<string, SectionStatus> = {};
-      for (const section of sections) {
-        initial[section.id] = section.status;
-      }
-      return initial;
-    },
-  );
 
   // Phase 6 Stage 4 — cross-section requirement registry. Currently the only
   // supported target is `subject` (BR 17), but the registry shape allows other
@@ -106,13 +88,6 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   // acknowledged: boolean }`.
   const [workflowAcknowledgments, setWorkflowAcknowledgments] = useState<Record<string, boolean>>({});
 
-  // TD-059 — Personal Info field definitions, fetched once at the shell
-  // level so the lifted progress effect below can recompute status whenever
-  // the cross-section registry changes, even while PersonalInfoSection is
-  // unmounted. The section receives this array as a prop instead of
-  // fetching /personal-info-fields itself.
-  const [personalInfoFields, setPersonalInfoFields] = useState<PersonalInfoField[]>([]);
-
   // TD-059 — saved Personal Info values keyed by requirementId. Hydrated
   // from /saved-data alongside workflow acknowledgments and refreshed by
   // PersonalInfoSection via the onSavedValuesChange callback after each
@@ -120,12 +95,14 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   const [personalInfoSavedValues, setPersonalInfoSavedValues] = useState<Record<string, unknown>>({});
 
   // Phase 7 Stage 1 — saved-data hydration payload. Null until /saved-data
-  // settles (success or failure); populated with `sectionVisits` and
-  // `reviewPageVisitedAt` so the validation hook can adopt them on mount and
+  // settles (success or failure); populated with `sectionVisits`,
+  // `reviewPageVisitedAt`, and `addressHistoryEntries` so the validation
+  // hook and the dynamic-step visibility hook can adopt them on mount and
   // visit state survives a browser reload (Spec Rules 1/2/3).
   const [savedDataHydration, setSavedDataHydration] = useState<{
     sectionVisits: SectionVisitsMap;
     reviewPageVisitedAt: string | null;
+    addressHistoryEntries: EntryData[];
   } | null>(null);
 
   // Phase 7 Stage 2 — submission state lifted into the shell. The Review &
@@ -147,6 +124,8 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   // /validate round-trips, and exposes per-section "errors visible"
   // gating per Rules 4 / 8 / 34.
   const {
+    sectionVisits,
+    reviewPageVisitedAt,
     validationResult,
     isErrorVisible,
     markSectionVisited,
@@ -171,164 +150,6 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // One-time hydration of saved data. The shell uses /saved-data for two
-  // independent purposes:
-  //   1) Workflow-section acknowledgments (BR 7 / 8) — WorkflowSectionRenderer
-  //      is intentionally presentational, so the shell must hydrate.
-  //   2) TD-059 — Personal Info saved values, used by the lifted progress
-  //      effect so the sidebar indicator stays accurate even when
-  //      PersonalInfoSection is unmounted.
-  //
-  // The effect always runs as long as there's a token. A previous version
-  // short-circuited when no workflow sections existed; that early-exit was
-  // removed for TD-059 because Personal Info still needs hydration in
-  // packages without workflow sections. We do NOT re-fetch on every section
-  // change; auto-save keeps the in-memory state in sync after the initial
-  // load (PersonalInfoSection.onSavedValuesChange pushes updates upward).
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetch(
-          `/api/candidate/application/${encodeURIComponent(token)}/saved-data`,
-        );
-        if (!response.ok) {
-          if (!cancelled) {
-            setSavedDataHydration({ sectionVisits: {}, reviewPageVisitedAt: null });
-          }
-          return;
-        }
-        const data = await response.json();
-        const savedSections = (data?.sections ?? {}) as Record<string, unknown>;
-        const nextAcknowledgments: Record<string, boolean> = {};
-        const statusUpdates: Record<string, SectionStatus> = {};
-
-        // Personal info saved values are keyed by `personal_info` in the
-        // saved-data response (matching the bucket the /save endpoint
-        // writes). The `fields` array uses requirementId/value pairs, and
-        // the shell rekeys to a requirementId-indexed map so PersonalInfo
-        // can hydrate by id without an extra lookup.
-        const personalInfoBucket = savedSections['personal_info'] as
-          | { fields?: Array<{ requirementId: string; value: unknown }> }
-          | undefined
-          | null;
-        const nextPersonalInfoValues: Record<string, unknown> = {};
-        if (personalInfoBucket && Array.isArray(personalInfoBucket.fields)) {
-          for (const f of personalInfoBucket.fields) {
-            nextPersonalInfoValues[f.requirementId] = f.value;
-          }
-        }
-
-        for (const section of sections) {
-          if (section.type !== 'workflow_section') continue;
-          const saved = savedSections[section.id];
-          const acknowledged =
-            saved !== null &&
-            typeof saved === 'object' &&
-            (saved as { acknowledged?: unknown }).acknowledged === true;
-          nextAcknowledgments[section.id] = acknowledged;
-          if (section.workflowSection) {
-            statusUpdates[section.id] = computeWorkflowSectionStatus(
-              section.workflowSection,
-              { acknowledged },
-            );
-          }
-        }
-
-        // Phase 7 Stage 1 — section_visit_tracking and review-page visit
-        // are siblings of `sections` in the saved-data response. Surface
-        // them through savedDataHydration so usePortalValidation can adopt
-        // them on its first non-undefined hydration tick.
-        const incomingSectionVisits =
-          (data?.sectionVisits ?? {}) as SectionVisitsMap;
-        const incomingReviewPageVisitedAt =
-          (data?.reviewPageVisitedAt ?? null) as string | null;
-
-        if (!cancelled) {
-          setWorkflowAcknowledgments(nextAcknowledgments);
-          setPersonalInfoSavedValues(nextPersonalInfoValues);
-          setSectionStatuses((prev) => ({ ...prev, ...statusUpdates }));
-          setSavedDataHydration({
-            sectionVisits: incomingSectionVisits,
-            reviewPageVisitedAt: incomingReviewPageVisitedAt,
-          });
-        }
-      } catch (error) {
-        // Hydration failure is non-fatal — the candidate can still tick the
-        // checkbox and the next save will persist regardless. We avoid logging
-        // PII; only the event name and a generic error message ship.
-        logger.error('Failed to hydrate saved data', {
-          event: 'saved_data_hydrate_error',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-        if (!cancelled) {
-          setSavedDataHydration({ sectionVisits: {}, reviewPageVisitedAt: null });
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [token, sections]);
-
-  // Phase 7 Stage 1 — mark the initially-active section visited once the
-  // saved-data hydration completes (Rule 2). Without this, the candidate's
-  // first section never gets a `visitedAt` record, so `markSectionDeparted`
-  // short-circuits when they navigate away and the section's errors stay
-  // hidden permanently. The hook's `markSectionVisited` itself short-circuits
-  // when the section already has a visit record, so re-runs are no-ops.
-  useEffect(() => {
-    if (!savedDataHydration) return;
-    if (!defaultSection) return;
-    markSectionVisited(defaultSection);
-  }, [savedDataHydration, defaultSection, markSectionVisited]);
-
-  // TD-059 — One-time fetch of Personal Info field definitions. Owned by the
-  // shell so the lifted progress effect below can run computePersonalInfoStatus
-  // whenever the cross-section registry changes — independent of which tab
-  // is currently mounted. PersonalInfoSection receives this array as a prop
-  // and does NOT make its own fetch.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetch(
-          `/api/candidate/application/${encodeURIComponent(token)}/personal-info-fields`,
-        );
-        if (!response.ok || cancelled) return;
-        const data = await response.json();
-        if (!cancelled) {
-          setPersonalInfoFields(data?.fields ?? []);
-        }
-      } catch (error) {
-        logger.error('Failed to load personal info fields in shell', {
-          event: 'shell_personal_info_fields_load_error',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [token]);
-
-  // Phase 7 Stage 1 — every section click marks the previously-active section
-  // as departed (Rule 1 / 2) and the new section as visited (first-visit only).
-  // Clicking the synthetic Review & Submit entry additionally flips
-  // reviewPageVisitedAt from null → ISO timestamp (Rule 3 / 34), which makes
-  // every section's errors eligible for display on its next render.
-  const handleSectionClick = (sectionId: string) => {
-    if (activeSection && activeSection !== sectionId) {
-      markSectionDeparted(activeSection);
-    }
-    if (sectionId === 'review_submit') {
-      markReviewVisited();
-    } else {
-      markSectionVisited(sectionId);
-    }
-    setActiveSection(sectionId);
-  };
-
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -336,20 +157,6 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
   };
-
-  // Phase 6 Stage 4 — single callback used by every section to push its
-  // freshly-computed status up to the shell. Sections call this from inside
-  // their auto-save success handlers and on initial mount once they know
-  // enough to compute progress.
-  const handleSectionProgressUpdate = useCallback(
-    (sectionId: string, status: SectionStatus) => {
-      setSectionStatuses((prev) => {
-        if (prev[sectionId] === status) return prev;
-        return { ...prev, [sectionId]: status };
-      });
-    },
-    [],
-  );
 
   // Cross-section registry write callbacks. Each one returns a new registry
   // object via the pure helpers in lib/candidate/crossSectionRegistry — we
@@ -398,6 +205,185 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     [crossSectionRegistry],
   );
 
+  // W6 fix — stable boolean derived from `savedDataHydration` for memo
+  // deps that only need null-vs-present. The state object is set at most
+  // once today (initial hydration), but extracting the boolean here means
+  // any future code path that calls `setSavedDataHydration` with an
+  // equal-by-value object cannot cause downstream memos to recompute.
+  const savedDataHydrated = savedDataHydration !== null;
+
+  // VIS hook — see src/lib/candidate/useDynamicStepVisibility.ts.
+  const {
+    personalInfoFields,
+    stepVisibility,
+    handleAddressHistorySaveSuccess,
+  } = useDynamicStepVisibility(
+    {
+      token,
+      sections,
+      hydratedAddressHistoryEntries:
+        savedDataHydration?.addressHistoryEntries ?? null,
+      savedDataHydrated,
+      subjectCrossSectionRequirements,
+    },
+    refreshValidation,
+  );
+
+  // MERGE hook — see src/lib/candidate/useSectionStatusMerge.ts.
+  const {
+    sectionsWithStatus,
+    visibleSectionsWithStatus,
+    effectiveValidationResult,
+    disableSubmitForDynamicGaps,
+    handleSectionProgressUpdate,
+    bulkPatchSectionStatuses,
+  } = useSectionStatusMerge({
+    sections,
+    validationResult,
+    sectionVisits,
+    reviewPageVisitedAt,
+    stepVisibility,
+    personalInfoFields,
+    personalInfoSavedValues,
+    subjectCrossSectionRequirements,
+  });
+
+  // One-time hydration of saved data. The shell uses /saved-data for two
+  // independent purposes:
+  //   1) Workflow-section acknowledgments (BR 7 / 8) — WorkflowSectionRenderer
+  //      is intentionally presentational, so the shell must hydrate.
+  //   2) TD-059 — Personal Info saved values, used by the lifted progress
+  //      effect (now in useSectionStatusMerge) so the sidebar indicator
+  //      stays accurate even when PersonalInfoSection is unmounted.
+  //
+  // The effect always runs as long as there's a token. A previous version
+  // short-circuited when no workflow sections existed; that early-exit was
+  // removed for TD-059 because Personal Info still needs hydration in
+  // packages without workflow sections. We do NOT re-fetch on every section
+  // change; auto-save keeps the in-memory state in sync after the initial
+  // load (PersonalInfoSection.onSavedValuesChange pushes updates upward).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch(
+          `/api/candidate/application/${encodeURIComponent(token)}/saved-data`,
+        );
+        if (!response.ok) {
+          if (!cancelled) {
+            setSavedDataHydration({
+              sectionVisits: {},
+              reviewPageVisitedAt: null,
+              addressHistoryEntries: [],
+            });
+          }
+          return;
+        }
+        const data = await response.json();
+        const savedSections = (data?.sections ?? {}) as Record<string, unknown>;
+        const nextAcknowledgments: Record<string, boolean> = {};
+        const statusUpdates: Record<string, SectionStatus> = {};
+
+        // Personal info saved values are keyed by `personal_info` in the
+        // saved-data response (matching the bucket the /save endpoint
+        // writes). The `fields` array uses requirementId/value pairs, and
+        // the shell rekeys to a requirementId-indexed map so PersonalInfo
+        // can hydrate by id without an extra lookup.
+        const personalInfoBucket = savedSections['personal_info'] as
+          | { fields?: Array<{ requirementId: string; value: unknown }> }
+          | undefined
+          | null;
+        const nextPersonalInfoValues: Record<string, unknown> = {};
+        if (personalInfoBucket && Array.isArray(personalInfoBucket.fields)) {
+          for (const f of personalInfoBucket.fields) {
+            nextPersonalInfoValues[f.requirementId] = f.value;
+          }
+        }
+
+        // Task 8.5 — read the candidate's saved address-history entries so
+        // the shell-level aggregated-items computation can decide whether
+        // Record Search Requirements (Step 8) should be visible even when
+        // the section itself is unmounted. The saved bucket shape mirrors
+        // FormSectionData in candidate-portal.ts — `entries` is the array
+        // of `{ entryId, countryId, entryOrder, fields }`.
+        const addressHistoryBucket = savedSections['address_history'] as
+          | { entries?: EntryData[] }
+          | undefined
+          | null;
+        const nextAddressHistoryEntries: EntryData[] =
+          addressHistoryBucket && Array.isArray(addressHistoryBucket.entries)
+            ? addressHistoryBucket.entries
+            : [];
+
+        for (const section of sections) {
+          if (section.type !== 'workflow_section') continue;
+          const saved = savedSections[section.id];
+          const acknowledged =
+            saved !== null &&
+            typeof saved === 'object' &&
+            (saved as { acknowledged?: unknown }).acknowledged === true;
+          nextAcknowledgments[section.id] = acknowledged;
+          if (section.workflowSection) {
+            statusUpdates[section.id] = computeWorkflowSectionStatus(
+              section.workflowSection,
+              { acknowledged },
+            );
+          }
+        }
+
+        // Phase 7 Stage 1 — section_visit_tracking and review-page visit
+        // are siblings of `sections` in the saved-data response. Surface
+        // them through savedDataHydration so usePortalValidation can adopt
+        // them on its first non-undefined hydration tick.
+        const incomingSectionVisits =
+          (data?.sectionVisits ?? {}) as SectionVisitsMap;
+        const incomingReviewPageVisitedAt =
+          (data?.reviewPageVisitedAt ?? null) as string | null;
+
+        if (!cancelled) {
+          setWorkflowAcknowledgments(nextAcknowledgments);
+          setPersonalInfoSavedValues(nextPersonalInfoValues);
+          bulkPatchSectionStatuses(statusUpdates);
+          setSavedDataHydration({
+            sectionVisits: incomingSectionVisits,
+            reviewPageVisitedAt: incomingReviewPageVisitedAt,
+            addressHistoryEntries: nextAddressHistoryEntries,
+          });
+        }
+      } catch (error) {
+        // Hydration failure is non-fatal — the candidate can still tick the
+        // checkbox and the next save will persist regardless. We avoid logging
+        // PII; only the event name and a generic error message ship.
+        logger.error('Failed to hydrate saved data', {
+          event: 'saved_data_hydrate_error',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        if (!cancelled) {
+          setSavedDataHydration({
+            sectionVisits: {},
+            reviewPageVisitedAt: null,
+            addressHistoryEntries: [],
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, sections, bulkPatchSectionStatuses]);
+
+  // Phase 7 Stage 1 — mark the initially-active section visited once the
+  // saved-data hydration completes (Rule 2). Without this, the candidate's
+  // first section never gets a `visitedAt` record, so `markSectionDeparted`
+  // short-circuits when they navigate away and the section's errors stay
+  // hidden permanently. The hook's `markSectionVisited` itself short-circuits
+  // when the section already has a visit record, so re-runs are no-ops.
+  useEffect(() => {
+    if (!savedDataHydration) return;
+    if (!defaultSection) return;
+    markSectionVisited(defaultSection);
+  }, [savedDataHydration, defaultSection, markSectionVisited]);
+
   // Task 8.1 — single source of values for replaceTemplateVariables when
   // WorkflowSectionRenderer renders text-type sections. The expirationDate
   // is formatted as `dd MMM yyyy` here (English-only per spec Resolved
@@ -417,85 +403,22 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     [invitation],
   );
 
-  // TD-059 — lifted Personal Info progress derivation. This effect is the
-  // whole reason the field defs and saved values are owned at the shell
-  // level: it keeps sectionStatuses['personal_info'] accurate even when
-  // PersonalInfoSection is unmounted. When the candidate is on Address
-  // History and changes country, the registry update flows here and the
-  // sidebar indicator re-renders without the section ever mounting.
-  //
-  // PersonalInfoSection ALSO calls onProgressUpdate from inside its own
-  // local effect for live typing — both writes flow through
-  // handleSectionProgressUpdate, which short-circuits identical statuses
-  // via the functional updater (no re-render storm).
-  useEffect(() => {
-    const personalInfoSection = sections.find((s) => s.type === 'personal_info');
-    if (!personalInfoSection) return;
-    if (personalInfoFields.length === 0) return;
-
-    // Translate requirementId-keyed saved values into the fieldKey-keyed
-    // map that computePersonalInfoStatus expects (it joins by fieldKey
-    // because cross-section registry entries also key by fieldKey).
-    const valuesByFieldKey: Record<string, unknown> = {};
-    for (const field of personalInfoFields) {
-      // The shell-side derivation must mirror the view PersonalInfoSection's local
-      // effect uses, which merges prefilledValue into formData on mount. Without
-      // this fallback, a candidate with prefilled-but-not-yet-saved values would
-      // see the sidebar flip to not_started the moment a cross-section requirement
-      // is added (Bug 1, surfaced in smoke testing of TD-059).
-      const savedValue = personalInfoSavedValues[field.requirementId];
-      valuesByFieldKey[field.fieldKey] =
-        savedValue !== undefined ? savedValue : field.prefilledValue ?? undefined;
-    }
-    const fieldLikes = personalInfoFields.map((field) => ({
-      id: field.requirementId,
-      fieldKey: field.fieldKey,
-      isRequired: field.isRequired,
-    }));
-    const status = computePersonalInfoStatus(
-      fieldLikes,
-      valuesByFieldKey,
-      subjectCrossSectionRequirements,
-    );
-    handleSectionProgressUpdate(personalInfoSection.id, status);
-  }, [
-    sections,
-    personalInfoFields,
-    personalInfoSavedValues,
-    subjectCrossSectionRequirements,
-    handleSectionProgressUpdate,
-  ]);
-
-  // Sections augmented with their current computed status. The sidebar
-  // always renders the freshest available value; the merge logic (Rule 27)
-  // lives in `mergeSectionStatus` so this layout file only orchestrates
-  // the inputs. The synthetic `review_submit` entry mirrors
-  // `summary.allComplete` (complete when every section is, else
-  // not_started — the Review page itself never reports incomplete).
-  const sectionsWithStatus = useMemo(
-    () =>
-      sections.map((section) => {
-        if (section.type === 'review_submit') {
-          const allComplete = validationResult?.summary.allComplete ?? false;
-          return {
-            ...section,
-            status: allComplete ? ('complete' as const) : ('not_started' as const),
-          };
-        }
-        const validationStatus = validationResult?.sections.find(
-          (s) => s.sectionId === section.id,
-        )?.status;
-        return {
-          ...section,
-          status: mergeSectionStatus({
-            localStatus: sectionStatuses[section.id],
-            validationStatus,
-            fallbackStatus: section.status,
-          }),
-        };
-      }),
-    [sections, sectionStatuses, validationResult],
-  );
+  // NAV hook — see src/lib/candidate/useStepNavigation.ts.
+  const {
+    activeSection,
+    navigableSections,
+    activeSectionIndex,
+    handleSectionClick,
+    handleNextClick,
+    handleBackClick,
+  } = useStepNavigation({
+    defaultSection,
+    visibleSectionsWithStatus,
+    sectionsWithStatus,
+    markSectionVisited,
+    markSectionDeparted,
+    markReviewVisited,
+  });
 
   // Helper — return the per-section validation result (or null when /validate
   // hasn't returned yet). The section components consume this to render
@@ -632,81 +555,6 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     [token, handleSectionProgressUpdate, refreshValidation],
   );
 
-  // Task 8.2 (Linear Step Navigation) — derived navigable section list and
-  // the index of the currently-active section. The structure endpoint
-  // already returns sections in the linear flow order, and sections that
-  // do not apply to the candidate's package are omitted entirely, so the
-  // navigable list is simply `sectionsWithStatus` as-is (spec rule 6 /
-  // edge case 1). The shell does not maintain a separate "skip" map.
-  const navigableSections = useMemo(() => sectionsWithStatus, [sectionsWithStatus]);
-
-  const activeSectionIndex = useMemo(() => {
-    if (!activeSection) return -1;
-    return navigableSections.findIndex((s) => s.id === activeSection);
-  }, [navigableSections, activeSection]);
-
-  // Task 8.2 (Linear Step Navigation) — Next/Back click handlers. Both
-  // delegate to the existing `handleSectionClick` so visit tracking and
-  // validation gating continue to flow through a single code path (spec
-  // rule 7). After navigating we scroll the candidate back to the top of
-  // the new section so they aren't stranded at the bottom (spec rule 11).
-  // We scroll BOTH the window AND the `<main>` overflow container because
-  // the candidate portal puts its scroll inside an overflow-y-auto main
-  // element on desktop and uses window scroll on smaller viewports.
-  const scrollNewSectionIntoView = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      // jsdom and some older browsers throw when behavior is unsupported.
-      // Fall back to setting scrollTop on the document element.
-      try {
-        if (document?.documentElement) {
-          document.documentElement.scrollTop = 0;
-        }
-      } catch (scrollError) {
-        // Scroll failure is non-fatal for navigation, but we still log it
-        // so the failure isn't silently swallowed (standards-checker fix).
-        logger.debug('portal-layout: scrollTop fallback failed', {
-          error: scrollError instanceof Error ? scrollError.message : 'Unknown error',
-        });
-      }
-    }
-    // Also reset the inner overflow container in case the portal's main
-    // element is the actual scroll surface (desktop layout uses
-    // `<main className="flex-1 bg-white overflow-y-auto">`). We target the
-    // `<main>` element directly because the `data-testid="main-content"`
-    // attribute is attached to inner content wrappers (`<div className="p-6">`)
-    // that are not scrollable — setting scrollTop on those is a silent no-op.
-    if (typeof document !== 'undefined') {
-      const main = document.querySelector('main') as HTMLElement | null;
-      if (main) {
-        main.scrollTop = 0;
-      }
-    }
-  }, []);
-
-  const handleNextClick = useCallback(() => {
-    if (activeSectionIndex < 0) return;
-    const next = navigableSections[activeSectionIndex + 1];
-    if (!next) return;
-    handleSectionClick(next.id);
-    scrollNewSectionIntoView();
-    // handleSectionClick is defined inline above (not a useCallback) and
-    // closes over the latest activeSection / mark* hooks. We intentionally
-    // omit it from deps to avoid recreating this callback on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSectionIndex, navigableSections, scrollNewSectionIntoView]);
-
-  const handleBackClick = useCallback(() => {
-    if (activeSectionIndex < 0) return;
-    const prev = navigableSections[activeSectionIndex - 1];
-    if (!prev) return;
-    handleSectionClick(prev.id);
-    scrollNewSectionIntoView();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSectionIndex, navigableSections, scrollNewSectionIntoView]);
-
   // Task 8.2 — visibility of the shared Next/Back row. The Review &
   // Submit page intentionally renders its OWN Back button next to Submit
   // (spec rule 5), so the shared component is suppressed entirely on
@@ -763,13 +611,26 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     // Submit entry from the descriptor list so the page does not try to
     // render itself as one of its own listed sections.
     if (section.type === 'review_submit') {
-      const reviewPageSections = sectionsWithStatus
+      // Task 8.5 — descriptor list is the FILTERED `visibleSectionsWithStatus`
+      // so skipped dynamic steps do not appear in the Review summary
+      // (Business Rule 9 a / b). The patched validation result hides any
+      // engine "incomplete" verdict for those skipped sections (Rule 9 c),
+      // and `disableSubmitForDynamicGaps` blocks Submit when a visible
+      // dynamic step is locally incomplete (Rule 9 d).
+      // Cross-section-validation-filtering bug fix Issue 2 — pass each
+      // section's already-merged status (the same value the sidebar
+      // SectionProgressIndicator renders) through the descriptor. Without
+      // this, ReviewSubmitPage falls back to the validation summary alone
+      // and reports `not_started` for sections that have no server-side
+      // validator entry (record_search post-Task-8.4) even when the sidebar
+      // is correctly showing them as complete/incomplete.
+      const reviewPageSections = visibleSectionsWithStatus
         .filter((s) => s.type !== 'review_submit')
-        .map((s) => ({ id: s.id, title: s.title }));
+        .map((s) => ({ id: s.id, title: s.title, status: s.status }));
       return (
         <div className="p-6" data-testid="main-content">
           <ReviewSubmitPage
-            validationResult={validationResult}
+            validationResult={effectiveValidationResult}
             sections={reviewPageSections}
             onErrorNavigate={handleReviewErrorNavigate}
             onSubmit={handleSubmit}
@@ -780,6 +641,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             // wire `handleBackClick` here (no `showBack` gate) because
             // Review & Submit always has at least one prior section.
             onBack={handleBackClick}
+            disableSubmit={disableSubmitForDynamicGaps}
           />
         </div>
       );
@@ -868,7 +730,8 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
             onCrossSectionRequirementsChanged={handleCrossSectionRequirementsChanged}
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
-            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={refreshValidation}
+            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource}
+            onSaveSuccess={handleAddressHistorySaveSuccess}
           />
           {stepNavigation}
         </div>
@@ -992,16 +855,16 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
 
       {/* Main content area */}
       <div className="flex h-[calc(100vh-4rem)]">
-        {/* Desktop sidebar */}
+        {/* Desktop sidebar — Task 8.5 hides skipped dynamic steps. */}
         <PortalSidebar
-          sections={sectionsWithStatus}
+          sections={visibleSectionsWithStatus}
           activeSection={activeSection}
           onSectionClick={handleSectionClick}
         />
 
-        {/* Mobile sidebar */}
+        {/* Mobile sidebar — Task 8.5 hides skipped dynamic steps. */}
         <PortalSidebar
-          sections={sectionsWithStatus}
+          sections={visibleSectionsWithStatus}
           activeSection={activeSection}
           onSectionClick={handleSectionClick}
           isOpen={isMobileMenuOpen}

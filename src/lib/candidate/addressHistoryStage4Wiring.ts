@@ -35,6 +35,10 @@
 //   `useRepeatableSectionStage4Wiring(...)` at the call site.
 
 import type { EntryDsxField } from '@/components/candidate/form-engine/useEntryFieldsLoader';
+import {
+  isLockedInvitationFieldKey,
+  isPersonalInfoFieldKey,
+} from '@/lib/candidate/lockedInvitationFieldKeys';
 import type {
   RepeatableWiringEntry,
   RepeatableWiringField,
@@ -119,9 +123,22 @@ export function readCollectionTab(field: EntryDsxField): string {
  * True when a DSX field is targeted at the Personal Information / subject
  * section per BR 17 (`collectionTab === 'subject'`, case-insensitive substring
  * match to mirror the lenient detection used in Education / Employment).
+ *
+ * Cross-section-validation-filtering bug fix: a field also counts as
+ * subject-targeted when its `fieldKey` lives in `PERSONAL_INFO_FIELD_KEYS`
+ * (the same heuristic `personal-info-fields/route.ts` uses to surface PI
+ * fields without an explicit `collectionTab`). Address History does not
+ * render arbitrary inline fields — only the address_block and per_entry
+ * documents — so a PI-fieldKey requirement that the UI cannot show would
+ * otherwise be funneled into `localFieldsByCountry` and reported as a
+ * missing required field by `computeRepeatableSectionStatus`, keeping the
+ * sidebar indicator red even after the candidate filled the field in on
+ * Personal Info. See Bug A in
+ * docs/specs/cross-section-validation-filtering-bugfix.md.
  */
 export function isSubjectTargeted(field: EntryDsxField): boolean {
-  return readCollectionTab(field).toLowerCase().includes('subject');
+  if (readCollectionTab(field).toLowerCase().includes('subject')) return true;
+  return isPersonalInfoFieldKey(field.fieldKey);
 }
 
 /**
@@ -265,6 +282,13 @@ export function buildAddressHistorySubjectRequirements(
     if (!entry.countryId) continue;
     const fields = subjectFieldsByCountry[entry.countryId] ?? [];
     for (const field of fields) {
+      // Cross-section-validation-filtering bug fix (Bug B): locked invitation
+      // fieldKeys (firstName, lastName, email, phone, phoneNumber) are
+      // pre-filled from the invitation columns and not editable by the
+      // candidate. They must not reach the cross-section registry — otherwise
+      // they appear in the Personal Info "now required" banner and drive
+      // asterisks on fields the candidate cannot fill in.
+      if (isLockedInvitationFieldKey(field.fieldKey)) continue;
       out.push({
         fieldId: field.requirementId,
         fieldKey: field.fieldKey,

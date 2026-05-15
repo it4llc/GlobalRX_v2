@@ -3,12 +3,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
+import {
+  LOCKED_INVITATION_FIELD_KEYS,
+  PERSONAL_INFO_FIELD_KEYS,
+} from '@/lib/candidate/lockedInvitationFieldKeys';
 import logger from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 
 import type { FieldMetadata } from '@/types/candidate-portal';
+
+// Zod schema for the token path parameter. Matches the pattern used by the
+// sibling /structure route (API_STANDARDS S1.2 — all incoming data validated
+// via Zod before use).
+const tokenParamSchema = z.object({
+  token: z.string().min(1),
+});
 
 /**
  * GET /api/candidate/application/[token]/personal-info-fields
@@ -58,28 +70,22 @@ import type { FieldMetadata } from '@/types/candidate-portal';
  *   - 410: Invitation expired or already completed
  */
 
-// Task 8.3 — these fieldKeys are sourced from the invitation columns and are
-// shown to the candidate on the Welcome page (Task 8.1). Per the spec for
-// `docs/specs/personal-info-dynamic.md` Business Rule 1, they must not be
-// rendered on Personal Info any more. We drop them here in the API layer so
-// the section component never sees them and the existing render loop natu-
-// rally produces a dynamic-only field list.
-const LOCKED_INVITATION_FIELD_KEYS = new Set<string>([
-  'firstName',
-  'lastName',
-  'email',
-  'phone',
-  'phoneNumber',
-]);
+// Task 8.3 — locked invitation fieldKeys are sourced from the invitation
+// columns and are shown to the candidate on the Welcome page (Task 8.1). Per
+// the spec for `docs/specs/personal-info-dynamic.md` Business Rule 1, they
+// must not be rendered on Personal Info any more. We drop them here in the
+// API layer so the section component never sees them and the existing render
+// loop naturally produces a dynamic-only field list. The shared constant
+// lives in `@/lib/candidate/lockedInvitationFieldKeys` so the validator and
+// the cross-section registry consult the same list.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    // Next.js 15: params is a Promise that must be awaited
-    const { token } = await params;
-
-    // Step 1: Check for candidate session
+    // Step 1: Check for candidate session BEFORE touching the path param so
+    // unauthenticated callers are rejected with 401 before any param
+    // processing runs (API_STANDARDS S1.1 — auth check first).
     const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
     const sessionData = await CandidateSessionService.getSession();
 
@@ -87,14 +93,28 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Step 2: Verify token matches session
-    if (sessionData.token !== token) {
+    // Step 2: Resolve and validate the token path parameter. Next.js 15
+    // requires `params` to be awaited; the Zod check then enforces the
+    // non-empty string shape (API_STANDARDS S1.2). Matches the
+    // sibling /structure route's pattern.
+    const { token } = await params;
+    const tokenValidation = tokenParamSchema.safeParse({ token });
+    if (!tokenValidation.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: tokenValidation.error.errors },
+        { status: 400 }
+      );
+    }
+    const { token: validatedToken } = tokenValidation.data;
+
+    // Step 3: Verify token matches session
+    if (sessionData.token !== validatedToken) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Step 3: Load invitation with package and services
+    // Step 4: Load invitation with package and services
     const invitation = await prisma.candidateInvitation.findUnique({
-      where: { token },
+      where: { token: validatedToken },
       include: {
         package: {
           include: {
@@ -122,14 +142,14 @@ export async function GET(
       return NextResponse.json({ error: 'Invitation already completed' }, { status: 410 });
     }
 
-    // Step 4: Get all services in the package
+    // Step 5: Get all services in the package
     const serviceIds = invitation.package?.packageServices.map(ps => ps.service.id) || [];
 
     if (serviceIds.length === 0) {
       return NextResponse.json({ fields: [] });
     }
 
-    // Step 5: Get all requirements for these services that belong to personal info tab
+    // Step 6: Get all requirements for these services that belong to personal info tab
     // We need to check the collectionTab value in fieldData
     const serviceRequirements = await prisma.serviceRequirement.findMany({
       where: {
@@ -149,7 +169,7 @@ export async function GET(
       }
     });
 
-    // Step 6: Filter for personal info fields and deduplicate
+    // Step 7: Filter for personal info fields and deduplicate
     type ServiceRequirementWithDSX = Prisma.ServiceRequirementGetPayload<{
       include: { requirement: true }
     }>;
@@ -171,8 +191,7 @@ export async function GET(
       const isPersonalInfoField =
         collectionTab.toLowerCase().includes('personal') ||
         collectionTab.toLowerCase().includes('subject') ||
-        ['firstName', 'lastName', 'middleName', 'email', 'phone', 'phoneNumber',
-         'dateOfBirth', 'birthDate', 'dob', 'ssn', 'socialSecurityNumber'].includes(serviceReq.requirement.fieldKey);
+        PERSONAL_INFO_FIELD_KEYS.has(serviceReq.requirement.fieldKey);
 
       if (!isPersonalInfoField) continue;
 
@@ -192,7 +211,7 @@ export async function GET(
       }
     }
 
-    // Step 6.5: Resolve isRequired from dsx_mappings using context-aware AND
+    // Step 7.5: Resolve isRequired from dsx_mappings using context-aware AND
     // logic.
     //
     // AND logic: a field is baseline-required only if ALL applicable mapping
@@ -292,9 +311,9 @@ export async function GET(
     // field falls back to isRequired=false via the default lookup at line
     // ~262 below — matching spec Edge Cases 1, 2.
 
-    // Step 7: Build the response. After Task 8.3 every returned field is a
+    // Step 8: Build the response. After Task 8.3 every returned field is a
     // dynamic, non-locked requirement: the LOCKED_INVITATION_FIELD_KEYS guard
-    // in Step 6 drops the four invitation-sourced fieldKeys before they reach
+    // in Step 7 drops the four invitation-sourced fieldKeys before they reach
     // here, so the old `switch (fieldKey)` block that populated `locked` /
     // `prefilledValue` from invitation columns is no longer reachable in
     // normal flow. We keep `locked: false` and `prefilledValue: null` on the
