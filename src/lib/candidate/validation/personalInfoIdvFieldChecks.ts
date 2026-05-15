@@ -10,6 +10,15 @@
 // Technical plan: docs/specs/phase7-stage2-submission-order-generation-technical-plan.md
 //                 §3.1 (Andy's Option 1 — sibling-file path), §10
 //
+// Task 8.3 update — `collectPersonalInfoFieldRequirements` now excludes the
+// four locked invitation fieldKeys (firstName, lastName, email, phone,
+// phoneNumber) so the validator no longer expects them and Review & Submit
+// cannot flag them as missing. See docs/specs/personal-info-dynamic.md
+// Business Rule 6 / DoD item 7. The wider `PERSONAL_INFO_FIELD_KEYS` set is
+// unchanged — it is still consumed by `isPersonalInfoField` (used by
+// `collectIdvFieldRequirements` to exclude personal-info-claimed requirements
+// from IDV).
+//
 // What lives here:
 //   - collectPersonalInfoFieldRequirements: walk the package's serviceRequirements,
 //     filter to personal-info collectionTab, AND-aggregate isRequired across
@@ -32,6 +41,10 @@
 // Rule 1 — every status string is lowercase (project standard).
 
 import type { Prisma } from '@prisma/client';
+import {
+  LOCKED_INVITATION_FIELD_KEYS,
+  PERSONAL_INFO_FIELD_KEYS,
+} from '@/lib/candidate/lockedInvitationFieldKeys';
 import logger from '@/lib/logger';
 
 import type {
@@ -102,20 +115,6 @@ interface FieldDataShape {
   collection_tab?: unknown;
   // dataType / instructions also live here but aren't read in this module.
 }
-
-const PERSONAL_INFO_FIELD_KEYS = new Set([
-  'firstName',
-  'lastName',
-  'middleName',
-  'email',
-  'phone',
-  'phoneNumber',
-  'dateOfBirth',
-  'birthDate',
-  'dob',
-  'ssn',
-  'socialSecurityNumber',
-]);
 
 // IDV synthetic marker — the IDV section saves the candidate's selected
 // country at this requirementId. It is NOT a DSX requirement, so it is
@@ -206,7 +205,22 @@ async function aggregateIsRequired(
 // personal-info collectionTab heuristic, then resolve isRequired against
 // the candidate's available (service, location) pairs using the same
 // AND-aggregation logic as personal-info-fields/route.ts.
+//
+// Task 8.3 — these fieldKeys are sourced from the invitation columns (and
+// shown on the Welcome page per Task 8.1). Per spec Business Rule 6, Personal
+// Info validation must not expect or check for these fields any more; they
+// are excluded from the requirement walk so Review & Submit cannot flag them
+// as missing. The wider PERSONAL_INFO_FIELD_KEYS set (imported from
+// `lockedInvitationFieldKeys`) is intentionally kept distinct —
+// `isPersonalInfoField` is also used by `collectIdvFieldRequirements` to
+// exclude personal-info-claimed requirements from IDV (TD-084), which still
+// needs to see the full set including middleName/dateOfBirth/ssn.
 // ---------------------------------------------------------------------------
+
+// LOCKED_INVITATION_FIELD_KEYS and PERSONAL_INFO_FIELD_KEYS are imported from
+// `@/lib/candidate/lockedInvitationFieldKeys` so the same Sets drive the API
+// route, this validator, and the cross-section registry (cross-section-
+// validation-filtering bug fix).
 
 export async function collectPersonalInfoFieldRequirements(
   packageServices: PackageServiceWithRequirements[],
@@ -230,6 +244,12 @@ export async function collectPersonalInfoFieldRequirements(
 
       const fieldData = (req.fieldData as unknown as FieldDataShape | null) ?? null;
       if (!isPersonalInfoField(req.fieldKey, fieldData)) continue;
+
+      // Task 8.3 — locked invitation fieldKeys are no longer rendered on
+      // Personal Info (spec Business Rule 1), so the validator must not
+      // require them either. This guard makes Review & Submit's per-section
+      // error list stop including these keys (spec Business Rule 7).
+      if (LOCKED_INVITATION_FIELD_KEYS.has(req.fieldKey)) continue;
 
       if (!candidates.has(req.id)) {
         candidates.set(req.id, {
@@ -322,7 +342,7 @@ export async function collectIdvFieldRequirements(
 
   for (const ps of packageServices) {
     if (!ps.service) continue;
-    if (ps.service.functionalityType === 'idv') {
+    if (ps.service.functionalityType === 'verification-idv') {
       idvServiceIds.push(ps.service.id);
     }
     for (const sr of ps.service.serviceRequirements ?? []) {
@@ -388,11 +408,17 @@ export async function collectIdvFieldRequirements(
     flagsByRequirement.set(req.id, list);
   }
 
-  // Step 4 — AND-aggregate isRequired per requirement.
+  // Step 4 — OR-aggregate isRequired per requirement (TD-084 BR 1). A
+  // requirement is required if ANY in-scope (serviceId, countryId) mapping
+  // row says required; empty arrays are explicitly false (defensive guard
+  // preserved from the original AND form). Note: this changes IDV-side
+  // semantics ONLY — the module-internal `aggregateIsRequired` helper at the
+  // top of the file (used by `collectPersonalInfoFieldRequirements`) stays
+  // on AND per TD-060 / TD-052; Personal Info is out of scope for TD-084.
   const result: RequiredFieldDescriptor[] = [];
   for (const descriptor of candidates.values()) {
     const flags = flagsByRequirement.get(descriptor.requirementId) ?? [];
-    const isRequired = flags.length > 0 && flags.every(Boolean);
+    const isRequired = flags.length > 0 && flags.some(Boolean);
     result.push({ ...descriptor, isRequired });
   }
   return result;
@@ -499,6 +525,8 @@ export function validatePersonalInfoSection(
 ): SectionValidationResult {
   const result: SectionValidationResult = {
     sectionId: input.sectionId,
+    // ValidationStatus union literal, not DB status — initial value before the
+    // engine resolves a verdict for this section.
     status: 'not_started',
     fieldErrors: [],
     scopeErrors: [],
@@ -527,8 +555,9 @@ export function validatePersonalInfoSection(
 // validateIdvSection
 //
 // Drop-in replacement for the engine's old `validateNonScopedSection` call
-// for IDV. Reads from `sectionsData['idv']` (NOT `service_idv` — TD-062 bug
-// fix). When the country is missing, emits a single
+// for IDV. Reads from `sectionsData['idv']` (NOT `service_verification-idv`
+// — BR 8: save-route bucket key is a separate namespace from the
+// functionality-type rename). When the country is missing, emits a single
 // `candidate.validation.idvCountryRequired` field error and skips the
 // per-field check entirely.
 //
@@ -539,10 +568,10 @@ export function validatePersonalInfoSection(
 // ---------------------------------------------------------------------------
 
 export interface ValidateIdvInput {
-  // The engine continues to refer to the IDV section as `service_idv` for
-  // SectionValidationResult.sectionId (so the rest of the engine and Review
-  // page don't need a sectionId rename). The DATA, however, is read from
-  // `sectionsData['idv']` per TD-062.
+  // The engine refers to the IDV section as `service_verification-idv` for
+  // SectionValidationResult.sectionId, matching the structure endpoint's
+  // emitted section id post verification-idv-conversion. The DATA, however,
+  // is read from `sectionsData['idv']` (BR 8 — save-bucket key unchanged).
   sectionId: string;
   // The saved IDV data lives at `sectionsData['idv']`. Pass it in directly
   // — the engine knows the right key.
@@ -573,6 +602,8 @@ export async function validateIdvSection(
 ): Promise<SectionValidationResult> {
   const result: SectionValidationResult = {
     sectionId: input.sectionId,
+    // ValidationStatus union literal, not DB status — initial value before the
+    // engine resolves a verdict for this section.
     status: 'not_started',
     fieldErrors: [],
     scopeErrors: [],

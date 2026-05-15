@@ -22,6 +22,8 @@ Returns the list of sections the candidate needs to complete, assembled from wor
   "invitation": {
     "firstName": "string",
     "lastName": "string",
+    "email": "string",
+    "phone": "string | null",
     "status": "string",
     "expiresAt": "ISO date",
     "companyName": "string"
@@ -29,7 +31,7 @@ Returns the list of sections the candidate needs to complete, assembled from wor
   "sections": [{
     "id": "string",
     "title": "string",
-    "type": "workflow_section | service_section | personal_info | address_history | review_submit",
+    "type": "workflow_section | service_section | personal_info | address_history | record_search | review_submit",
     "placement": "before_services | services | after_services",
     "status": "not_started | incomplete | complete",
     "order": "number",
@@ -56,21 +58,57 @@ Returns the list of sections the candidate needs to complete, assembled from wor
 }
 ```
 
+`email` is always present (non-nullable column on `candidate_invitations`). `phone` is a combined display string: `phoneCountryCode + ' ' + phoneNumber` when both are present, `phoneNumber` alone when only that is present, or `null` when neither was collected at invitation time. These fields are used by the candidate shell to build the `TemplateVariableValues` object passed into `WorkflowSectionRenderer` for template variable substitution (Task 8.1).
+
 `workflowSection` is only present when `type === "workflow_section"`. It carries the full content payload so the client can render the section without a second fetch.
 
-`scope` is only present on scoped sections: Address History (`type === "address_history"`), Education (`functionalityType === "verification-edu"`), and Employment (`functionalityType === "verification-emp"`). The scope reflects the most-demanding scope across all package services sharing that functionality type (spec Rule 19). `scopeDescriptionKey` is a translation key — not an English string — so the client can localize it.
+`scope` is only present on scoped sections: Address History (`type === "address_history"`), Education (`functionalityType === "verification-edu"`), and Employment (`functionalityType === "verification-emp"`). The scope reflects the most-demanding scope across all package services sharing that functionality type (spec Rule 19). `scopeDescriptionKey` is a translation key — not an English string — so the client can localize it. The Identity Verification section (`functionalityType === "verification-idv"`, `id === "service_verification-idv"`) does NOT receive a `scope` block in this response — IDV scope is fixed at `count_exact: 1` and is resolved server-side at validation and submission time; no scope picker is shown to the candidate (verification-idv-conversion BR 5 / BR 15).
 
 Phase 7 Stage 1 appends a synthetic `review_submit` section entry at the end of the list (after all after-services workflow sections). Its `id` is always `"review_submit"`, its `type` is `"review_submit"`, and its `placement` is `"after_services"`. It carries no `workflowSection` or `scope` payload.
 
 `status` always returns `"not_started"` from this endpoint (Phase 6 Stage 4, Business Rule 15). Clients are responsible for recomputing progress locally after each auto-save and overriding this initial value. The status value space changed from Stage 3: `"in_progress"` has been replaced by `"incomplete"` (Business Rule 22).
 
+**Section ordering (Task 8.2 — Linear Step Navigation):** The `sections` array is returned in the following order. Sections whose service type is not present in the candidate's package are omitted entirely — there is no placeholder or skip indicator.
+
+1. `before_services` workflow sections (e.g., Welcome page), in `displayOrder` order
+2. IDV (`functionalityType: "verification-idv"`) — only if the package includes an IDV service
+3. Address History (`type: "address_history"`) — only if the package includes an address history service
+4. Education (`functionalityType: "verification-edu"`) — only if the package includes an education service
+5. Employment (`functionalityType: "verification-emp"`) — only if the package includes an employment service
+6. Personal Information (`type: "personal_info"`) — always present
+7. Record Search Requirements (`type: "record_search"`) — only if the package includes a record-type service (Task 8.4)
+8. `after_services` workflow sections, in `displayOrder` order
+9. Review & Submit (synthetic, `id: "review_submit"`, `type: "review_submit"`)
+
+Prior to Task 8.2, Personal Information appeared second (immediately after `before_services` workflow sections and before service sections). It now appears sixth. The `placement` field on the Personal Information entry remains `"services"` — downstream consumers must drive rendering order from array position, not from `placement`.
+
+The `record_search` section entry (Task 8.4) appears only when the package has at least one service with `functionalityType: "record"` — the same guard that controls `address_history`. Its shape in the `sections` array is:
+```json
+{
+  "id": "record_search",
+  "title": "candidate.portal.sections.recordSearchRequirements",
+  "type": "record_search",
+  "placement": "services",
+  "status": "not_started",
+  "order": "number",
+  "functionalityType": "record",
+  "serviceIds": ["string (UUID)"]
+}
+```
+
+`title` is a translation key. No `scope` block is attached to the `record_search` section — scope for record-type services is carried by the sibling `address_history` section entry. `serviceIds` lists the UUIDs of every `record`-functionality package service, matching the same list used by `address_history`.
+
 ### GET /api/candidate/application/[token]/fields
 
-Returns DSX field requirements for a specific service and country.
+Returns DSX field requirements for the candidate's package at a specific geographic location. Called by entry-based sections (Education, Employment, Address History) to determine which fields to display and which to mark required.
 
 **Query Parameters:**
-- `serviceId` (required) - The service ID to get fields for
-- `countryId` (required) - The country ID to get fields for
+- `serviceIds` (TD-084, optional, repeatable) - One or more service IDs packed as repeated query parameters (e.g., `serviceIds=<id1>&serviceIds=<id2>`). When present, the route OR-merges `isRequired` across every `(serviceId, locationId)` pair so the rendered required-state matches the validator's view. Preferred over the legacy `serviceId` parameter.
+- `serviceId` (legacy, optional) - A single service ID. Preserved for backwards compatibility. Ignored when `serviceIds` is present. At least one of `serviceId` or `serviceIds` must be provided.
+- `countryId` (required) - The country ID to get fields for.
+- `subregionId` (optional, UUID, Phase 6 Stage 3) - When provided, the route walks the `countries.parentId` chain upward from this ID and merges DSX mappings across all applicable geographic levels in a single call.
+
+**`isRequired` semantics (TD-084):** A field's `isRequired` value is `true` if ANY applicable `dsx_mappings` row across the candidate's full service package AND across all applicable geographic levels (country → subregion) says `true`. This is an OR-merge, not a per-service value. Fields that have no `dsx_mappings` row at any applicable level are not included in the response (except the `address_block` field, which is always returned for Address History rendering with `isRequired: false` when no mapping covers it).
 
 **Response:**
 ```json
@@ -89,6 +127,8 @@ Returns DSX field requirements for a specific service and country.
   }]
 }
 ```
+
+**Errors:** `400` if neither `serviceId` nor `serviceIds` is provided, if `countryId` is missing, or if `subregionId` is not a valid UUID.
 
 ### GET /api/candidate/application/[token]/countries
 
@@ -145,6 +185,8 @@ The endpoint reads the `scope` JSON column on `package_services` for the matchin
 
 Returns personal information fields from across all package services where the DSX collectionTab indicates they belong on the personal info tab.
 
+**Task 8.3 behavior change:** The five locked invitation fieldKeys — `firstName`, `lastName`, `email`, `phone`, and `phoneNumber` — are excluded from the response. These values are sourced from the invitation columns and are shown to the candidate on the Welcome page via template variables (Task 8.1). Every field returned by this endpoint has `locked: false` and `prefilledValue: null`. The `locked` and `prefilledValue` response fields are retained for backward compatibility with the section's hydration path but are always false/null.
+
 **Response:**
 ```json
 {
@@ -157,8 +199,8 @@ Returns personal information fields from across all package services where the D
     "instructions": "string | null",
     "fieldData": "object",
     "displayOrder": "number",
-    "locked": "boolean",
-    "prefilledValue": "string | null"
+    "locked": "boolean (always false — see Task 8.3 note above)",
+    "prefilledValue": "string | null (always null — see Task 8.3 note above)"
   }]
 }
 ```
@@ -169,7 +211,7 @@ Returns personal information fields from across all package services where the D
 
 Auto-saves the candidate's in-progress form data. Called automatically when the candidate moves between fields, adds an entry, or removes an entry.
 
-The endpoint accepts five distinct request shapes, dispatched by `sectionType`:
+The endpoint accepts six distinct request shapes, dispatched by `sectionType`:
 
 **Visit-tracking format** — Phase 7 Stage 1. Used to persist section visit records and the Review & Submit visit flag without touching `formData.sections`:
 ```json
@@ -240,6 +282,41 @@ Repeatable-entry saves use **whole-section replacement**: the entire `entries` a
 
 If `sectionType` is `education` or `employment` but the request body does not contain an `entries` field, the endpoint returns `400`.
 
+**Address-history format** — used for `address_history` (Phase 6 Stage 3):
+```json
+{
+  "sectionType": "address_history",
+  "sectionId": "string",
+  "entries": [{
+    "entryId": "string (UUID)",
+    "countryId": "string (UUID) | null",
+    "entryOrder": "number (>= 0)",
+    "fields": [{
+      "requirementId": "string (UUID)",
+      "value": "string | number | boolean | null | string[] | object"
+    }]
+  }],
+  "aggregatedFields": {
+    "<requirementId>": "string | number | boolean | null | string[]"
+  }
+}
+```
+
+`aggregatedFields` was required prior to Task 8.4. As of Task 8.4, `aggregatedFields` is **optional** on address_history payloads. Aggregated record-search field values are now saved through the dedicated `record_search` shape below. The schema continues to accept `aggregatedFields` from legacy clients for backward tolerance; new clients omit it. Address-history saves use whole-section replacement: the entire `entries` array (and `aggregatedFields` map, when supplied) replace any previously stored values for the section.
+
+**Record-search format** — used for `record_search` (Task 8.4):
+```json
+{
+  "sectionType": "record_search",
+  "sectionId": "record_search",
+  "fieldValues": {
+    "<requirementId>": "string | number | boolean | null | string[] | object"
+  }
+}
+```
+
+`sectionId` is pinned to the literal `"record_search"` — the Zod schema rejects any other value. `fieldValues` is keyed by `dsx_requirements.id` and stores values for the deduplicated additional fields and aggregated document metadata collected from the union of countries the candidate selected in their Address History entries. The `object` variant of the value type carries document-upload metadata (same shape as the flat-fields format above). Each save is a **whole-object replacement**: the entire `fieldValues` map replaces the previously stored bucket. This section does not read from or write to `formData.sections.address_history.aggregatedFields`.
+
 **Response:**
 ```json
 {
@@ -252,7 +329,7 @@ If `sectionType` is `education` or `employment` but the request body does not co
 
 Loads the candidate's previously saved form data for pre-populating the form when they return.
 
-The response contains three section shapes, depending on the section type.
+The response contains multiple section shapes, depending on the section type.
 
 **Workflow sections** (`workflow_section`) — Phase 6 Stage 4:
 ```json
@@ -317,6 +394,46 @@ The bucket key is the `workflow_sections.id` UUID (matching the key in `formData
 ```
 
 Repeatable sections are only present in the response when the candidate has previously saved at least one entry — they are not auto-created.
+
+**Address-history section** (`address_history`) — Phase 6 Stage 3. Returns the same per-entry shape as repeatable sections, plus a top-level `aggregatedFields` object keyed by `dsx_requirements.id`. After Task 8.4, the AggregatedRequirements UI moved to the standalone `record_search` section, so `aggregatedFields` is always `{}` for newly-saved rows; it is retained in the response for backward compatibility with rows saved before Task 8.4 (the new client ignores it):
+```json
+{
+  "sections": {
+    "address_history": {
+      "entries": [{
+        "entryId": "string (UUID)",
+        "countryId": "string (UUID) | null",
+        "entryOrder": "number",
+        "fields": [{
+          "requirementId": "string (UUID)",
+          "value": "string | number | boolean | null | string[] | object"
+        }]
+      }],
+      "aggregatedFields": {
+        "<requirementId>": "any"
+      }
+    }
+  }
+}
+```
+
+The `address_history` section is not auto-created — it is only present in the response when the candidate has previously saved at least one address entry.
+
+**Record-search section** (`record_search`) — Task 8.4. Carries the deduplicated additional fields and aggregated document metadata collected from the union of countries the candidate selected in their Address History entries. This section is **always present** in the response, even when no record-search data has been saved yet — it defaults to `{ type: "record_search", fieldValues: {} }` (same always-present pattern as `personal_info` and `idv`):
+```json
+{
+  "sections": {
+    "record_search": {
+      "type": "record_search",
+      "fieldValues": {
+        "<requirementId>": "string | number | boolean | null | string[] | object"
+      }
+    }
+  }
+}
+```
+
+`fieldValues` is an empty object `{}` when no record-search data has been saved. When data is present, keys are `dsx_requirements.id` values and values mirror the full value union accepted by the save endpoint. This section does not read from `formData.sections.address_history.aggregatedFields`.
 
 Phase 7 Stage 1 extended the response to include visit tracking data as siblings of `sections`:
 
@@ -488,7 +605,7 @@ All endpoints return standard HTTP status codes:
 
 ## Field Locking
 
-Fields that are pre-filled from the invitation (firstName, lastName, email, phone) are locked and cannot be modified by the candidate. The save endpoint filters out any attempts to modify locked fields to ensure data integrity.
+**Task 8.3:** The Personal Info section no longer renders invitation-derived fields (firstName, lastName, email, phone, phoneNumber). These fields are shown on the Welcome page via template variables (Task 8.1) and are excluded from the `personal-info-fields` API response. The save endpoint retains a defense-in-depth filter for these fieldKeys, but in normal flow no save payload for Personal Info will contain them.
 
 ## Auto-Save Behavior
 
@@ -535,6 +652,10 @@ Form data is stored in the `formData` JSON column on the `CandidateInvitation` t
     "employment": {
       "type": "employment",
       "entries": [ /* same shape as education */ ]
+    },
+    "record_search": {
+      "type": "record_search",
+      "fieldValues": {}
     }
   }
 }

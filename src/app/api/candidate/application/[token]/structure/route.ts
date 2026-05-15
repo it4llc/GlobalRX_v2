@@ -1,6 +1,7 @@
 // /GlobalRX_v2/src/app/api/candidate/application/[token]/structure/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import type {
@@ -20,6 +21,15 @@ import {
   type ScopeFunctionalityType,
 } from '@/lib/candidate/validation/packageScopeShape';
 
+// Zod schema for the token path parameter. We validate the path param up
+// front (before any business logic) so malformed tokens fail with a clear
+// 400 rather than falling through to a 404 from the Prisma lookup below.
+// Pattern matches the sibling /scope route (z-based safeParse + 400 on
+// failure), keeping our candidate API surface consistent.
+const tokenParamSchema = z.object({
+  token: z.string().min(1),
+});
+
 /**
  * GET /api/candidate/application/[token]/structure
  *
@@ -36,6 +46,11 @@ import {
  *   invitation: {
  *     firstName: string         // Candidate's first name
  *     lastName: string          // Candidate's last name
+ *     email: string             // Candidate's email address (Task 8.1)
+ *     phone: string | null      // Candidate's phone number — phoneCountryCode +
+ *                               //   ' ' + phoneNumber when both present; just
+ *                               //   phoneNumber when only that is present; null
+ *                               //   when neither was collected (Task 8.1)
  *     status: string            // One of: pending, in_progress, completed, expired
  *     expiresAt: string         // ISO date when invitation expires
  *     companyName: string       // Name of the customer who sent the invitation
@@ -44,14 +59,15 @@ import {
  *     id: string                // Unique identifier for this section
  *     title: string             // Display name shown to the candidate
  *     type: string              // One of: workflow_section, service_section, personal_info,
- *                               //   address_history, review_submit (Phase 7 Stage 1)
+ *                               //   address_history, record_search (Task 8.4),
+ *                               //   review_submit (Phase 7 Stage 1)
  *     placement: string         // One of: before_services, services, after_services
  *     status: string            // One of: not_started, incomplete, complete (lowercase per BR 22)
  *                               // INITIAL value only — Phase 6 Stage 4 BR 15 requires the client
  *                               // to recompute progress on every auto-save and override this value
  *                               // locally. The endpoint never returns a non-not_started status.
  *     order: number             // Sort position within its placement group
- *     functionalityType?: string // For service sections: idv, record, verification-edu, verification-emp
+ *     functionalityType?: string // For service sections: verification-idv, record, verification-edu, verification-emp
  *     workflowSection?: {       // Phase 6 Stage 4: full workflow-section payload, present when
  *       id, name, type,         // type === 'workflow_section'. Carries the content the renderer
  *       content, fileUrl,       // needs without a second fetch. Per Stage 4 spec Data Requirements.
@@ -69,6 +85,16 @@ import {
  *   The list always ends with a synthetic Review & Submit section
  *   (id: 'review_submit', type: 'review_submit', placement: 'after_services')
  *   so the sidebar can show it as the last entry (Rule 29).
+ *
+ *   Task 8.2 (Linear Step Navigation) — sections are returned in this order:
+ *     before_services workflow sections
+ *       -> service sections (IDV, address_history, education, employment)
+ *       -> personal_info
+ *       -> after_services workflow sections
+ *       -> review_submit
+ *   Sections that don't apply to the candidate's package (no IDV service, no
+ *   education service, etc.) are omitted entirely — there is no separate
+ *   "skip" indicator on the response.
  * }
  *
  * Errors:
@@ -93,19 +119,24 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Step 2: Input validation - validate token format
-    if (!token || typeof token !== 'string' || token.length === 0) {
-      return NextResponse.json({ error: 'Invalid token parameter' }, { status: 400 });
+    // Step 2: Input validation — validate token path parameter via Zod.
+    // Replaces the prior manual `!token || typeof token !== 'string'` guard
+    // so the route follows the same Zod-driven validation pattern as the
+    // sibling /scope and /save endpoints (standards-checker fix).
+    const tokenValidation = tokenParamSchema.safeParse({ token });
+    if (!tokenValidation.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: tokenValidation.error.errors },
+        { status: 400 }
+      );
     }
+    const { token: validatedToken } = tokenValidation.data;
 
-    // Step 3: Verify token matches session
-    if (sessionData.token !== token) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Step 4: Load invitation with all related data including package
+    // Step 3: Load invitation with all related data including package.
+    // Per API S2, the 404 existence check runs BEFORE the 403 authorization
+    // check so callers see a consistent ordering (401 → 400 → 404 → 403).
     const invitation = await prisma.candidateInvitation.findUnique({
-      where: { token },
+      where: { token: validatedToken },
       include: {
         order: {
           include: {
@@ -131,6 +162,12 @@ export async function GET(
 
     if (!invitation) {
       return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
+    }
+
+    // Step 4: Verify session token matches the URL token. Runs after the
+    // 404 so a missing invitation never gets masked behind a 403.
+    if (sessionData.token !== validatedToken) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Step 4: Get the package directly from the invitation
@@ -160,7 +197,12 @@ export async function GET(
       for (const ps of orderedPackage.packageServices) {
         const funcType = ps.service?.functionalityType;
         if (!funcType) continue;
-        if (funcType !== 'record' && funcType !== 'verification-edu' && funcType !== 'verification-emp') continue;
+        if (
+          funcType !== 'record' &&
+          funcType !== 'verification-edu' &&
+          funcType !== 'verification-emp' &&
+          funcType !== 'verification-idv'
+        ) continue;
         const existing = grouped.get(funcType) ?? [];
         existing.push(ps.scope as RawPackageServiceScope | null ?? {});
         grouped.set(funcType, existing);
@@ -177,7 +219,7 @@ export async function GET(
     // Translation keys mirror the existing /scope endpoint's English wording
     // contract but stay as keys so the candidate UI can localize cleanly.
     const buildSectionScope = (
-      funcType: 'record' | 'verification-edu' | 'verification-emp',
+      funcType: 'record' | 'verification-edu' | 'verification-emp' | 'verification-idv',
     ): CandidatePortalSectionScope | undefined => {
       const resolved = scopeByFunctionalityType.get(funcType);
       if (!resolved) return undefined;
@@ -186,7 +228,9 @@ export async function GET(
           ? 'education'
           : funcType === 'verification-emp'
             ? 'employment'
-            : 'address';
+            : funcType === 'verification-idv'
+              ? 'identity'
+              : 'address';
       // Map normalized scopeType → existing portal-scope translation key. The
       // keys already exist in the translation files (see Phase 6 Stage 3 work).
       let scopeDescriptionKey = 'candidate.portal.scopeAll';
@@ -253,21 +297,12 @@ export async function GET(
       }
     }
 
-    // Add Personal Information section - first of the data collection sections
-    // (after workflow "before" sections, before service-specific sections)
-    // Check if there are any personal info fields configured for this package
+    // Task 8.2 (Linear Step Navigation) — Personal Information is emitted
+    // AFTER the service section loop, not before. See the matching push below.
+    // The hasPersonalInfoFields flag is preserved here so the section can be
+    // suppressed in the future when DSX configuration calls for it; today the
+    // check is a no-op (always true).
     const hasPersonalInfoFields = true; // For now, always show it. Later we can check DSX config
-    if (hasPersonalInfoFields) {
-      sections.push({
-        id: 'personal_info',
-        title: 'candidate.portal.sections.personalInformation',
-        type: 'personal_info',
-        placement: 'services',
-        status: 'not_started',
-        order: sectionOrder++,
-        functionalityType: null
-      });
-    }
 
     // Add service sections from package services (deduplicated by functionality type)
     const servicesByType = new Map<string, typeof orderedPackage.packageServices[0][]>();
@@ -283,9 +318,9 @@ export async function GET(
     }
 
     // Add service sections in fixed order
-    const serviceTypeOrder = ['idv', 'record', 'verification-edu', 'verification-emp'];
+    const serviceTypeOrder = ['verification-idv', 'record', 'verification-edu', 'verification-emp'];
     const serviceTitleMap: Record<string, string> = {
-      'idv': 'candidate.portal.sections.identityVerification',
+      'verification-idv': 'candidate.portal.sections.identityVerification',
       'record': 'candidate.portal.sections.addressHistory',
       'verification-edu': 'candidate.portal.sections.educationHistory',
       'verification-emp': 'candidate.portal.sections.employmentHistory'
@@ -322,7 +357,12 @@ export async function GET(
           });
         } else {
           // Phase 7 Stage 1 §3.3 — attach the resolved scope block on the
-          // education and employment service sections.
+          // education and employment service sections. verification-idv
+          // intentionally does NOT receive a scope block on the structure
+          // response (the candidate portal does not render a scope picker
+          // for IDV; scope is fixed at count_exact:1 per BR 15 and resolved
+          // server-side at validation/submission time via
+          // packageScopeShape.normalizeRawScope).
           const sectionScope =
             funcType === 'verification-edu'
               ? buildSectionScope('verification-edu')
@@ -342,6 +382,49 @@ export async function GET(
           });
         }
       }
+    }
+
+    // Task 8.2 (Linear Step Navigation) — Personal Information is now emitted
+    // AFTER the service section loop. Spec Business Rule 1 places Personal Info
+    // at Step 6 (after IDV / address_history / education / employment, before
+    // after_services workflow sections). The id, title, type, placement, status,
+    // and functionalityType fields are unchanged from the previous emission —
+    // only the position in the array (and consequently the `order` value)
+    // changes. Downstream consumers (portal-layout, portal-sidebar) drive their
+    // rendering off array order, not the `placement` field, so the placement
+    // value stays 'services' as before.
+    if (hasPersonalInfoFields) {
+      sections.push({
+        id: 'personal_info',
+        title: 'candidate.portal.sections.personalInformation',
+        type: 'personal_info',
+        placement: 'services',
+        status: 'not_started',
+        order: sectionOrder++,
+        functionalityType: null
+      });
+    }
+
+    // Task 8.4 — Record Search Requirements appears at Step 7 in the
+    // post-Task-8.2 nine-step flow, sitting between Personal Info and any
+    // after-services workflow sections. It is emitted only when the package
+    // contains at least one record-type service (same guard as the
+    // address_history section above). No scope block is attached here —
+    // scope lives on Address History; this section is downstream of that
+    // and reuses the same scope context.
+    if (servicesByType.has('record')) {
+      const recordServices = servicesByType.get('record')!;
+      const serviceIds = recordServices.map(ps => ps.service.id);
+      sections.push({
+        id: 'record_search',
+        title: 'candidate.portal.sections.recordSearchRequirements',
+        type: 'record_search',
+        placement: 'services',
+        status: 'not_started',
+        order: sectionOrder++,
+        functionalityType: 'record',
+        serviceIds,
+      });
     }
 
     // Add after_services workflow sections
@@ -390,11 +473,27 @@ export async function GET(
       functionalityType: null,
     });
 
+    // Task 8.1 — derive a single phone display string. Combined into a single
+    // string here so the candidate UI does not have to know the storage shape
+    // (phoneCountryCode + phoneNumber are stored as two columns). When both
+    // are present we join with a single space; when only phoneNumber is
+    // present we use it as-is; when neither is present phone is null.
+    const combinedPhone: string | null = invitation.phoneNumber
+      ? invitation.phoneCountryCode
+        ? `${invitation.phoneCountryCode} ${invitation.phoneNumber}`
+        : invitation.phoneNumber
+      : null;
+
     // Step 6: Build response
     const response: CandidatePortalStructureResponse = {
       invitation: {
         firstName: invitation.firstName,
         lastName: invitation.lastName,
+        // Task 8.1 — email and phone are exposed so the candidate shell can
+        // build the template-variable values object. Email is non-nullable on
+        // the row; phone is the joined display string above (nullable).
+        email: invitation.email,
+        phone: combinedPhone,
         status: invitation.status,
         expiresAt: invitation.expiresAt,
         companyName: invitation.order.customer?.name || 'Unknown Company'

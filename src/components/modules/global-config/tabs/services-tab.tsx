@@ -25,6 +25,10 @@ import {
 import { ActionDropdown } from '@/components/ui/action-dropdown';
 import { ServiceForm } from '@/components/modules/global-config/services/service-form';
 import { ServiceFilterBar } from '@/components/modules/global-config/services/service-filter-bar';
+import { useTranslation } from '@/contexts/TranslationContext';
+// Single source of truth for the Service.functionalityType allow-list. Used
+// to seed the dropdown so it always matches the API allow-list.
+import { FUNCTIONALITY_TYPES } from '@/constants/functionality-types';
 
 // Define the Service type
 interface Service {
@@ -44,11 +48,14 @@ interface Service {
 const ITEMS_PER_PAGE = 10;
 
 export function ServicesTab() {
+  const { t } = useTranslation();
   // State variables
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  // Initialize with functionality types in the desired order
-  const [functionalityTypes, setFunctionalityTypes] = useState<string[]>(['record', 'verification-edu', 'verification-emp', 'other', 'idv']);
+  // Initialize with functionality types in the desired order. Spread is
+  // required because FUNCTIONALITY_TYPES is a `readonly` tuple from the
+  // constants module and useState expects a mutable array.
+  const [functionalityTypes, setFunctionalityTypes] = useState<string[]>([...FUNCTIONALITY_TYPES]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -235,10 +242,11 @@ export function ServicesTab() {
   // Map functionality types to display titles
   const getDisplayTitle = (type: string): string => {
     switch (type) {
-      case 'verification-emp': return 'Verification - Employment';
-      case 'verification-edu': return 'Verification - Education';
-      case 'record': return 'Records';
-      default: return 'Other';
+      case 'verification-emp': return t('config.services.functionalityType.verification-emp');
+      case 'verification-edu': return t('config.services.functionalityType.verification-edu');
+      case 'verification-idv': return t('config.services.functionalityType.verification-idv');
+      case 'record': return t('config.services.functionalityType.record');
+      default: return t('config.services.functionalityType.other');
     }
   };
 

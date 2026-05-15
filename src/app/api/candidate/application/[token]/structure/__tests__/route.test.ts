@@ -5,6 +5,7 @@ import { NextRequest } from 'next/server';
 import { GET } from '../route';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import type { CandidatePortalSection } from '@/types/candidate-portal';
 
 // Mock logger
 vi.mock('@/lib/logger', () => ({
@@ -22,6 +23,23 @@ vi.mock('@/lib/services/candidateSession.service', () => ({
     getSession: vi.fn()
   }
 }));
+
+// Prisma return-type alias for the `candidateInvitation.findUnique` shape the
+// route loads (the same include tree assembled inline in the original success
+// case test). Defined once so the phone-combining fixtures below can be typed
+// without an `as any` cast each. Adding a field to the route's include block
+// will surface as a type error here, which is the desired safety.
+type MockInvitationPayload = Prisma.CandidateInvitationGetPayload<{
+  include: {
+    order: { include: { customer: true } };
+    package: {
+      include: {
+        workflow: { include: { sections: true } };
+        packageServices: { include: { service: true } };
+      };
+    };
+  };
+}>;
 
 describe('GET /api/candidate/application/[token]/structure', () => {
   const mockToken = 'test-token-123';
@@ -91,7 +109,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
           service: {
             id: 'service-1',
             name: 'Identity Verification Service',
-            functionalityType: 'idv'
+            functionalityType: 'verification-idv'
           }
         },
         {
@@ -146,6 +164,14 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         invitationId: 'inv-123'
       });
 
+      // The route follows API S2 ordering (401 → 400 → 404 → 403): the
+      // invitation existence check now runs before the session-token
+      // authorization check, so we must seed findUnique with the URL-token
+      // invitation in order for the 403 branch to be reached.
+      vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+        mockInvitation as MockInvitationPayload
+      );
+
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
       const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
 
@@ -184,9 +210,15 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       const data = await response.json();
 
       // Check invitation info
+      // Task 8.1 — the structure response now returns `email` and `phone`
+      // in the invitation block so the candidate shell can populate
+      // template variable values. The mock invitation has phoneCountryCode
+      // and phoneNumber both null, so the derived `phone` is null here.
       expect(data.invitation).toEqual({
         firstName: 'Sarah',
         lastName: 'Johnson',
+        email: 'sarah@example.com',
+        phone: null,
         status: 'accessed',
         expiresAt: mockInvitation.expiresAt.toISOString(),
         companyName: 'Acme Corp'
@@ -196,7 +228,11 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // Phase 7 Stage 1 §3.3 — the structure response now appends a synthetic
       // `review_submit` entry after all after_services workflow sections, so
       // the total length grows by 1 (Rule 29).
-      expect(data.sections).toHaveLength(8); // 1 personal + 1 before + 3 services (edu deduplicated) + 2 after + 1 review_submit
+      // Task 8.4 — Record Search Requirements is emitted as a new section
+      // between Personal Info and the after-services workflow sections when
+      // the package has at least one record-type service. With the record
+      // service in the fixture, the total grows by 1 to 9.
+      expect(data.sections).toHaveLength(9); // 1 personal + 1 before + 3 services (edu deduplicated) + 1 record_search + 2 after + 1 review_submit
 
       // Check before_services section comes first
       // Phase 6 Stage 4: workflow_section sections now carry a workflowSection
@@ -222,47 +258,37 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       });
 
-      // Check Personal Information section comes after before_services
+      // Task 8.2 (Linear Step Navigation) — service sections come first
+      // (IDV → Address History → Education → Employment) and Personal
+      // Information now appears AFTER them at index 4. The IDV service
+      // section is now index 1 with order 1.
       expect(data.sections[1]).toEqual({
-        id: 'personal_info',
-        title: 'candidate.portal.sections.personalInformation',
-        type: 'personal_info',
-        placement: 'services',
-        status: 'not_started',
-        order: 1,
-        functionalityType: null
-      });
-
-      // Check service sections are in correct order
-      expect(data.sections[2]).toEqual({
-        id: 'service_idv',
+        id: 'service_verification-idv',
         title: 'candidate.portal.sections.identityVerification',
         type: 'service_section',
         placement: 'services',
         status: 'not_started',
-        order: 2,
-        functionalityType: 'idv',
+        order: 1,
+        functionalityType: 'verification-idv',
         serviceIds: ['service-1']
       });
 
       // Phase 6 Stage 3: record-functionality services now emit a dedicated
       // `address_history` section (id: 'address_history', type: 'address_history')
-      // instead of a generic service_section. Position remains index 2 of the
-      // service section ordering (after IDV, before Education) per the spec
-      // "Section Position in the Candidate Application" and Definition of Done
-      // items #10 and #11.
+      // instead of a generic service_section.
       // Phase 7 Stage 1 §3.3 — Address History now carries a resolved
       // `scope` block. With null/missing scope on the underlying record
       // service, normalizeRawScope returns count_exact 1 (current address
       // default per packageScopeShape's record default). The frontend uses
       // scopeDescriptionKey + scopeDescriptionPlaceholders to localize.
-      expect(data.sections[3]).toEqual({
+      // Task 8.2 (Linear Step Navigation) — Address History is index 2.
+      expect(data.sections[2]).toEqual({
         id: 'address_history',
         title: 'candidate.portal.sections.addressHistory',
         type: 'address_history',
         placement: 'services',
         status: 'not_started',
-        order: 3,
+        order: 2,
         functionalityType: 'record',
         serviceIds: ['service-2'],
         scope: {
@@ -276,13 +302,14 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // Phase 7 Stage 1 §3.3 — Education service section also carries the
       // resolved scope. The mock service has no explicit scope JSON so the
       // normalized scope is `all` (the non-record default).
-      expect(data.sections[4]).toEqual({
+      // Task 8.2 (Linear Step Navigation) — Education is index 3.
+      expect(data.sections[3]).toEqual({
         id: 'service_verification-edu',
         title: 'candidate.portal.sections.educationHistory',
         type: 'service_section',
         placement: 'services',
         status: 'not_started',
-        order: 4,
+        order: 3,
         functionalityType: 'verification-edu',
         serviceIds: ['service-3', 'service-4'],
         scope: {
@@ -293,17 +320,47 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         },
       });
 
+      // Task 8.2 (Linear Step Navigation) — Personal Information now appears
+      // AFTER the service sections at index 4 with order 4. Previously this
+      // section was emitted before the service sections; spec Business Rule 1
+      // places it at Step 6 in the new flow.
+      expect(data.sections[4]).toEqual({
+        id: 'personal_info',
+        title: 'candidate.portal.sections.personalInformation',
+        type: 'personal_info',
+        placement: 'services',
+        status: 'not_started',
+        order: 4,
+        functionalityType: null
+      });
+
+      // Task 8.4 — Record Search Requirements is the new Step 7. It sits
+      // between Personal Info and any after-services workflow sections, and
+      // is emitted only when the package has at least one record-type
+      // service (the fixture's `record` service triggers it here). The
+      // section carries no scope block (scope lives on Address History).
+      expect(data.sections[5]).toEqual({
+        id: 'record_search',
+        title: 'candidate.portal.sections.recordSearchRequirements',
+        type: 'record_search',
+        placement: 'services',
+        status: 'not_started',
+        order: 5,
+        functionalityType: 'record',
+        serviceIds: ['service-2'],
+      });
+
       // Check after_services sections
       // Phase 6 Stage 4: workflow_section sections in the after_services zone
       // also carry the workflowSection payload — same shape as before_services,
       // different placement value.
-      expect(data.sections[5]).toEqual({
+      expect(data.sections[6]).toEqual({
         id: 'section-2',
         title: 'Consent Form',
         type: 'workflow_section',
         placement: 'after_services',
         status: 'not_started',
-        order: 5,
+        order: 6,
         functionalityType: null,
         workflowSection: {
           id: 'section-2',
@@ -315,13 +372,13 @@ describe('GET /api/candidate/application/[token]/structure', () => {
         }
       });
 
-      expect(data.sections[6]).toEqual({
+      expect(data.sections[7]).toEqual({
         id: 'section-3',
         title: 'Authorization',
         type: 'workflow_section',
         placement: 'after_services',
         status: 'not_started',
-        order: 6,
+        order: 7,
         functionalityType: null,
         workflowSection: {
           id: 'section-3',
@@ -335,13 +392,13 @@ describe('GET /api/candidate/application/[token]/structure', () => {
 
       // Phase 7 Stage 1 §3.3 — synthetic Review & Submit section as the
       // last entry, after every after_services workflow section (Rule 29).
-      expect(data.sections[7]).toEqual({
+      expect(data.sections[8]).toEqual({
         id: 'review_submit',
         title: 'candidate.portal.sections.reviewSubmit',
         type: 'review_submit',
         placement: 'after_services',
         status: 'not_started',
-        order: 7,
+        order: 8,
         functionalityType: null,
       });
     });
@@ -363,7 +420,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               service: {
                 id: 'service-1',
                 name: 'Identity Verification Service 1',
-                functionalityType: 'idv'
+                functionalityType: 'verification-idv'
               }
             },
             {
@@ -371,7 +428,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               service: {
                 id: 'service-2',
                 name: 'Identity Verification Service 2',
-                functionalityType: 'idv'
+                functionalityType: 'verification-idv'
               }
             },
             {
@@ -387,7 +444,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationWithDuplicates as any
+        invitationWithDuplicates as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -397,8 +454,8 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       const data = await response.json();
 
       // Should have deduplicated IDV services
-      const idvSections = data.sections.filter((s: any) =>
-        s.functionalityType === 'idv' && s.type === 'service_section'
+      const idvSections = data.sections.filter((s: CandidatePortalSection) =>
+        s.functionalityType === 'verification-idv' && s.type === 'service_section'
       );
       expect(idvSections).toHaveLength(1);
       expect(idvSections[0].serviceIds).toEqual(['service-1', 'service-2']);
@@ -420,7 +477,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoWorkflow as any
+        invitationNoWorkflow as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -429,17 +486,36 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Should have personal info and service sections only (no workflow sections).
+      // Task 8.2 (Linear Step Navigation) — with no workflow sections the
+      // first section is now a service section (IDV), and personal_info is
+      // emitted AFTER the service sections (followed by the synthetic
+      // review_submit). Spec Business Rule 1 moves Personal Info to Step 6.
       // Phase 6 Stage 3: record-functionality services emit a dedicated
-      // `address_history` section type, so the set of valid types after
-      // personal_info now includes 'service_section' AND 'address_history'.
-      // Phase 7 Stage 1 §3.3: the synthetic 'review_submit' entry is appended
-      // last and must also be accepted in the post-personal-info slice.
-      expect(data.sections[0].type).toBe('personal_info');
-      const validServiceSectionTypes = ['service_section', 'address_history', 'review_submit'];
+      // `address_history` section type.
+      // Phase 7 Stage 1 §3.3: the synthetic 'review_submit' entry is
+      // appended last.
+      // Task 8.4: when a record service is in the package, a `record_search`
+      // section is also emitted between personal_info and review_submit.
+      expect(data.sections[0].type).toBe('service_section');
+      const validSectionTypes = [
+        'service_section',
+        'address_history',
+        'personal_info',
+        'record_search',
+        'review_submit',
+      ];
       expect(
-        data.sections.slice(1).every((s: any) => validServiceSectionTypes.includes(s.type))
+        data.sections.every((s: CandidatePortalSection) => validSectionTypes.includes(s.type))
       ).toBe(true);
+      // Personal Info comes after the service sections. With the record
+      // service in the fixture, record_search is emitted after personal_info,
+      // and review_submit is always last.
+      const personalInfoIndex = data.sections.findIndex((s: CandidatePortalSection) => s.type === 'personal_info');
+      const recordSearchIndex = data.sections.findIndex((s: CandidatePortalSection) => s.type === 'record_search');
+      const reviewIndex = data.sections.findIndex((s: CandidatePortalSection) => s.type === 'review_submit');
+      expect(personalInfoIndex).toBeGreaterThan(0);
+      expect(recordSearchIndex).toBe(personalInfoIndex + 1);
+      expect(reviewIndex).toBe(recordSearchIndex + 1);
     });
 
     it('should handle package with no services', async () => {
@@ -458,7 +534,11 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoServices as any
+        // Empty packageServices array narrows to `never[]`, which TS rightly
+        // flags as not overlapping the strict MockInvitationPayload union.
+        // Cast through `unknown` so the intentional override (no services)
+        // is allowed while still keeping the target type explicit.
+        invitationNoServices as unknown as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -470,12 +550,18 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // Should have workflow sections first, then personal info
       // With no services, should have: 1 before_services + 1 personal_info + 2 after_services
       // + 1 review_submit (Phase 7 Stage 1 §3.3) = 5 sections
+      // Task 8.4: no record service in this fixture → record_search is NOT
+      // emitted. The total remains 5.
       expect(data.sections).toHaveLength(5);
       expect(data.sections[0].type).toBe('workflow_section'); // before_services
       expect(data.sections[1].type).toBe('personal_info');
       expect(data.sections[2].type).toBe('workflow_section'); // after_services
       expect(data.sections[3].type).toBe('workflow_section'); // after_services
       expect(data.sections[4].type).toBe('review_submit');     // synthetic Review & Submit
+      // Confirm record_search is NOT in the array when no record service.
+      expect(
+        data.sections.find((s: CandidatePortalSection) => s.type === 'record_search')
+      ).toBeUndefined();
     });
 
     it('should maintain correct order for service sections', async () => {
@@ -504,7 +590,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               service: {
                 id: 'service-2',
                 name: 'Identity Check',
-                functionalityType: 'idv'
+                functionalityType: 'verification-idv'
               }
             },
             {
@@ -528,7 +614,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationWithServices as any
+        invitationWithServices as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -537,12 +623,114 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      // Check the fixed order (personal info first, then services in order): IDV, Records, Education, Employment
-      expect(data.sections[0].type).toBe('personal_info');
-      expect(data.sections[1].functionalityType).toBe('idv');
-      expect(data.sections[2].functionalityType).toBe('record');
-      expect(data.sections[3].functionalityType).toBe('verification-edu');
-      expect(data.sections[4].functionalityType).toBe('verification-emp');
+      // Task 8.2 (Linear Step Navigation) — services come first in the
+      // fixed order (IDV, Records, Education, Employment) and Personal
+      // Information now appears AFTER them. Spec Business Rule 1 places
+      // Personal Info at Step 6, after the service sections.
+      expect(data.sections[0].functionalityType).toBe('verification-idv');
+      expect(data.sections[1].functionalityType).toBe('record');
+      expect(data.sections[2].functionalityType).toBe('verification-edu');
+      expect(data.sections[3].functionalityType).toBe('verification-emp');
+      expect(data.sections[4].type).toBe('personal_info');
+    });
+
+    // Task 8.1 — phone display string is combined server-side so the
+    // candidate UI does not have to know the storage shape. Cover all
+    // three branches the route now implements.
+    describe('phone combining (Task 8.1)', () => {
+      it('should combine phoneCountryCode and phoneNumber with a single space when both are present', async () => {
+        const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+        vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+          token: mockToken,
+          invitationId: 'inv-123'
+        });
+
+        const invitationWithBothPhoneFields = {
+          ...mockInvitation,
+          phoneCountryCode: '+1',
+          phoneNumber: '5551234567'
+        };
+
+        vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+          invitationWithBothPhoneFields as MockInvitationPayload
+        );
+
+        const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
+        const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.invitation.phone).toBe('+1 5551234567');
+      });
+
+      it('should return just phoneNumber when phoneCountryCode is null but phoneNumber is present', async () => {
+        const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+        vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+          token: mockToken,
+          invitationId: 'inv-123'
+        });
+
+        const invitationWithOnlyPhoneNumber = {
+          ...mockInvitation,
+          phoneCountryCode: null,
+          phoneNumber: '5551234567'
+        };
+
+        vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+          invitationWithOnlyPhoneNumber as MockInvitationPayload
+        );
+
+        const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
+        const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.invitation.phone).toBe('5551234567');
+      });
+
+      it('should return null when both phoneCountryCode and phoneNumber are null', async () => {
+        const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+        vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+          token: mockToken,
+          invitationId: 'inv-123'
+        });
+
+        const invitationWithNoPhone = {
+          ...mockInvitation,
+          phoneCountryCode: null,
+          phoneNumber: null
+        };
+
+        vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+          invitationWithNoPhone as MockInvitationPayload
+        );
+
+        const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
+        const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.invitation.phone).toBeNull();
+      });
+
+      it('should expose email from the invitation row on the response', async () => {
+        const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
+        vi.mocked(CandidateSessionService.getSession).mockResolvedValueOnce({
+          token: mockToken,
+          invitationId: 'inv-123'
+        });
+
+        vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
+          mockInvitation as MockInvitationPayload
+        );
+
+        const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
+        const response = await GET(request, { params: Promise.resolve({ token: mockToken }) });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.invitation.email).toBe('sarah@example.com');
+      });
     });
   });
 
@@ -577,7 +765,11 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoPackage as any
+        // `package: null` is the intentional missing-package scenario the
+        // route's 500 branch handles. MockInvitationPayload includes the
+        // package relation so the shape doesn't overlap; cast via `unknown`
+        // to preserve the test's deliberate divergence.
+        invitationNoPackage as unknown as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -640,7 +832,10 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationEmpty as any
+        // Empty package (no workflow, no services) — same shape-narrowing
+        // issue as invitationNoServices. Cast through `unknown` so the
+        // empty-package scenario is allowed.
+        invitationEmpty as unknown as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -688,7 +883,10 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationNoCustomer as any
+        // `order.customer: null` is the intentional missing-customer scenario.
+        // The Prisma type includes `customer` as a non-null relation in this
+        // payload, so a cast through `unknown` is required.
+        invitationNoCustomer as unknown as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -725,7 +923,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
               service: {
                 id: 'service-2',
                 name: 'ID Check',
-                functionalityType: 'idv'
+                functionalityType: 'verification-idv'
               }
             }
           ]
@@ -733,7 +931,7 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       };
 
       vi.mocked(prisma.candidateInvitation.findUnique).mockResolvedValueOnce(
-        invitationWithNullType as any
+        invitationWithNullType as MockInvitationPayload
       );
 
       const request = new NextRequest(`http://localhost/api/candidate/application/${mockToken}/structure`);
@@ -745,11 +943,14 @@ describe('GET /api/candidate/application/[token]/structure', () => {
       // Services with null functionality type are NOT included.
       // Phase 7 Stage 1 §3.3 — the synthetic Review & Submit entry is
       // appended after the service sections, so the total is now 3.
+      // Task 8.2 (Linear Step Navigation) — Personal Information now
+      // appears AFTER the service sections (IDV first, personal_info next,
+      // review_submit last). Spec Business Rule 1.
       const sections = data.sections;
-      expect(sections[0].type).toBe('personal_info');
-      expect(sections[1].functionalityType).toBe('idv');
+      expect(sections[0].functionalityType).toBe('verification-idv');
+      expect(sections[1].type).toBe('personal_info');
       // Service with null functionality type should NOT be included
-      expect(sections.length).toBe(3); // personal_info + idv + review_submit
+      expect(sections.length).toBe(3); // idv + personal_info + review_submit
       expect(sections[2].type).toBe('review_submit');
     });
   });

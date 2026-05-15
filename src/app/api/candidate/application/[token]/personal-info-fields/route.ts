@@ -1,12 +1,26 @@
 // /GlobalRX_v2/src/app/api/candidate/application/[token]/personal-info-fields/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+
 import { Prisma } from '@prisma/client';
-import logger from '@/lib/logger';
+import { z } from 'zod';
+
 import { INVITATION_STATUSES } from '@/constants/invitation-status';
+import {
+  LOCKED_INVITATION_FIELD_KEYS,
+  PERSONAL_INFO_FIELD_KEYS,
+} from '@/lib/candidate/lockedInvitationFieldKeys';
+import logger from '@/lib/logger';
+import { prisma } from '@/lib/prisma';
 
 import type { FieldMetadata } from '@/types/candidate-portal';
+
+// Zod schema for the token path parameter. Matches the pattern used by the
+// sibling /structure route (API_STANDARDS S1.2 — all incoming data validated
+// via Zod before use).
+const tokenParamSchema = z.object({
+  token: z.string().min(1),
+});
 
 /**
  * GET /api/candidate/application/[token]/personal-info-fields
@@ -37,8 +51,15 @@ import type { FieldMetadata } from '@/types/candidate-portal';
  *     instructions: string | null
  *     fieldData: object        // Complete fieldData from DSX
  *     displayOrder: number
- *     locked: boolean          // Whether field is pre-filled and locked
- *     prefilledValue: string | null // Pre-filled value from invitation
+ *     locked: boolean          // Always false in Task 8.3+ — retained for
+ *                              // backward compatibility with the section's
+ *                              // existing hydration path. Locked invitation
+ *                              // fields (firstName, lastName, email, phone,
+ *                              // phoneNumber) are surfaced on the Welcome
+ *                              // page (Task 8.1) and are no longer rendered
+ *                              // on Personal Info per Task 8.3 spec Rule 1.
+ *     prefilledValue: string | null // Always null in Task 8.3+ for the same
+ *                              // reason as `locked` above.
  *   }]
  * }
  *
@@ -48,15 +69,23 @@ import type { FieldMetadata } from '@/types/candidate-portal';
  *   - 404: Invitation not found
  *   - 410: Invitation expired or already completed
  */
+
+// Task 8.3 — locked invitation fieldKeys are sourced from the invitation
+// columns and are shown to the candidate on the Welcome page (Task 8.1). Per
+// the spec for `docs/specs/personal-info-dynamic.md` Business Rule 1, they
+// must not be rendered on Personal Info any more. We drop them here in the
+// API layer so the section component never sees them and the existing render
+// loop naturally produces a dynamic-only field list. The shared constant
+// lives in `@/lib/candidate/lockedInvitationFieldKeys` so the validator and
+// the cross-section registry consult the same list.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    // Next.js 15: params is a Promise that must be awaited
-    const { token } = await params;
-
-    // Step 1: Check for candidate session
+    // Step 1: Check for candidate session BEFORE touching the path param so
+    // unauthenticated callers are rejected with 401 before any param
+    // processing runs (API_STANDARDS S1.1 — auth check first).
     const { CandidateSessionService } = await import('@/lib/services/candidateSession.service');
     const sessionData = await CandidateSessionService.getSession();
 
@@ -64,14 +93,28 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Step 2: Verify token matches session
-    if (sessionData.token !== token) {
+    // Step 2: Resolve and validate the token path parameter. Next.js 15
+    // requires `params` to be awaited; the Zod check then enforces the
+    // non-empty string shape (API_STANDARDS S1.2). Matches the
+    // sibling /structure route's pattern.
+    const { token } = await params;
+    const tokenValidation = tokenParamSchema.safeParse({ token });
+    if (!tokenValidation.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: tokenValidation.error.errors },
+        { status: 400 }
+      );
+    }
+    const { token: validatedToken } = tokenValidation.data;
+
+    // Step 3: Verify token matches session
+    if (sessionData.token !== validatedToken) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Step 3: Load invitation with package and services
+    // Step 4: Load invitation with package and services
     const invitation = await prisma.candidateInvitation.findUnique({
-      where: { token },
+      where: { token: validatedToken },
       include: {
         package: {
           include: {
@@ -99,14 +142,14 @@ export async function GET(
       return NextResponse.json({ error: 'Invitation already completed' }, { status: 410 });
     }
 
-    // Step 4: Get all services in the package
+    // Step 5: Get all services in the package
     const serviceIds = invitation.package?.packageServices.map(ps => ps.service.id) || [];
 
     if (serviceIds.length === 0) {
       return NextResponse.json({ fields: [] });
     }
 
-    // Step 5: Get all requirements for these services that belong to personal info tab
+    // Step 6: Get all requirements for these services that belong to personal info tab
     // We need to check the collectionTab value in fieldData
     const serviceRequirements = await prisma.serviceRequirement.findMany({
       where: {
@@ -126,7 +169,7 @@ export async function GET(
       }
     });
 
-    // Step 6: Filter for personal info fields and deduplicate
+    // Step 7: Filter for personal info fields and deduplicate
     type ServiceRequirementWithDSX = Prisma.ServiceRequirementGetPayload<{
       include: { requirement: true }
     }>;
@@ -148,10 +191,19 @@ export async function GET(
       const isPersonalInfoField =
         collectionTab.toLowerCase().includes('personal') ||
         collectionTab.toLowerCase().includes('subject') ||
-        ['firstName', 'lastName', 'middleName', 'email', 'phone', 'phoneNumber',
-         'dateOfBirth', 'birthDate', 'dob', 'ssn', 'socialSecurityNumber'].includes(serviceReq.requirement.fieldKey);
+        PERSONAL_INFO_FIELD_KEYS.has(serviceReq.requirement.fieldKey);
 
-      if (isPersonalInfoField && !personalInfoFields.has(serviceReq.requirement.id)) {
+      if (!isPersonalInfoField) continue;
+
+      // Task 8.3 — exclude locked invitation fieldKeys from the Personal Info
+      // response. These are shown on the Welcome page (Task 8.1) so per spec
+      // Business Rule 1 they no longer render on Personal Info. The save and
+      // saved-data routes still tolerate any historical values for these
+      // requirementIds because they remain in `formData.sections.personal_info`
+      // (spec Edge Case "previously saved data is left untouched").
+      if (LOCKED_INVITATION_FIELD_KEYS.has(serviceReq.requirement.fieldKey)) continue;
+
+      if (!personalInfoFields.has(serviceReq.requirement.id)) {
         personalInfoFields.set(serviceReq.requirement.id, {
           requirement: serviceReq.requirement,
           displayOrder: serviceReq.displayOrder
@@ -159,7 +211,7 @@ export async function GET(
       }
     }
 
-    // Step 6.5: Resolve isRequired from dsx_mappings using context-aware AND
+    // Step 7.5: Resolve isRequired from dsx_mappings using context-aware AND
     // logic.
     //
     // AND logic: a field is baseline-required only if ALL applicable mapping
@@ -192,6 +244,13 @@ export async function GET(
             country: { NOT: { disabled: true } },
           },
           select: { serviceId: true, locationId: true },
+          // Explicit orderBy per API_STANDARDS Section 7.4 — Prisma's
+          // implicit ordering is undefined and would let pair ordering
+          // drift between environments. `id: 'asc'` is a stable,
+          // deterministic key for an internal aggregation query whose
+          // result is consumed as a Set of pairs (no user-facing list
+          // order to preserve).
+          orderBy: { id: 'asc' },
         })) ?? []
       : [];
 
@@ -219,6 +278,12 @@ export async function GET(
           locationId: true,
           isRequired: true,
         },
+        // Explicit orderBy per API_STANDARDS Section 7.4 — the result is
+        // grouped by requirementId and AND-aggregated into a boolean, so
+        // there is no user-facing ordering to preserve. `id: 'asc'`
+        // gives a deterministic order across environments without
+        // affecting the aggregation result.
+        orderBy: { id: 'asc' },
       });
 
       // Group mapping rows by requirementId, then AND-aggregate isRequired
@@ -246,40 +311,17 @@ export async function GET(
     // field falls back to isRequired=false via the default lookup at line
     // ~262 below — matching spec Edge Cases 1, 2.
 
-    // Step 7: Build response with pre-fill and lock information
+    // Step 8: Build the response. After Task 8.3 every returned field is a
+    // dynamic, non-locked requirement: the LOCKED_INVITATION_FIELD_KEYS guard
+    // in Step 7 drops the four invitation-sourced fieldKeys before they reach
+    // here, so the old `switch (fieldKey)` block that populated `locked` /
+    // `prefilledValue` from invitation columns is no longer reachable in
+    // normal flow. We keep `locked: false` and `prefilledValue: null` on the
+    // response shape so the section's existing hydration path (which checks
+    // `field.locked` defensively) continues to compile without changes.
     const fields = Array.from(personalInfoFields.values())
       .map(({ requirement, displayOrder }) => {
         const fieldData: FieldMetadata = (requirement.fieldData as unknown as FieldMetadata) || {};
-        const fieldKey = requirement.fieldKey;
-
-        // Determine if this field is pre-filled from invitation
-        let locked = false;
-        let prefilledValue = null;
-
-        // Map invitation fields to DSX fields by fieldKey
-        switch (fieldKey) {
-          case 'firstName':
-            locked = true;
-            prefilledValue = invitation.firstName;
-            break;
-          case 'lastName':
-            locked = true;
-            prefilledValue = invitation.lastName;
-            break;
-          case 'email':
-            locked = true;
-            prefilledValue = invitation.email;
-            break;
-          case 'phone':
-          case 'phoneNumber':
-            if (invitation.phoneNumber) {
-              locked = true;
-              prefilledValue = invitation.phoneCountryCode
-                ? `${invitation.phoneCountryCode}${invitation.phoneNumber}`
-                : invitation.phoneNumber;
-            }
-            break;
-        }
 
         const isRequired = requiredByRequirementId.get(requirement.id) ?? false;
 
@@ -292,8 +334,8 @@ export async function GET(
           instructions: fieldData.instructions || null,
           fieldData: requirement.fieldData, // Return complete fieldData as-is
           displayOrder,
-          locked,
-          prefilledValue
+          locked: false,
+          prefilledValue: null,
         };
       })
       .sort((a, b) => a.displayOrder - b.displayOrder);

@@ -1936,23 +1936,32 @@ If the orchestrator grows beyond ~800 lines, or if a future feature adds a wholl
 
 ---
 
-### TD-076 — `personalInfoIdvFieldChecks.ts` exceeds 600-line file-size soft warning
+### TD-076 — `personalInfoIdvFieldChecks.ts` exceeds 600-line file-size hard stop
 
 | Field         | Detail                                                                  |
 |---------------|-------------------------------------------------------------------------|
 | Area          | Candidate Application — Validation engine field checks                  |
 | Severity      | Warning (file size — accepted override)                                 |
 | Identified    | May 7, 2026 - Phase 7 Stage 2 standards check                           |
+| Updated       | May 15, 2026 - Cross-section validation filtering bug fix standards check |
 | Identified by | standards-checker                                                       |
 
 **Description:**
-`src/lib/candidate/validation/personalInfoIdvFieldChecks.ts` is 632 lines, over the soft warning threshold and approaching the 600-line hard stop in CODING_STANDARDS S9.
+`src/lib/candidate/validation/personalInfoIdvFieldChecks.ts` is 659 lines, over the 600-line hard stop in CODING_STANDARDS S9.
+
+Growth history:
+- Phase 7 Stage 2 (May 7, 2026): 632 lines (over soft warning).
+- Phase 7 Stage 3a/3b: grew past 600 to 671 lines.
+- Task 8.5 (Silent Recalculation): 671 lines (no net change).
+- Cross-section validation filtering bug fix (May 15, 2026): 668 lines committed and 659 lines after the locked-invitation-fieldKey wiring pass. The bug fix is net-negative on this file; the file was already over 600 before the branch started.
 
 **Why accepted:**
 The file was deliberately extracted from `validationEngine.ts` (already TD-065) to keep the validation engine itself manageable. The collectors, AND-aggregator, `checkRequiredFields`, and the two section validators it contains share the same data shapes and helper logic — the code-reviewer's first pass concluded that splitting it further would create unnatural seams without any cohesion benefit.
 
+Per `CODING_STANDARDS.md` Section 9.4, splitting a large file reactively in the middle of unrelated work is how regressions happen. The cross-section validation filtering bug fix is a behavioral correction in the cross-section registry layer and does not own this file structurally, so the split is being deferred again rather than performed inside the bug-fix branch.
+
 **When to fix:**
-If a future stage adds a third section validator (beyond Personal Info and IDV) to this file, the section-level collector and validator pairs should be split into per-section files at that point.
+Suggested split: extract the per-fieldKey Personal Info / IDV field-key resolution helpers (the lookups that pair a requirement with its fieldKey and its DSX mapping context) into a focused module (e.g., `personalInfoFieldKeyResolver.ts`) and leave the section validators in this file. That seam is the cleanest because the field-key resolution layer is what the cross-section registry consumes, and lifting it out also makes future cross-section registry changes easier to test in isolation. If a future stage adds a third section validator (beyond Personal Info and IDV), the section-level collector and validator pairs should also be split into per-section files at that point.
 
 **Files affected:**
 - `src/lib/candidate/validation/personalInfoIdvFieldChecks.ts`
@@ -2067,6 +2076,215 @@ Trace the source of the required-state decoration in the form-rendering code pat
 
 ---
 
+### TD-085 — DSX admin UI does not propagate required-state across geographic hierarchy
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | DSX administration UI / `dsx_mappings` data integrity |
+| Severity    | Medium (data inconsistency)                 |
+| Identified  | Phase 7 follow-up — TD-084 investigation (2026-05-11) |
+
+**Description:**
+The DSX admin interface allows per-mapping `isRequired` toggling at country, region, and subregion levels without enforcing consistency between levels. As a result, the `dsx_mappings` table can contain inconsistent geographic-hierarchy data: a parent country may be marked required while a subregion under it is marked optional, or vice versa.
+
+The intended product behavior is that geographic-hierarchy required-state propagates:
+- Marking a country required should mark all subregions under it required automatically.
+- Unchecking a single subregion should uncheck the parent country (and any other subregions that were implicitly required by the parent).
+- Required-state inheritance should be enforced at edit time, so the table cannot end up with inconsistent levels.
+
+Today this propagation is not implemented. The TD-084 investigation surfaced this when explaining the OR-merge logic in the `/fields` route: the route's merge behavior partly compensates for the table's inability to express consistent multi-level rules.
+
+**Why deferred:**
+This is a DSX admin-UI concern, not a candidate-portal concern. TD-084 will land the rendering / validation fixes assuming the table may contain inconsistent data and will use OR-merge to compensate. Once the admin UI enforces propagation, the OR-merge becomes a safety net rather than a workaround.
+
+**When to fix:**
+Implement required-state inheritance in the DSX admin UI: marking a parent location required propagates to children; unchecking a child propagates up to the parent. Add a data-integrity migration (or one-time cleanup script) to reconcile any existing inconsistent rows in `dsx_mappings`.
+
+---
+
+### TD-086 — `fromDate` / `toDate` asterisks hardcoded in AddressBlockInput.tsx
+
+| Field       | Detail                                      |
+|-------------|---------------------------------------------|
+| Area        | Candidate portal — AddressBlockInput component |
+| Severity    | Low (visual only — likely correct behavior already) |
+| Identified  | Phase 7 follow-up — TD-084 investigation (2026-05-11) |
+
+**Description:**
+`src/components/candidate/form-engine/AddressBlockInput.tsx:493` and `:537` render an unconditional red asterisk on the `fromDate` and `toDate` fields with no condition tied to `dsx_mappings` or any per-country logic:
+
+```tsx
+<span className="text-red-500 ml-1 required-indicator">*</span>
+```
+
+The asterisk is always rendered, regardless of which country the entry is for or whether the mapping data says required. Surfaced by the TD-084 investigation.
+
+The likely correct behavior is to leave these asterisks unconditional, because date coverage is required for any address-history entry to be useful (scope validation and gap detection both depend on dates being populated). However, this hasn't been explicitly verified as the intended behavior.
+
+**Why deferred:**
+The asterisks are outside `dsx_mappings`'s scope (mappings cover per-piece required-state for street / city / state / postal code, not dates). The behavior is probably intentional. TD-084's fix should NOT touch these — it's a scope-creep trap.
+
+**When to fix:**
+Confirm with product whether dates should remain unconditionally required for address-history entries. If yes, document the decision in code with a brief comment near the asterisks. If no, align the date asterisks with whatever per-country logic governs them (probably a separate mapping or config).
+
+---
+
+### TD-087 — Batched dSXMapping.findMany in /fields route aggregator
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | DSX field aggregation / API performance               |
+| Severity      | Minor (Performance optimization)                      |
+| Identified    | May 11, 2026 - TD-084 Implementation                  |
+| Identified by | Implementer                                           |
+
+**Description:**
+The `/fields` route (`src/app/api/candidate/application/[token]/fields/route.ts`) calls `dsx_mappings.findMany` once per `(serviceId, levelId)` combination when building the input to the new aggregator (`aggregateFieldsRequired.ts`, in the same directory) introduced by TD-084. For a candidate package with N services and M geographic levels, this issues N×M queries instead of a single batched query.
+
+**Why deferred:**
+The existing test fixtures in `route.test.ts` are structured around per-`(serviceId, levelId)` mocks. Collapsing to a single batched query would have required restructuring those fixtures, which expanded the scope of TD-084 beyond what was authorized. The current N×M pattern is correct — this is a performance optimization, not a correctness issue.
+
+**When to fix:**
+When `route.test.ts` fixtures are restructured for another reason, or if `/fields` route latency becomes a measurable issue under load. Likely a natural pairing with TD-089 (test-infrastructure cleanup in the same file).
+
+**Recommendation:**
+Collapse the per-`(serviceId, levelId)` `findMany` loop in `route.ts` (around lines 328-349) into a single `findMany` call with a compound `where` clause covering all `(serviceId, levelId)` pairs. The aggregator (`aggregateFieldsRequired.ts`) already takes a flat row list and does not need to change. Update `route.test.ts` mock fixtures to support the batched call shape.
+
+---
+
+### TD-088 — Pre-existing typecheck error in IdvSection.tsx:538
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | TypeScript strict mode / Candidate form components    |
+| Severity      | Low (Type safety, no runtime impact)                  |
+| Identified    | May 11, 2026 - TD-084 Implementation                  |
+| Identified by | Implementer                                           |
+
+**Description:**
+A pre-existing typecheck error at `src/components/candidate/form-engine/IdvSection.tsx:538`. The expression resolves to `FieldMetadata | null | undefined` where the downstream consumer's signature expects `FieldMetadata | undefined`. The mismatch does not cause runtime issues because `null` is coerced to `undefined` at the consumer boundary, but it fails strict typecheck.
+
+**Why deferred:**
+This error exists on `dev` and was not introduced by TD-084. Fixing it requires either narrowing the type at the source or adjusting the consumer's signature — both touch code outside TD-084's scope. The implementer flagged it during the Stage 3b pass and preserved scope discipline by not touching it.
+
+**When to fix:**
+During the next pass on `IdvSection.tsx`, or as part of a broader TypeScript strict-mode cleanup.
+
+**Recommendation:**
+Either narrow the upstream expression to exclude `null` at the source, or accept `FieldMetadata | null | undefined` at the consumer's signature and normalize there.
+
+---
+
+### TD-089 — Pre-existing typecheck error in route.test.ts:903 mock setup
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | TypeScript strict mode / Test infrastructure          |
+| Severity      | Low (Type safety in test code, no runtime impact)     |
+| Identified    | May 11, 2026 - TD-084 Implementation                  |
+| Identified by | Implementer                                           |
+
+**Description:**
+A pre-existing typecheck error at `src/app/api/candidate/application/[token]/fields/route.test.ts:903`. The argument passed to `dSXAvailability.findFirst.mockImplementation` is not assignable to the type expected by the Prisma client's generated `findFirst` signature. The implementer verified by targeted git stash that this error was inherited from an earlier commit on the TD-084 branch and was NOT introduced by Stage 3b's work.
+
+**Why deferred:**
+The mock works correctly at runtime — the type mismatch is between the simplified mock argument shape and the full Prisma type. Fixing it requires either matching the full Prisma argument shape in the mock or casting at the boundary. Both are test-infrastructure cleanup that was out of scope for TD-084.
+
+**When to fix:**
+When test fixtures for `route.test.ts` are next restructured — likely alongside TD-087's batched-query work, which will already require fixture changes in the same file.
+
+**Recommendation:**
+Either update the mock implementation to match the full Prisma `findFirst` argument type, or add a type assertion at the mock boundary. Consider pairing with TD-087's fixture restructure to address both at once.
+
+---
+
+### TD-090 — `portal-layout.tsx` file size exceeds 600-line hard stop
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Portal / Component Structure                |
+| Severity      | Warning                                               |
+| Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
+| Updated       | May 15, 2026 - Cross-section validation filtering bug fix |
+| Identified by | Standards Checker                                     |
+
+**Description:**
+`src/components/candidate/portal-layout.tsx` is 1531 lines, well over the 600-line hard stop in `CODING_STANDARDS.md` Section 9.1. The file handles layout, navigation, section rendering, form state, template variable value construction, visit tracking, the linear step navigation callbacks, the Task 8.5 dynamic step visibility / silent recalculation logic, and the Task 8.5 effective validation result patching that hides skipped dynamic steps from Review & Submit — responsibilities that should be split into smaller focused modules.
+
+Growth history:
+- Pre-Task 8.1: 841 lines
+- Post-Task 8.1: 863 lines (+22, authorized by the Task 8.1 technical plan)
+- Post-Task 8.2: 991 lines (+128, navigation callbacks and derived memos)
+- Post-Task 8.5: 1521 lines (+530, dynamic step visibility, silent recalculation, visit tracking, effective validation result patching)
+- Cross-section validation filtering bug fix (May 15, 2026): 1531 lines (+10, sidebar/Review wiring for the bug fix and small effective-result patch refinements). The bug-fix delta is a small increment to a file that was already 2.5x over the hard stop.
+
+**Why deferred:**
+Per `CODING_STANDARDS.md` Section 9.4, splitting a large file reactively in the middle of unrelated work is how regressions happen. Andy explicitly approved the Task 8.2 addition as a conscious-decision override of the 600-line hard stop, on the grounds that the new code is small, the visual rendering was extracted into the new `StepNavigationButtons` component, and a full split is the correct standalone task. The same reasoning applies to the bug fix increment: the bug fix is a behavioral correction across multiple cross-section validation files and the portal-layout change is wiring only.
+
+**When to fix:**
+As a dedicated follow-up task before any further additions to this file. Suggested first split: extract the navigation/visibility logic — the dynamic step visibility computation, the visible-sections derivation, the visit tracking effects, and the effective validation result patching — into a custom hook (e.g., `useDynamicStepNavigation` returning `visibleSectionsWithStatus`, `effectiveValidationResult`, `disableSubmitForDynamicGaps`, and the visit-tracking callbacks). That hook would own roughly 200–300 lines of the file's most cohesive logic, can be unit-tested in isolation, and would shrink the component to under 1300 lines. Subsequent splits can extract section rendering and form state management into their own hooks.
+
+---
+
+### TD-091 — Hardcoded `'not_started'` status strings in structure route
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Application API                             |
+| Severity      | Warning                                               |
+| Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
+| Identified by | Standards Checker                                     |
+
+**Description:**
+`src/app/api/candidate/application/[token]/structure/route.ts` uses the string literal `'not_started'` in 6 places. Per `DATABASE_STANDARDS.md` Section 5.1-5.2, status values must come from named constants, not hardcoded strings.
+
+**Why deferred:**
+The values are correct and match the database. This is a code quality issue, not a bug. No section status constants file exists yet — creating one and updating all references is a small dedicated task.
+
+**When to fix:**
+When working on the structure route for another reason, or during a constants standardization pass. Create a `SECTION_STATUSES` constant (similar to the existing order/service status constants) and replace all 6 occurrences.
+
+---
+
+### TD-092 — `workflow-dialog.tsx` email template hint list not using shared variable registry
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Admin Workflows / Email Templates                     |
+| Severity      | Low                                                   |
+| Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
+| Identified by | Architect                                             |
+
+**Description:**
+`src/components/modules/workflows/workflow-dialog.tsx` contains a hardcoded HTML list of email template variable hints including `candidateFirstName`, `candidateLastName`, `candidateEmail`, `candidatePhone`, `companyName`, `inviteLink`, and `expirationDate`. Task 8.1 created a shared variable registry at `src/lib/templates/variableRegistry.ts` but deliberately did not migrate this hint list because `inviteLink` is not in the v1 registry (it's only meaningful at email-send time, not workflow-section-render time).
+
+**Why deferred:**
+Migrating the hint list would drop `inviteLink` from the visible hints, which is a behavior change not authorized by the Task 8.1 spec. The email-send feature has not been built yet.
+
+**When to fix:**
+When the email-send feature is implemented. At that point, add `inviteLink` to the shared registry (category: `'invitation'`) and replace the hardcoded hint list in `workflow-dialog.tsx` with the `WorkflowSectionVariableReference` component (or a variant of it that includes invitation-only variables).
+
+---
+
+### TD-093 — E2e seed data missing for template variable Playwright tests
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Testing / E2e                                         |
+| Severity      | Low                                                   |
+| Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
+| Identified by | Code Reviewer                                         |
+
+**Description:**
+`e2e/tests/template-variable-system.spec.ts` expects a seeded candidate invitation with token `'test-template-variable-token'`, firstName `'Sarah'`, company `'Acme Corp'`, and a workflow section containing template variable placeholders. No matching seed data exists in the e2e seed scripts. The tests will skip or fail in CI until the seed is created.
+
+**Why deferred:**
+The e2e seed infrastructure was not in scope for Task 8.1. The unit and component tests (93 tests) provide full coverage of the feature logic.
+
+**When to fix:**
+When setting up or expanding the e2e seed data for the candidate portal flow. Add a seeded invitation matching the test's expectations to the e2e seed script.
+
+---
 ## Resolved Items
 
 ---

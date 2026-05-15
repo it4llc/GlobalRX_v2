@@ -3,27 +3,24 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
-import { ScopeDisplay } from './ScopeDisplay';
-import { EntryCountrySelector } from './EntryCountrySelector';
-import { RepeatableEntryManager } from './RepeatableEntryManager';
-import { AddressBlockInput } from './AddressBlockInput';
-import { AggregatedRequirements } from './AggregatedRequirements';
-import CandidateDocumentUpload from '../CandidateDocumentUpload';
-import { useEntryFieldsLoader, type EntryDsxField as DsxField } from './useEntryFieldsLoader';
+import { AutoSaveIndicator, SaveStatus } from '@/components/candidate/form-engine/AutoSaveIndicator';
+import { ScopeDisplay } from '@/components/candidate/form-engine/ScopeDisplay';
+import { EntryCountrySelector } from '@/components/candidate/form-engine/EntryCountrySelector';
+import { RepeatableEntryManager } from '@/components/candidate/form-engine/RepeatableEntryManager';
+import { AddressBlockInput } from '@/components/candidate/form-engine/AddressBlockInput';
+import CandidateDocumentUpload from '@/components/candidate/CandidateDocumentUpload';
+import { useEntryFieldsLoader, type EntryDsxField as DsxField } from '@/components/candidate/form-engine/useEntryFieldsLoader';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
+// Task 8.4 — AggregatedRequirements (the deduplicated additional fields and
+// aggregated documents) moved out of Address History to its own
+// RecordSearchSection. Address History is now entries-only.
 import {
   ADDRESS_HISTORY_CROSS_SECTION_SOURCE,
   buildAddressHistorySubjectRequirements,
-  buildAggregatedDocumentRequirementsForProgress,
   buildEntryFieldsBuckets,
-  computeAddressHistoryAggregatedItems,
-  extractAggregatedUploadedDocuments,
-  readAggregatedItemScope,
   readEntryUploadedDocument,
-  routeAddressHistoryDocumentScope,
   selectPerEntryDocumentFields,
   splitFieldsByCollectionTab,
 } from '@/lib/candidate/addressHistoryStage4Wiring';
@@ -47,7 +44,6 @@ import type {
   CrossSectionRequirementEntry,
   CrossSectionTarget,
   SectionStatus,
-  UploadedDocumentMetadata,
 } from '@/types/candidate-stage4';
 
 interface CountryApiResponse {
@@ -79,12 +75,12 @@ interface AddressHistorySectionProps {
   onSaveSuccess?: () => void;
 }
 
-// Address History only loads record-type services per the structure endpoint,
-// so every field gets the record bucket index. See aggregatedItems memo below.
-const SERVICE_TYPE_ORDER_RECORD = 1;
-
 /**
  * AddressHistorySection — Phase 6 Stage 3 + Stage 4 wiring. See spec docs.
+ *
+ * Task 8.4 split: aggregated additional fields and aggregated documents now
+ * live in RecordSearchSection. Address History is entries-only and posts an
+ * entries-only payload (no `aggregatedFields` key) to /save.
  */
 export function AddressHistorySection({
   token,
@@ -98,15 +94,13 @@ export function AddressHistorySection({
   const { t } = useTranslation();
   const [scope, setScope] = useState<ScopeInfo | null>(null);
   const [entries, setEntries] = useState<EntryData[]>([]);
-  const [aggregatedFieldValues, setAggregatedFieldValues] = useState<Record<string, RepeatableFieldValue>>({});
   const [countries, setCountries] = useState<Array<{ id: string; name: string }>>([]);
   const [countriesError, setCountriesError] = useState(false);
-  // DSX requirement IDs collected on the Personal Info tab (used to dedupe
-  // the aggregated area so PI fields don't reappear here).
-  const [personalInfoRequirementIds, setPersonalInfoRequirementIds] = useState<Set<string>>(new Set());
   // Per-entry field-loading state lives in useEntryFieldsLoader.
+  // TD-084 — the loader now returns `fieldsByEntry` (flat per-entry keying)
+  // because the /fields route OR-merges across services server-side.
   const {
-    fieldsByEntryService,
+    fieldsByEntry,
     loadFieldsForEntry,
     invalidateEntry,
     clearEntry,
@@ -142,22 +136,10 @@ export function AddressHistorySection({
         }
       }
 
-      // Personal info requirement IDs — dedupe source for the aggregated area.
-      try {
-        const piResponse = await fetch(`/api/candidate/application/${token}/personal-info-fields`);
-        if (piResponse.ok) {
-          const piData = await piResponse.json();
-          const ids = new Set<string>(
-            (piData.fields ?? []).map((f: { requirementId: string }) => f.requirementId)
-          );
-          setPersonalInfoRequirementIds(ids);
-        }
-      } catch (error) {
-        logger.warn('Failed to load personal-info-fields for aggregated dedup', {
-          event: 'address_history_personal_info_dedup_fetch_failed',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
+      // Task 8.4: personal-info-fields fetch moved to RecordSearchSection (it
+      // is the section that needs the dedup source). Address History no
+      // longer renders aggregated fields, so it no longer needs the dedup
+      // requirement IDs.
 
       const countriesResponse = await fetch(`/api/candidate/application/${token}/countries`);
       if (countriesResponse.ok) {
@@ -173,13 +155,13 @@ export function AddressHistorySection({
       }
 
       // Saved data — server may return no section; client still shows one entry.
+      // Task 8.4: only entries are read here. The legacy aggregatedFields
+      // key on address_history is intentionally ignored (plan §11.1).
       const savedDataResponse = await fetch(`/api/candidate/application/${token}/saved-data`);
       if (savedDataResponse.ok) {
         const savedData = await savedDataResponse.json();
         const section = savedData.sections?.address_history;
         const savedEntries: EntryData[] = section?.entries ?? [];
-        const savedAggregated: Record<string, RepeatableFieldValue> =
-          section?.aggregatedFields ?? {};
 
         if (savedEntries.length > 0) {
           setEntries(savedEntries);
@@ -192,7 +174,6 @@ export function AddressHistorySection({
         } else {
           setEntries([createEmptyEntry(0)]);
         }
-        setAggregatedFieldValues(savedAggregated);
       } else {
         setEntries([createEmptyEntry(0)]);
       }
@@ -334,16 +315,6 @@ export function AddressHistorySection({
     setPendingSave(true);
   };
 
-  const handleAggregatedFieldChange = (requirementId: string, value: FieldValue) => {
-    const normalized: RepeatableFieldValue =
-      value instanceof Date ? value.toISOString() : (value as RepeatableFieldValue);
-    setAggregatedFieldValues((prev) => ({ ...prev, [requirementId]: normalized }));
-  };
-
-  const handleAggregatedFieldBlur = () => {
-    setPendingSave(true);
-  };
-
   const saveEntries = async () => {
     setSaveStatus('saving');
     setPendingSave(false);
@@ -351,6 +322,9 @@ export function AddressHistorySection({
       const response = await fetch(`/api/candidate/application/${token}/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Task 8.4: payload is entries-only. aggregatedFields are now owned
+        // by RecordSearchSection and posted via the separate
+        // `sectionType: 'record_search'` save body.
         body: JSON.stringify({
           sectionType: 'address_history',
           sectionId: 'address_history',
@@ -358,7 +332,6 @@ export function AddressHistorySection({
             ...entry,
             entryOrder: index
           })),
-          aggregatedFields: aggregatedFieldValues
         })
       });
       if (!response.ok) {
@@ -382,41 +355,28 @@ export function AddressHistorySection({
   // Stage 4 derivations — pure helpers in addressHistoryStage4Wiring own the
   // transforms; memoizing keeps the wiring hook's effect deps stable.
   const entryFieldBuckets = useMemo(
-    () => buildEntryFieldsBuckets(entries, fieldsByEntryService, serviceIds),
-    [entries, fieldsByEntryService, serviceIds],
+    () => buildEntryFieldsBuckets(entries, fieldsByEntry),
+    [entries, fieldsByEntry],
   );
   const fieldsSplit = useMemo(() => splitFieldsByCollectionTab(entryFieldBuckets), [entryFieldBuckets]);
-  const aggregatedItems = useMemo(
-    () =>
-      computeAddressHistoryAggregatedItems({
-        buckets: entryFieldBuckets,
-        personalInfoRequirementIds,
-        resolveServiceTypeOrder: () => SERVICE_TYPE_ORDER_RECORD,
-      }),
-    [entryFieldBuckets, personalInfoRequirementIds],
-  );
   const subjectRequirements = useMemo(
     () => buildAddressHistorySubjectRequirements(entries, fieldsSplit.subjectFieldsByCountry),
     [entries, fieldsSplit.subjectFieldsByCountry],
   );
-  const aggregatedDocuments = useMemo(
-    () => extractAggregatedUploadedDocuments(aggregatedFieldValues),
-    [aggregatedFieldValues],
-  );
-  const aggregatedDocumentRequirements = useMemo(
-    () => buildAggregatedDocumentRequirementsForProgress(aggregatedItems),
-    [aggregatedItems],
-  );
+  // Task 8.4: aggregated documents and their requirements moved to
+  // RecordSearchSection. Address History's progress now reflects entries-
+  // only completeness — empty aggregated buckets satisfy the progress
+  // helper's "no aggregated docs required here" contract.
   const progressInputs = useMemo(
     () =>
       buildRepeatableProgressInputs({
         entries,
         fieldsByCountry: fieldsSplit.localFieldsByCountry,
         loading,
-        aggregatedDocuments,
-        aggregatedDocumentRequirements,
+        aggregatedDocuments: {},
+        aggregatedDocumentRequirements: [],
       }),
-    [entries, fieldsSplit.localFieldsByCountry, loading, aggregatedDocuments, aggregatedDocumentRequirements],
+    [entries, fieldsSplit.localFieldsByCountry, loading],
   );
   useRepeatableSectionStage4Wiring({
     triggeredBy: ADDRESS_HISTORY_CROSS_SECTION_SOURCE,
@@ -427,31 +387,9 @@ export function AddressHistorySection({
     onProgressUpdate,
   });
 
-  // Aggregated-area document upload (per_search / per_order — BR 11 + BR 23).
-  // jurisdictionId falls back to 'global' per technical plan Risk #2 ruling.
-  const routeAggregatedKey = (requirementId: string) =>
-    routeAddressHistoryDocumentScope({
-      requirementId,
-      scope: readAggregatedItemScope(aggregatedItems.find((i) => i.requirementId === requirementId)),
-      serviceId: serviceIds[0],
-    }).key;
-  const handleAggregatedDocumentUpload = (
-    requirementId: string,
-    metadata: UploadedDocumentMetadata,
-  ) => {
-    const key = routeAggregatedKey(requirementId);
-    setAggregatedFieldValues((prev) => ({ ...prev, [key]: metadata as unknown as RepeatableFieldValue }));
-    setPendingSave(true);
-  };
-  const handleAggregatedDocumentRemove = (requirementId: string) => {
-    const key = routeAggregatedKey(requirementId);
-    setAggregatedFieldValues((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-    setPendingSave(true);
-  };
+  // Task 8.4: aggregated-area document upload handlers moved to
+  // RecordSearchSection. Address History only handles per_entry document
+  // uploads inline within each entry.
 
   const renderEntry = (entry: EntryData) => {
     // The deduped per-entry field list is already computed by
@@ -562,17 +500,6 @@ export function AddressHistorySection({
         entryLabelKey="candidate.addressHistory.entryLabel"
         minimumEntries={1}
         maxEntries={deriveMaxEntries(scope)}
-      />
-
-      <AggregatedRequirements
-        items={aggregatedItems}
-        values={aggregatedFieldValues}
-        onAggregatedFieldChange={handleAggregatedFieldChange}
-        onAggregatedFieldBlur={handleAggregatedFieldBlur}
-        uploadedDocuments={aggregatedDocuments}
-        onDocumentUploadComplete={handleAggregatedDocumentUpload}
-        onDocumentRemove={handleAggregatedDocumentRemove}
-        token={token}
       />
     </div>
   );

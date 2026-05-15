@@ -8,19 +8,26 @@
 // Why this module exists:
 //   AddressHistorySection uses a different field-storage shape from
 //   Education / Employment. Instead of caching DSX fields by `countryId`, it
-//   caches them per-entry-per-service via `useEntryFieldsLoader`'s
-//   `fieldsByEntryService` map (keyed `${entryId}::${serviceId}`). The shared
-//   wiring helpers in `useRepeatableSectionStage4Wiring.ts` consume a
-//   country-keyed map; without an adapter, the section would have to inline
-//   ~150 lines of transform logic, pushing it past the 600-LOC hard stop
-//   (it is currently at 596 LOC).
+//   caches them per-entry via `useEntryFieldsLoader`'s `fieldsByEntry` map
+//   (keyed `${entryId}`). The shared wiring helpers in
+//   `useRepeatableSectionStage4Wiring.ts` consume a country-keyed map;
+//   without an adapter, the section would have to inline ~150 lines of
+//   transform logic, pushing it past the 600-LOC hard stop.
 //
-//   This file owns the adaptation: walk every loaded service's fields for an
-//   entry, dedupe by requirementId, split by `fieldData.collectionTab` into
-//   subject-targeted vs local fields, and produce the country-keyed shapes
-//   the shared helpers consume. It also owns the document-scope routing
-//   helpers (per_entry / per_search / per_order key construction) called by
-//   the section's upload-complete / remove handlers per BR 11 + BR 23.
+//   This file owns the adaptation: walk the loaded fields for an entry,
+//   dedupe by requirementId (defensively — the route already de-dupes under
+//   TD-084), split by `fieldData.collectionTab` into subject-targeted vs
+//   local fields, and produce the country-keyed shapes the shared helpers
+//   consume. It also owns the document-scope routing helpers (per_entry /
+//   per_search / per_order key construction) called by the section's
+//   upload-complete / remove handlers per BR 11 + BR 23.
+//
+// TD-084 — the helper used to walk every service id for an entry and merge
+//   fields across services. The route now OR-merges across services in one
+//   response, so the helper takes a per-entry map and iterates the entry's
+//   single field list instead. The defensive dedup-by-requirementId stays
+//   so the helper remains correct if the input ever carries duplicates
+//   (e.g., from a future change to the route's response composition).
 //
 //   Pure: no React hooks, no module-level state. Every helper accepts inputs
 //   and returns a transformed value. This is what lets the section file
@@ -28,6 +35,10 @@
 //   `useRepeatableSectionStage4Wiring(...)` at the call site.
 
 import type { EntryDsxField } from '@/components/candidate/form-engine/useEntryFieldsLoader';
+import {
+  isLockedInvitationFieldKey,
+  isPersonalInfoFieldKey,
+} from '@/lib/candidate/lockedInvitationFieldKeys';
 import type {
   RepeatableWiringEntry,
   RepeatableWiringField,
@@ -60,23 +71,23 @@ export const DEFAULT_DOCUMENT_SCOPE = 'per_search';
 export const GLOBAL_JURISDICTION_PLACEHOLDER = 'global';
 
 /**
- * One bucket of fields belonging to a single entry, after the per-service
- * fields returned by useEntryFieldsLoader have been deduplicated by
- * requirementId. The buckets carry the entry's `countryId` because the
- * shared wiring helpers key by country, but AddressHistory's source state
- * keys by entryId::serviceId — this struct sits in between.
+ * One bucket of fields belonging to a single entry, after the fields
+ * returned by useEntryFieldsLoader have been deduplicated by requirementId.
+ * The buckets carry the entry's `countryId` because the shared wiring
+ * helpers key by country, but AddressHistory's source state is keyed by
+ * entryId — this struct sits in between.
  */
 export interface AddressHistoryEntryFieldsBucket {
   entryId: string;
   countryId: string | null;
-  /** Deduped fields for this entry across every service that loaded for it. */
+  /** Deduped fields for this entry. */
   fields: EntryDsxField[];
 }
 
 /**
  * The shape `useRepeatableSectionStage4Wiring`'s helpers expect: fields keyed
- * by `countryId`. AddressHistory's source data is keyed by `entryId::serviceId`,
- * so we need to adapt before calling those helpers.
+ * by `countryId`. AddressHistory's source data is keyed by `entryId`, so we
+ * need to adapt before calling those helpers.
  *
  * Why this adaptation matters: the shared
  * `buildSubjectRequirementsForEntries` and `buildRepeatableProgressInputs`
@@ -112,9 +123,22 @@ export function readCollectionTab(field: EntryDsxField): string {
  * True when a DSX field is targeted at the Personal Information / subject
  * section per BR 17 (`collectionTab === 'subject'`, case-insensitive substring
  * match to mirror the lenient detection used in Education / Employment).
+ *
+ * Cross-section-validation-filtering bug fix: a field also counts as
+ * subject-targeted when its `fieldKey` lives in `PERSONAL_INFO_FIELD_KEYS`
+ * (the same heuristic `personal-info-fields/route.ts` uses to surface PI
+ * fields without an explicit `collectionTab`). Address History does not
+ * render arbitrary inline fields — only the address_block and per_entry
+ * documents — so a PI-fieldKey requirement that the UI cannot show would
+ * otherwise be funneled into `localFieldsByCountry` and reported as a
+ * missing required field by `computeRepeatableSectionStatus`, keeping the
+ * sidebar indicator red even after the candidate filled the field in on
+ * Personal Info. See Bug A in
+ * docs/specs/cross-section-validation-filtering-bugfix.md.
  */
 export function isSubjectTargeted(field: EntryDsxField): boolean {
-  return readCollectionTab(field).toLowerCase().includes('subject');
+  if (readCollectionTab(field).toLowerCase().includes('subject')) return true;
+  return isPersonalInfoFieldKey(field.fieldKey);
 }
 
 /**
@@ -141,30 +165,32 @@ export function readDocumentScope(field: EntryDsxField): string | null {
 
 /**
  * Build per-entry deduped field buckets from useEntryFieldsLoader's
- * `${entryId}::${serviceId}`-keyed map. Fields appearing in multiple services
- * for the same entry collapse to one — the first occurrence wins, matching
- * the dedup pattern already used in `AddressHistorySection.renderEntry`.
+ * `${entryId}`-keyed map.
+ *
+ * TD-084 — the helper now takes the flat per-entry map directly. The route's
+ * /fields endpoint OR-merges across all package services in one response,
+ * so the per-service walk this helper used to perform is no longer needed.
+ * The dedup-by-requirementId loop stays as a defensive measure: if the
+ * route's response ever contains duplicates (e.g., from a future composition
+ * change or a hand-crafted test fixture), the helper still produces a
+ * deduped output — first wins.
  *
  * Pure: no hooks, no I/O. Stable order: entries are returned in input order;
- * fields are returned in the order they appeared in the source map.
+ * fields are returned in the order they appeared in `fieldsByEntry[entryId]`.
  */
 export function buildEntryFieldsBuckets(
   entries: ReadonlyArray<{ entryId: string; countryId: string | null }>,
-  fieldsByEntryService: Record<string, EntryDsxField[]>,
-  serviceIds: ReadonlyArray<string>,
+  fieldsByEntry: Record<string, EntryDsxField[]>,
 ): AddressHistoryEntryFieldsBucket[] {
   const buckets: AddressHistoryEntryFieldsBucket[] = [];
   for (const entry of entries) {
     const seen = new Set<string>();
     const fields: EntryDsxField[] = [];
-    for (const serviceId of serviceIds) {
-      const key = `${entry.entryId}::${serviceId}`;
-      const list = fieldsByEntryService[key] ?? [];
-      for (const field of list) {
-        if (seen.has(field.requirementId)) continue;
-        seen.add(field.requirementId);
-        fields.push(field);
-      }
+    const list = fieldsByEntry[entry.entryId] ?? [];
+    for (const field of list) {
+      if (seen.has(field.requirementId)) continue;
+      seen.add(field.requirementId);
+      fields.push(field);
     }
     buckets.push({
       entryId: entry.entryId,
@@ -256,6 +282,13 @@ export function buildAddressHistorySubjectRequirements(
     if (!entry.countryId) continue;
     const fields = subjectFieldsByCountry[entry.countryId] ?? [];
     for (const field of fields) {
+      // Cross-section-validation-filtering bug fix (Bug B): locked invitation
+      // fieldKeys (firstName, lastName, email, phone, phoneNumber) are
+      // pre-filled from the invitation columns and not editable by the
+      // candidate. They must not reach the cross-section registry — otherwise
+      // they appear in the Personal Info "now required" banner and drive
+      // asterisks on fields the candidate cannot fill in.
+      if (isLockedInvitationFieldKey(field.fieldKey)) continue;
       out.push({
         fieldId: field.requirementId,
         fieldKey: field.fieldKey,

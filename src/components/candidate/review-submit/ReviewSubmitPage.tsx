@@ -26,7 +26,7 @@ import type {
   ValidationStatus,
 } from '@/lib/candidate/validation/types';
 
-import { ReviewSectionBlock } from './ReviewSectionBlock';
+import { ReviewSectionBlock } from '@/components/candidate/review-submit/ReviewSectionBlock';
 
 /**
  * Minimal section descriptor consumed by ReviewSubmitPage to drive both the
@@ -35,7 +35,15 @@ import { ReviewSectionBlock } from './ReviewSectionBlock';
  * Review & Submit page renders sections in the canonical sidebar order
  * (Bug 3) with their localized titles (Bug 1b) instead of the raw section
  * IDs the validation engine returns as `sectionName`.
+ *
+ * Task 8.5 — the shell now passes a FILTERED list to this component:
+ * dynamic steps (`personal_info`, `record_search`) that have been skipped
+ * by the cross-section / aggregated-items visibility check are absent from
+ * the descriptor list, so the Review & Submit page does not list them.
  */
+// Consumed only by ReviewSubmitPage itself; portal-layout.tsx constructs
+// conforming objects inline without importing this type. Kept colocated
+// (see plan §10.1) rather than moved to /src/types/.
 export interface ReviewPageSectionDescriptor {
   /** Section identifier — matches FullValidationResult.summary.sections[i].sectionId. */
   id: string;
@@ -46,6 +54,20 @@ export interface ReviewPageSectionDescriptor {
    * so passing a raw label here is safe.
    */
   title: string;
+  /**
+   * Optional pre-merged status from the shell's `visibleSectionsWithStatus`
+   * (the same value the sidebar SectionProgressIndicator renders). When
+   * present, it takes precedence over the validation summary's status —
+   * needed for sections that have no server-side validator entry (e.g.
+   * Record Search post-Task-8.4, where the shell's local computation +
+   * visited/departed override is the only authoritative signal). Without
+   * this, ReviewSubmitPage falls back to `not_started` and shows grey for
+   * sections the sidebar is correctly showing as green or red.
+   *
+   * Cross-section-validation-filtering bug fix Issue 2 — see
+   * docs/specs/cross-section-validation-filtering-bugfix.md.
+   */
+  status?: ValidationStatus;
 }
 
 interface ReviewSubmitPageProps {
@@ -87,6 +109,28 @@ interface ReviewSubmitPageProps {
    * using the existing `.form-error` class.
    */
   submitError?: string | null;
+  /**
+   * Task 8.2 (Linear Step Navigation) — optional Back-button handler.
+   * When provided, the Review & Submit page renders an outline-style
+   * Back button alongside the Submit button (spec rule 5). When omitted,
+   * no Back button is rendered, preserving backwards compatibility for
+   * existing test fixtures that only exercise the Stage 1/2 surface.
+   * The Back button on this page is rendered by ReviewSubmitPage itself
+   * (not by the shared StepNavigationButtons component) so it can sit in
+   * the same row as Submit per the spec.
+   */
+  onBack?: () => void;
+  /**
+   * Task 8.5 (Silent Recalculation and Step Skipping) — when `true`, the
+   * Submit button is forced disabled regardless of
+   * `validationResult.summary.allComplete`. Used by the shell to enforce
+   * client-side dynamic-step skipping (Spec Business Rule 9 d): when a
+   * previously-skipped step has just come back into scope and is locally
+   * incomplete, the shell sets this `true` so the candidate cannot submit
+   * until they fill the new fields. Optional and default-false so existing
+   * tests / fixtures keep their current behavior.
+   */
+  disableSubmit?: boolean;
 }
 
 export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
@@ -98,6 +142,8 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
     onSubmit,
     submitting = false,
     submitError = null,
+    onBack,
+    disableSubmit = false,
   } = props;
 
   // Build the renderable list. Two paths so existing tests that only pass
@@ -122,10 +168,18 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
     );
     renderableSections = sections.map((sec) => {
       const fromSummary = summaryById.get(sec.id);
+      // Prefer the descriptor's pre-merged status when supplied by the shell
+      // (it already reflects local + validation merging plus the
+      // record_search visited+departed override). Falling through to the
+      // summary status alone would show grey for sections the sidebar is
+      // correctly showing as green/red. See descriptor `status` doc and
+      // docs/specs/cross-section-validation-filtering-bugfix.md Issue 2.
+      const status: ValidationStatus =
+        sec.status ?? fromSummary?.status ?? 'not_started';
       return {
         sectionId: sec.id,
         sectionName: t(sec.title),
-        status: fromSummary?.status ?? 'not_started',
+        status,
         errors: fromSummary?.errors ?? [],
       };
     });
@@ -139,7 +193,7 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="mx-auto w-full max-w-3xl" data-testid="review-submit-page">
       <header className="mb-6">
         <h2 className="text-xl font-semibold text-gray-900">
           {t('candidate.reviewSubmit.title')}
@@ -179,43 +233,69 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
           </div>
         ) : null}
 
-        <button
-          type="button"
-          // Phase 7 Stage 2 — Submit is enabled only when:
-          //   1. validation reports allComplete=true (Spec Rule 1), AND
-          //   2. the host wired an onSubmit handler, AND
-          //   3. no submission is currently in flight.
-          // The legacy disabled-only path is preserved for any caller that
-          // forgets to pass onSubmit, so the test suite's Stage 1 fixtures
-          // continue to behave as before.
-          disabled={
-            !onSubmit ||
-            !validationResult?.summary.allComplete ||
-            submitting
-          }
-          aria-disabled={
-            !onSubmit ||
-            !validationResult?.summary.allComplete ||
-            submitting
-          }
-          aria-busy={submitting ? 'true' : undefined}
-          onClick={onSubmit ? () => void onSubmit() : undefined}
-          // Active palette when ready to submit; muted gray otherwise. The
-          // ternary avoids ambiguity about which palette wins in the
-          // "submitting === true" case (gray, because the button is
-          // disabled at that point).
-          className={
-            !onSubmit ||
-            !validationResult?.summary.allComplete ||
-            submitting
-              ? 'inline-flex min-h-[44px] items-center justify-center rounded-md bg-gray-300 px-6 py-2 text-sm font-medium text-gray-600 opacity-60 cursor-not-allowed'
-              : 'inline-flex min-h-[44px] items-center justify-center rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer'
-          }
-        >
-          {submitting
-            ? t('candidate.submission.submitting')
-            : t('candidate.reviewSubmit.submit')}
-        </button>
+        {/* Task 8.2 (Linear Step Navigation) — Back + Submit live in a
+            single row so the candidate can step back from the review page
+            without losing track of the primary submit action (spec rule 5).
+            Mobile-first: stacks `flex-col-reverse` below the `sm`
+            breakpoint so Submit stays visually on top; on `sm` and wider
+            they sit side-by-side with Back on the LEFT and Submit on the
+            RIGHT. Back is rendered only when the shell supplies `onBack`,
+            so existing Stage 1/2 tests continue to pass without it. */}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-center sm:items-center gap-3 w-full">
+          {onBack ? (
+            <button
+              type="button"
+              data-testid="review-back-button"
+              onClick={onBack}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-md border border-gray-300 bg-white px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer w-full sm:w-auto"
+            >
+              {t('candidate.navigation.back')}
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            // Phase 7 Stage 2 — Submit is enabled only when:
+            //   1. validation reports allComplete=true (Spec Rule 1), AND
+            //   2. the host wired an onSubmit handler, AND
+            //   3. no submission is currently in flight.
+            // Task 8.5 adds a fourth condition: the host's `disableSubmit`
+            // flag overrides the engine's verdict so a previously-skipped
+            // dynamic step that has come back into scope locally (and is
+            // not yet complete) blocks submission even if the server's
+            // validate response has not yet caught up. Spec Business Rule 9 d.
+            disabled={
+              !onSubmit ||
+              !validationResult?.summary.allComplete ||
+              submitting ||
+              disableSubmit
+            }
+            aria-disabled={
+              !onSubmit ||
+              !validationResult?.summary.allComplete ||
+              submitting ||
+              disableSubmit
+            }
+            aria-busy={submitting ? 'true' : undefined}
+            onClick={onSubmit ? () => void onSubmit() : undefined}
+            // Active palette when ready to submit; muted gray otherwise. The
+            // ternary avoids ambiguity about which palette wins in the
+            // "submitting === true" case (gray, because the button is
+            // disabled at that point).
+            className={
+              !onSubmit ||
+              !validationResult?.summary.allComplete ||
+              submitting ||
+              disableSubmit
+                ? 'inline-flex min-h-[44px] items-center justify-center rounded-md bg-gray-300 px-6 py-2 text-sm font-medium text-gray-600 opacity-60 cursor-not-allowed w-full sm:w-auto'
+                : 'inline-flex min-h-[44px] items-center justify-center rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer w-full sm:w-auto'
+            }
+          >
+            {submitting
+              ? t('candidate.submission.submitting')
+              : t('candidate.reviewSubmit.submit')}
+          </button>
+        </div>
         <p className="text-center text-xs text-gray-500">
           {t('candidate.reviewSubmit.submitHelp')}
         </p>

@@ -19,7 +19,8 @@
 //      section's entries.
 //   2. Issue ONE batched dsx_mappings.findMany via the loader-supplied
 //      `findMappings` adapter.
-//   3. AND-aggregate the mapping rows into a Map<countryId, Map<reqId, bool>>.
+//   3. OR-aggregate the mapping rows into a Map<countryId, Map<reqId, bool>>
+//      (TD-084 BR 1 / BR 2 — cross-service and cross-geographic-level OR).
 //   4. Walk each entry. Null country → emit `entryCountryRequired`. Otherwise
 //      iterate the requirements perReq says are required, and for each one
 //      either descend into address_block pieces or apply the scalar empty-
@@ -29,10 +30,17 @@ import type { Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
 
 import type { FieldError } from './types';
-import type {
-  DsxMappingRow,
-  FindDsxMappings,
-} from './personalInfoIdvFieldChecks';
+import type { FindDsxMappings } from './personalInfoIdvFieldChecks';
+import { isPersonalInfoFieldKey } from '@/lib/candidate/lockedInvitationFieldKeys';
+// TD-084: re-export DsxMappingRow so the Pass 1 test fixture
+// (`orMergeConsistency.test.ts`) can import it from this module's surface
+// alongside `buildPerCountryRequiredMap`. The original cross-module dependency
+// (`./personalInfoIdvFieldChecks`) is preserved — the re-export keeps callers
+// of this validator from having to know about the personal-info-side
+// re-declaration of the same row shape. Consistent with TD-077 Stage 3b
+// sibling-validator type-exports allowance.
+import type { DsxMappingRow } from './personalInfoIdvFieldChecks';
+export type { DsxMappingRow };
 import type { SavedRepeatableEntry } from './savedEntryShape';
 import type {
   AddressConfig,
@@ -56,7 +64,15 @@ export interface RequirementRecord {
   fieldKey: string;
   type: string;
   disabled: boolean;
-  fieldData: { dataType?: string; addressConfig?: unknown } | null;
+  fieldData: {
+    dataType?: string;
+    addressConfig?: unknown;
+    // Cross-section-validation-filtering bug fix: the per-entry walk drops
+    // requirements whose collectionTab indicates the field is collected on
+    // Personal Info, not on this entry section. Carried through by the
+    // loader's narrowing loop in `loadValidationInputs.ts`.
+    collectionTab?: string;
+  } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -221,9 +237,9 @@ async function walkSection(
       // skip).
       if (requirement.disabled) continue;
 
-      // Per-requirement isRequired comes from the AND-aggregated map.
-      // findApplicableRequirements only returned this requirement because
-      // perReq has an entry for it; we still re-check the boolean.
+      // Per-requirement isRequired comes from the OR-aggregated map (TD-084
+      // BR 1 / BR 2). findApplicableRequirements only returned this requirement
+      // because perReq has an entry for it; we still re-check the boolean.
       const isRequired = perReq.get(requirement.id);
       if (isRequired !== true) continue;
 
@@ -287,12 +303,17 @@ function collectSectionPairs(
 }
 
 /**
- * AND-aggregate the mapping rows into Map<countryId, Map<reqId, isRequired>>.
+ * OR-aggregate the mapping rows into Map<countryId, Map<reqId, isRequired>>.
  * Empty groups (no rows for a (country, requirement) combo) are simply
  * absent from the map; callers must treat absence as "not required" (Spec
  * Edge Case 4).
+ *
+ * Exported per TD-084 Stage 3b clarification so the Pass 1 cross-validator
+ * consistency tests can exercise it directly. Sibling-validator type/value
+ * exports inside `src/lib/candidate/validation/` are permitted under
+ * TD-077.
  */
-function buildPerCountryRequiredMap(
+export function buildPerCountryRequiredMap(
   rows: DsxMappingRow[],
 ): Map<string, Map<string, boolean>> {
   // Two-level intermediate: countryId → requirementId → flags[].
@@ -312,9 +333,11 @@ function buildPerCountryRequiredMap(
   for (const [countryId, perReq] of flagsByCountryReq.entries()) {
     const aggregated = new Map<string, boolean>();
     for (const [requirementId, flags] of perReq.entries()) {
-      // AND semantics matching `personalInfoIdvFieldChecks.aggregateIsRequired`
-      // — empty arrays are explicitly false (defensive guard).
-      aggregated.set(requirementId, flags.length > 0 && flags.every(Boolean));
+      // OR semantics matching TD-084 BR 1 / BR 2 — a requirement is required
+      // if ANY in-scope mapping row (across cross-service or cross-geographic-
+      // level dimensions) says required. Empty arrays are explicitly false
+      // (defensive guard preserved from the original AND form).
+      aggregated.set(requirementId, flags.length > 0 && flags.some(Boolean));
     }
     result.set(countryId, aggregated);
   }
@@ -325,6 +348,16 @@ function buildPerCountryRequiredMap(
  * For one entry, return the list of requirements applicable to its country.
  * Today this is simply the requirements that perReq has an entry for —
  * `requirementById` is consulted only to look up the requirement record.
+ *
+ * Cross-section-validation-filtering bug fix: requirements that are
+ * Personal-Info-owned — either via `fieldData.collectionTab` containing
+ * 'subject'/'personal' OR via a PI-style `fieldKey` (firstName, middleName,
+ * dateOfBirth, ssn, etc.) — are filtered OUT. Those are collected on
+ * Personal Info, not on this entry section. Without this filter, the
+ * per-entry walk reports them as missing because the entry has no value
+ * for them (the value lives on Personal Info's saved bucket under a
+ * different storage path). See
+ * `docs/specs/cross-section-validation-filtering-bugfix.md` Bug A.
  *
  * The architect's plan §1.3 carve-out for service-level address_block
  * requirements is implicitly satisfied by the loader's existing include:
@@ -342,9 +375,52 @@ function findApplicableRequirements(
   const out: RequirementRecord[] = [];
   for (const requirementId of perReq.keys()) {
     const record = requirementById.get(requirementId);
-    if (record) out.push(record);
+    if (!record) continue;
+    if (isPersonalInfoOwnedRequirement(record)) continue;
+    // Skip document-type requirements. The per-entry walk validates FIELD
+    // requirements only — documents have their own validation path
+    // (per_entry documents are checked by the client-side
+    // computeRepeatableSectionStatus against `uploadedDocumentsByEntry`;
+    // per_search / per_order documents live in `aggregatedFields` and are
+    // owned by Record Search Section after Task 8.4). Without this filter,
+    // any document mapped to an entry's country was reported as a missing
+    // FieldError on every entry because its uploaded metadata isn't stored
+    // in `entry.fields`. This was the root cause of "Address History stays
+    // red even when all entry fields are filled in" in smoke testing.
+    if (record.type === 'document') continue;
+    out.push(record);
   }
   return out;
+}
+
+/**
+ * Cross-section-validation-filtering bug fix — true when a requirement is
+ * collected on Personal Info (and therefore must not be walked as a per-
+ * entry field on an address / education / employment entry).
+ *
+ * A requirement is treated as Personal-Info-owned when EITHER:
+ *   1. Its `fieldData.collectionTab` (lowercased) contains 'subject' or
+ *      'personal' — the canonical signal package authors set on PI fields.
+ *   2. Its `fieldKey` lives in `PERSONAL_INFO_FIELD_KEYS` — the same fieldKey
+ *      heuristic used by `personal-info-fields/route.ts` and
+ *      `personalInfoIdvFieldChecks.ts` to surface PI requirements that lack
+ *      an explicit `collectionTab` (legacy/imported rows, locked invitation
+ *      keys like `firstName`/`lastName`, or PI-style keys like `middleName`/
+ *      `dateOfBirth`/`ssn`).
+ *
+ * Without rule 2 the walker reported every PI-fieldKey requirement as a
+ * missing FieldError on every entry, because the candidate fills those
+ * fields in on Personal Info, not on the entry — so they never appear in
+ * `entry.fields[]`. That mismatch is documented as Bug A in
+ * docs/specs/cross-section-validation-filtering-bugfix.md.
+ */
+function isPersonalInfoOwnedRequirement(record: RequirementRecord): boolean {
+  const tab = record.fieldData?.collectionTab;
+  if (typeof tab === 'string' && tab.length > 0) {
+    const lower = tab.toLowerCase();
+    if (lower.includes('subject') || lower.includes('personal')) return true;
+  }
+  return isPersonalInfoFieldKey(record.fieldKey);
 }
 
 /**

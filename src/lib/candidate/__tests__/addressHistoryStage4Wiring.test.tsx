@@ -120,6 +120,12 @@ describe('addressHistoryStage4Wiring', () => {
   });
 
   describe('buildEntryFieldsBuckets', () => {
+    // TD-084 — the helper's signature changed from
+    // `(entries, fieldsByEntryService, serviceIds)` to `(entries, fieldsByEntry)`
+    // because the /fields route now OR-merges across all package services
+    // server-side. The four tests below preserve the original test intent
+    // (one bucket per entry; merge order; first-wins dedup; countryId
+    // preserved) while adapting to the new architecture.
     it('produces one bucket per entry, in entry order', () => {
       const buckets = buildEntryFieldsBuckets(
         [
@@ -127,27 +133,43 @@ describe('addressHistoryStage4Wiring', () => {
           { entryId: 'e2', countryId: 'c2' },
         ],
         {},
-        ['s1'],
       );
       expect(buckets.map((b) => b.entryId)).toEqual(['e1', 'e2']);
     });
-    it('walks every service id and merges fields per entry', () => {
+    it('merges fields per entry from the fetched list', () => {
+      // TD-084 — pre-flip this test verified that the helper walked every
+      // service id and merged the per-service lists. Under the new
+      // architecture the route returns one merged list per entry, so the
+      // surviving intent is "the helper produces a bucket containing every
+      // field from `fieldsByEntry[entryId]`, in the order they appear."
       const f1 = makeField({ requirementId: 'r1', fieldKey: 'a' });
       const f2 = makeField({ requirementId: 'r2', fieldKey: 'b' });
+      const f3 = makeField({ requirementId: 'r3', fieldKey: 'c' });
+      const f4 = makeField({ requirementId: 'r4', fieldKey: 'd' });
       const buckets = buildEntryFieldsBuckets(
-        [{ entryId: 'e1', countryId: 'c1' }],
-        { 'e1::s1': [f1], 'e1::s2': [f2] },
-        ['s1', 's2'],
+        [
+          { entryId: 'e1', countryId: 'c1' },
+          { entryId: 'e2', countryId: 'c2' },
+        ],
+        {
+          e1: [f1, f2],
+          e2: [f3, f4],
+        },
       );
       expect(buckets[0].fields.map((f) => f.requirementId)).toEqual(['r1', 'r2']);
+      expect(buckets[1].fields.map((f) => f.requirementId)).toEqual(['r3', 'r4']);
     });
-    it('dedupes fields with the same requirementId across services (first wins)', () => {
+    it("dedupes fields with the same requirementId within an entry's list (first wins)", () => {
+      // TD-084 — pre-flip this test verified cross-service dedup. The route
+      // now de-dups across services in its response, but the helper still
+      // dedupes defensively in case the input list contains duplicate
+      // requirementIds for any reason (a fixture, a future change, a
+      // hand-crafted response). This test exercises that defensive path.
       const f1 = makeField({ requirementId: 'r1', fieldKey: 'a', name: 'first' });
       const f1b = makeField({ requirementId: 'r1', fieldKey: 'a', name: 'second' });
       const buckets = buildEntryFieldsBuckets(
         [{ entryId: 'e1', countryId: 'c1' }],
-        { 'e1::s1': [f1], 'e1::s2': [f1b] },
-        ['s1', 's2'],
+        { e1: [f1, f1b] },
       );
       expect(buckets[0].fields).toHaveLength(1);
       expect(buckets[0].fields[0].name).toBe('first');
@@ -159,7 +181,6 @@ describe('addressHistoryStage4Wiring', () => {
           { entryId: 'e2', countryId: null },
         ],
         {},
-        ['s1'],
       );
       expect(buckets[0].countryId).toBe('c1');
       expect(buckets[1].countryId).toBeNull();
@@ -219,6 +240,75 @@ describe('addressHistoryStage4Wiring', () => {
         { entryId: 'e2', countryId: 'c1', fields: [f] },
       ]);
       expect(split.localFieldsByCountry['c1']).toHaveLength(1);
+    });
+
+    it('REGRESSION TEST: PI-fieldKey fields without collectionTab route to subjectFieldsByCountry (Bug A extension)', () => {
+      // A DSX requirement with `fieldKey === 'middleName'` and no
+      // `collectionTab` is collected on Personal Info via the same
+      // fieldKey heuristic the PI route uses. Without this filter, the
+      // field lands in localFieldsByCountry, gets fed to
+      // computeRepeatableSectionStatus as a required entry field, and the
+      // local progress flags it missing — keeping the sidebar red even
+      // after the candidate filled middleName in on Personal Info.
+      const mid = makeField({
+        requirementId: 'r-mid',
+        fieldKey: 'middleName',
+        fieldData: null, // NO collectionTab
+      });
+      const split = splitFieldsByCollectionTab([
+        { entryId: 'e1', countryId: 'c1', fields: [mid] },
+      ]);
+      expect(split.subjectFieldsByCountry['c1']).toHaveLength(1);
+      expect(split.subjectFieldsByCountry['c1'][0].fieldKey).toBe('middleName');
+      expect(split.localFieldsByCountry['c1'] ?? []).toHaveLength(0);
+    });
+
+    it('REGRESSION TEST: locked invitation fieldKey (firstName) without collectionTab routes to subjectFieldsByCountry', () => {
+      // firstName / lastName / email / phone / phoneNumber are sourced from
+      // the invitation columns and must not feed local progress. They go to
+      // subjectFieldsByCountry; the registry push then drops them via
+      // isLockedInvitationFieldKey.
+      const fn = makeField({
+        requirementId: 'r-fn',
+        fieldKey: 'firstName',
+        fieldData: null,
+      });
+      const split = splitFieldsByCollectionTab([
+        { entryId: 'e1', countryId: 'c1', fields: [fn] },
+      ]);
+      expect(split.subjectFieldsByCountry['c1']).toHaveLength(1);
+      expect(split.localFieldsByCountry['c1'] ?? []).toHaveLength(0);
+    });
+
+    it('Non-PI fieldKey without collectionTab still routes to localFieldsByCountry', () => {
+      const local = makeField({
+        requirementId: 'r-local',
+        fieldKey: 'passportNumber',
+        fieldData: null,
+      });
+      const split = splitFieldsByCollectionTab([
+        { entryId: 'e1', countryId: 'c1', fields: [local] },
+      ]);
+      expect(split.localFieldsByCountry['c1']).toHaveLength(1);
+      expect(split.subjectFieldsByCountry['c1'] ?? []).toHaveLength(0);
+    });
+  });
+
+  describe('isSubjectTargeted — PI-fieldKey heuristic (Bug A extension)', () => {
+    it('REGRESSION TEST: returns true for PI fieldKey without collectionTab (middleName)', () => {
+      expect(
+        isSubjectTargeted(makeField({ fieldKey: 'middleName', fieldData: null })),
+      ).toBe(true);
+    });
+    it('REGRESSION TEST: returns true for locked fieldKey without collectionTab (firstName)', () => {
+      expect(
+        isSubjectTargeted(makeField({ fieldKey: 'firstName', fieldData: null })),
+      ).toBe(true);
+    });
+    it('returns false for arbitrary non-PI fieldKey without collectionTab', () => {
+      expect(
+        isSubjectTargeted(makeField({ fieldKey: 'passportNumber', fieldData: null })),
+      ).toBe(false);
     });
   });
 
@@ -482,6 +572,159 @@ describe('addressHistoryStage4Wiring', () => {
     it('returns empty when no document-shaped values exist', () => {
       const out = extractAggregatedUploadedDocuments({ 'r1': 'plain', 'r2': 5, 'r3': null });
       expect(out).toEqual({});
+    });
+  });
+
+  // ===========================================================================
+  // BUG B regression tests — buildAddressHistorySubjectRequirements must
+  // filter out locked invitation fieldKeys (firstName, lastName, email,
+  // phone, phoneNumber) so they never reach the cross-section registry.
+  //
+  // Spec: docs/specs/cross-section-validation-filtering-bugfix.md
+  //       (Bug B — Personal Info banner shows locked invitation fields)
+  //
+  // REGRESSION TESTS: prove bug fix for cross-section-validation-filtering
+  // Bug B. Before the fix, `buildAddressHistorySubjectRequirements` pushes
+  // every subject-targeted field through to the cross-section registry —
+  // including firstName / lastName / email / phone / phoneNumber, which
+  // are sourced from the invitation columns and never editable by the
+  // candidate. The Personal Info banner then lists them and asterisks them,
+  // which is confusing because the candidate cannot fill them in.
+  //
+  // After the fix, the helper consults the shared
+  // `lockedInvitationFieldKeys` module and SKIPS any field whose fieldKey
+  // is locked. Bug D (banner/asterisk consistency) is emergent from the
+  // same change — once the locked fields do not reach the registry, they
+  // do not appear on the banner OR drive asterisks.
+  // ===========================================================================
+
+  describe("buildAddressHistorySubjectRequirements — locked invitation fieldKey filter (Bug B)", () => {
+    const SUBJECT_BUCKET = {
+      c1: [
+        {
+          requirementId: "r-firstName",
+          fieldKey: "firstName",
+          name: "First Name",
+          type: "field",
+          isRequired: true,
+        },
+        {
+          requirementId: "r-lastName",
+          fieldKey: "lastName",
+          name: "Last Name",
+          type: "field",
+          isRequired: true,
+        },
+        {
+          requirementId: "r-email",
+          fieldKey: "email",
+          name: "Email",
+          type: "field",
+          isRequired: true,
+        },
+        {
+          requirementId: "r-phone",
+          fieldKey: "phone",
+          name: "Phone",
+          type: "field",
+          isRequired: true,
+        },
+        {
+          requirementId: "r-phoneNumber",
+          fieldKey: "phoneNumber",
+          name: "Phone Number",
+          type: "field",
+          isRequired: true,
+        },
+        {
+          requirementId: "r-middleName",
+          fieldKey: "middleName",
+          name: "Middle Name",
+          type: "field",
+          isRequired: true,
+        },
+        {
+          requirementId: "r-dateOfBirth",
+          fieldKey: "dateOfBirth",
+          name: "Date of Birth",
+          type: "field",
+          isRequired: true,
+        },
+      ],
+    };
+
+    const SINGLE_ENTRY = [
+      { entryId: "e1", countryId: "c1", entryOrder: 0, fields: [] },
+    ];
+
+    it("REGRESSION TEST: a subject field with fieldKey === 'firstName' is NOT pushed to the registry", () => {
+      const result = buildAddressHistorySubjectRequirements(
+        SINGLE_ENTRY,
+        SUBJECT_BUCKET,
+      );
+      expect(result.find((r) => r.fieldKey === "firstName")).toBeUndefined();
+    });
+
+    it("REGRESSION TEST: a subject field with fieldKey === 'lastName' is NOT pushed to the registry", () => {
+      const result = buildAddressHistorySubjectRequirements(
+        SINGLE_ENTRY,
+        SUBJECT_BUCKET,
+      );
+      expect(result.find((r) => r.fieldKey === "lastName")).toBeUndefined();
+    });
+
+    it("REGRESSION TEST: a subject field with fieldKey === 'email' is NOT pushed to the registry", () => {
+      const result = buildAddressHistorySubjectRequirements(
+        SINGLE_ENTRY,
+        SUBJECT_BUCKET,
+      );
+      expect(result.find((r) => r.fieldKey === "email")).toBeUndefined();
+    });
+
+    it("REGRESSION TEST: a subject field with fieldKey === 'phone' is NOT pushed to the registry", () => {
+      const result = buildAddressHistorySubjectRequirements(
+        SINGLE_ENTRY,
+        SUBJECT_BUCKET,
+      );
+      expect(result.find((r) => r.fieldKey === "phone")).toBeUndefined();
+    });
+
+    it("REGRESSION TEST: a subject field with fieldKey === 'phoneNumber' is NOT pushed to the registry", () => {
+      const result = buildAddressHistorySubjectRequirements(
+        SINGLE_ENTRY,
+        SUBJECT_BUCKET,
+      );
+      expect(result.find((r) => r.fieldKey === "phoneNumber")).toBeUndefined();
+    });
+
+    it("keeps the unlocked 'middleName' field — proves the filter is narrow", () => {
+      const result = buildAddressHistorySubjectRequirements(
+        SINGLE_ENTRY,
+        SUBJECT_BUCKET,
+      );
+      const middle = result.find((r) => r.fieldKey === "middleName");
+      expect(middle).toBeDefined();
+      expect(middle?.fieldName).toBe("Middle Name");
+    });
+
+    it("keeps the unlocked 'dateOfBirth' field — proves the filter is narrow", () => {
+      const result = buildAddressHistorySubjectRequirements(
+        SINGLE_ENTRY,
+        SUBJECT_BUCKET,
+      );
+      const dob = result.find((r) => r.fieldKey === "dateOfBirth");
+      expect(dob).toBeDefined();
+      expect(dob?.fieldName).toBe("Date of Birth");
+    });
+
+    it("returns ONLY the two unlocked fields when the bucket has all five locked + middleName + dateOfBirth", () => {
+      const result = buildAddressHistorySubjectRequirements(
+        SINGLE_ENTRY,
+        SUBJECT_BUCKET,
+      );
+      expect(result).toHaveLength(2);
+      const keys = result.map((r) => r.fieldKey).sort();
+      expect(keys).toEqual(["dateOfBirth", "middleName"]);
     });
   });
 });

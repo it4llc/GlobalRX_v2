@@ -9,6 +9,14 @@ import type { WorkflowSectionPayload } from './candidate-stage4';
 export interface CandidateInvitationInfo {
   firstName: string;
   lastName: string;
+  // Task 8.1 (template variable system) — the structure endpoint now
+  // surfaces email + phone so the candidate shell can build the values
+  // object passed into replaceTemplateVariables. `email` is always present
+  // (non-nullable column on candidate_invitations); `phone` is the joined
+  // phoneCountryCode + phoneNumber display string, nullable when the
+  // invite did not collect phone.
+  email: string;
+  phone: string | null;
   status: string;
   expiresAt: Date;
   companyName: string;
@@ -39,11 +47,15 @@ export interface CandidatePortalSection {
   // Phase 7 Stage 1 added 'review_submit' for the synthetic Review & Submit
   // entry the structure endpoint appends after all after_services workflow
   // sections.
+  // Task 8.4 added 'record_search' for the Record Search Requirements section
+  // that holds aggregated additional fields/documents split out of Address
+  // History.
   type:
     | 'workflow_section'
     | 'service_section'
     | 'personal_info'
     | 'address_history'
+    | 'record_search'
     | 'review_submit';
   placement: 'before_services' | 'services' | 'after_services';
   // Status union narrowed in Phase 6 Stage 4 (BR 22) — `in_progress` was

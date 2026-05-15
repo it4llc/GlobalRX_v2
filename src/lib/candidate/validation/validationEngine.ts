@@ -199,18 +199,20 @@ export async function runValidation(
     }),
   );
 
-  // IDV — TD-062 fix. Section bucket is keyed `idv` in saved-data (the IDV
-  // section saves with sectionId: 'idv' — see IdvSection.tsx); we keep the
-  // SectionValidationResult.sectionId as `service_idv` so the rest of the
-  // engine and the Review page don't need a sectionId rename.
-  const hasIdv = orderedPackage.packageServices.some(
-    (ps) => ps.service?.functionalityType === 'idv',
-  );
-  if (hasIdv) {
+  // IDV (verification-idv) — symmetric with verification-edu / verification-emp
+  // dispatch above. Scope is fixed at count_exact:1 (see packageScopeShape —
+  // BR 15). After verification-idv-conversion, IDV flows through the same
+  // servicesByType grouping as edu/emp/record. The save-route bucket key
+  // stays `'idv'` (BR 8) — the Service.functionalityType rename does NOT
+  // touch save-route bucket keys, so `sectionsData['idv']` is unchanged.
+  // The SectionValidationResult.sectionId is `service_verification-idv` to
+  // match the structure endpoint's emitted section id post-rename.
+  if (servicesByType.has('verification-idv')) {
+    const idvServices = servicesByType.get('verification-idv') ?? [];
     const idvResult = await validateIdvSection({
-      sectionId: 'service_idv',
-      idvSectionData: sectionsData['idv'],
-      packageServices: orderedPackage.packageServices,
+      sectionId: 'service_verification-idv',
+      idvSectionData: sectionsData['idv'], // BR 8 — save-bucket key unchanged
+      packageServices: idvServices,
       findMappings,
       sectionVisits,
       reviewVisitedAt,
@@ -562,7 +564,18 @@ function computeScopeStart(scope: ResolvedScope, today: Date): Date | null {
     return null;
   }
   const days = scope.scopeValue * DAYS_PER_YEAR;
-  return new Date(today.getTime() - days * MS_PER_DAY);
+  // Mirror evaluateTimeBasedScope's inclusive-end semantics: today is
+  // inclusive, so the scope window stretches up to the start of tomorrow
+  // (UTC). Without this, the scope boundary used by gap detection drifts by
+  // one day relative to the scope check, causing spurious start-of-timeline
+  // gaps when a candidate's earliest entry is at the boundary.
+  const todayUtcMidnightMs = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  const todayInclusiveMs = todayUtcMidnightMs + MS_PER_DAY;
+  return new Date(todayInclusiveMs - days * MS_PER_DAY);
 }
 
 function emptyResult(): FullValidationResult {

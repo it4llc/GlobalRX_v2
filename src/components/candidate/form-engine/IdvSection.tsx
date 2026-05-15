@@ -195,36 +195,46 @@ export function IdvSection({
   const loadFieldsForCountry = async (countryId: string) => {
     setLoading(true);
     try {
-      // Load fields for each IDV service
-      const allFields: IdvField[] = [];
+      // TD-084 — single package-aware fetch (was one fetch per service).
+      // The /fields route OR-merges `isRequired` across every service in
+      // `serviceIds` so the response carries one entry per requirement with
+      // the cross-service-aggregated required-state already applied. The
+      // local per-requirement dedup loop stays as a defensive guard.
       const fieldMap = new Map<string, IdvField>();
 
-      for (const serviceId of serviceIds) {
-        const response = await fetch(
-          `/api/candidate/application/${token}/fields?serviceId=${serviceId}&countryId=${countryId}`
-        );
+      if (serviceIds.length === 0) {
+        setFields([]);
+        return;
+      }
 
-        if (!response.ok) {
-          throw new Error('Failed to load fields');
-        }
+      const serviceIdsQuery = serviceIds
+        .map((id) => `serviceIds=${encodeURIComponent(id)}`)
+        .join('&');
+      const response = await fetch(
+        `/api/candidate/application/${token}/fields?${serviceIdsQuery}&countryId=${countryId}`
+      );
 
-        const data = await response.json();
+      if (!response.ok) {
+        throw new Error('Failed to load fields');
+      }
 
-        // Filter out personal info fields
-        for (const field of data.fields || []) {
-          const fieldData = field.fieldData || {};
-          const collectionTab = fieldData.collectionTab || fieldData.collection_tab || '';
+      const data = await response.json();
 
-          // Skip fields that belong to personal info tab
-          const isPersonalInfoField =
-            collectionTab.toLowerCase().includes('personal') ||
-            collectionTab.toLowerCase().includes('subject') ||
-            ['firstName', 'lastName', 'middleName', 'email', 'phone', 'phoneNumber',
-             'dateOfBirth', 'birthDate', 'dob'].includes(field.fieldKey);
+      // Filter out personal info fields. The personal-info-tab filter
+      // stays unchanged: IDV still excludes fields whose collectionTab
+      // marks them as belonging to the Personal Information section.
+      for (const field of data.fields || []) {
+        const fieldData = field.fieldData || {};
+        const collectionTab = fieldData.collectionTab || fieldData.collection_tab || '';
 
-          if (!isPersonalInfoField && !fieldMap.has(field.requirementId)) {
-            fieldMap.set(field.requirementId, field);
-          }
+        const isPersonalInfoField =
+          collectionTab.toLowerCase().includes('personal') ||
+          collectionTab.toLowerCase().includes('subject') ||
+          ['firstName', 'lastName', 'middleName', 'email', 'phone', 'phoneNumber',
+           'dateOfBirth', 'birthDate', 'dob'].includes(field.fieldKey);
+
+        if (!isPersonalInfoField && !fieldMap.has(field.requirementId)) {
+          fieldMap.set(field.requirementId, field);
         }
       }
 

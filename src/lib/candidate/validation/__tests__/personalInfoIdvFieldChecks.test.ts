@@ -26,6 +26,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import {
   collectIdvFieldRequirements,
+  collectPersonalInfoFieldRequirements,
   type DsxMappingRow,
   type FindDsxMappings,
 } from '../personalInfoIdvFieldChecks';
@@ -47,6 +48,12 @@ interface ServiceFixture {
   id: string;
   functionalityType: string;
   requirements: RequirementFixture[];
+  // Task 8.3 — availability rows are needed by
+  // collectPersonalInfoFieldRequirements, which builds its (serviceId,
+  // locationId) pair list from ps.service.availability rather than from a
+  // separate Prisma query. The existing IDV tests pass [] here and never
+  // consult the field.
+  availability?: Array<{ serviceId: string; locationId: string; isAvailable: boolean }>;
 }
 
 /**
@@ -74,7 +81,7 @@ function buildPackageServices(services: ServiceFixture[]): unknown[] {
           fieldData: r.fieldData ?? null,
         },
       })),
-      availability: [],
+      availability: s.availability ?? [],
     },
   }));
 }
@@ -115,7 +122,7 @@ describe('collectIdvFieldRequirements — personal-info exclusion (TD-062 / Stag
     const packageServices = buildPackageServices([
       {
         id: SVC_IDV,
-        functionalityType: 'idv',
+        functionalityType: 'verification-idv',
         requirements: [
           {
             id: 'req-firstName',
@@ -171,7 +178,7 @@ describe('collectIdvFieldRequirements — personal-info exclusion (TD-062 / Stag
     const packageServices = buildPackageServices([
       {
         id: SVC_IDV,
-        functionalityType: 'idv',
+        functionalityType: 'verification-idv',
         requirements: [
           {
             id: 'req-ssn',
@@ -224,7 +231,7 @@ describe('collectIdvFieldRequirements — personal-info exclusion (TD-062 / Stag
     const packageServices = buildPackageServices([
       {
         id: SVC_IDV,
-        functionalityType: 'idv',
+        functionalityType: 'verification-idv',
         requirements: [
           ...personalKeys.map((k) => ({
             id: `req-${k}`,
@@ -281,7 +288,7 @@ describe('collectIdvFieldRequirements — personal-info exclusion (TD-062 / Stag
     const packageServices = buildPackageServices([
       {
         id: SVC_IDV,
-        functionalityType: 'idv',
+        functionalityType: 'verification-idv',
         requirements: [
           {
             id: 'req-idNumber',
@@ -312,5 +319,243 @@ describe('collectIdvFieldRequirements — personal-info exclusion (TD-062 / Stag
     expect(result).toHaveLength(1);
     expect(result[0].fieldKey).toBe('idNumber');
     expect(result[0].isRequired).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 8.3 — collectPersonalInfoFieldRequirements must exclude the locked
+// invitation fieldKeys (firstName, lastName, email, phone, phoneNumber).
+//
+// Spec: docs/specs/personal-info-dynamic.md (Business Rule 6, DoD item 6).
+// Plan: docs/plans/personal-info-dynamic-technical-plan.md (Section 2 / 10).
+//
+// The Pass-1-existing collectIdvFieldRequirements suite above stays unchanged.
+// We add a new suite here that targets the Personal Info collector specifi-
+// cally and pins the Task 8.3 contract: locked invitation fieldKeys MUST be
+// dropped, non-locked personal-info fieldKeys (middleName, dateOfBirth, ssn,
+// etc.) MUST still come through.
+//
+// Mocking discipline:
+//   - Rule M1: collectPersonalInfoFieldRequirements is the subject — NOT
+//     mocked.
+//   - Rule M3: findMappings uses the existing buildFindMappings inline
+//     implementation that reads pairs from the helper and filters fixture
+//     rows accordingly.
+// ---------------------------------------------------------------------------
+
+describe('collectPersonalInfoFieldRequirements — Task 8.3 locked-field exclusion', () => {
+  const SVC_PI = 'svc-pi-001';
+  const LOC_A = 'loc-A';
+
+  // Standard availability row used by every test in this suite. The helper
+  // builds its (serviceId, locationId) pair list from ps.service.availability;
+  // without at least one row, every requirement falls through to isRequired
+  // = false (spec Edge Case 3 — which is correct, but doesn't exercise the
+  // AND-aggregation path we want to confirm doesn't regress).
+  const baseAvailability = [
+    { serviceId: SVC_PI, locationId: LOC_A, isAvailable: true },
+  ];
+
+  it('does NOT return the firstName requirement even when it has collectionTab=subject and is mapped to a package service', async () => {
+    const packageServices = buildPackageServices([
+      {
+        id: SVC_PI,
+        functionalityType: 'personal-info',
+        availability: baseAvailability,
+        requirements: [
+          {
+            id: 'req-firstName',
+            name: 'First Name',
+            fieldKey: 'firstName',
+            type: 'field',
+            fieldData: { collectionTab: 'subject' },
+          },
+        ],
+      },
+    ]);
+
+    const findMappings = buildFindMappings([
+      {
+        requirementId: 'req-firstName',
+        serviceId: SVC_PI,
+        locationId: LOC_A,
+        isRequired: true,
+      },
+    ]);
+
+    const result = await collectPersonalInfoFieldRequirements(
+      packageServices as never,
+      findMappings,
+    );
+
+    expect(result).toHaveLength(0);
+    expect(result.find((r) => r.fieldKey === 'firstName')).toBeUndefined();
+  });
+
+  it('does NOT return any of lastName, email, phone, phoneNumber when they are mapped through Personal Info', async () => {
+    const lockedKeys = ['lastName', 'email', 'phone', 'phoneNumber'];
+
+    const packageServices = buildPackageServices([
+      {
+        id: SVC_PI,
+        functionalityType: 'personal-info',
+        availability: baseAvailability,
+        requirements: lockedKeys.map((k) => ({
+          id: `req-${k}`,
+          name: k,
+          fieldKey: k,
+          type: 'field' as const,
+          fieldData: { collectionTab: 'subject' },
+        })),
+      },
+    ]);
+
+    const findMappings = buildFindMappings(
+      lockedKeys.map((k) => ({
+        requirementId: `req-${k}`,
+        serviceId: SVC_PI,
+        locationId: LOC_A,
+        isRequired: true,
+      })),
+    );
+
+    const result = await collectPersonalInfoFieldRequirements(
+      packageServices as never,
+      findMappings,
+    );
+
+    expect(result).toHaveLength(0);
+    for (const k of lockedKeys) {
+      expect(result.find((r) => r.fieldKey === k)).toBeUndefined();
+    }
+  });
+
+  it('returns the middleName requirement when present (positive proof — no over-filtering)', async () => {
+    // middleName is in PERSONAL_INFO_FIELD_KEYS (so isPersonalInfoField
+    // returns true) but is NOT in LOCKED_INVITATION_FIELD_KEYS, so the
+    // Task 8.3 guard does not strip it.
+    const packageServices = buildPackageServices([
+      {
+        id: SVC_PI,
+        functionalityType: 'personal-info',
+        availability: baseAvailability,
+        requirements: [
+          {
+            id: 'req-middleName',
+            name: 'Middle Name',
+            fieldKey: 'middleName',
+            type: 'field',
+            fieldData: { collectionTab: 'subject' },
+          },
+        ],
+      },
+    ]);
+
+    const findMappings = buildFindMappings([
+      {
+        requirementId: 'req-middleName',
+        serviceId: SVC_PI,
+        locationId: LOC_A,
+        isRequired: true,
+      },
+    ]);
+
+    const result = await collectPersonalInfoFieldRequirements(
+      packageServices as never,
+      findMappings,
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].fieldKey).toBe('middleName');
+    expect(result[0].isRequired).toBe(true);
+  });
+
+  it('returns the dateOfBirth requirement when present (positive proof — no over-filtering)', async () => {
+    const packageServices = buildPackageServices([
+      {
+        id: SVC_PI,
+        functionalityType: 'personal-info',
+        availability: baseAvailability,
+        requirements: [
+          {
+            id: 'req-dob',
+            name: 'Date of Birth',
+            fieldKey: 'dateOfBirth',
+            type: 'field',
+            fieldData: { collectionTab: 'subject' },
+          },
+        ],
+      },
+    ]);
+
+    const findMappings = buildFindMappings([
+      {
+        requirementId: 'req-dob',
+        serviceId: SVC_PI,
+        locationId: LOC_A,
+        isRequired: true,
+      },
+    ]);
+
+    const result = await collectPersonalInfoFieldRequirements(
+      packageServices as never,
+      findMappings,
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].fieldKey).toBe('dateOfBirth');
+    expect(result[0].isRequired).toBe(true);
+  });
+
+  it('returns the non-locked field and drops the locked one when both are mapped to the same service', async () => {
+    // Mixed fixture — locked firstName + non-locked dateOfBirth. The helper
+    // must produce a result list containing only dateOfBirth.
+    const packageServices = buildPackageServices([
+      {
+        id: SVC_PI,
+        functionalityType: 'personal-info',
+        availability: baseAvailability,
+        requirements: [
+          {
+            id: 'req-firstName',
+            name: 'First Name',
+            fieldKey: 'firstName',
+            type: 'field',
+            fieldData: { collectionTab: 'subject' },
+          },
+          {
+            id: 'req-dob',
+            name: 'Date of Birth',
+            fieldKey: 'dateOfBirth',
+            type: 'field',
+            fieldData: { collectionTab: 'subject' },
+          },
+        ],
+      },
+    ]);
+
+    const findMappings = buildFindMappings([
+      {
+        requirementId: 'req-firstName',
+        serviceId: SVC_PI,
+        locationId: LOC_A,
+        isRequired: true,
+      },
+      {
+        requirementId: 'req-dob',
+        serviceId: SVC_PI,
+        locationId: LOC_A,
+        isRequired: true,
+      },
+    ]);
+
+    const result = await collectPersonalInfoFieldRequirements(
+      packageServices as never,
+      findMappings,
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].fieldKey).toBe('dateOfBirth');
+    expect(result.find((r) => r.fieldKey === 'firstName')).toBeUndefined();
   });
 });

@@ -14,15 +14,23 @@
 // is the hardcoded translated string `t('candidate.workflowSection.acknowledgmentLabel')`
 // per BR 5. The checkbox's onChange invokes `onAcknowledge(checked)` and the
 // parent (the shell) is responsible for triggering the auto-save.
+//
+// Task 8.1 — Template Variable System. For `type === 'text'` sections the
+// renderer runs `replaceTemplateVariables(content, variableValues)` BEFORE
+// `sanitizeWorkflowContent`. The replacement-then-sanitize ordering is
+// required by spec Business Rule 2: any HTML or <script> inside a value gets
+// cleaned by DOMPurify along with the rest of the merged content.
 
 'use client';
 
 import React from 'react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { sanitizeWorkflowContent } from '@/lib/candidate/sanitizeWorkflowContent';
+import { replaceTemplateVariables } from '@/lib/templates/replaceTemplateVariables';
 import { SectionErrorBanner } from '@/components/candidate/SectionErrorBanner';
 import type { WorkflowSectionPayload } from '@/types/candidate-stage4';
 import type { SectionValidationResult } from '@/lib/candidate/validation/types';
+import type { TemplateVariableValues } from '@/types/templateVariables';
 
 interface WorkflowSectionRendererProps {
   section: WorkflowSectionPayload;
@@ -34,6 +42,11 @@ interface WorkflowSectionRendererProps {
   // required document) the banner renders above the section content.
   sectionValidation?: SectionValidationResult | null;
   errorsVisible?: boolean;
+  // Task 8.1 — values used to replace {{placeholders}} in section.content
+  // before sanitization. Optional so existing callers that have not yet
+  // adopted the system render the content unchanged (no placeholders
+  // matched → identity output from the replacer).
+  variableValues?: TemplateVariableValues;
 }
 
 // Defense-in-depth allow-list for the document `href`. The fileUrl is
@@ -56,6 +69,7 @@ export default function WorkflowSectionRenderer({
   onAcknowledge,
   sectionValidation,
   errorsVisible,
+  variableValues,
 }: WorkflowSectionRendererProps) {
   const { t } = useTranslation();
 
@@ -81,12 +95,20 @@ export default function WorkflowSectionRenderer({
         <div
           className="prose max-w-none overflow-y-auto max-h-[60vh] border border-gray-200 rounded-md p-4 bg-white"
           data-testid="workflow-section-content"
+          // Task 8.1 — replace {{placeholders}} BEFORE DOMPurify so any HTML
+          // or script content inside a value is cleaned along with the rest
+          // of the merged content (spec Business Rule 2). When variableValues
+          // is omitted (existing callers), the replacer becomes an identity
+          // pass-through whenever the content has no placeholders.
+          //
           // The HTML is sanitized via DOMPurify (allow-list of basic
           // formatting tags; strips script/style/iframe/object/embed and any
           // `on*` event handler). Defense in depth — the spec recommends
           // sanitizing on read at minimum (DoD #19).
           dangerouslySetInnerHTML={{
-            __html: sanitizeWorkflowContent(section.content ?? ''),
+            __html: sanitizeWorkflowContent(
+              replaceTemplateVariables(section.content ?? '', variableValues ?? {}),
+            ),
           }}
         />
       )}
