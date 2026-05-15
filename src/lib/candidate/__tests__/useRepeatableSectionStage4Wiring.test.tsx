@@ -11,8 +11,14 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
-import { useRepeatableSectionStage4Wiring } from '../useRepeatableSectionStage4Wiring';
-import type { computeRepeatableSectionStatus } from '@/lib/candidate/sectionProgress';
+import {
+  buildRepeatableProgressInputs,
+  buildSubjectRequirementsForEntries,
+  useRepeatableSectionStage4Wiring,
+} from '../useRepeatableSectionStage4Wiring';
+import {
+  computeRepeatableSectionStatus,
+} from '@/lib/candidate/sectionProgress';
 import type {
   CrossSectionRequirementEntry,
   SectionStatus,
@@ -264,5 +270,219 @@ describe('useRepeatableSectionStage4Wiring', () => {
       }),
     );
     expect(() => unmount()).not.toThrow();
+  });
+});
+
+// ===========================================================================
+// REGRESSION TESTS — cross-section-validation-filtering follow-up
+//
+// Smoke testing surfaced that Education / Employment still pushed locked
+// invitation fieldKeys (firstName/lastName/email/phone/phoneNumber) into the
+// cross-section registry because `buildSubjectRequirementsForEntries` — used
+// by those two sections — did not consult the shared lockedInvitationFieldKeys
+// module. Address History was fixed in the earlier pass via the parallel
+// helper `buildAddressHistorySubjectRequirements`; this helper handles the
+// Education / Employment case symmetrically.
+// ===========================================================================
+
+describe('buildSubjectRequirementsForEntries — locked invitation fieldKey filter', () => {
+  const ENTRY = {
+    entryId: 'e1',
+    countryId: 'c1',
+    entryOrder: 0,
+    fields: [],
+  };
+
+  const LOCKED_AND_DYNAMIC = {
+    c1: [
+      {
+        requirementId: 'r-firstName',
+        fieldKey: 'firstName',
+        name: 'First Name',
+        type: 'field',
+        isRequired: true,
+      },
+      {
+        requirementId: 'r-lastName',
+        fieldKey: 'lastName',
+        name: 'Last Name',
+        type: 'field',
+        isRequired: true,
+      },
+      {
+        requirementId: 'r-email',
+        fieldKey: 'email',
+        name: 'Email',
+        type: 'field',
+        isRequired: true,
+      },
+      {
+        requirementId: 'r-phone',
+        fieldKey: 'phone',
+        name: 'Phone',
+        type: 'field',
+        isRequired: true,
+      },
+      {
+        requirementId: 'r-phoneNumber',
+        fieldKey: 'phoneNumber',
+        name: 'Phone Number',
+        type: 'field',
+        isRequired: true,
+      },
+      {
+        requirementId: 'r-middleName',
+        fieldKey: 'middleName',
+        name: 'Middle Name',
+        type: 'field',
+        isRequired: true,
+      },
+      {
+        requirementId: 'r-dateOfBirth',
+        fieldKey: 'dateOfBirth',
+        name: 'Date of Birth',
+        type: 'field',
+        isRequired: true,
+      },
+    ],
+  };
+
+  it('REGRESSION TEST: drops all five locked invitation fieldKeys', () => {
+    const result = buildSubjectRequirementsForEntries(
+      [ENTRY],
+      LOCKED_AND_DYNAMIC,
+      'employment_history',
+    );
+
+    const keys = result.map((r) => r.fieldKey);
+    expect(keys).not.toContain('firstName');
+    expect(keys).not.toContain('lastName');
+    expect(keys).not.toContain('email');
+    expect(keys).not.toContain('phone');
+    expect(keys).not.toContain('phoneNumber');
+  });
+
+  it('keeps the unlocked subject fieldKeys (middleName, dateOfBirth)', () => {
+    const result = buildSubjectRequirementsForEntries(
+      [ENTRY],
+      LOCKED_AND_DYNAMIC,
+      'education_history',
+    );
+
+    const keys = result.map((r) => r.fieldKey).sort();
+    expect(keys).toEqual(['dateOfBirth', 'middleName']);
+  });
+});
+
+// ===========================================================================
+// REGRESSION TESTS — per-entry document scope filtering
+//
+// Smoke testing on task-8.5-silent-recalculation-step-skipping surfaced the
+// "Address History stays red even when complete and Submit is enabled" case:
+//   - The server (`repeatableEntryFieldChecks.ts`) skips ALL document
+//     requirements during per-entry validation, so its section status is
+//     `complete` with zero errors.
+//   - `buildRepeatableProgressInputs` previously routed every `type ===
+//     'document'` requirement into `requiredDocumentsByEntry`, regardless of
+//     scope. `per_search` / `per_order` documents live in the aggregated
+//     bucket (Record Search Section after Task 8.4) — they are NEVER stored
+//     under `entry.fields[]`, so `uploadedDocumentsByEntry[entryOrder][doc.id]`
+//     is always undefined. The progress helper returned `incomplete`,
+//     `mergeSectionStatus` Rule 1 promoted it to a red sidebar indicator
+//     while the section banner and Review & Submit page (which read from the
+//     server's empty error arrays) showed nothing missing.
+//
+// The fix matches `selectPerEntryDocumentFields` (the inline-upload renderer):
+// only `documentData.scope === 'per_entry'` documents participate in the
+// per-entry progress check.
+// ===========================================================================
+
+describe('buildRepeatableProgressInputs — document scope filter', () => {
+  const baseField = {
+    requirementId: 'doc-req',
+    fieldKey: 'authorizationForm',
+    name: 'Authorization Form',
+    type: 'document' as const,
+    isRequired: true,
+  };
+
+  const entryWithCountry = {
+    entryId: 'e1',
+    countryId: 'US',
+    entryOrder: 0,
+    fields: [],
+  };
+
+  it("REGRESSION TEST: a per_search document does NOT appear in requiredDocumentsByEntry — it's uploaded in Record Search, not on the entry", () => {
+    const inputs = buildRepeatableProgressInputs({
+      entries: [entryWithCountry],
+      fieldsByCountry: {
+        US: [{ ...baseField, documentData: { scope: 'per_search' } }],
+      },
+      loading: false,
+    });
+
+    expect(inputs).not.toBeNull();
+    expect(inputs!.requiredDocumentsByEntry[0]).toEqual([]);
+  });
+
+  it("REGRESSION TEST: a per_order document does NOT appear in requiredDocumentsByEntry", () => {
+    const inputs = buildRepeatableProgressInputs({
+      entries: [entryWithCountry],
+      fieldsByCountry: {
+        US: [{ ...baseField, documentData: { scope: 'per_order' } }],
+      },
+      loading: false,
+    });
+
+    expect(inputs!.requiredDocumentsByEntry[0]).toEqual([]);
+  });
+
+  it("a per_entry document IS included — the inline upload path is the only one that satisfies it", () => {
+    const inputs = buildRepeatableProgressInputs({
+      entries: [entryWithCountry],
+      fieldsByCountry: {
+        US: [{ ...baseField, documentData: { scope: 'per_entry' } }],
+      },
+      loading: false,
+    });
+
+    expect(inputs!.requiredDocumentsByEntry[0]).toHaveLength(1);
+    expect(inputs!.requiredDocumentsByEntry[0][0].id).toBe('doc-req');
+  });
+
+  it("a document with missing documentData is treated as NOT per_entry (no scope claim → no per-entry requirement)", () => {
+    const inputs = buildRepeatableProgressInputs({
+      entries: [entryWithCountry],
+      fieldsByCountry: {
+        US: [{ ...baseField, documentData: null }],
+      },
+      loading: false,
+    });
+
+    expect(inputs!.requiredDocumentsByEntry[0]).toEqual([]);
+  });
+
+  it("END-TO-END REGRESSION: a country with ONLY a required per_search document reports 'complete', not 'incomplete' — matches the server's view", () => {
+    // This is the exact symptom Andy reported:
+    //   - Address History entry filled in (country + address_block complete)
+    //   - The country's DSX has a required per_search document (e.g.,
+    //     authorization for a court-records check) — uploaded in Record
+    //     Search, not on the entry.
+    //   - Server says complete (skips documents in per-entry walk).
+    //   - Before the fix, `computeRepeatableSectionStatus` returned
+    //     'incomplete' because the per_search doc was treated as a missing
+    //     per-entry upload. After the fix, it returns 'complete' and the
+    //     merge picks 'complete' too.
+    const inputs = buildRepeatableProgressInputs({
+      entries: [entryWithCountry],
+      fieldsByCountry: {
+        US: [{ ...baseField, documentData: { scope: 'per_search' } }],
+      },
+      loading: false,
+    });
+
+    expect(inputs).not.toBeNull();
+    expect(computeRepeatableSectionStatus(inputs!)).toBe('complete');
   });
 });

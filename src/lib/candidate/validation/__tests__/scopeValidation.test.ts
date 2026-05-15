@@ -251,4 +251,69 @@ describe('evaluateTimeBasedScope', () => {
 
     expect(result.coveredDays).toBe(0);
   });
+
+  // -------------------------------------------------------------------------
+  // REGRESSION TESTS — cross-section-validation-filtering follow-up
+  //
+  // Smoke testing surfaced that an entry ending on "today" with a start
+  // exactly N years ago was reported as falling short by one day (banner
+  // showed "6 years and 12 months provided" for a 7-year scope). The
+  // off-by-one came from treating the end date as exclusive and inheriting
+  // `new Date()`'s time-of-day component as the cap. The fix: model
+  // intervals as half-open `[startOfDay, startOfNextDay)` and normalize
+  // today to UTC midnight before adding one day for the inclusive cap.
+  // -------------------------------------------------------------------------
+
+  it('REGRESSION TEST: end-date inclusive — entry from exactly 7 years ago to today passes 7-year scope', () => {
+    // today = 2026-05-14 (live new Date() carries time-of-day; we use a
+    // mid-day UTC timestamp to mirror what runValidation captures in
+    // production).
+    const liveToday = new Date('2026-05-14T18:00:00.000Z');
+    const result = evaluateTimeBasedScope(
+      { scopeType: 'time_based', scopeValue: 7 },
+      [
+        {
+          start: new Date('2019-05-14T00:00:00.000Z'),
+          end: new Date('2026-05-14T00:00:00.000Z'),
+          isCurrent: false,
+        },
+      ],
+      liveToday,
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it('REGRESSION TEST: ending today equals ending tomorrow — no asymmetric coverage loss', () => {
+    // Both should reach `complete`. Pre-fix, end=today lost ~time-of-day
+    // hours and came up one day short while end=tomorrow (clipped at today)
+    // got the full coverage.
+    const liveToday = new Date('2026-05-14T18:00:00.000Z');
+    const today14 = evaluateTimeBasedScope(
+      { scopeType: 'time_based', scopeValue: 7 },
+      [
+        {
+          start: new Date('2019-05-14T00:00:00.000Z'),
+          end: new Date('2026-05-14T00:00:00.000Z'),
+          isCurrent: false,
+        },
+      ],
+      liveToday,
+    );
+    const today15 = evaluateTimeBasedScope(
+      { scopeType: 'time_based', scopeValue: 7 },
+      [
+        {
+          start: new Date('2019-05-14T00:00:00.000Z'),
+          end: new Date('2026-05-15T00:00:00.000Z'),
+          isCurrent: false,
+        },
+      ],
+      liveToday,
+    );
+
+    expect(today14.errors).toEqual([]);
+    expect(today15.errors).toEqual([]);
+    expect(today14.coveredDays).toBe(today15.coveredDays);
+  });
 });
