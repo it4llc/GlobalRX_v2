@@ -29,6 +29,7 @@
 
 import { useEffect } from 'react';
 
+import { isLockedInvitationFieldKey } from '@/lib/candidate/lockedInvitationFieldKeys';
 import { computeRepeatableSectionStatus } from '@/lib/candidate/sectionProgress';
 import type {
   CrossSectionRequirementEntry,
@@ -196,6 +197,15 @@ export function buildSubjectRequirementsForEntries<
     if (!entry.countryId) continue;
     const fields = subjectFieldsByCountry[entry.countryId] ?? [];
     for (const field of fields) {
+      // Cross-section-validation-filtering bug fix (Bug B/C): locked
+      // invitation fieldKeys (firstName, lastName, email, phone, phoneNumber)
+      // are pre-filled from the invitation columns and never editable by the
+      // candidate. They must not reach the cross-section registry — otherwise
+      // they appear in the Personal Info banner, drive asterisks on fields
+      // the candidate cannot fill in, AND block Personal Info from reaching
+      // 'complete' because `computePersonalInfoStatus` builds its required
+      // set from the union of local fields + registry entries.
+      if (isLockedInvitationFieldKey(field.fieldKey)) continue;
       out.push({
         fieldId: field.requirementId,
         fieldKey: field.fieldKey,
@@ -281,8 +291,19 @@ export function buildRepeatableProgressInputs<
         fieldKey: f.fieldKey,
         isRequired: f.isRequired,
       }));
+    // Per-entry progress only checks `per_entry`-scoped documents — those are
+    // the ones rendered inline within each entry (matches the inline-upload
+    // filter in `selectPerEntryDocumentFields`). `per_search` / `per_order`
+    // documents are uploaded once in the aggregated area (Record Search
+    // Section after Task 8.4), not per entry, so including them here makes
+    // local progress report `incomplete` for a section that the server
+    // correctly reports as `complete` (the engine skips documents entirely
+    // per `repeatableEntryFieldChecks.ts:390`). The merge then promotes the
+    // false local signal to a red sidebar indicator while no errors surface
+    // in the section banner or Review & Submit — the symptom the
+    // cross-section validation filtering bugfix follow-up fixes.
     requiredDocumentsByEntry[entry.entryOrder] = fields
-      .filter((f) => f.type === 'document')
+      .filter((f) => f.type === 'document' && isPerEntryDocument(f.documentData))
       .map((f) => ({
         id: f.requirementId,
         type: 'document',
@@ -346,4 +367,19 @@ function extractDocumentScope(
   if (typeof raw === 'string') return { scope: raw };
   if (raw === null || raw === undefined) return { scope: null };
   return null;
+}
+
+/**
+ * Predicate matching the inline-upload filter in `selectPerEntryDocumentFields`
+ * (`addressHistoryStage4Wiring.ts`): a document requirement participates in
+ * the per-entry progress check only when its `documentData.scope` is the
+ * literal string `'per_entry'`. `per_search` and `per_order` documents are
+ * uploaded in the aggregated area (Record Search Section after Task 8.4) and
+ * must not be reported as missing on the entry.
+ */
+function isPerEntryDocument(
+  documentData: Record<string, unknown> | null | undefined,
+): boolean {
+  if (!documentData) return false;
+  return documentData.scope === 'per_entry';
 }

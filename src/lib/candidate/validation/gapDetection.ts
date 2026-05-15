@@ -45,7 +45,17 @@ export function detectGaps(
   }
 
   const errors: GapError[] = [];
-  const todayMs = today.getTime();
+  // Off-by-one fix: dates are date-only and BOTH endpoints are inclusive,
+  // so we model intervals as half-open `[startOfDay, startOfNextDay)`.
+  // Today is also inclusive — gaps touching today's end are not gaps. We
+  // normalize today to UTC midnight first so the time-of-day component of
+  // `new Date()` doesn't asymmetrically shift the cap.
+  const todayUtcMidnightMs = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  const todayInclusiveMs = todayUtcMidnightMs + MS_PER_DAY;
   const scopeStartMs = scopePeriodStart ? scopePeriodStart.getTime() : null;
 
   // Resolve each entry to a deterministic { startMs, endMs } pair. Skip
@@ -58,10 +68,11 @@ export function detectGaps(
     const startMs = entry.start.getTime();
     let endMs: number;
     if (entry.end === null || entry.isCurrent) {
-      endMs = todayMs;
+      endMs = todayInclusiveMs;
     } else {
-      // Clamp future end-dates to today (Edge Case 5).
-      endMs = Math.min(entry.end.getTime(), todayMs);
+      // Treat entry.end as inclusive (end-of-day) and clamp future
+      // end-dates to the end of today.
+      endMs = Math.min(entry.end.getTime() + MS_PER_DAY, todayInclusiveMs);
     }
     if (endMs < startMs) continue;
     resolved.push({ startMs, endMs, isCurrent: entry.isCurrent });
@@ -115,9 +126,9 @@ export function detectGaps(
     const gapEndMs = next.startMs;
 
     // Rule 24 — skip gaps entirely outside the scope window. A gap is "in
-    // window" if any part of it overlaps [scopeStartMs, todayMs].
+    // window" if any part of it overlaps [scopeStartMs, todayInclusiveMs).
     if (scopeStartMs !== null) {
-      if (gapEndMs <= scopeStartMs || gapStartMs >= todayMs) {
+      if (gapEndMs <= scopeStartMs || gapStartMs >= todayInclusiveMs) {
         runningEnd = Math.max(runningEnd, next.endMs);
         continue;
       }

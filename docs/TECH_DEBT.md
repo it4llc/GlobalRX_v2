@@ -1936,23 +1936,32 @@ If the orchestrator grows beyond ~800 lines, or if a future feature adds a wholl
 
 ---
 
-### TD-076 — `personalInfoIdvFieldChecks.ts` exceeds 600-line file-size soft warning
+### TD-076 — `personalInfoIdvFieldChecks.ts` exceeds 600-line file-size hard stop
 
 | Field         | Detail                                                                  |
 |---------------|-------------------------------------------------------------------------|
 | Area          | Candidate Application — Validation engine field checks                  |
 | Severity      | Warning (file size — accepted override)                                 |
 | Identified    | May 7, 2026 - Phase 7 Stage 2 standards check                           |
+| Updated       | May 15, 2026 - Cross-section validation filtering bug fix standards check |
 | Identified by | standards-checker                                                       |
 
 **Description:**
-`src/lib/candidate/validation/personalInfoIdvFieldChecks.ts` is 632 lines, over the soft warning threshold and approaching the 600-line hard stop in CODING_STANDARDS S9.
+`src/lib/candidate/validation/personalInfoIdvFieldChecks.ts` is 659 lines, over the 600-line hard stop in CODING_STANDARDS S9.
+
+Growth history:
+- Phase 7 Stage 2 (May 7, 2026): 632 lines (over soft warning).
+- Phase 7 Stage 3a/3b: grew past 600 to 671 lines.
+- Task 8.5 (Silent Recalculation): 671 lines (no net change).
+- Cross-section validation filtering bug fix (May 15, 2026): 668 lines committed and 659 lines after the locked-invitation-fieldKey wiring pass. The bug fix is net-negative on this file; the file was already over 600 before the branch started.
 
 **Why accepted:**
 The file was deliberately extracted from `validationEngine.ts` (already TD-065) to keep the validation engine itself manageable. The collectors, AND-aggregator, `checkRequiredFields`, and the two section validators it contains share the same data shapes and helper logic — the code-reviewer's first pass concluded that splitting it further would create unnatural seams without any cohesion benefit.
 
+Per `CODING_STANDARDS.md` Section 9.4, splitting a large file reactively in the middle of unrelated work is how regressions happen. The cross-section validation filtering bug fix is a behavioral correction in the cross-section registry layer and does not own this file structurally, so the split is being deferred again rather than performed inside the bug-fix branch.
+
 **When to fix:**
-If a future stage adds a third section validator (beyond Personal Info and IDV) to this file, the section-level collector and validator pairs should be split into per-section files at that point.
+Suggested split: extract the per-fieldKey Personal Info / IDV field-key resolution helpers (the lookups that pair a requirement with its fieldKey and its DSX mapping context) into a focused module (e.g., `personalInfoFieldKeyResolver.ts`) and leave the section validators in this file. That seam is the cleanest because the field-key resolution layer is what the cross-section registry consumes, and lifting it out also makes future cross-section registry changes easier to test in isolation. If a future stage adds a third section validator (beyond Personal Info and IDV), the section-level collector and validator pairs should also be split into per-section files at that point.
 
 **Files affected:**
 - `src/lib/candidate/validation/personalInfoIdvFieldChecks.ts`
@@ -2196,22 +2205,24 @@ Either update the mock implementation to match the full Prisma `findFirst` argum
 | Area          | Candidate Portal / Component Structure                |
 | Severity      | Warning                                               |
 | Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
-| Updated       | May 13, 2026 - Task 8.2 Linear Step Navigation        |
+| Updated       | May 15, 2026 - Cross-section validation filtering bug fix |
 | Identified by | Standards Checker                                     |
 
 **Description:**
-`src/components/candidate/portal-layout.tsx` is 991 lines, well over the 600-line hard stop in `CODING_STANDARDS.md` Section 9.1. The file handles layout, navigation, section rendering, form state, template variable value construction, and (after Task 8.2) the linear step navigation callbacks and derived navigation state — responsibilities that should be split into smaller focused modules.
+`src/components/candidate/portal-layout.tsx` is 1531 lines, well over the 600-line hard stop in `CODING_STANDARDS.md` Section 9.1. The file handles layout, navigation, section rendering, form state, template variable value construction, visit tracking, the linear step navigation callbacks, the Task 8.5 dynamic step visibility / silent recalculation logic, and the Task 8.5 effective validation result patching that hides skipped dynamic steps from Review & Submit — responsibilities that should be split into smaller focused modules.
 
 Growth history:
 - Pre-Task 8.1: 841 lines
 - Post-Task 8.1: 863 lines (+22, authorized by the Task 8.1 technical plan)
-- Post-Task 8.2: 991 lines (+128, including the new navigation callbacks, derived memos, and a small additional bump from the import-grouping cleanup pass)
+- Post-Task 8.2: 991 lines (+128, navigation callbacks and derived memos)
+- Post-Task 8.5: 1521 lines (+530, dynamic step visibility, silent recalculation, visit tracking, effective validation result patching)
+- Cross-section validation filtering bug fix (May 15, 2026): 1531 lines (+10, sidebar/Review wiring for the bug fix and small effective-result patch refinements). The bug-fix delta is a small increment to a file that was already 2.5x over the hard stop.
 
 **Why deferred:**
-Per `CODING_STANDARDS.md` Section 9.4, splitting a large file reactively in the middle of unrelated work is how regressions happen. Andy explicitly approved the Task 8.2 addition as a conscious-decision override of the 600-line hard stop, on the grounds that the new code is small, the visual rendering was extracted into the new `StepNavigationButtons` component, and a full split is the correct standalone task.
+Per `CODING_STANDARDS.md` Section 9.4, splitting a large file reactively in the middle of unrelated work is how regressions happen. Andy explicitly approved the Task 8.2 addition as a conscious-decision override of the 600-line hard stop, on the grounds that the new code is small, the visual rendering was extracted into the new `StepNavigationButtons` component, and a full split is the correct standalone task. The same reasoning applies to the bug fix increment: the bug fix is a behavioral correction across multiple cross-section validation files and the portal-layout change is wiring only.
 
 **When to fix:**
-As a dedicated follow-up task before any further additions to this file. Split into smaller modules — for example, extract the section rendering logic, the navigation/sidebar logic, and the form state management into separate files.
+As a dedicated follow-up task before any further additions to this file. Suggested first split: extract the navigation/visibility logic — the dynamic step visibility computation, the visible-sections derivation, the visit tracking effects, and the effective validation result patching — into a custom hook (e.g., `useDynamicStepNavigation` returning `visibleSectionsWithStatus`, `effectiveValidationResult`, `disableSubmitForDynamicGaps`, and the visit-tracking callbacks). That hook would own roughly 200–300 lines of the file's most cohesive logic, can be unit-tested in isolation, and would shrink the component to under 1300 lines. Subsequent splits can extract section rendering and form state management into their own hooks.
 
 ---
 

@@ -155,8 +155,25 @@ export function evaluateTimeBasedScope(
 ): { errors: ScopeError[]; coveredDays: number; requiredDays: number } {
   const requiredYears = scope.scopeValue ?? 0;
   const requiredDays = Math.round(requiredYears * DAYS_PER_YEAR);
-  const todayMs = today.getTime();
-  const scopeStartMs = todayMs - requiredDays * MS_PER_DAY;
+  // Off-by-one fix: candidate-entered dates are date-only (UTC midnight) and
+  // BOTH endpoints are inclusive — a job from 5/14/2026 to 5/14/2026 is one
+  // day of work, not zero. We model intervals as half-open
+  // `[startOfDay, startOfNextDay)` by adding MS_PER_DAY when treating an end
+  // date as inclusive. "Today" follows the same rule: today is inclusive, so
+  // the scope window stretches up to "start of tomorrow".
+  //
+  // We also normalize `today` to UTC midnight before adding the day. Without
+  // this, the live `new Date()` carries a time-of-day component and the
+  // arithmetic loses hours asymmetrically — an entry ending today would lose
+  // those hours from coverage while an entry ending tomorrow would not, which
+  // is exactly the pattern the smoke-test off-by-one surfaced.
+  const todayUtcMidnightMs = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  const todayInclusiveMs = todayUtcMidnightMs + MS_PER_DAY;
+  const scopeStartMs = todayInclusiveMs - requiredDays * MS_PER_DAY;
 
   if (entries.length === 0) {
     return {
@@ -179,7 +196,8 @@ export function evaluateTimeBasedScope(
 
   // Build clamped intervals — clamp end to today (Rule 23/Edge 5), then
   // intersect with the scope window so entries outside the past N years
-  // don't inflate coverage.
+  // don't inflate coverage. End dates are treated as inclusive (see the
+  // off-by-one comment above).
   type Interval = { start: number; end: number };
   const intervals: Interval[] = [];
   for (const entry of entries) {
@@ -187,16 +205,17 @@ export function evaluateTimeBasedScope(
     const startMs = entry.start.getTime();
     let endMs: number;
     if (entry.end === null || entry.isCurrent) {
-      endMs = todayMs;
+      endMs = todayInclusiveMs;
     } else {
-      // Clamp future end-dates to today.
-      endMs = Math.min(entry.end.getTime(), todayMs);
+      // Treat entry.end as inclusive (end-of-day) and clamp future
+      // end-dates to the end of today.
+      endMs = Math.min(entry.end.getTime() + MS_PER_DAY, todayInclusiveMs);
     }
     // Skip degenerate intervals (start after clamped end).
     if (endMs < startMs) continue;
     // Clip to the scope window.
     const clippedStart = Math.max(startMs, scopeStartMs);
-    const clippedEnd = Math.min(endMs, todayMs);
+    const clippedEnd = Math.min(endMs, todayInclusiveMs);
     if (clippedEnd <= clippedStart) continue;
     intervals.push({ start: clippedStart, end: clippedEnd });
   }
