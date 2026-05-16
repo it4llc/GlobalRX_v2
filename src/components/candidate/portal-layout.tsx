@@ -26,6 +26,12 @@ import { SectionErrorBanner } from '@/components/candidate/SectionErrorBanner';
 // purely presentational; navigation logic lives here in the shell so it
 // can reuse the existing `handleSectionClick` (spec rule 7).
 import StepNavigationButtons from '@/components/candidate/StepNavigationButtons';
+// Task 9.1 — Error Boundaries & Loading States. The generic boundary
+// catches render errors thrown inside a section so a single broken section
+// no longer takes down the whole portal; the fallback is the
+// candidate-friendly card with Try Again / Skip buttons.
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { CandidateSectionErrorFallback } from '@/components/candidate/CandidateSectionErrorFallback';
 import { clientLogger as logger } from '@/lib/client-logger';
 // Phase 7 Stage 1 — visit tracking + /validate-driven error display.
 // usePortalValidation owns sectionVisits, reviewPageVisitedAt, and the
@@ -60,6 +66,36 @@ import type {
   SectionStatus,
 } from '@/types/candidate-stage4';
 import type { TemplateVariableValues } from '@/types/templateVariables';
+
+// Task 9.1 — Conservative PII scrubber for error messages logged to the
+// client logger. The clientLogger already filters email addresses; this
+// helper extends that protection to phone numbers and proper-name-like
+// token sequences which may appear in React error messages when the crash
+// references form field values (e.g., an invalid prop value that includes
+// the candidate's typed-in name). The heuristics intentionally over-redact
+// — false positives such as "New York" or "React Error" being replaced
+// with [REDACTED_NAME] are acceptable because log readability matters
+// less than ensuring no candidate PII reaches the log sink.
+function scrubErrorMessage(message: string): string {
+  if (typeof message !== 'string' || message.length === 0) return message;
+  return (
+    message
+      // Formatted phone numbers: optional country code + 3-3-4 digit grouping
+      // with various separators. Run before the bare-digits pattern so the
+      // formatted version is replaced first.
+      .replace(/\b\+?\d{1,3}[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g, '[REDACTED_PHONE]')
+      // Long bare digit runs (10–15 digits). Catches unformatted phone
+      // numbers and similar PII-shaped numbers. Note: this also redacts
+      // long account/order IDs if they happen to land in an error string,
+      // which is again an acceptable false positive for log safety.
+      .replace(/\b\d{10,15}\b/g, '[REDACTED_PHONE]')
+      // Capitalized name-like sequences (2–4 consecutive capitalized words).
+      // Catches "John Smith", "John Quincy Adams" etc. Known false positives
+      // like "New York" or "React Error" are accepted per the over-redact
+      // rule above.
+      .replace(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}\b/g, '[REDACTED_NAME]')
+  );
+}
 
 interface PortalLayoutProps {
   invitation: CandidateInvitationInfo;
@@ -579,6 +615,47 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     />
   );
 
+  // Task 9.1 — derive the localized title of the section currently active
+  // so the ErrorBoundary fallback can include the section name in its
+  // message ("The Address History section couldn't be loaded..."). The
+  // raw `section.title` shipped by the structure endpoint is a translation
+  // KEY (e.g. `candidate.portal.sections.personalInformation`), so we have
+  // to run it through `t()` here — the same way portal-sidebar does at
+  // render time. For user-defined workflow sections whose title is plain
+  // text rather than a key, `t()` returns the input unchanged when no
+  // matching translation is found, so the pass-through is safe.
+  const activeSectionTitle = activeSectionForNav ? t(activeSectionForNav.title) : undefined;
+
+  // Task 9.1 — the fallback's "Skip to Next Step" button needs a handler
+  // ONLY when there actually is a next section to skip to. When the
+  // candidate is already on the last section, we omit the skip handler so
+  // the fallback hides that button entirely (spec §"Props" #3).
+  const skipToNextFromFallback = showNext ? handleNextClick : undefined;
+
+  // Task 9.1 — onError forwarder for section crashes. The ErrorBoundary is
+  // a client component; Winston is server-only, so we route through the
+  // existing clientLogger (which already PII-filters and Sentry-forwards
+  // in production). We log the section id so a post-incident investigation
+  // can correlate to the right code path without exposing PII.
+  //
+  // PII safety: clientLogger strips email addresses but does NOT scrub
+  // names or phone numbers — and React error messages sometimes echo back
+  // form field values that triggered the crash (e.g. an invalid date
+  // string, a candidate's typed-in name). We run the message through
+  // `scrubErrorMessage` below before it leaves the component so the log
+  // payload never carries the candidate's personally identifying data,
+  // even if a future error path includes it in `error.message`.
+  const handleSectionRenderError = useCallback(
+    (error: Error) => {
+      logger.error('Candidate portal section render error', {
+        event: 'candidate_section_render_error',
+        sectionId: activeSection,
+        error: scrubErrorMessage(error.message),
+      });
+    },
+    [activeSection],
+  );
+
   const getActiveContent = () => {
     if (!activeSection) {
       return (
@@ -873,7 +950,37 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
 
         {/* Content area */}
         <main className="flex-1 bg-white overflow-y-auto">
-          {getActiveContent()}
+          {/*
+            Task 9.1 — Each section is rendered inside an ErrorBoundary so
+            that a render-time crash inside one section does not blank the
+            whole portal. Two cooperating mechanisms keep the boundary
+            scoped to the current section:
+              1. `key={activeSection ?? '__welcome'}` forces React to
+                 unmount the entire boundary subtree when the candidate
+                 navigates to a different section. Without the key, a
+                 crashed section's error state would persist when the user
+                 moved to a healthy section.
+              2. `resetKeys={[activeSection]}` is a defensive second layer:
+                 if React ever reused the boundary instance across a
+                 section change (it shouldn't, but key behavior in nested
+                 trees can be subtle), the boundary still auto-resets when
+                 the active section id changes.
+          */}
+          <ErrorBoundary
+            key={activeSection ?? '__welcome'}
+            resetKeys={[activeSection]}
+            onError={handleSectionRenderError}
+            fallback={(error, reset) => (
+              <CandidateSectionErrorFallback
+                error={error}
+                resetErrorBoundary={reset}
+                onSkipToNext={skipToNextFromFallback}
+                sectionTitle={activeSectionTitle}
+              />
+            )}
+          >
+            {getActiveContent()}
+          </ErrorBoundary>
         </main>
       </div>
     </div>

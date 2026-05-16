@@ -2205,24 +2205,21 @@ Either update the mock implementation to match the full Prisma `findFirst` argum
 | Area          | Candidate Portal / Component Structure                |
 | Severity      | Warning                                               |
 | Identified    | May 13, 2026 - Task 8.1 Template Variable System      |
-| Updated       | May 15, 2026 - Cross-section validation filtering bug fix |
+| Updated       | May 15, 2026 - Task 9.1 Error Boundaries & Loading States |
 | Identified by | Standards Checker                                     |
 
 **Description:**
-`src/components/candidate/portal-layout.tsx` is 1531 lines, well over the 600-line hard stop in `CODING_STANDARDS.md` Section 9.1. The file handles layout, navigation, section rendering, form state, template variable value construction, visit tracking, the linear step navigation callbacks, the Task 8.5 dynamic step visibility / silent recalculation logic, and the Task 8.5 effective validation result patching that hides skipped dynamic steps from Review & Submit — responsibilities that should be split into smaller focused modules.
+`src/components/candidate/portal-layout.tsx` is 988 lines, well over the 600-line hard stop in `CODING_STANDARDS.md` Section 9.1. The file handles layout, navigation, section rendering, form state, template variable value construction, visit tracking, the linear step navigation callbacks, dynamic step visibility / silent recalculation logic, effective validation result patching that hides skipped dynamic steps from Review & Submit, and (as of Task 9.1) the ErrorBoundary wiring for per-section crash isolation — responsibilities that should be split into smaller focused modules.
 
-Growth history:
-- Pre-Task 8.1: 841 lines
-- Post-Task 8.1: 863 lines (+22, authorized by the Task 8.1 technical plan)
-- Post-Task 8.2: 991 lines (+128, navigation callbacks and derived memos)
-- Post-Task 8.5: 1521 lines (+530, dynamic step visibility, silent recalculation, visit tracking, effective validation result patching)
-- Cross-section validation filtering bug fix (May 15, 2026): 1531 lines (+10, sidebar/Review wiring for the bug fix and small effective-result patch refinements). The bug-fix delta is a small increment to a file that was already 2.5x over the hard stop.
+Growth history (post portal-layout refactor, PR #513):
+- Post-refactor baseline (dev, May 15, 2026): 881 lines
+- Post-Task 9.1: 988 lines (+107, ErrorBoundary import and wiring, `scrubErrorMessage` helper, `handleSectionRenderError` callback, `activeSectionTitle` and `skipToNextFromFallback` derivations, ErrorBoundary JSX wrapping the content area)
 
 **Why deferred:**
-Per `CODING_STANDARDS.md` Section 9.4, splitting a large file reactively in the middle of unrelated work is how regressions happen. Andy explicitly approved the Task 8.2 addition as a conscious-decision override of the 600-line hard stop, on the grounds that the new code is small, the visual rendering was extracted into the new `StepNavigationButtons` component, and a full split is the correct standalone task. The same reasoning applies to the bug fix increment: the bug fix is a behavioral correction across multiple cross-section validation files and the portal-layout change is wiring only.
+Per `CODING_STANDARDS.md` Section 9.4, splitting a large file reactively in the middle of unrelated work is how regressions happen. The Task 9.1 addition is wiring-only: the boundary logic itself lives in the new `ErrorBoundary` and `CandidateSectionErrorFallback` components. A full split of `portal-layout.tsx` is the correct standalone task.
 
 **When to fix:**
-As a dedicated follow-up task before any further additions to this file. Suggested first split: extract the navigation/visibility logic — the dynamic step visibility computation, the visible-sections derivation, the visit tracking effects, and the effective validation result patching — into a custom hook (e.g., `useDynamicStepNavigation` returning `visibleSectionsWithStatus`, `effectiveValidationResult`, `disableSubmitForDynamicGaps`, and the visit-tracking callbacks). That hook would own roughly 200–300 lines of the file's most cohesive logic, can be unit-tested in isolation, and would shrink the component to under 1300 lines. Subsequent splits can extract section rendering and form state management into their own hooks.
+As a dedicated follow-up task before any further feature additions to this file. Suggested first split: extract the navigation/visibility logic — dynamic step visibility computation, visible-sections derivation, visit tracking effects, and effective validation result patching — into a custom hook (e.g., `useDynamicStepNavigation`). That hook would own a significant portion of the file's most cohesive logic, can be unit-tested in isolation, and would materially reduce the component size. Subsequent splits can extract section rendering and form state management into their own hooks.
 
 ---
 
@@ -2283,6 +2280,90 @@ The e2e seed infrastructure was not in scope for Task 8.1. The unit and componen
 
 **When to fix:**
 When setting up or expanding the e2e seed data for the candidate portal flow. Add a seeded invitation matching the test's expectations to the e2e seed script.
+
+---
+
+### TD-094 — `CandidateSectionLoadingSkeleton` built but not wired into production
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Portal / Loading States                     |
+| Severity      | Low                                                   |
+| Identified    | May 15, 2026 - Task 9.1 Error Boundaries & Loading States |
+| Identified by | Implementer                                           |
+
+**Description:**
+`src/components/candidate/CandidateSectionLoadingSkeleton.tsx` was created as part of Task 9.1 but has no production consumer. The component is fully tested and ready to use. It is not wired into `portal-layout.tsx` or any section component because candidate sections are not yet lazy-loaded or Suspense-driven. The component exists as infrastructure for when that change is made.
+
+**Why deferred:**
+Wiring a loading skeleton requires a Suspense boundary and either lazy-loaded section components or a data-fetching suspension point. Neither exists yet. Building that infrastructure was out of scope for Task 9.1, which focused on render-error isolation.
+
+**When to fix:**
+When candidate portal sections are converted to lazy-loaded components or Suspense-driven data fetching. At that point, wrap each section import or data-fetch suspension with `<Suspense fallback={<CandidateSectionLoadingSkeleton variant="..." />}>`. Choose the variant based on the section type: `form` for data-entry sections, `content` for workflow/acknowledgment sections, `review` for the Review & Submit section.
+
+---
+
+### TD-095 — `scrubErrorMessage` does not redact SSN-shaped strings
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Portal / PII Safety in Client Logs          |
+| Severity      | Low                                                   |
+| Identified    | May 15, 2026 - Task 9.1 Error Boundaries & Loading States |
+| Identified by | Implementer                                           |
+
+**Description:**
+The `scrubErrorMessage` helper in `portal-layout.tsx` redacts formatted phone numbers, long bare digit runs, and capitalized name-like sequences from error messages before they are forwarded to `clientLogger.error`. It does not redact SSN-shaped strings (`123-45-6789`) or JSON-quoted name fields (e.g., `"firstName": "John"`). These patterns are unlikely to appear in React render error messages in practice, but they are theoretically possible if a crash references a form field value that holds one of those shapes.
+
+**Why deferred:**
+The existing heuristics cover the most likely PII shapes in React error messages (formatted phone numbers and proper-name token sequences). SSN patterns and JSON field fragments are a much lower-probability path. The over-redact design philosophy already accepts false positives for safety, so the current implementation is conservative-by-design rather than incomplete-by-accident.
+
+**When to fix:**
+If a post-incident log review reveals SSN or JSON-field fragments reaching the client log sink, add the missing patterns:
+- SSN: `/\b\d{3}-\d{2}-\d{4}\b/g` → `[REDACTED_SSN]`
+- JSON name fragments: `/"\w+Name"\s*:\s*"[^"]+"/g` → `"[REDACTED_FIELD]": "[REDACTED]"`
+
+Consider adding a dedicated unit test for `scrubErrorMessage` at the same time (see TD-096).
+
+---
+
+### TD-096 — `scrubErrorMessage` has no dedicated unit test
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Portal / Test Coverage                      |
+| Severity      | Low                                                   |
+| Identified    | May 15, 2026 - Task 9.1 Error Boundaries & Loading States |
+| Identified by | Implementer                                           |
+
+**Description:**
+`scrubErrorMessage` is a module-private function in `portal-layout.tsx`. Its behavior is verified only indirectly by the `portal-layout-error-boundary.test.tsx` integration test, which checks that `clientLogger.error` is called and that the logged value is a string — but does not assert the specific redaction patterns. A dedicated unit test of the redaction logic would catch regressions if the regex patterns are modified.
+
+**Why deferred:**
+The function is module-private and cannot be imported directly. Testing it in isolation would require either exporting it (changing the public surface of the module) or extracting it into a separate utility file. Both are small refactors but out of scope for Task 9.1.
+
+**When to fix:**
+Extract `scrubErrorMessage` into `src/lib/scrubErrorMessage.ts` (or co-locate it with `client-logger.ts` as a logging utility), export it, and add a unit test covering phone number redaction, name redaction, and pass-through for clean strings. Pair with TD-095 if SSN patterns are added at the same time.
+
+---
+
+### TD-097 — `portal-layout.tsx` split planning needed before next feature addition
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Portal / Component Structure                |
+| Severity      | Warning                                               |
+| Identified    | May 15, 2026 - Task 9.1 Error Boundaries & Loading States |
+| Identified by | Documentation Writer                                  |
+
+**Description:**
+After Task 9.1, `portal-layout.tsx` is at 988 lines — 65% over the 600-line hard stop and approaching 1000 lines. Each feature task has added a small, authorized increment. The cumulative result is a file that is approaching the point where further authorized additions become difficult to review safely. TD-090 already tracks this; this entry is a forward-looking flag: the next feature task that needs to add logic to `portal-layout.tsx` should be preceded by the hook-extraction split described in TD-090 before the feature work begins, not after.
+
+**Why deferred:**
+File splitting was out of scope for Task 9.1.
+
+**When to fix:**
+Before the next feature task that would add more than ~20 lines to `portal-layout.tsx`. The split plan in TD-090 (extract navigation/visibility logic into `useDynamicStepNavigation`) is the recommended starting point.
 
 ---
 ## Resolved Items
