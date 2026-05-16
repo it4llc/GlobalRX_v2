@@ -55,17 +55,39 @@ export function ReviewSectionBlock(props: ReviewSectionBlockProps) {
       ) : null}
 
       {errors.length > 0 ? (
-        <ul className="flex flex-col gap-2">
-          {errors.map((err, idx) => (
-            <li key={`${err.kind}-${idx}`}>
-              <ReviewErrorListItem
-                error={err}
-                sectionId={sectionId}
-                onClick={() => onErrorClick(err)}
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          {/* Task 9.2 — descriptive jump link with aria-label "Go back to
+              fix errors in <section name>". Renders as a semantic anchor
+              (role=link) so the spec's getByRole('link') query finds it.
+              The anchor preventDefaults and calls the same onErrorClick
+              handler as the per-error buttons, navigating to the first
+              error in the list. */}
+          <a
+            href={`#${sectionId}`}
+            className="mb-2 inline-block text-sm font-medium text-red-700 underline hover:text-red-900"
+            aria-label={t('candidate.a11y.fixErrorsIn', { sectionName })}
+            onClick={(event) => {
+              event.preventDefault();
+              if (errors.length > 0) {
+                onErrorClick(errors[0]);
+              }
+            }}
+            data-testid="review-jump-link"
+          >
+            {t('candidate.a11y.fixErrorsIn', { sectionName })}
+          </a>
+          <ul className="flex flex-col gap-2">
+            {errors.map((err, idx) => (
+              <li key={`${err.kind}-${idx}`}>
+                <ReviewErrorListItem
+                  error={err}
+                  sectionId={sectionId}
+                  onClick={() => onErrorClick(err)}
+                />
+              </li>
+            ))}
+          </ul>
+        </>
       ) : null}
     </section>
   );

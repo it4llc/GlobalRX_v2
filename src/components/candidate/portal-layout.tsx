@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { format } from 'date-fns';
@@ -21,6 +21,19 @@ import { RecordSearchSection } from '@/components/candidate/form-engine/RecordSe
 import WorkflowSectionRenderer from '@/components/candidate/form-engine/WorkflowSectionRenderer';
 import { ReviewSubmitPage } from '@/components/candidate/review-submit/ReviewSubmitPage';
 import { SectionErrorBanner } from '@/components/candidate/SectionErrorBanner';
+// Task 9.2 — Accessibility primitives. SkipLink renders at the top of the
+// page so keyboard users can jump straight to main content. LiveAnnouncer
+// provides the aria-live region used for "Progress saved" / "Cannot
+// continue" / etc. StepHeading is rendered inside each step's content area
+// as the focus target for keyboard step navigation.
+import { SkipLink } from '@/components/candidate/skip-link';
+import {
+  LiveAnnouncerProvider,
+  useLiveAnnouncer,
+} from '@/components/candidate/live-announcer';
+import { StepHeading } from '@/components/candidate/step-heading';
+import { useFocusOnChange } from '@/hooks/candidate/use-focus-management';
+import { MAIN_CONTENT_ID } from '@/lib/candidate/a11y-constants';
 // Task 8.2 (Linear Step Navigation) — shared Next/Back button row rendered
 // at the bottom of every non-`review_submit` section. The component is
 // purely presentational; navigation logic lives here in the shell so it
@@ -103,7 +116,20 @@ interface PortalLayoutProps {
   token: string;
 }
 
-export default function PortalLayout({ invitation, sections, token }: PortalLayoutProps) {
+// Task 9.2 — exported wrapper that installs the LiveAnnouncerProvider so any
+// descendant component (sections, hooks, error banners) can push aria-live
+// announcements without prop-drilling. Keeping this as a tiny outer
+// component lets the existing PortalLayoutInner keep all of its hooks
+// without re-renaming or re-ordering anything.
+export default function PortalLayout(props: PortalLayoutProps) {
+  return (
+    <LiveAnnouncerProvider>
+      <PortalLayoutInner {...props} />
+    </LiveAnnouncerProvider>
+  );
+}
+
+function PortalLayoutInner({ invitation, sections, token }: PortalLayoutProps) {
   // Default to first section (Personal Information) if it exists
   const defaultSection = sections.length > 0 ? sections[0].id : null;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -153,6 +179,13 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
   // hooks cannot be called from inside a useCallback body.
   const router = useRouter();
   const { t } = useTranslation();
+
+  // Task 9.2 — live-region announcer + focus management. The provider lives
+  // in the outer wrapper; this is the in-tree consumer that pushes messages
+  // (e.g., "Progress saved", "Cannot continue") when interesting things
+  // happen. The save-success refresh wires through onSaveSuccessWithAnnouncement
+  // below so every per-section save triggers a single polite announcement.
+  const { announce } = useLiveAnnouncer();
 
   // Phase 7 Stage 1 — visit tracking + validation result driven by
   // usePortalValidation. The hook hydrates from initial values pushed in
@@ -605,15 +638,113 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     !isReviewActive &&
     activeSectionIndex > 0;
 
-  // Single shared instance of the navigation row so each dispatch branch
-  // below renders the same element. Memoised against the derived flags so
-  // children only re-render when navigation state actually changes.
-  const stepNavigation = (
+  // Task 9.2 — destination metadata for the Next/Back aria-labels. The
+  // accessibility spec requires the buttons to say "Continue to Step 4:
+  // Education History" rather than just "Next", so the user knows where
+  // they'll end up before they press it.
+  const backStep =
+    showBack && activeSectionIndex > 0
+      ? navigableSections[activeSectionIndex - 1]
+      : null;
+  const nextStep =
+    showNext && activeSectionIndex >= 0
+      ? navigableSections[activeSectionIndex + 1]
+      : null;
+  const backStepNumber = backStep ? activeSectionIndex : undefined;
+  const nextStepNumber = nextStep ? activeSectionIndex + 2 : undefined;
+  const backStepTitle = backStep ? t(backStep.title) : undefined;
+  const nextStepTitle = nextStep ? t(nextStep.title) : undefined;
+
+  // Task 9.2 — focus management on step navigation. Each step renders a
+  // StepHeading with id `step-heading-<sectionId>`. When the activeSection
+  // changes, useFocusOnChange moves keyboard focus to the new heading so
+  // screen-reader users immediately hear the new section's title and
+  // sighted keyboard users see the focus ring in the right place.
+  const activeStepHeadingId = activeSection ? `step-heading-${activeSection}` : '';
+  useFocusOnChange(activeStepHeadingId, activeSection);
+
+  // Task 9.2 — wrapper that gates Next-button navigation on validation.
+  // When the active step has visible errors, we announce assertively,
+  // move keyboard focus to the first aria-invalid element, and BLOCK
+  // `handleNextClick()` so the candidate stays on the current step until
+  // the errors are resolved. Without the gate, focus would jump to the
+  // error field but the engine would still advance — a confusing
+  // mismatch.
+  const handleNextClickWithA11y = useCallback(() => {
+    const sectionId = activeSection;
+    if (sectionId) {
+      const validation = validationResult?.sections.find((s) => s.sectionId === sectionId);
+      const errorCount = validation?.fieldErrors?.length ?? 0;
+      const scopeCount = validation?.scopeErrors?.length ?? 0;
+      const gapCount = validation?.gapErrors?.length ?? 0;
+      const docCount = validation?.documentErrors?.length ?? 0;
+      const totalErrors = errorCount + scopeCount + gapCount + docCount;
+      if (totalErrors > 0 && isErrorVisible(sectionId)) {
+        announce(
+          t('candidate.a11y.cannotContinue', { count: totalErrors }),
+          'assertive',
+        );
+        if (typeof window !== 'undefined') {
+          requestAnimationFrame(() => {
+            const first = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+            if (first) {
+              first.focus({ preventScroll: false });
+            }
+          });
+        }
+        return;
+      }
+    }
+    handleNextClick();
+  }, [activeSection, validationResult, isErrorVisible, announce, t, handleNextClick]);
+
+  const stepNavigationWithA11y = (
     <StepNavigationButtons
       onBack={showBack ? handleBackClick : null}
-      onNext={showNext ? handleNextClick : null}
+      onNext={showNext ? handleNextClickWithA11y : null}
+      backStepNumber={backStepNumber}
+      backStepTitle={backStepTitle}
+      nextStepNumber={nextStepNumber}
+      nextStepTitle={nextStepTitle}
     />
   );
+
+  // Task 9.2 — onSaveSuccess wrapper that re-validates AND announces
+  // "Progress saved" politely. Used by every section's onSaveSuccess prop
+  // so the announcement fires regardless of which section triggered the
+  // save. The announcer dedupes identical consecutive announcements via
+  // its clear-then-write cycle.
+  const onSaveSuccessWithAnnouncement = useCallback(() => {
+    refreshValidation();
+    announce(t('candidate.a11y.progressSaved'), 'polite');
+  }, [refreshValidation, announce, t]);
+
+  // Task 9.2 — same wrapper for Address History, which uses the dynamic
+  // visibility hook's specialised handler (it also re-evaluates step
+  // visibility on save). We chain the announcement on top of the existing
+  // handler so the behaviour stays identical to before, plus the polite
+  // "Progress saved" message reaches the live region.
+  const handleAddressHistorySaveSuccessWithA11y = useCallback(() => {
+    handleAddressHistorySaveSuccess();
+    announce(t('candidate.a11y.progressSaved'), 'polite');
+  }, [handleAddressHistorySaveSuccess, announce, t]);
+
+  // Task 9.2 — gap-warning announcement. Tracks the previous gap count
+  // per section so the announcement only fires when the count actually
+  // changes for the active section. A single shared ref would re-fire on
+  // every section change because a section with 0 gaps after one with 2
+  // gaps would look like a "change" from the prior section's value.
+  const previousGapCountBySectionRef = useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (!activeSection) return;
+    const validation = validationResult?.sections.find((s) => s.sectionId === activeSection);
+    const gapCount = validation?.gapErrors?.length ?? 0;
+    const previous = previousGapCountBySectionRef.current.get(activeSection) ?? 0;
+    if (gapCount > 0 && gapCount !== previous) {
+      announce(t('candidate.a11y.addressGapWarning'), 'polite');
+    }
+    previousGapCountBySectionRef.current.set(activeSection, gapCount);
+  }, [activeSection, validationResult, announce, t]);
 
   // Task 9.1 — derive the localized title of the section currently active
   // so the ErrorBoundary fallback can include the section name in its
@@ -751,9 +882,9 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             // Phase 7 Stage 1 — error banner + per-field error wiring.
             sectionValidation={sectionValidation}
             errorsVisible={errorsVisible}
-            onSaveSuccess={refreshValidation}
+            onSaveSuccess={onSaveSuccessWithAnnouncement}
           />
-          {stepNavigation}
+          {stepNavigationWithA11y}
         </div>
       );
     }
@@ -767,9 +898,9 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
             sectionValidation={sectionValidation}
             errorsVisible={errorsVisible}
-            onSaveSuccess={refreshValidation}
+            onSaveSuccess={onSaveSuccessWithAnnouncement}
           />
-          {stepNavigation}
+          {stepNavigationWithA11y}
         </div>
       );
     }
@@ -808,9 +939,9 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onCrossSectionRequirementsChanged={handleCrossSectionRequirementsChanged}
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
             onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource}
-            onSaveSuccess={handleAddressHistorySaveSuccess}
+            onSaveSuccess={handleAddressHistorySaveSuccessWithA11y}
           />
-          {stepNavigation}
+          {stepNavigationWithA11y}
         </div>
       );
     }
@@ -832,11 +963,11 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             token={token}
             serviceIds={section.serviceIds || []}
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
-            onSaveSuccess={refreshValidation}
+            onSaveSuccess={onSaveSuccessWithAnnouncement}
             sectionValidation={sectionValidation}
             errorsVisible={errorsVisible}
           />
-          {stepNavigation}
+          {stepNavigationWithA11y}
         </div>
       );
     }
@@ -857,9 +988,9 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
             onCrossSectionRequirementsChanged={handleCrossSectionRequirementsChanged}
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
-            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={refreshValidation}
+            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={onSaveSuccessWithAnnouncement}
           />
-          {stepNavigation}
+          {stepNavigationWithA11y}
         </div>
       );
     }
@@ -880,9 +1011,9 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             onProgressUpdate={(status) => handleSectionProgressUpdate(section.id, status)}
             onCrossSectionRequirementsChanged={handleCrossSectionRequirementsChanged}
             onCrossSectionRequirementsRemovedForEntry={handleCrossSectionRequirementsRemovedForEntry}
-            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={refreshValidation}
+            onCrossSectionRequirementsRemovedForSource={handleCrossSectionRequirementsRemovedForSource} onSaveSuccess={onSaveSuccessWithAnnouncement}
           />
-          {stepNavigation}
+          {stepNavigationWithA11y}
         </div>
       );
     }
@@ -901,7 +1032,7 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
             errorsVisible={errorsVisible}
             variableValues={templateVariableValues}
           />
-          {stepNavigation}
+          {stepNavigationWithA11y}
         </div>
       );
     }
@@ -915,19 +1046,24 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
     return (
       <div className="p-6" data-testid="main-content">
         <SectionPlaceholder title={section.title} />
-        {stepNavigation}
+        {stepNavigationWithA11y}
       </div>
     );
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Task 9.2 — SkipLink must be the FIRST focusable element on the
+          portal so the very first Tab keystroke lands on it. The link is
+          visually hidden until focus arrives. */}
+      <SkipLink />
       {/* Header */}
       <PortalHeader
         invitation={invitation}
         token={token}
         onMenuToggle={toggleMobileMenu}
         showMenuButton={true}
+        isMenuOpen={isMobileMenuOpen}
       />
 
       {/* Main content area */}
@@ -948,8 +1084,30 @@ export default function PortalLayout({ invitation, sections, token }: PortalLayo
           onClose={closeMobileMenu}
         />
 
-        {/* Content area */}
-        <main className="flex-1 bg-white overflow-y-auto">
+        {/* Content area — Task 9.2: id="main-content" is the SkipLink's
+            target and tabIndex={-1} lets the SkipLink call .focus() on it
+            without making it tab-able. aria-labelledby points to the
+            current step heading so the landmark name updates with each
+            step; a static aria-label would be redundant and (per spec
+            precedence) would never be read aloud. */}
+        <main
+          id={MAIN_CONTENT_ID}
+          tabIndex={-1}
+          aria-labelledby={activeStepHeadingId || undefined}
+          className="flex-1 bg-white overflow-y-auto outline-none"
+        >
+          {/* Task 9.2 — visually-hidden but programmatically-focusable
+              heading for the current step. Lives at the top of <main> so
+              focus management can target it via the activeStepHeadingId.
+              Rendered with the active section's localized title; when no
+              section is active (Welcome) we fall back to the application
+              name so the focus target always exists. */}
+          {activeSection && activeSectionTitle && (
+            <StepHeading
+              id={activeStepHeadingId}
+              title={activeSectionTitle}
+            />
+          )}
           {/*
             Task 9.1 — Each section is rendered inside an ErrorBoundary so
             that a render-time crash inside one section does not blank the

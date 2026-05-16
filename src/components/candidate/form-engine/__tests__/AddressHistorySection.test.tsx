@@ -8,6 +8,14 @@
 // longer carries aggregatedFields, and the section never fetches
 // /personal-info-fields.
 //
+// Task 9.2 updates: the entry-legend translation key for Address History
+// was realigned from the legacy `candidate.addressHistory.entryLabel` to
+// the spec-mandated `candidate.a11y.addressEntryN`. The new key does not
+// contain a `{number}` token, so with the identity-translator mock below
+// the rendered legend is the bare key string for every entry. Multi-entry
+// assertions use `getAllByText` and length checks because every entry's
+// legend now reads the same identity-translated key.
+//
 // Coverage focus (post-Task-8.4):
 //   - deriveMaxEntries behavior surfaces through the RepeatableEntryManager's
 //     Add button visibility
@@ -116,6 +124,12 @@ describe('AddressHistorySection', () => {
   const mockToken = 'token-abc';
   const mockServiceIds = ['srv-record-1'];
 
+  // Task 9.2 — every entry's legend is rendered as the bare identity-translated
+  // key (the key has no `{number}` placeholder, so the component's
+  // `.replace('{number}', ...)` is a no-op). Aliased here so the assertions
+  // read naturally.
+  const ADDRESS_ENTRY_LEGEND = 'candidate.a11y.addressEntryN';
+
   beforeEach(() => {
     vi.clearAllMocks();
     uuidCounter = 0;
@@ -154,9 +168,10 @@ describe('AddressHistorySection', () => {
         expect(screen.getByText('Address History')).toBeInTheDocument();
       });
 
-      // One default entry is created when no saved data exists.
-      // The label "Address {number}" gets replaced to "Address 1".
-      expect(screen.getByText('Address 1')).toBeInTheDocument();
+      // One default entry is created when no saved data exists. Task 9.2 — the
+      // legend renders the identity-translated key (no `{number}` token in
+      // the new key, so the component's replace is a no-op).
+      expect(screen.getByText(ADDRESS_ENTRY_LEGEND)).toBeInTheDocument();
 
       // The scope description is rendered (via ScopeDisplay).
       expect(
@@ -183,7 +198,7 @@ describe('AddressHistorySection', () => {
       render(<AddressHistorySection token={mockToken} serviceIds={mockServiceIds} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Address 1')).toBeInTheDocument();
+        expect(screen.getByText(ADDRESS_ENTRY_LEGEND)).toBeInTheDocument();
       });
 
       // The remove button (label "Remove" from our translation mock) must not exist
@@ -210,7 +225,7 @@ describe('AddressHistorySection', () => {
       render(<AddressHistorySection token={mockToken} serviceIds={mockServiceIds} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Address 1')).toBeInTheDocument();
+        expect(screen.getByText(ADDRESS_ENTRY_LEGEND)).toBeInTheDocument();
       });
 
       // Add Entry must be visible because time_based has no cap.
@@ -234,7 +249,7 @@ describe('AddressHistorySection', () => {
       render(<AddressHistorySection token={mockToken} serviceIds={mockServiceIds} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Address 1')).toBeInTheDocument();
+        expect(screen.getByText(ADDRESS_ENTRY_LEGEND)).toBeInTheDocument();
       });
 
       // The default first entry already counts as 1, and maxEntries=1, so the
@@ -269,10 +284,12 @@ describe('AddressHistorySection', () => {
 
       render(<AddressHistorySection token={mockToken} serviceIds={mockServiceIds} />);
 
-      // Two entries from saved data.
+      // Two entries from saved data. Task 9.2 — every entry's legend renders
+      // the same identity-translated key, so distinguishing entry 1 from
+      // entry 2 by legend text is no longer possible. Assert the count of
+      // matching legends instead.
       await waitFor(() => {
-        expect(screen.getByText('Address 1')).toBeInTheDocument();
-        expect(screen.getByText('Address 2')).toBeInTheDocument();
+        expect(screen.getAllByText(ADDRESS_ENTRY_LEGEND)).toHaveLength(2);
       });
 
       // Cap is 2 and we have 2 entries — Add must be hidden.
@@ -296,7 +313,7 @@ describe('AddressHistorySection', () => {
       render(<AddressHistorySection token={mockToken} serviceIds={mockServiceIds} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Address 1')).toBeInTheDocument();
+        expect(screen.getByText(ADDRESS_ENTRY_LEGEND)).toBeInTheDocument();
       });
 
       // 1 entry, cap is 3 — Add stays visible.
@@ -366,7 +383,7 @@ describe('AddressHistorySection', () => {
       render(<AddressHistorySection token={mockToken} serviceIds={mockServiceIds} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Address 1')).toBeInTheDocument();
+        expect(screen.getByText(ADDRESS_ENTRY_LEGEND)).toBeInTheDocument();
       });
 
       // Wait for the inline address block (real DOM, not a stub) to render so
@@ -431,7 +448,7 @@ describe('AddressHistorySection', () => {
       render(<AddressHistorySection token={mockToken} serviceIds={mockServiceIds} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Address 1')).toBeInTheDocument();
+        expect(screen.getByText(ADDRESS_ENTRY_LEGEND)).toBeInTheDocument();
       });
 
       // Allow enough cycles for any /fields settle. The aggregated document
@@ -464,7 +481,7 @@ describe('AddressHistorySection', () => {
       render(<AddressHistorySection token={mockToken} serviceIds={mockServiceIds} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Address 1')).toBeInTheDocument();
+        expect(screen.getByText(ADDRESS_ENTRY_LEGEND)).toBeInTheDocument();
       });
 
       // Task 8.4 §4.4 step 5: AddressHistorySection no longer needs the

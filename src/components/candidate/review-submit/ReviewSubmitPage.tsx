@@ -20,6 +20,7 @@
 import React from 'react';
 
 import { useTranslation } from '@/contexts/TranslationContext';
+import { SUBMIT_DISABLED_DESCRIBEDBY_ID } from '@/lib/candidate/a11y-constants';
 import type {
   FullValidationResult,
   ReviewError,
@@ -192,6 +193,19 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
     }));
   }
 
+  // Task 9.2 — total field-error count across all sections so the
+  // role="alert" banner at the top can show "X fields need attention".
+  // The banner only renders when there is at least one error.
+  const fieldsNeedAttentionCount = renderableSections.reduce(
+    (sum, s) => sum + s.errors.length,
+    0,
+  );
+  const submitDisabled =
+    !onSubmit ||
+    !validationResult?.summary.allComplete ||
+    submitting ||
+    disableSubmit;
+
   return (
     <div className="mx-auto w-full max-w-3xl" data-testid="review-submit-page">
       <header className="mb-6">
@@ -202,6 +216,19 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
           {t('candidate.reviewSubmit.intro')}
         </p>
       </header>
+
+      {/* Task 9.2 — validation summary banner. role="alert" so screen
+          readers announce immediately when errors exist on the Review
+          page. Only renders when there is at least one field error. */}
+      {fieldsNeedAttentionCount > 0 && (
+        <div
+          role="alert"
+          className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+          data-testid="validation-summary-banner"
+        >
+          {t('candidate.a11y.fieldsNeedAttention', { count: fieldsNeedAttentionCount })}
+        </div>
+      )}
 
       <div>
         {renderableSections.map((sec) => (
@@ -264,17 +291,15 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
             // dynamic step that has come back into scope locally (and is
             // not yet complete) blocks submission even if the server's
             // validate response has not yet caught up. Spec Business Rule 9 d.
-            disabled={
-              !onSubmit ||
-              !validationResult?.summary.allComplete ||
-              submitting ||
-              disableSubmit
-            }
-            aria-disabled={
-              !onSubmit ||
-              !validationResult?.summary.allComplete ||
-              submitting ||
-              disableSubmit
+            disabled={submitDisabled}
+            aria-disabled={submitDisabled}
+            // Task 9.2 — aria-describedby points to the explanation text
+            // ("Complete all required sections before submitting") so
+            // screen readers explain WHY the button is disabled. Only set
+            // when the button IS disabled; otherwise omitted to keep the
+            // accessible name clean.
+            aria-describedby={
+              submitDisabled ? SUBMIT_DISABLED_DESCRIBEDBY_ID : undefined
             }
             aria-busy={submitting ? 'true' : undefined}
             onClick={onSubmit ? () => void onSubmit() : undefined}
@@ -298,6 +323,16 @@ export function ReviewSubmitPage(props: ReviewSubmitPageProps) {
         </div>
         <p className="text-center text-xs text-gray-500">
           {t('candidate.reviewSubmit.submitHelp')}
+        </p>
+        {/* Task 9.2 — explanation text targeted by the disabled Submit
+            button's aria-describedby. The id is shared across the portal
+            via the a11y constants so screen readers always find it. The
+            text is the literal English phrasing the spec asserts. */}
+        <p
+          id={SUBMIT_DISABLED_DESCRIBEDBY_ID}
+          className="sr-only"
+        >
+          {t('candidate.a11y.completeBeforeSubmit')}
         </p>
       </footer>
     </div>

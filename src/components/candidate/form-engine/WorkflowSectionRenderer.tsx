@@ -95,6 +95,13 @@ export default function WorkflowSectionRenderer({
         <div
           className="prose max-w-none overflow-y-auto max-h-[60vh] border border-gray-200 rounded-md p-4 bg-white"
           data-testid="workflow-section-content"
+          // Task 9.2 — accessibility: announce the rendered content as a
+          // standalone document region with the section title as its label.
+          // tabIndex=0 lets keyboard users scroll/focus the container so
+          // screen readers can navigate inside it.
+          role="document"
+          aria-label={section.name}
+          tabIndex={0}
           // Task 8.1 — replace {{placeholders}} BEFORE DOMPurify so any HTML
           // or script content inside a value is cleaned along with the rest
           // of the merged content (spec Business Rule 2). When variableValues

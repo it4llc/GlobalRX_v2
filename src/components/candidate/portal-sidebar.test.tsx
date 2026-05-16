@@ -227,7 +227,10 @@ describe('PortalSidebar', () => {
         />
       );
 
-      const closeButton = screen.getByLabelText('Close menu');
+      // Task 9.2 — the close button's aria-label now uses the
+      // `candidate.a11y.closeMenu` translation key. With the identity
+      // translator above, the rendered aria-label is the key itself.
+      const closeButton = screen.getByLabelText('candidate.a11y.closeMenu');
       await user.click(closeButton);
 
       expect(onClose).toHaveBeenCalledTimes(1);
@@ -270,19 +273,18 @@ describe('PortalSidebar', () => {
       );
 
       // Check for sr-only status labels
-      // Phase 6 Stage 4: SectionProgressIndicator now combines the section
-      // label with the status translation, e.g. "Notice of Processing —
-      // candidate.sectionProgress.notStarted". Translation keys also moved
-      // from `candidate.portal.sections.{notStarted,inProgress,complete}` to
-      // `candidate.sectionProgress.{notStarted,incomplete,complete}` (BR 22
-      // renamed `in_progress` → `incomplete`). Assert each key is present
-      // somewhere in the combined screen-reader strings.
+      // Task 9.2 — SectionProgressIndicator's sr-only translation keys moved
+      // from the legacy `candidate.sectionProgress.{notStarted,incomplete,complete}`
+      // namespace to the spec-mandated `candidate.a11y.stepStatus*` namespace.
+      // With the identity translator above, the rendered sr-only text is
+      // "{section title} — {new key}". Assert each new key appears in at
+      // least one of the combined screen-reader strings.
       const srOnlyElements = document.querySelectorAll('.sr-only');
       const statusTexts = Array.from(srOnlyElements).map(el => el.textContent);
 
-      expect(statusTexts.some(t => t?.includes('candidate.sectionProgress.notStarted'))).toBe(true);
-      expect(statusTexts.some(t => t?.includes('candidate.sectionProgress.incomplete'))).toBe(true);
-      expect(statusTexts.some(t => t?.includes('candidate.sectionProgress.complete'))).toBe(true);
+      expect(statusTexts.some(t => t?.includes('candidate.a11y.stepStatusNotStarted'))).toBe(true);
+      expect(statusTexts.some(t => t?.includes('candidate.a11y.stepStatusIncomplete'))).toBe(true);
+      expect(statusTexts.some(t => t?.includes('candidate.a11y.stepStatusComplete'))).toBe(true);
     });
 
     it('should have aria-label on close button', () => {
@@ -298,7 +300,9 @@ describe('PortalSidebar', () => {
         />
       );
 
-      const closeButton = screen.getByLabelText('Close menu');
+      // Task 9.2 — close button uses the `candidate.a11y.closeMenu` key
+      // (rendered as-is by the identity translator).
+      const closeButton = screen.getByLabelText('candidate.a11y.closeMenu');
       expect(closeButton).toBeInTheDocument();
     });
 

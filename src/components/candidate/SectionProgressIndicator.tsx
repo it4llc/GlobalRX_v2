@@ -44,12 +44,16 @@ export default function SectionProgressIndicator({
     ? status
     : 'not_started';
 
+  // Task 9.2 — sr-only status text uses the spec-mandated
+  // `candidate.a11y.stepStatus*` vocabulary so the sidebar, the
+  // SectionProgressIndicator, and the e2e accessibility audit all share a
+  // single set of translation keys.
   const statusLabel =
     safeStatus === 'complete'
-      ? t('candidate.sectionProgress.complete')
+      ? t('candidate.a11y.stepStatusComplete')
       : safeStatus === 'incomplete'
-        ? t('candidate.sectionProgress.incomplete')
-        : t('candidate.sectionProgress.notStarted');
+        ? t('candidate.a11y.stepStatusIncomplete')
+        : t('candidate.a11y.stepStatusNotStarted');
 
   return (
     <span

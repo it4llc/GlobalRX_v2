@@ -430,6 +430,10 @@ export function AddressHistorySection({
             onAddressComplete={(subregionId) =>
               handleAddressComplete(entry.entryId, entry.countryId, subregionId)
             }
+            // Task 9.2 — pass entry's 1-indexed number so the date inputs
+            // pick up contextual aria-labels ("Start date for address N").
+            entryNumber={entry.entryOrder + 1}
+            entryTypeKey="address"
           />
         )}
 
@@ -497,9 +501,14 @@ export function AddressHistorySection({
         onRemoveEntry={handleRemoveEntry}
         onEntryChange={handleEntryChange}
         renderEntry={renderEntry}
-        entryLabelKey="candidate.addressHistory.entryLabel"
+        entryLabelKey="candidate.a11y.addressEntryN"
         minimumEntries={1}
         maxEntries={deriveMaxEntries(scope)}
+        // Task 9.2 — section-specific aria-labels so the Add and Remove
+        // buttons read "Add another address entry" / "Remove address N"
+        // (the e2e suite asserts both wordings).
+        addButtonAriaLabelKey="candidate.a11y.addAnotherAddress"
+        removeButtonAriaLabelKey="candidate.a11y.removeAddressN"
       />
     </div>
   );

@@ -43,12 +43,24 @@ interface StepNavigationButtonsProps {
    * the component contract later.
    */
   nextDisabled?: boolean;
+  // Task 9.2 — destination step metadata used to build descriptive
+  // aria-labels ("Go back to Step 3: Address History"). Both are optional
+  // for backwards compatibility with tests that don't pass them; when
+  // omitted, the buttons fall back to the plain "Back" / "Next" labels.
+  backStepNumber?: number;
+  backStepTitle?: string;
+  nextStepNumber?: number;
+  nextStepTitle?: string;
 }
 
 export default function StepNavigationButtons({
   onBack,
   onNext,
   nextDisabled = false,
+  backStepNumber,
+  backStepTitle,
+  nextStepNumber,
+  nextStepTitle,
 }: StepNavigationButtonsProps) {
   const { t } = useTranslation();
 
@@ -69,6 +81,17 @@ export default function StepNavigationButtons({
           data-testid="step-nav-back"
           onClick={onBack}
           className="inline-flex min-h-[44px] items-center justify-center rounded-md border border-gray-300 bg-white px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer w-full sm:w-auto"
+          // Task 9.2 — accessible label describing the destination step
+          // ("Go back to Step 3: Address History") so screen reader users
+          // know where Back will take them before they press it.
+          aria-label={
+            backStepNumber !== undefined && backStepTitle
+              ? t('candidate.a11y.goBackToStep', {
+                  number: backStepNumber,
+                  name: backStepTitle,
+                })
+              : undefined
+          }
         >
           {t('candidate.navigation.back')}
         </button>
@@ -82,6 +105,17 @@ export default function StepNavigationButtons({
           disabled={nextDisabled}
           aria-disabled={nextDisabled ? 'true' : undefined}
           className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer w-full sm:w-auto"
+          // Task 9.2 — same pattern as Back but for the forward step. When
+          // the destination isn't supplied (single-step packages / legacy
+          // callers) we fall back to the plain "Next" label.
+          aria-label={
+            nextStepNumber !== undefined && nextStepTitle
+              ? t('candidate.a11y.continueToStep', {
+                  number: nextStepNumber,
+                  name: nextStepTitle,
+                })
+              : undefined
+          }
         >
           {t('candidate.navigation.next')}
         </button>

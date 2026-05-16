@@ -8,7 +8,7 @@ import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import { ScopeDisplay } from './ScopeDisplay';
 import { EntryCountrySelector } from './EntryCountrySelector';
 import { RepeatableEntryManager } from './RepeatableEntryManager';
-import CandidateDocumentUpload from '../CandidateDocumentUpload';
+import CandidateDocumentUpload from '@/components/candidate/CandidateDocumentUpload';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
@@ -608,7 +608,10 @@ export function EducationSection({
         onRemoveEntry={handleRemoveEntry}
         onEntryChange={handleEntryChange}
         renderEntry={renderEntry}
-        entryLabelKey="candidate.portal.educationEntryLabel"
+        entryLabelKey="candidate.a11y.educationEntryN"
+        // Task 9.2 — section-specific Add/Remove aria-labels.
+        addButtonAriaLabelKey="candidate.a11y.addAnotherEducation"
+        removeButtonAriaLabelKey="candidate.a11y.removeEducationN"
       />
     </div>
   );

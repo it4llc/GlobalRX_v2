@@ -259,6 +259,11 @@ export function DynamicFieldRenderer({
     // `aria-invalid` with the destructive border (see src/components/ui/input.tsx),
     // so wiring the hasError prop here is enough to surface the red-border
     // state without any new CSS.
+    //
+    // Task 9.2 — accessibility: add aria-required for required fields and
+    // wire aria-describedby to the error-message id whenever an error is
+    // present. The shared `error-${fieldKey}` element id matches the one
+    // rendered below in the wrapper.
     return (
       <Input
         id={`field-${fieldKey}`}
@@ -269,6 +274,13 @@ export function DynamicFieldRenderer({
         disabled={locked}
         readOnly={locked}
         aria-invalid={hasError || undefined}
+        aria-required={isRequired || undefined}
+        // Task 9.2 — aria-describedby points to the FieldErrorMessage id
+        // (which is `${name}-error`). The DynamicFieldRenderer's own inline
+        // error fallback uses `error-${fieldKey}`; we list both so screen
+        // readers find whichever one is rendered by the caller. Browsers
+        // tolerate ids that don't exist in the value (they skip them).
+        aria-describedby={hasError ? `${name}-error error-${fieldKey}` : undefined}
         className={`min-h-[44px] text-base ${locked ? 'bg-gray-100' : ''}`}
         placeholder={locked ? '' : `Enter ${name}`}
         data-testid={`field-${fieldKey}`}
@@ -297,9 +309,11 @@ export function DynamicFieldRenderer({
       {/* Field */}
       {renderField()}
 
-      {/* Error message (for Phase 7 validation) */}
+      {/* Error message (for Phase 7 validation). Task 9.2 — the id matches
+          the input's aria-describedby so screen readers announce the error
+          text along with the field's name and value. */}
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p id={`error-${fieldKey}`} className="text-sm text-red-500">{error}</p>
       )}
     </div>
   );

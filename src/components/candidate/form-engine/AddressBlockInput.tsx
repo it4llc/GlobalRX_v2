@@ -94,6 +94,21 @@ export interface AddressBlockInputProps {
    * downstream fields loader falls back to country-level requirements only.
    */
   onAddressComplete?: (mostSpecificSubregionId: string | null) => void;
+  /**
+   * Task 9.2 — when rendered inside a numbered entry (Address History
+   * entry 1, 2, 3…), the entry number is used to build descriptive
+   * aria-labels on the start/end date inputs ("Start date for address 1").
+   * Omitted in non-numbered contexts (Education / Employment address
+   * blocks render under their own entry's aria-labels).
+   */
+  entryNumber?: number;
+  /**
+   * Task 9.2 — translation key for the entry-type word used in the date
+   * aria-labels (e.g., "address"). Defaults to "address" since this
+   * component is the address-history block; other callers can override
+   * if a future task introduces the same date pattern elsewhere.
+   */
+  entryTypeKey?: string;
 }
 
 /**
@@ -134,6 +149,8 @@ export function AddressBlockInput({
   fetchSubdivisions,
   token,
   onAddressComplete,
+  entryNumber,
+  entryTypeKey = 'address',
 }: AddressBlockInputProps) {
   const { t } = useTranslation();
 
@@ -484,7 +501,10 @@ export function AddressBlockInput({
       })}
 
       {/* Date pieces — Address History only (showDates=true). Stored nested
-          inside the address_block JSON value per spec Business Rule #5. */}
+          inside the address_block JSON value per spec Business Rule #5.
+          Task 9.2 — when entryNumber is supplied, the date inputs gain
+          contextual aria-labels ("Start date for address 1") so screen
+          readers can distinguish the from-date on entry 1 from entry 2. */}
       {showDates && (
         <>
           <div className="space-y-2">
@@ -501,6 +521,14 @@ export function AddressBlockInput({
               disabled={locked}
               className="min-h-[44px] text-base"
               data-testid={`address-${requirementId}-fromDate`}
+              aria-label={
+                entryNumber !== undefined
+                  ? t('candidate.a11y.startDateForEntry', {
+                      entryType: entryTypeKey,
+                      number: entryNumber,
+                    })
+                  : undefined
+              }
             />
           </div>
 
@@ -545,6 +573,14 @@ export function AddressBlockInput({
                 disabled={locked}
                 className="min-h-[44px] text-base"
                 data-testid={`address-${requirementId}-toDate`}
+                aria-label={
+                  entryNumber !== undefined
+                    ? t('candidate.a11y.endDateForEntry', {
+                        entryType: entryTypeKey,
+                        number: entryNumber,
+                      })
+                    : undefined
+                }
               />
             </div>
           )}

@@ -8,7 +8,7 @@ import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import { ScopeDisplay } from './ScopeDisplay';
 import { EntryCountrySelector } from './EntryCountrySelector';
 import { RepeatableEntryManager } from './RepeatableEntryManager';
-import CandidateDocumentUpload from '../CandidateDocumentUpload';
+import CandidateDocumentUpload from '@/components/candidate/CandidateDocumentUpload';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
@@ -637,7 +637,10 @@ export function EmploymentSection({
         onRemoveEntry={handleRemoveEntry}
         onEntryChange={handleEntryChange}
         renderEntry={renderEntry}
-        entryLabelKey="candidate.portal.employmentEntryLabel"
+        entryLabelKey="candidate.a11y.employmentEntryN"
+        // Task 9.2 — section-specific Add/Remove aria-labels.
+        addButtonAriaLabelKey="candidate.a11y.addAnotherEmployment"
+        removeButtonAriaLabelKey="candidate.a11y.removeEmploymentN"
       />
     </div>
   );

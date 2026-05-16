@@ -2,11 +2,12 @@
 
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AutoSaveIndicator, SaveStatus } from '@/components/candidate/form-engine/AutoSaveIndicator';
 import { AggregatedRequirements } from '@/components/candidate/form-engine/AggregatedRequirements';
 import { useEntryFieldsLoader } from '@/components/candidate/form-engine/useEntryFieldsLoader';
+import { useLiveAnnouncer } from '@/components/candidate/live-announcer';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
@@ -51,6 +52,7 @@ export function RecordSearchSection({
   onSaveSuccess,
 }: RecordSearchSectionProps) {
   const { t } = useTranslation();
+  const { announce } = useLiveAnnouncer();
 
   // Address-history entries snapshot — read-only. We need the country list so
   // useEntryFieldsLoader knows which DSX fields to fetch (country-keyed).
@@ -193,6 +195,28 @@ export function RecordSearchSection({
     () => buildAggregatedDocumentRequirementsForProgress(aggregatedItems),
     [aggregatedItems],
   );
+
+  // Task 9.2 — announce "Requirements have been updated" whenever the
+  // aggregated items list changes after the initial load. The candidate
+  // doesn't see the recalculation happen (it's silent), so this is the
+  // only feedback screen-reader users get that something changed.
+  const previousAggregatedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (loading) return;
+    // Stable string key derived from the requirement ids so we only fire
+    // on actual list-shape changes, not on every render.
+    const key = aggregatedItems
+      .map((item) => `${item.requirementId}:${item.isRequired ? 1 : 0}`)
+      .sort()
+      .join('|');
+    if (
+      previousAggregatedKeyRef.current !== null &&
+      previousAggregatedKeyRef.current !== key
+    ) {
+      announce(t('candidate.a11y.requirementsUpdated'), 'polite');
+    }
+    previousAggregatedKeyRef.current = key;
+  }, [loading, aggregatedItems, announce, t]);
 
   // Report progress whenever the inputs change. The helper handles the empty
   // case (no required fields and no required docs → complete) which matches
