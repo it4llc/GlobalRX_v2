@@ -1,4 +1,10 @@
 // /GlobalRX_v2/src/components/candidate/form-engine/__tests__/EmploymentSection.test.tsx
+//
+// Task 9.2 — the entry-legend translation key for Employment was realigned
+// from the legacy `candidate.portal.employmentEntryLabel` to the
+// spec-mandated `candidate.a11y.employmentEntryN`. The new key has no
+// `{number}` token, so with the identity-translator mock below the rendered
+// legend is the bare key string for every entry.
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -51,6 +57,12 @@ describe('EmploymentSection', () => {
   const mockToken = 'test-token-123';
   const mockServiceIds = ['service-1'];
 
+  // Task 9.2 — every entry's legend is rendered as the bare identity-translated
+  // key (the key has no `{number}` placeholder, so the component's
+  // `.replace('{number}', ...)` is a no-op). Aliased here so the assertions
+  // read naturally.
+  const EMPLOYMENT_ENTRY_LEGEND = 'candidate.a11y.employmentEntryN';
+
   const mockScopeResponse = {
     functionalityType: 'verification-emp',
     serviceId: 'service-1',
@@ -102,8 +114,9 @@ describe('EmploymentSection', () => {
     // Should show time-based scope description (different from education's count_specific)
     expect(screen.getByText('Please provide all employment for the past 5 years')).toBeInTheDocument();
 
-    // Should show one empty entry with Employment label
-    expect(screen.getByText('Employment 1')).toBeInTheDocument();
+    // Should show one empty entry with Employment label. Task 9.2 — the
+    // legend renders the identity-translated key.
+    expect(screen.getByText(EMPLOYMENT_ENTRY_LEGEND)).toBeInTheDocument();
   });
 
   it('should save employment entries with correct section type', async () => {

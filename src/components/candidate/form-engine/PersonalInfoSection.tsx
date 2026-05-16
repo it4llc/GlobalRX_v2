@@ -8,6 +8,7 @@ import { AutoSaveIndicator, SaveStatus } from './AutoSaveIndicator';
 import CrossSectionRequirementBanner from '@/components/candidate/CrossSectionRequirementBanner';
 import { SectionErrorBanner } from '@/components/candidate/SectionErrorBanner';
 import { FieldErrorMessage } from '@/components/candidate/FieldErrorMessage';
+import { useLiveAnnouncer } from '@/components/candidate/live-announcer';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { clientLogger as logger } from '@/lib/client-logger';
@@ -89,10 +90,31 @@ export function PersonalInfoSection({
   onSaveSuccess,
 }: PersonalInfoSectionProps) {
   const { t } = useTranslation();
+  const { announce } = useLiveAnnouncer();
   const [formData, setFormData] = useState<Record<string, FieldValue>>({});
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [pendingSaves, setPendingSaves] = useState<Set<string>>(new Set());
+
+  // Task 9.2 — announce "New required fields have been added" when the
+  // section's required-field count increases (typically because the
+  // candidate went back and changed a country selection that introduced
+  // new subject-targeted requirements). We track the previous required
+  // count via a ref so the announcement only fires on a real increase,
+  // not on the first mount.
+  const previousRequiredCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (loading) return;
+    const requiredCount = fields.filter((f) => f.isRequired).length
+      + (crossSectionRequirements ?? []).filter((c) => c.isRequired).length;
+    if (
+      previousRequiredCountRef.current !== null &&
+      requiredCount > previousRequiredCountRef.current
+    ) {
+      announce(t('candidate.a11y.newFieldsAdded'), 'polite');
+    }
+    previousRequiredCountRef.current = requiredCount;
+  }, [loading, fields, crossSectionRequirements, announce, t]);
 
   // Debounce the pending saves to batch them
   const debouncedPendingSaves = useDebounce(pendingSaves, 300);

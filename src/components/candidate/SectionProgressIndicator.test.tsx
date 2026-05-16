@@ -7,6 +7,12 @@
 //   - BR 22: lowercase status values.
 //   - DoD 10: SectionProgressIndicator renders the three lowercase statuses.
 //   - Accessibility: visually-hidden label combines section name + status.
+//
+// Task 9.2 — translation keys for the sr-only status text were realigned
+// from the legacy `candidate.sectionProgress.*` namespace to the
+// spec-mandated `candidate.a11y.stepStatus*` namespace. With the identity
+// translator below, the rendered sr-only text becomes
+// "{label} — {newKey}", so the assertions assert those new keys.
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
@@ -15,7 +21,7 @@ import { render, screen } from '@testing-library/react';
 import SectionProgressIndicator from './SectionProgressIndicator';
 
 // Translation context: identity translator. The component only uses three
-// translation keys (`candidate.sectionProgress.{notStarted,incomplete,complete}`)
+// translation keys (`candidate.a11y.stepStatus{Complete,Incomplete,NotStarted}`)
 // for the screen-reader label; returning the key directly gives us a
 // deterministic substring to assert on.
 vi.mock('@/contexts/TranslationContext', () => ({
@@ -66,7 +72,7 @@ describe('SectionProgressIndicator', () => {
       // sr-only text: "{label} — {translatedStatus}". With identity translator
       // the translated value is the key itself.
       expect(
-        screen.getByText('Personal Information — candidate.sectionProgress.notStarted'),
+        screen.getByText('Personal Information — candidate.a11y.stepStatusNotStarted'),
       ).toBeInTheDocument();
     });
 
@@ -74,7 +80,7 @@ describe('SectionProgressIndicator', () => {
       render(<SectionProgressIndicator status="incomplete" label="IDV" />);
 
       expect(
-        screen.getByText('IDV — candidate.sectionProgress.incomplete'),
+        screen.getByText('IDV — candidate.a11y.stepStatusIncomplete'),
       ).toBeInTheDocument();
     });
 
@@ -82,7 +88,7 @@ describe('SectionProgressIndicator', () => {
       render(<SectionProgressIndicator status="complete" label="Employment History" />);
 
       expect(
-        screen.getByText('Employment History — candidate.sectionProgress.complete'),
+        screen.getByText('Employment History — candidate.a11y.stepStatusComplete'),
       ).toBeInTheDocument();
     });
   });
