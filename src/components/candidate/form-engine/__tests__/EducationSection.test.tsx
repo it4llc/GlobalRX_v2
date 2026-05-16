@@ -1,4 +1,12 @@
 // /GlobalRX_v2/src/components/candidate/form-engine/__tests__/EducationSection.test.tsx
+//
+// Task 9.2 — the entry-legend translation key for Education was realigned
+// from the legacy `candidate.portal.educationEntryLabel` to the
+// spec-mandated `candidate.a11y.educationEntryN`. The new key has no
+// `{number}` token, so with the identity-translator mock below the rendered
+// legend is the bare key string for every entry. Multi-entry assertions
+// use `getAllByText` and length checks because every entry's legend now
+// reads the same identity-translated key.
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -62,6 +70,12 @@ describe('EducationSection', () => {
   const mockToken = 'test-token-123';
   const mockServiceIds = ['service-1', 'service-2'];
 
+  // Task 9.2 — every entry's legend is rendered as the bare identity-translated
+  // key (the key has no `{number}` placeholder, so the component's
+  // `.replace('{number}', ...)` is a no-op). Aliased here so the assertions
+  // read naturally.
+  const EDUCATION_ENTRY_LEGEND = 'candidate.a11y.educationEntryN';
+
   const mockScopeResponse = {
     functionalityType: 'verification-edu',
     serviceId: 'service-1',
@@ -116,8 +130,9 @@ describe('EducationSection', () => {
     // Should show scope description
     expect(screen.getByText('Please provide your most recent 2 education entries')).toBeInTheDocument();
 
-    // Should show one empty entry with country selector
-    expect(screen.getByText('Education 1')).toBeInTheDocument();
+    // Should show one empty entry with country selector. Task 9.2 — the legend
+    // renders the identity-translated key.
+    expect(screen.getByText(EDUCATION_ENTRY_LEGEND)).toBeInTheDocument();
 
     // Check for country selector label (not the placeholder text)
     const labels = screen.getAllByText('Select country');
@@ -147,16 +162,17 @@ describe('EducationSection', () => {
 
     // Wait for data to fully load
     await waitFor(() => {
-      expect(screen.getByText('Education 1')).toBeInTheDocument();
+      expect(screen.getByText(EDUCATION_ENTRY_LEGEND)).toBeInTheDocument();
     });
 
     // Click Add Entry
     const addButton = screen.getByRole('button', { name: /Add Entry/i });
     await userEvent.click(addButton);
 
-    // Should now have two entries
-    expect(screen.getByText('Education 1')).toBeInTheDocument();
-    expect(screen.getByText('Education 2')).toBeInTheDocument();
+    // Should now have two entries. Task 9.2 — every entry's legend renders the
+    // same identity-translated key, so we count occurrences instead of
+    // distinguishing by number suffix.
+    expect(screen.getAllByText(EDUCATION_ENTRY_LEGEND)).toHaveLength(2);
 
     // Should trigger save
     await waitFor(() => {
@@ -212,7 +228,7 @@ describe('EducationSection', () => {
 
     // Wait for saved entry to load
     await waitFor(() => {
-      expect(screen.getByText('Education 1')).toBeInTheDocument();
+      expect(screen.getByText(EDUCATION_ENTRY_LEGEND)).toBeInTheDocument();
     });
 
     // Should have loaded with US selected
@@ -252,7 +268,9 @@ describe('EducationSection', () => {
     await userEvent.click(addButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Education 2')).toBeInTheDocument();
+      // Task 9.2 — both legends render the same identity-translated key, so
+      // assert that there are now two of them.
+      expect(screen.getAllByText(EDUCATION_ENTRY_LEGEND)).toHaveLength(2);
     });
 
     // Remove the first entry
@@ -268,9 +286,11 @@ describe('EducationSection', () => {
       expect(saveCalls.length).toBeGreaterThan(0);
     });
 
-    // And now only one entry should remain
+    // And now only one entry should remain. Task 9.2 — assert by counting
+    // identical legend strings instead of matching the legacy "Education N"
+    // suffix regex.
     await waitFor(() => {
-      const allEducationLabels = screen.getAllByText(/Education \d/);
+      const allEducationLabels = screen.getAllByText(EDUCATION_ENTRY_LEGEND);
       expect(allEducationLabels.length).toBe(1);
     });
   });

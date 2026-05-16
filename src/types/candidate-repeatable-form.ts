@@ -58,4 +58,13 @@ export interface EntryManagerProps {
   // scopes (current-address → 1, last-x-addresses → x). Undefined means
   // unlimited, which preserves Stage 2 behavior for Education and Employment.
   maxEntries?: number;
+  // Task 9.2 (Accessibility) — translation keys used to compute the
+  // descriptive aria-labels on the Add / Remove buttons. The keys vary by
+  // section ("Add another address entry", "Add another education entry",
+  // "Add another employment entry") so the caller passes the section-
+  // specific keys here. The Remove key receives a {{number}} placeholder
+  // and the addLabelKey is used as-is. Both are optional with sensible
+  // fallbacks for callers that don't yet opt in.
+  addButtonAriaLabelKey?: string;
+  removeButtonAriaLabelKey?: string;
 }

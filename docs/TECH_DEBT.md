@@ -2366,6 +2366,112 @@ File splitting was out of scope for Task 9.1.
 Before the next feature task that would add more than ~20 lines to `portal-layout.tsx`. The split plan in TD-090 (extract navigation/visibility logic into `useDynamicStepNavigation`) is the recommended starting point.
 
 ---
+
+### TD-098 — Employment gap entry legend needs validation-result plumbing
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Application — `EmploymentSection`           |
+| Severity      | Warning (Accessibility)                               |
+| Identified    | May 16, 2026 - Task 9.2 Accessibility Audit           |
+| Identified by | Documentation Writer                                  |
+
+**Description:**
+The translation key `candidate.a11y.employmentGapPeriod` is present in all five locale files and the fieldset/legend infrastructure for employment entries is in place, but gap entries still render with the generic employment entry legend. The dedicated "Employment gap — June 2024 to September 2024" legend cannot be assembled because the gap-detection result (start date, end date, gap index) is not threaded into the props consumed by `EmploymentSection` / `RepeatableEntryManager`.
+
+**Why deferred:**
+Adding a separate rendering path for gap entries and extending the entry-manager prop shape was a larger refactor than the Task 9.2 scope allowed. The other employment accessibility improvements (fieldset/legend on real entries, aria-labels, focus management) were delivered without it.
+
+**When to fix:**
+Next accessibility pass on `EmploymentSection`, or whenever `RepeatableEntryManager` is next refactored. Approach: extend the entry payload to carry an optional gap descriptor (start/end dates), branch the legend rendering, and pass the formatted date range to the translation key's interpolation parameters.
+
+---
+
+### TD-099 — Education scope validation announcement needs plumbing
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Application — `EducationSection`            |
+| Severity      | Warning (Accessibility)                               |
+| Identified    | May 16, 2026 - Task 9.2 Accessibility Audit           |
+| Identified by | Documentation Writer                                  |
+
+**Description:**
+The translation key `candidate.a11y.educationScopeNeeded` exists in all five locale files but is never announced. `EducationSection` does not receive the scope-validation result (which education entries fail the configured scope requirement) in a form that can be passed to `useLiveAnnouncer`. Screen reader users are therefore not told when an additional education entry is required to satisfy the scope.
+
+**Why deferred:**
+Threading the scope-validation result into `EducationSection` requires changes to the props contract and to the validation pipeline upstream. Out of scope for the Task 9.2 accessibility pass, which focused on ARIA structure and focus management.
+
+**When to fix:**
+Next accessibility pass on `EducationSection`, or alongside the next change to education scope validation. Approach: surface the scope-validation result (e.g. `{ satisfied: boolean, gapDescription?: string }`) through `EducationSection`'s props and call `useLiveAnnouncer` with the `candidate.a11y.educationScopeNeeded` key when the requirement is unsatisfied.
+
+---
+
+### TD-100 — E2e seed data for `test-a11y-*` candidate tokens not created
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | E2e test infrastructure                               |
+| Severity      | Warning                                               |
+| Identified    | May 16, 2026 - Task 9.2 Accessibility Audit           |
+| Identified by | Documentation Writer                                  |
+
+**Description:**
+`e2e/tests/candidate-invite-9.2-accessibility.spec.ts` was added in Task 9.2 and references candidate-invite tokens with `test-a11y-*` prefixes. These tokens do not exist in the e2e seed dataset, so the spec cannot run end-to-end against a real database. The test file is committed but cannot be added to CI until the seed fixtures are created.
+
+**Why deferred:**
+Seed-data work was out of scope for Task 9.2's component-level accessibility implementation.
+
+**When to fix:**
+Before the accessibility e2e suite is enabled in CI. Add `test-a11y-*` candidate-invite records to the e2e seed script covering each scenario the spec exercises (multi-step flow, mobile drawer, validation gating, review/submit).
+
+---
+
+### TD-101 — `candidate.a11y.*` translation keys not localized in es-ES, es, ja-JP
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Application — Internationalization          |
+| Severity      | Warning                                               |
+| Identified    | May 16, 2026 - Task 9.2 Accessibility Audit           |
+| Identified by | Documentation Writer                                  |
+
+**Description:**
+Task 9.2 added 35 new `candidate.a11y.*` keys to all five locale files. The keys in `src/translations/es-ES.json`, `src/translations/es.json`, and `src/translations/ja-JP.json` were populated with the English-language source strings as placeholders. Screen reader users running the portal in Spanish (either variant) or Japanese will hear English text for skip links, ARIA labels, live-region announcements, status text, and validation messages.
+
+**Why deferred:**
+Translation work is handled outside the engineering pipeline. The keys were committed in English to keep the structure consistent across all locale files and to give translators a complete set of source strings to work from.
+
+**When to fix:**
+Before the candidate portal is offered to Spanish- or Japanese-speaking candidates in production. Translate the 35 `candidate.a11y.*` keys in `es-ES.json`, `es.json`, and `ja-JP.json` via the standard localization process.
+
+---
+
+### TD-102 — Multiple candidate-form component files exceed 600-line hard stop after Task 9.2
+
+| Field         | Detail                                                |
+|---------------|-------------------------------------------------------|
+| Area          | Candidate Application — Component Structure           |
+| Severity      | Warning                                               |
+| Identified    | May 16, 2026 - Task 9.2 Accessibility Audit           |
+| Identified by | Documentation Writer                                  |
+
+**Description:**
+Task 9.2 added fieldset/legend grouping, ARIA attributes, focus management, and live-region wiring to several form-engine components. The accessibility additions pushed multiple files past the 600-line hard stop:
+
+- `src/components/candidate/portal-layout.tsx` — ~1,146 lines (already tracked in TD-090 and TD-097)
+- `src/components/candidate/form-engine/EmploymentSection.tsx` — ~648 lines
+- `src/components/candidate/form-engine/EducationSection.tsx` — ~619 lines
+- `src/components/candidate/form-engine/AddressBlockInput.tsx` — ~596 lines (at the threshold)
+- `src/components/candidate/form-engine/AddressHistorySection.tsx` — ~532 lines (under threshold but growing)
+
+**Why deferred:**
+Splitting these files was out of scope for Task 9.2's accessibility implementation. The TD-090 / TD-097 plan for `portal-layout.tsx` already exists; the form-engine section files do not yet have a split plan.
+
+**When to fix:**
+Before the next feature task that would add meaningful logic to any of the listed files. Recommended approach for the form-engine sections: extract the repeatable-entry rendering and the per-entry field rendering into separate components, and lift gap-detection / scope-validation logic into hooks. `portal-layout.tsx` should follow the TD-090 plan (extract `useDynamicStepNavigation`).
+
+---
 ## Resolved Items
 
 ---
